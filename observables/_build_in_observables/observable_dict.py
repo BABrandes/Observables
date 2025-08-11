@@ -1,5 +1,4 @@
 from typing import Generic, TypeVar, Optional, overload
-from .._utils._listening_base import ListeningBase
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_dict import CarriesBindableDict
 from .._utils.observable import Observable
@@ -7,7 +6,7 @@ from .._utils.observable import Observable
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableDict(ListeningBase, Observable, CarriesBindableDict[K, V], Generic[K, V]):
+class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     

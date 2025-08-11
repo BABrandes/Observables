@@ -1,8 +1,9 @@
 from typing import Any, Protocol, runtime_checkable
 from abc import abstractmethod
+from .._utils._listening_base import ListeningBase
 
 @runtime_checkable
-class Observable(Protocol):
+class Observable(Protocol, ListeningBase):
     """
     Protocol defining the interface for all observable objects in the library.
     

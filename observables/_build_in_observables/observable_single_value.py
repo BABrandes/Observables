@@ -1,12 +1,11 @@
 from typing import Callable, Generic, Optional, TypeVar, overload
-from .._utils._listening_base import ListeningBase
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_single_value import CarriesBindableSingleValue
 from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableSingleValue(ListeningBase, Observable, CarriesBindableSingleValue[T], Generic[T]):
+class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     

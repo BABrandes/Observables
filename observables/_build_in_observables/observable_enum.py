@@ -1,6 +1,5 @@
 from typing import Generic, TypeVar, Optional, overload
 from enum import Enum
-from .._utils._listening_base import ListeningBase
 from .._utils._carries_enum import CarriesEnum
 from .._utils._carries_bindable_set import CarriesBindableSet
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
@@ -9,7 +8,7 @@ from .._utils.observable import Observable
 E = TypeVar("E", bound=Enum)
 
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnum(ListeningBase, Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[E]):
+class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     

@@ -1,13 +1,12 @@
 from typing import Generic, TypeVar, overload
 from typing import Optional
-from .._utils._listening_base import ListeningBase
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_list import CarriesBindableList
 from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableList(ListeningBase, Observable, CarriesBindableList[T], Generic[T]):
+class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     

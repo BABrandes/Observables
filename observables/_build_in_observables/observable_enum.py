@@ -4,46 +4,85 @@ from .._utils._listening_base import ListeningBase
 from .._utils._carries_enum import CarriesEnum
 from .._utils._carries_bindable_set import CarriesBindableSet
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
+from .._utils.observable import Observable
 
 E = TypeVar("E", bound=Enum)
 
-class ObservableEnum(ListeningBase, CarriesEnum[E], CarriesBindableSet[E], Generic[E]):
+# ObservableEnum implements the Observable protocol for type safety and polymorphism
+class ObservableEnum(ListeningBase, Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     
-    This class provides a reactive wrapper around Python enums, allowing other objects to
-    observe changes and establish bidirectional bindings. It implements the full enum interface
-    while maintaining reactivity and binding capabilities.
+    This class implements the Observable protocol, which provides a standardized interface
+    for all observable objects in the library. The Observable protocol ensures consistency
+    across different observable types and enables polymorphic usage.
     
-    Features:
-    - Bidirectional bindings for both enum values and enum options
-    - Automatic validation ensuring enum values are always in options set
-    - Listener notification system for change events
-    - Full enum interface compatibility
-    - Type-safe generic implementation with enum bounds
+    **Observable Protocol Benefits:**
+    - **Type Safety**: Enables static type checking and IDE support for observable operations
+    - **Polymorphism**: Can be used interchangeably with other observable types in generic contexts
+    - **Interface Consistency**: Guarantees that all observables implement the same core methods
+    - **Future Extensibility**: Allows for protocol-based features and utilities
     
-    Example:
-        >>> from enum import Enum
-        >>> class Color(Enum):
-        ...     RED = "red"
-        ...     GREEN = "green"
-        ...     BLUE = "blue"
+    **Core Features:**
+    - **Enum Value Management**: Stores and manages a single enum value with validation
+    - **Options Management**: Maintains a set of valid enum options that can be dynamically updated
+    - **Bidirectional Bindings**: Supports two-way synchronization with other observables
+    - **Listener System**: Notifies registered callbacks when values change
+    - **Validation**: Ensures enum values are always within the valid options set
+    
+    **Binding Capabilities:**
+    - **Value Binding**: Bind enum values between multiple ObservableEnum instances
+    - **Options Binding**: Bind enum options to ObservableSet instances
+    - **Sync Modes**: Control binding direction with explicit SyncMode specification
+    - **Chain Binding**: Create complex binding chains across multiple observables
+    
+    **Example Usage:**
+        from enum import Enum
+        from observables import ObservableEnum, SyncMode
         
-        >>> # Create an observable enum
-        >>> color_selector = ObservableEnum(Color.RED)
-        >>> color_selector.add_listeners(lambda: print("Color changed!"))
-        >>> color_selector.enum_value = Color.BLUE  # Triggers listener
-        Color changed!
+        class Color(Enum):
+            RED = "red"
+            GREEN = "green"
+            BLUE = "blue"
         
-        >>> # Create bidirectional binding
-        >>> color_copy = ObservableEnum(color_selector)
-        >>> color_copy.enum_value = Color.GREEN  # Updates both observables
-        >>> print(color_selector.enum_value, color_copy.enum_value)
-        Color.GREEN Color.GREEN
+        # Create observable enums
+        color1 = ObservableEnum(Color.RED)
+        color2 = ObservableEnum(Color.BLUE)
+        
+        # Bind them together
+        color1.bind_enum_value_to_observable(color2, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        
+        # Changes propagate automatically
+        color1.enum_value = Color.GREEN
+        assert color2.enum_value == Color.GREEN
+        
+        # Add listeners for reactive programming
+        def on_color_change():
+            print(f"Color changed to: {color1.enum_value}")
+        
+        color1.add_listener(on_color_change)
+        
+        # Dynamic options management
+        color1.change_enum_options({Color.GREEN, Color.BLUE})
+        # This will fail if current value (GREEN) is not in new options
+        # color1.change_enum_options({Color.RED, Color.BLUE})  # ValueError!
     
-    Args:
-        value: Initial enum value or another ObservableEnum to bind to
-        enum_options: Optional set of valid enum options (defaults to all enum members)
+    **Protocol Compliance:**
+    This class fully implements the Observable protocol, ensuring it can be used
+    anywhere an Observable is expected. This includes:
+    - Generic collections of observables
+    - Protocol-based function parameters
+    - Type-safe observable factories and utilities
+    
+    **Thread Safety:**
+    The class is not thread-safe by default. If used in multi-threaded environments,
+    external synchronization should be applied.
+    
+    **Performance Characteristics:**
+    - O(1) for value and options access
+    - O(n) for binding operations where n is the number of bound observables
+    - O(m) for listener notifications where m is the number of registered listeners
+    - Memory usage scales linearly with the number of bindings and listeners
     """
 
     @overload

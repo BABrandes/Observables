@@ -2,10 +2,11 @@ from typing import Generic, Optional , TypeVar, overload
 from .._utils._listening_base import ListeningBase
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_set import CarriesBindableSet
+from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableSet(ListeningBase, CarriesBindableSet[T], Generic[T]):
+class ObservableSet(ListeningBase, Observable, CarriesBindableSet[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     

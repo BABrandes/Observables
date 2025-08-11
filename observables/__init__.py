@@ -57,6 +57,7 @@ from ._build_in_observables.observable_set import ObservableSet
 from ._build_in_observables.observable_single_value import ObservableSingleValue
 from ._build_in_observables.observable_enum import ObservableEnum
 from ._other_observables.observable_selection_option import ObservableSelectionOption
+from ._utils.observable import Observable
 from ._utils._internal_binding_handler import SyncMode
 
 __all__ = [
@@ -66,6 +67,7 @@ __all__ = [
     'ObservableSingleValue',
     'ObservableEnum',
     'ObservableSelectionOption',
+    'Observable',
     'SyncMode',
 ]
 

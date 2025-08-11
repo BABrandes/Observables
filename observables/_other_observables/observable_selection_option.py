@@ -4,10 +4,11 @@ from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode,
 from .._utils._listening_base import ListeningBase
 from .._utils._carries_bindable_single_value import CarriesBindableSingleValue
 from .._utils._carries_bindable_set import CarriesBindableSet
+from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableSelectionOption(ListeningBase, CarriesBindableSingleValue[T], CarriesBindableSet[T], Generic[T]):
+class ObservableSelectionOption(ListeningBase, Observable, CarriesBindableSingleValue[T], CarriesBindableSet[T], Generic[T]):
     """
     An observable selection option that manages both available options and a selected value.
     

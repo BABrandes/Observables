@@ -1,5 +1,7 @@
-from typing import Any, Protocol, abstractmethod
+from typing import Any, Protocol, runtime_checkable
+from abc import abstractmethod
 
+@runtime_checkable
 class Observable(Protocol):
     """
     Protocol defining the interface for all observable objects in the library.
@@ -67,6 +69,8 @@ class Observable(Protocol):
     def get_observed_values(self) -> tuple[Any, ...]:
         """
         Get the values of all observables that are bound to this observable.
+
+        The main purpose of this method is for serialization of the observable.
         """
         ...
 
@@ -74,5 +78,7 @@ class Observable(Protocol):
     def set_observed_values(self, values: tuple[Any, ...]) -> None:
         """
         Set the values of all observables that are bound to this observable.
+
+        The main purpose of this method is for deserialization of the observable.
         """
         ...

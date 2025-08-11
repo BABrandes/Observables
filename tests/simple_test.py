@@ -57,7 +57,7 @@ def test_observable_set():
         print("✓ Initial options set correctly")
         
         # Test options change
-        obs.change_options({4, 5, 6})
+        obs.set_set({4, 5, 6})
         assert obs.options == {4, 5, 6}, f"Expected {{4, 5, 6}}, got {obs.options}"
         print("✓ Options change works")
         
@@ -68,7 +68,7 @@ def test_observable_set():
             notification_count += 1
         
         obs.add_listeners(callback)
-        obs.change_options({7, 8, 9})
+        obs.set_set({7, 8, 9})
         assert notification_count == 1, f"Expected 1 notification, got {notification_count}"
         print("✓ Listener notification works")
         

@@ -1,44 +1,44 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar
+from enum import Enum
 from ._internal_binding_handler import InternalBindingHandler
 from ._carries_bindable import CarriesBindable
 
-T = TypeVar("T")
+E = TypeVar("E", bound=Enum)
 
-class CarriesBindableSingleValue(CarriesBindable, Generic[T]):
+class CarriesEnum(CarriesBindable, Generic[E]):
     """
-    Abstract base class for observables that carry a single value and can participate in bindings.
+    Abstract base class for observables that carry an enum value and can participate in bindings.
     
     This abstract base class defines the interface that must be implemented by any
-    observable class that wants to support bidirectional bindings for single values.
+    observable class that wants to support bidirectional bindings for enum values.
     It extends the base CarriesBindable interface with specific methods for
-    single value management.
+    enum management.
     
     Classes implementing this interface must provide:
-    - Methods to get and set single values
-    - Validation logic for value changes
+    - Methods to get and set enum values
+    - Validation logic for enum changes
     - Access to the internal binding handler
     
     This interface is implemented by:
-    - ObservableSingleValue
-    - ObservableSelectionOption (for selected_option binding)
+    - ObservableEnum
     
     Note:
         This is an internal interface not intended for direct use by end users.
-        Use the concrete ObservableSingleValue class instead.
+        Use the concrete ObservableEnum class instead.
     """
 
     @abstractmethod
-    def _set_single_value(self, single_value_to_set: T) -> None:
+    def _set_enum(self, enum_to_set: E) -> None:
         """
-        Set the single value from the binding system.
+        Set the enum value from the binding system.
         
         This method is called by the binding system when another observable
-        wants to update this observable's value. Implementations should
-        handle the value change and trigger appropriate notifications.
+        wants to update this observable's enum value. Implementations should
+        handle the enum change and trigger appropriate notifications.
         
         Args:
-            single_value_to_set: The new value to set
+            enum_to_set: The new enum value to set
             
         Note:
             This is an internal method called by the binding system.
@@ -47,16 +47,16 @@ class CarriesBindableSingleValue(CarriesBindable, Generic[T]):
         ...
     
     @abstractmethod
-    def _get_single_value(self) -> T:
+    def _get_enum(self) -> E:
         """
-        Get the current single value for the binding system.
+        Get the current enum value for the binding system.
         
         This method is called by the binding system to retrieve the
-        current value of this observable. Implementations should return
+        current enum value of this observable. Implementations should return
         the current value without any side effects.
         
         Returns:
-            The current value stored in this observable
+            The current enum value stored in this observable
             
         Note:
             This is an internal method called by the binding system.
@@ -65,19 +65,19 @@ class CarriesBindableSingleValue(CarriesBindable, Generic[T]):
         ...
 
     @abstractmethod
-    def _check_single_value(self, single_value_to_check: T) -> bool:
+    def _check_enum(self, enum_to_check: E) -> bool:
         """
-        Check if a value is valid for this observable.
+        Check if an enum value is valid for this observable.
         
-        This method is called by the binding system to validate values
+        This method is called by the binding system to validate enum values
         before they are set. Implementations should return True if the
         value is acceptable, False otherwise.
         
         Args:
-            single_value_to_check: The value to validate
+            enum_to_check: The enum value to validate
             
         Returns:
-            True if the value is valid, False otherwise
+            True if the enum value is valid, False otherwise
             
         Note:
             This is an internal method called by the binding system.
@@ -86,16 +86,16 @@ class CarriesBindableSingleValue(CarriesBindable, Generic[T]):
         ...
 
     @abstractmethod
-    def _get_single_value_binding_handler(self) -> InternalBindingHandler[T]:
+    def _get_enum_binding_handler(self) -> InternalBindingHandler[E]:
         """
-        Get the binding handler for single value bindings.
+        Get the binding handler for enum bindings.
         
         This method provides access to the internal binding handler that
         manages bidirectional bindings for this observable. The binding
         system uses this handler to establish and manage connections.
         
         Returns:
-            The internal binding handler for single value bindings
+            The internal binding handler for enum bindings
             
         Note:
             This is an internal method called by the binding system.

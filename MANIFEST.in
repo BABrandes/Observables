@@ -1,0 +1,23 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include requirements.txt
+include pyproject.toml
+
+recursive-include observables *.py
+recursive-include tests *.py
+recursive-include docs *.rst *.md *.txt
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude * .git*
+recursive-exclude * .idea
+recursive-exclude * .vscode
+recursive-exclude * build
+recursive-exclude * dist
+recursive-exclude * *.egg-info
+recursive-exclude * .pytest_cache
+recursive-exclude * .coverage
+recursive-exclude * htmlcov
+recursive-exclude * .mypy_cache

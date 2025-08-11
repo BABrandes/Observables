@@ -2027,11 +2027,12 @@ class TestObservableEnum(unittest.TestCase):
         obs.change_enum_options(new_options)
         self.assertEqual(obs.enum_options, new_options)
         
-        # Change to options that don't contain current value should automatically adjust
-        obs.change_enum_options({self.Color.BLUE, self.Color.GREEN})
-        # The enum value should have been automatically adjusted to a valid option
-        self.assertIn(obs.enum_value, {self.Color.BLUE, self.Color.GREEN})
-        self.assertEqual(obs.enum_options, {self.Color.BLUE, self.Color.GREEN})
+        # Change to options that don't contain current value should fail
+        with self.assertRaises(ValueError):
+            obs.change_enum_options({self.Color.BLUE, self.Color.GREEN})
+        # The enum value and options should remain unchanged
+        self.assertEqual(obs.enum_value, self.Color.RED)
+        self.assertEqual(obs.enum_options, {self.Color.RED, self.Color.BLUE, self.Color.GREEN})
 
     def test_set_enum_value_and_options(self):
         """Test setting both enum value and options simultaneously."""
@@ -2087,7 +2088,8 @@ class TestObservableEnum(unittest.TestCase):
 
     def test_binding_enum_options(self):
         """Test binding enum options between observables."""
-        obs1 = ObservableEnum(self.Color.RED, {self.Color.RED, self.Color.BLUE})
+        # Start with an enum value that will be valid in the target options
+        obs1 = ObservableEnum(self.Color.GREEN, {self.Color.RED, self.Color.BLUE, self.Color.GREEN})
         options_source = ObservableSet({self.Color.GREEN, self.Color.YELLOW})
         
         # Bind options together with explicit sync mode
@@ -2095,8 +2097,8 @@ class TestObservableEnum(unittest.TestCase):
         
         # Check that options binding works - obs1 should get options from source
         self.assertEqual(obs1.enum_options, {self.Color.GREEN, self.Color.YELLOW})
-        # The enum value should have been updated to a valid option from the new options
-        self.assertIn(obs1.enum_value, {self.Color.GREEN, self.Color.YELLOW})
+        # The enum value should remain valid (GREEN is in both old and new options)
+        self.assertEqual(obs1.enum_value, self.Color.GREEN)
         
         # Check that options changes propagate
         options_source.add(self.Color.BLUE)

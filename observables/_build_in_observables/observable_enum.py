@@ -242,15 +242,7 @@ class ObservableEnum(ListeningBase, CarriesEnum[E], CarriesBindableSet[E], Gener
 
         # Validate that the current enum value is still valid
         if self._enum_value not in new_options:
-            # Try to find a valid replacement value
-            if new_options:
-                # Use the first available option as a fallback
-                replacement_value = next(iter(new_options))
-                self._enum_value = replacement_value
-                # Notify about the enum value change as well
-                self._enum_value_binding_handler.notify_bindings(replacement_value)
-            else:
-                raise ValueError(f"Current enum value {self._enum_value} not in new options {new_options} and no replacement available")
+            raise ValueError(f"Current enum value {self._enum_value} not in new options {new_options}")
 
         self._enum_options = new_options.copy()
         self._enum_options_binding_handler.notify_bindings(self._enum_options)

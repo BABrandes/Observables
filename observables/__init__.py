@@ -8,12 +8,12 @@ Observers are objects that observe observables.
 Subjects are objects that are observed by observers.
 """
 
-from .build_in_observables.observable_dict import ObservableDict
-from .build_in_observables.observable_list import ObservableList
-from .build_in_observables.observable_set import ObservableSet
-from .build_in_observables.observable_single_value import ObservableSingleValue
-from .other_observables.observable_selection_option import ObservableSelectionOption
-from .utils._internal_binding_handler import SyncMode
+from ._build_in_observables.observable_dict import ObservableDict
+from ._build_in_observables.observable_list import ObservableList
+from ._build_in_observables.observable_set import ObservableSet
+from ._build_in_observables.observable_single_value import ObservableSingleValue
+from ._other_observables.observable_selection_option import ObservableSelectionOption
+from ._utils._internal_binding_handler import SyncMode
 
 __all__ = [
     'ObservableDict',

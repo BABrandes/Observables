@@ -14,7 +14,7 @@ def test_observable_single_value():
     print("Testing ObservableSingleValue...")
     
     try:
-        from observable_single_value import ObservableSingleValue
+        from ..observables import ObservableSingleValue
         
         # Test basic functionality
         obs = ObservableSingleValue(42)
@@ -49,7 +49,7 @@ def test_observable_set():
     print("\nTesting ObservableSet...")
     
     try:
-        from observable_set import ObservableSet
+        from ..observables import ObservableSet
         
         # Test basic functionality
         obs = ObservableSet({1, 2, 3})
@@ -84,7 +84,7 @@ def test_observable_selection_option():
     print("\nTesting ObservableSelectionOption...")
     
     try:
-        from observable_selection_option import ObservableSelectionOption
+        from ..observables import ObservableSelectionOption
         
         # Test basic functionality
         obs = ObservableSelectionOption({1, 2, 3, 4}, 2)
@@ -114,7 +114,7 @@ def test_binding():
     print("\nTesting binding functionality...")
     
     try:
-        from observable_single_value import ObservableSingleValue
+        from ..observables import ObservableSingleValue
         
         # Test bidirectional binding
         obs1 = ObservableSingleValue(10)

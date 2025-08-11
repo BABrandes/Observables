@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import Any, Protocol, abstractmethod
 
 class Observable(Protocol):
     """
@@ -62,4 +62,17 @@ class Observable(Protocol):
     - ObservableSingleValue: Observable wrapper for single values
     - ObservableSelectionOption: Observable wrapper for selection options
     """
-    pass
+    
+    @abstractmethod
+    def get_observed_values(self) -> tuple[Any, ...]:
+        """
+        Get the values of all observables that are bound to this observable.
+        """
+        ...
+
+    @abstractmethod
+    def set_observed_values(self, values: tuple[Any, ...]) -> None:
+        """
+        Set the values of all observables that are bound to this observable.
+        """
+        ...

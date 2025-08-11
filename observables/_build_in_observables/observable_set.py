@@ -350,3 +350,9 @@ class ObservableSet(ListeningBase, Observable, CarriesBindableSet[T], Generic[T]
     def __hash__(self) -> int:
         """Hash based on the current options"""
         return hash(frozenset(self._value))
+    
+    def get_observed_values(self) -> tuple[set[T]]:
+        return tuple(self._value)
+    
+    def set_observed_values(self, values: tuple[set[T]]) -> None:
+        self.set_set(values[0])

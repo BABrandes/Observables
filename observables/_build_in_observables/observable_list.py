@@ -356,3 +356,9 @@ class ObservableList(ListeningBase, Observable, CarriesBindableList[T], Generic[
     def __hash__(self) -> int:
         """Hash based on the current value"""
         return hash(tuple(self._value))
+    
+    def get_observed_values(self) -> tuple[list[T]]:
+        return tuple(self._value)
+    
+    def set_observed_values(self, values: tuple[list[T]]) -> None:
+        self.set_list(list(values))

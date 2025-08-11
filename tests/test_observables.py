@@ -1027,9 +1027,9 @@ class TestObservableSelectionOption(unittest.TestCase):
     
     def test_set_options_and_selected_option(self):
         """Test setting both options and selected option at once"""
-        self.observable.set_options_and_selected_option({5, 6, 7, 8}, 6)
-        self.assertEqual(self.observable.options, {5, 6, 7, 8})
+        self.observable.set_selected_option_and_available_options(6, {5, 6, 7, 8})
         self.assertEqual(self.observable.selected_option, 6)
+        self.assertEqual(self.observable.options, {5, 6, 7, 8})
     
     def test_listener_notification(self):
         """Test that listeners are notified when state changes"""

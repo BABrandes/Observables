@@ -204,7 +204,7 @@ class ObservableSelectionOption(ListeningBase, Observable, CarriesBindableSingle
             return single_value_to_check in self._options
         return True
     
-    def set_options_and_selected_option(self, options: set[T], selected_option: T) -> None:
+    def set_selected_option_and_available_options(self, selected_option: T, options: set[T]) -> None:
 
         if selected_option not in options:
             raise ValueError(f"Selected option {selected_option} not in options {options}")
@@ -315,3 +315,9 @@ class ObservableSelectionOption(ListeningBase, Observable, CarriesBindableSingle
     def __bool__(self) -> bool:
         """Boolean conversion based on selected option"""
         return bool(self._selected_option)
+    
+    def get_observed_values(self) -> tuple[T, set[T]]:
+        return (self._selected_option, self._options)
+    
+    def set_observed_values(self, values: tuple[T, set[T]]) -> None:    
+        self.set_selected_option_and_available_options(values[0], values[1])

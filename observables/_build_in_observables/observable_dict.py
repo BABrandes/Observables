@@ -265,3 +265,9 @@ class ObservableDict(ListeningBase, Observable, CarriesBindableDict[K, V], Gener
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
+
+    def get_observed_values(self) -> tuple[dict[K, V]]:
+        return tuple(self._dict)
+    
+    def set_observed_values(self, values: tuple[dict[K, V]]) -> None:
+        self.change_dict(values[0])

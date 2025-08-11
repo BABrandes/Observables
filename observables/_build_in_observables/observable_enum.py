@@ -509,3 +509,8 @@ class ObservableEnum(ListeningBase, Observable, CarriesEnum[E], CarriesBindableS
         """
         return bool(self._enum_value)
     
+    def get_observed_values(self) -> tuple[E, set[E]]:
+        return (self._enum_value, self._enum_options)
+    
+    def set_observed_values(self, values: tuple[E, set[E]]) -> None:
+        self.set_enum_value_and_options(values[0], values[1])

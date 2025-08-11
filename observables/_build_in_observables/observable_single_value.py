@@ -270,3 +270,9 @@ class ObservableSingleValue(ListeningBase, Observable, CarriesBindableSingleValu
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
+    
+    def get_observed_values(self) -> tuple[T]:
+        return (self._value,)
+    
+    def set_observed_values(self, values: tuple[T]) -> None:
+        self.set_value(values[0])

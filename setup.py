@@ -17,9 +17,19 @@ def read_requirements():
     with open("requirements.txt", "r", encoding="utf-8") as fh:
         return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
+# Read version
+def read_version():
+    try:
+        with open("observables/_version.py", "r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("__version__"):
+                    return line.split("=")[1].strip().strip('"\'')
+    except FileNotFoundError:
+        return "0.2.7"  # fallback version
+
 setup(
     name="observables",
-    version="0.2.0",
+    version=read_version(),
     author="Benedikt Axel Brandes",
     author_email="benedikt.brandes@example.com",
     description="A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture",
@@ -35,7 +45,7 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache 2.0 Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
 
@@ -69,7 +79,7 @@ setup(
         ],
     },
     package_data={
-        "observables": ["py.typed"],
+        "observables": ["py.typed", "_version.py"],
     },
     include_package_data=True,
     zip_safe=False,

@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test test-cov lint format clean build publish demo
+.PHONY: help install install-dev test test-cov lint format clean build publish demo version
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -46,6 +46,30 @@ publish:  ## Build and publish to PyPI (requires twine)
 
 demo:  ## Run the demo script
 	python observables/examples/demo.py
+
+version:  ## Update version across all files (usage: make version VERSION=0.2.5)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make version VERSION=X.Y.Z"; \
+		echo "Example: make version VERSION=0.2.5"; \
+		exit 1; \
+	fi
+	python update_version.py $(VERSION)
+
+version-auto:  ## Auto-increment version (usage: make version-auto TYPE=patch)
+	@if [ -z "$(TYPE)" ]; then \
+		echo "Usage: make version-auto TYPE=patch|minor|major"; \
+		echo "Example: make version-auto TYPE=minor"; \
+		exit 1; \
+	fi
+	python scripts/version_manager.py auto $(TYPE)
+
+version-tag:  ## Create git tag for current version (usage: make version-tag VERSION=0.2.5)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make version-tag VERSION=X.Y.Z"; \
+		echo "Example: make version-tag VERSION=0.2.5"; \
+		exit 1; \
+	fi
+	python scripts/version_manager.py tag $(VERSION)
 
 check:  ## Run all checks (lint + test)
 	$(MAKE) lint

@@ -85,42 +85,47 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
     """
 
     @overload
-    def __init__(self, value: E, enum_options: Optional[set[E]] = None):
+    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, allow_none: bool = True):
         """Initialize with a direct enum value."""
         ...
 
     @overload
-    def __init__(self, value: CarriesEnum[E], enum_options: Optional[set[E]] = None):
+    def __init__(self, enum_value: CarriesEnum[E], enum_options: Optional[set[E]] = None, allow_none: bool = True):
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, value: E, enum_options: CarriesBindableSet[E]):
+    def __init__(self, enum_value: Optional[E], enum_options: CarriesBindableSet[E], allow_none: bool = True):
         """Initialize with a set of enum options."""
         ...
 
     @overload
-    def __init__(self, value: CarriesEnum[E], enum_options: set[E]):
+    def __init__(self, enum_value: CarriesEnum[E], enum_options: set[E], allow_none: bool = True):
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, value: E | CarriesEnum[E], enum_options: Optional[set[E]] | CarriesBindableSet[E] = None):
+    def __init__(self, enum_value: Optional[E] | CarriesEnum[E], enum_options: Optional[set[E]] | CarriesBindableSet[E] = None, allow_none: bool = True):
         """
         Initialize the ObservableEnum.
         
         Args:
             value: Initial enum value or observable enum to bind to
             enum_options: Set of valid enum options or observable set to bind to
-            
+            allow_none: Whether to allow None as an enum value
         Raises:
             ValueError: If the initial enum value is not in the options set
         """
 
-        if isinstance(value, CarriesEnum):
-            initial_enum_value: E = value._get_enum()
-            bindable_enum_carrier: Optional[CarriesEnum[E]] = value
+        if enum_value is None:
+            if not allow_none:
+                raise ValueError("None is not allowed as an enum value, if allow_none is False")
+            initial_enum_value: Optional[E] = None
+            bindable_enum_carrier: Optional[CarriesEnum[E]] = None
+        elif isinstance(enum_value, CarriesEnum):
+            initial_enum_value: E = enum_value._get_enum()
+            bindable_enum_carrier: Optional[CarriesEnum[E]] = enum_value
         else:
-            initial_enum_value: E = value
+            initial_enum_value: E = enum_value
             bindable_enum_carrier: Optional[CarriesEnum[E]] = None
 
         if enum_options is None:
@@ -130,22 +135,37 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
             initial_enum_options: set[E] = enum_options._get_set().copy()
             bindable_set_carrier: Optional[CarriesBindableSet[E]] = enum_options
         else:
-            if enum_options == set():
-                raise ValueError("An empty set of options is not allowed")
-            
-            initial_enum_options: set[E] = enum_options.copy()
-            bindable_set_carrier: Optional[CarriesBindableSet[E]] = None
+            if enum_options == set() and not allow_none:
+                raise ValueError("An empty set of options is not allowed, if allow_none is False")
+            elif enum_options == set() and allow_none:
+                initial_enum_options: set[E] = set()
+                bindable_set_carrier: Optional[CarriesBindableSet[E]] = None
+            else:
+                initial_enum_options: set[E] = enum_options.copy()
+                bindable_set_carrier: Optional[CarriesBindableSet[E]] = enum_options
 
         # Validate that the initial enum value is in the options set
         if initial_enum_value not in initial_enum_options:
             raise ValueError(f"Enum value {initial_enum_value} not in options {initial_enum_options}")
 
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
-            # Check that enum_value is in enum_options
-            if x["enum_value"] not in x["enum_options"]:
-                return False, f"Enum value {x['enum_value']} not in options {x['enum_options']}"
-            if not isinstance(x["enum_options"], set):
+
+            enum_value = x["enum_value"]
+            enum_options = x["enum_options"]
+
+            if enum_value is None:
+                if not allow_none:
+                    return False, "Enum value is None, but allow_none is False"
+            if enum_options == set():
+                if not allow_none:
+                    return False, "An empty set of options is not allowed, if allow_none is False"
+                if enum_value is not None:
+                    return False, f"Enum value {enum_value} is not None, but options are empty"
+            if not isinstance(enum_options, set):
                 return False, "Enum options is not a set"
+            if not enum_value in enum_options:
+                return False, f"Enum value {enum_value} not in options {enum_options}"
+
             return True, "Verification method passed"
 
         super().__init__(
@@ -187,10 +207,10 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         Args:
             value: New set of available enum options
         """
-        self.change_enum_options(value)
+        self.set_enum_options(value)
     
     @property
-    def enum_value(self) -> E:
+    def enum_value(self) -> Optional[E]:
         """
         Get the currently selected enum value.
         
@@ -200,19 +220,39 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         return self._component_values["enum_value"]
     
     @enum_value.setter
-    def enum_value(self, value: E) -> None:
+    def enum_value(self, value: Optional[E]) -> None:
         """
         Set the selected enum value.
         
-        This setter automatically calls change_enum_value() to ensure proper validation
+        This setter automatically calls set_enum_value() to ensure proper validation
         and notification.
         
         Args:
             value: New selected enum value
         """
-        self.change_enum_value(value)
+        self.set_enum_value(value)
+
+    @property
+    def enum_value_not_none(self) -> E:
+        """
+        Get the current enum value if it is not None.
+        
+        Returns:
+            The current enum value
+
+        Raises:
+            ValueError: If the enum value is None
+        """
+
+        enum_value = self._component_values["enum_value"]
+
+        if enum_value is None:
+            raise ValueError("Enum value is None")
+
+        return enum_value
+
     
-    def _get_enum(self) -> E:
+    def _get_enum(self) -> Optional[E]:
         """
         Get the current enum value. No copy is made!
         
@@ -221,14 +261,14 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         """
         return self._component_values["enum_value"]
     
-    def _set_enum(self, value: E) -> None:
+    def _set_enum(self, value: Optional[E]) -> None:
         """
         Internal method to set enum value from binding system.
         
         Args:
             value: The new enum value to set
         """
-        self.change_enum_value(value)
+        self.set_enum_value(value)
     
     def _get_set(self) -> set[E]:
         """
@@ -246,7 +286,7 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         Args:
             value: The new enum options to set
         """
-        self.change_enum_options(value)
+        self.set_enum_options(value)
     
 
     def _get_enum_binding_handler(self) -> InternalBindingHandler[E]:
@@ -267,12 +307,12 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         """
         return self._component_binding_handlers["enum_options"]
 
-    def change_enum_value(self, new_value: E) -> None:
+    def set_enum_value(self, new_value: Optional[E]) -> None:
         """
-        Change the enum value to a new value.
+        Set the enum value to a new value.
         
-        This method validates the new enum value and then calls set_observed_values
-        to ensure all changes go through the centralized protocol method.
+        This method updates the enum value, ensuring that it's valid
+        according to the current available options and allow_none setting.
         
         Args:
             new_value: The new enum value to set
@@ -280,19 +320,11 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         Raises:
             ValueError: If the new enum value is not in the available options
         """
-        if new_value == self._get_enum():
-            return
-
-        # Validate that the new value is in the options set
-        if new_value not in self._get_set():
-            raise ValueError(f"Enum value {new_value} not in options {self._get_set()}")
-
-        # Use the protocol method to set the value
         self.set_observed_values((new_value, self._get_set()))
 
-    def change_enum_options(self, new_options: set[E]) -> None:
+    def set_enum_options(self, new_options: set[E]) -> None:
         """
-        Change the available enum options.
+        Set the available enum options.
         
         This method validates that the current enum value is still valid
         with the new options, updates the internal state, notifies all
@@ -305,21 +337,9 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
             ValueError: If the current enum value is not in the new options set
             ValueError: If the new options set is empty
         """
-
-        if new_options == set():
-            raise ValueError("An empty set of options is not allowed")
-        
-        if new_options == self._get_set():
-            return
-
-        # Validate that the current enum value is still valid
-        if self._get_enum() not in new_options:
-            raise ValueError(f"Current enum value {self._get_enum()} not in new options {new_options}")
-
-        # Use the protocol method to set the values
         self.set_observed_values((self._get_enum(), new_options))
 
-    def set_enum_value_and_options(self, enum_value: E, enum_options: set[E]) -> None:
+    def set_enum_value_and_options(self, enum_value: Optional[E], enum_options: set[E]) -> None:
         """
         Set both the enum value and options simultaneously.
         
@@ -334,13 +354,6 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
         Raises:
             ValueError: If the enum value is not in the options set
         """
-        if enum_value not in enum_options:
-            raise ValueError(f"Enum value {enum_value} not in options {enum_options}")
-        
-        if enum_options == self._get_set() and enum_value == self._get_enum():
-            return
-        
-        # Use the protocol method to set the values
         self.set_observed_values((enum_value, enum_options))
 
     def bind_enum_value_to_observable(self, observable: CarriesEnum[E], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:

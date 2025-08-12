@@ -93,12 +93,12 @@ def test_observable_selection_option():
         print("✓ Initial state set correctly")
         
         # Test selected option change
-        obs.change_selected_option(3)
+        obs.set_selected_option(3)
         assert obs.selected_option == 3, f"Expected 3, got {obs.selected_option}"
         print("✓ Selected option change works")
         
         # Test options change
-        obs.change_options({3, 4, 5})
+        obs.set_options({3, 4, 5})
         assert obs.options == {3, 4, 5}, f"Expected {{3, 4, 5}}, got {obs.options}"
         print("✓ Options change works")
         

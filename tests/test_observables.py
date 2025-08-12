@@ -1005,25 +1005,25 @@ class TestObservableSelectionOption(unittest.TestCase):
     def test_change_options(self):
         """Test changing options"""
         # Change to options that include the current selected option (2)
-        self.observable.change_options({2, 5, 6, 7})
+        self.observable.set_options({2, 5, 6, 7})
         self.assertEqual(self.observable.options, {2, 5, 6, 7})
         # Selected option should remain valid
         self.assertEqual(self.observable.selected_option, 2)
     
     def test_change_selected_option(self):
         """Test changing selected option"""
-        self.observable.change_selected_option(3)
+        self.observable.set_selected_option(3)
         self.assertEqual(self.observable.selected_option, 3)
     
     def test_invalid_selected_option(self):
         """Test that changing to invalid option raises error"""
         with self.assertRaises(ValueError):
-            self.observable.change_selected_option(999)
+            self.observable.set_selected_option(999)
     
     def test_invalid_options_with_selected(self):
         """Test that changing options to exclude selected option raises error"""
         with self.assertRaises(ValueError):
-            self.observable.change_options({5, 6, 7})  # 2 not in new options
+            self.observable.set_options({5, 6, 7})  # 2 not in new options
     
     def test_set_options_and_selected_option(self):
         """Test setting both options and selected option at once"""
@@ -1034,7 +1034,7 @@ class TestObservableSelectionOption(unittest.TestCase):
     def test_listener_notification(self):
         """Test that listeners are notified when state changes"""
         self.observable.add_listeners(self.notification_callback)
-        self.observable.change_selected_option(3)
+        self.observable.set_selected_option(3)
         self.assertEqual(self.notification_count, 1)
     
     def test_binding_selected_option(self):
@@ -1046,11 +1046,11 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.bind_selected_option_to_observable(obs2)
         
         # Change obs1 selected option, obs2 should update
-        obs1.change_selected_option(2)
+        obs1.set_selected_option(2)
         self.assertEqual(obs2.selected_option, 2)
         
         # Change obs2 selected option, obs1 should update
-        obs2.change_selected_option(5)
+        obs2.set_selected_option(5)
         self.assertEqual(obs1.selected_option, 5)
     
     def test_binding_options(self):
@@ -1066,14 +1066,14 @@ class TestObservableSelectionOption(unittest.TestCase):
         # However, this will fail because obs2 has selected option 4, which is not in {1, 7, 8, 9}
         # The binding will propagate and cause obs2 to try to change its options, which will fail
         with self.assertRaises(ValueError):
-            obs1.change_options({1, 7, 8, 9})
+            obs1.set_options({1, 7, 8, 9})
         
         # Change obs2 options, obs1 should update
         # Use options that include the current selected option (4)
         # However, this will fail because obs1 has selected option 1, which is not in {4, 10, 11, 12}
         # The binding will propagate and cause obs1 to try to change its options, which will fail
         with self.assertRaises(ValueError):
-            obs2.change_options({4, 10, 11, 12})
+            obs2.set_options({4, 10, 11, 12})
         
 
     
@@ -1087,7 +1087,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.unbind_selected_option_from_observable(obs2)
         
         # Changes should no longer propagate
-        obs1.change_selected_option(2)
+        obs1.set_selected_option(2)
         self.assertEqual(obs2.selected_option, 4)
     
     def test_unbinding_multiple_times(self):
@@ -1104,7 +1104,7 @@ class TestObservableSelectionOption(unittest.TestCase):
             obs1.unbind_selected_option_from_observable(obs2)
         
         # Changes should still not propagate
-        obs1.change_selected_option(2)
+        obs1.set_selected_option(2)
         # Since we used UPDATE_OBSERVABLE_FROM_SELF, obs2 was updated to obs1's value (1) during binding
         # After unbinding, obs2 should still have that value, not the original 4
         self.assertEqual(obs2.selected_option, 1)
@@ -1127,7 +1127,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3.bind_selected_option_to_observable(obs1)
         
         # Change obs1 selected option, both should update
-        obs1.change_selected_option(2)
+        obs1.set_selected_option(2)
         self.assertEqual(obs2.selected_option, 2)
         self.assertEqual(obs3.selected_option, 2)
     
@@ -1499,7 +1499,7 @@ class TestObservableIntegration(unittest.TestCase):
         self.assertEqual(selection_obs.selected_option, 43)
         
         # Change selection, single value should update
-        selection_obs.change_selected_option(40)
+        selection_obs.set_selected_option(40)
         self.assertEqual(single_obs.value, 40)
     
     def test_complex_binding_chain(self):
@@ -2141,7 +2141,7 @@ class TestObservableEnum(unittest.TestCase):
         obs = ObservableEnum(self.Color.RED)
         
         # Change to valid value
-        obs.change_enum_value(self.Color.BLUE)
+        obs.set_enum_value(self.Color.BLUE)
         self.assertEqual(obs.enum_value, self.Color.BLUE)
         
         # Create an observable with limited options
@@ -2149,7 +2149,7 @@ class TestObservableEnum(unittest.TestCase):
         
         # Change to invalid value should fail
         with self.assertRaises(ValueError):
-            obs_limited.change_enum_value(self.Color.GREEN)  # GREEN is not in the limited options
+            obs_limited.set_enum_value(self.Color.GREEN)  # GREEN is not in the limited options
 
     def test_change_enum_options(self):
         """Test changing the enum options."""
@@ -2157,12 +2157,12 @@ class TestObservableEnum(unittest.TestCase):
         
         # Change to valid options
         new_options = {self.Color.RED, self.Color.BLUE, self.Color.GREEN}
-        obs.change_enum_options(new_options)
+        obs.set_enum_options(new_options)
         self.assertEqual(obs.enum_options, new_options)
         
         # Change to options that don't contain current value should fail
         with self.assertRaises(ValueError):
-            obs.change_enum_options({self.Color.BLUE, self.Color.GREEN})
+            obs.set_enum_options({self.Color.BLUE, self.Color.GREEN})
         # The enum value and options should remain unchanged
         self.assertEqual(obs.enum_value, self.Color.RED)
         self.assertEqual(obs.enum_options, {self.Color.RED, self.Color.BLUE, self.Color.GREEN})
@@ -2326,7 +2326,7 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(notifications, ["changed"])
         
         # Change options
-        obs.change_enum_options({self.Color.BLUE, self.Color.GREEN})
+        obs.set_enum_options({self.Color.BLUE, self.Color.GREEN})
         self.assertEqual(notifications, ["changed", "changed"])
 
     def test_binding_system_consistency(self):

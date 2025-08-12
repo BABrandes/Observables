@@ -159,7 +159,7 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         Args:
             value: New set of available options
         """
-        self.change_options(value)
+        self.set_options(value)
     
     @property
     def selected_option(self) -> Optional[T]:
@@ -182,7 +182,23 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         Args:
             value: New selected option
         """
-        self.change_selected_option(value)
+        self.set_selected_option(value)
+
+    @property
+    def selected_option_not_none(self) -> T:
+        """
+        Get the current selected option if it is not None.
+        
+        Returns:
+            The current selected option
+
+        Raises:
+            ValueError: If the selected option is None
+        """
+        selected_option = self._component_values["selected_option"]
+        if selected_option is None:
+            raise ValueError("Selected option is None")
+        return selected_option
     
     def _get_set(self) -> set[T]:
         """
@@ -209,7 +225,7 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         Args:
             value: The new options set to set
         """
-        self.change_options(value)
+        self.set_options(value)
     
     def _set_single_value(self, value: T) -> None:
         """
@@ -218,7 +234,7 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         Args:
             value: The new selected option to set
         """
-        self.change_selected_option(value)
+        self.set_selected_option(value)
     
     def _get_single_value_binding_handler(self) -> InternalBindingHandler[T]:
         """
@@ -270,9 +286,9 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         # Use the protocol method to set the values
         self._set_component_values({"selected_option": selected_option, "options": options})
     
-    def change_options(self, options: set[T]) -> None:
+    def set_options(self, options: set[T]) -> None:
         """
-        Change the available options set.
+        Set the available options set.
         
         This method updates the available options, ensuring that the current
         selected option remains valid. If the new options set is empty, it
@@ -291,14 +307,14 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         if options == set():
             raise ValueError("An empty set of options can not be set without setting the selected option to None, if even it is allowed")
         
-        self.raise_if_selected_option_not_in_options(self._component_values["selected_option"], options)
+        self._raise_if_selected_option_not_in_options(self._component_values["selected_option"], options)
 
         # Use the protocol method to set the values
         self._set_component_values({"selected_option": self._component_values["selected_option"], "options": options})
 
-    def change_selected_option(self, selected_option: Optional[T]) -> None:
+    def set_selected_option(self, selected_option: Optional[T]) -> None:
         """
-        Change the selected option.
+        Set the selected option.
         
         This method updates the selected option, ensuring that it's valid
         according to the current available options and allow_none setting.
@@ -313,14 +329,14 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         if selected_option == self._component_values["selected_option"]:
             return
         
-        self.raise_if_selected_option_not_in_options(selected_option, self._component_values["options"])
+        self._raise_if_selected_option_not_in_options(selected_option, self._component_values["options"])
 
         # Use the protocol method to set the values
         self._set_component_values({"selected_option": selected_option, "options": self._component_values["options"]})
 
-    def raise_if_selected_option_not_in_options(self, selected_option: T, options: set[T]) -> None:
+    def _raise_if_selected_option_not_in_options(self, selected_option: Optional[T], options: set[T]) -> None:
         """
-        Validate that a selected option is valid for the given options set.
+        Internal method to validate that a selected option is valid for the given options set.
         
         This method checks if the selected option is valid according to the
         allow_none setting and whether it exists in the options set.

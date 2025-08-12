@@ -296,7 +296,7 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
         # Use the protocol method to set the values
         self._set_component_values({"selected_option": self._component_values["selected_option"], "options": options})
 
-    def change_selected_option(self, selected_option: T) -> None:
+    def change_selected_option(self, selected_option: Optional[T]) -> None:
         """
         Change the selected option.
         

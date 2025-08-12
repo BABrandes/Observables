@@ -65,27 +65,6 @@ class CarriesBindableDict(CarriesBindable, Generic[K, V]):
         ...
 
     @abstractmethod
-    def _check_dict(self, dict_to_check: dict[K, V]) -> bool:
-        """
-        Check if a dictionary is valid for this observable.
-        
-        This method is called by the binding system to validate dictionaries
-        before they are set. Implementations should return True if the
-        dictionary is acceptable, False otherwise.
-        
-        Args:
-            dict_to_check: The dictionary to validate
-            
-        Returns:
-            True if the dictionary is valid, False otherwise
-            
-        Note:
-            This is an internal method called by the binding system.
-            It should not be called directly by users.
-        """
-        ...
-
-    @abstractmethod
     def _get_dict_binding_handler(self) -> InternalBindingHandler[dict[K, V]]:
         """
         Get the binding handler for dictionary bindings.

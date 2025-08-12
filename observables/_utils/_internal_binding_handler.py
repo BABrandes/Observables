@@ -1,5 +1,8 @@
-from typing import Callable, Generic, TypeVar
+from typing import Callable, Generic, TypeVar, TYPE_CHECKING
 from enum import Enum
+
+if TYPE_CHECKING:
+    from .._utils.observable import Observable
 
 T = TypeVar("T")
 
@@ -37,13 +40,12 @@ DEFAULT_SYNC_MODE = SyncMode.UPDATE_OBSERVABLE_FROM_SELF
 
 class InternalBindingHandler(Generic[T]):
 
-    def __init__(self, owner: object, get_callback: Callable[[], T], set_callback: Callable[[T], None], check_callback: Callable[[T], bool]):
+    def __init__(self, owner: "Observable", get_callback: Callable[[], T], set_callback: Callable[[T], None]):
 
         self._owner = owner
         self._bound_binding_handlers: set["InternalBindingHandler[T]"] = set()
         self._get_callback: Callable[[], T] = get_callback
         self._set_callback: Callable[[T], None] = set_callback
-        self._check_callback: Callable[[T], bool] = check_callback
         self._is_updating_from_binding = False
         self._is_establishing_binding = False
         self._is_checking_binding_state = False
@@ -88,12 +90,6 @@ class InternalBindingHandler(Generic[T]):
             case _:
                 raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
             
-        # Step 3: Check if the value is valid
-        if not self._check_callback(value_to_sync):
-            raise ValueError(f"Invalid value: {value_to_sync}")
-        if not binding_handler._check_callback(value_to_sync):
-            raise ValueError(f"Invalid value: {value_to_sync}")
-
         try:
 
             # Step 4: Tell everyone that we're establishing a binding

@@ -1,4 +1,4 @@
-from typing import Callable, Generic, Optional, TypeVar, overload
+from typing import Any, Callable, Generic, Optional, TypeVar, overload
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_single_value import CarriesBindableSingleValue
 from .._utils.observable import Observable
@@ -58,20 +58,37 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         Args:
             value: Initial value or observable to bind to
             validator: Optional validation function
+
+        Raises:
+            ValueError: If the initial value fails validation
         """
-        super().__init__()
-        self._validator: Optional[Callable[[T], bool]] = validator
+
         if isinstance(value, CarriesBindableSingleValue):
             initial_value: T = value._get_single_value()
             bindable_single_value_carrier: Optional[CarriesBindableSingleValue[T]] = value
         else:
             initial_value: T = value
             bindable_single_value_carrier: Optional[CarriesBindableSingleValue[T]] = None
-        # Validate initial value
-        if self._validator and not self._validator(initial_value):
-            raise ValueError(f"Invalid value: {initial_value}")
-        self._value = initial_value
-        self._binding_handler: InternalBindingHandler[T] = InternalBindingHandler(self, self._get_single_value, self._set_single_value, self._check_single_value)
+
+        if validator is not None:
+            def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+                if validator(x["value"]) is False:
+                    return False, "Value does not pass validation"
+                return True, "Verification method passed"
+        else:
+            def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+                return True, "Verification method passed"
+        
+        super().__init__(
+            {
+                "value": initial_value
+            },
+            {
+                "value": InternalBindingHandler(self, self._get_single_value, self._set_single_value)
+            },
+            verification_method=verification_method,
+        )
+        
         if bindable_single_value_carrier is not None:
             self.bind_to_observable(bindable_single_value_carrier)
 
@@ -83,15 +100,11 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         Returns:
             The current value stored in this observable.
         """
-        return self._value
+        return self._component_values["value"]
     
     def set_value(self, new_value: T) -> None:
         """
         Set a new value, triggering validation, binding updates, and listener notifications.
-        
-        This method validates the new value, updates the internal state, notifies
-        all bound observables, and triggers listener callbacks. If the new value
-        is identical to the current value, no action is taken.
         
         Args:
             new_value: The new value to set
@@ -99,42 +112,27 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         Raises:
             ValueError: If the new value fails validation
         """
-        if new_value == self._value:
-            return
-
-        # Validate the new value
-        if self._validator and not self._validator(new_value):
-            raise ValueError(f"Invalid value: {new_value}")
-
-        self._value = new_value
-        self._binding_handler.notify_bindings(new_value)
-        self._notify_listeners()
+        self._set_component_values({"value": new_value})
     
     def _get_single_value(self) -> T:
         """Internal method to get the current value for binding system."""
-        return self._value
+        return self._component_values["value"]
     
     def _set_single_value(self, single_value_to_set: T) -> None:
         """Internal method to set value from binding system."""
         self.set_value(single_value_to_set)
     
-    def _check_single_value(self, single_value_to_check: T) -> bool:
-        """Internal method to check value validity for binding system."""
-        if self._validator:
-            return self._validator(single_value_to_check)
-        return True
-    
     def _get_single_value_binding_handler(self) -> InternalBindingHandler[T]:
         """Internal method to get binding handler for binding system."""
-        return self._binding_handler
+        return self._component_binding_handlers["value"]
         
     def __str__(self) -> str:
         """String representation of the observable."""
-        return f"OSV(value={self._value})"
+        return f"OSV(value={self._component_values['value']})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable."""
-        return f"OSV(value={self._value})"
+        return f"OSV(value={self._component_values['value']})"
     
     def __eq__(self, other) -> bool:
         """
@@ -147,8 +145,8 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._value == other._value
-        return self._value == other
+            return self._component_values["value"] == other._component_values["value"]
+        return self._component_values["value"] == other
     
     def __ne__(self, other) -> bool:
         """
@@ -173,8 +171,8 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
             True if this value is less than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._value < other._value
-        return self._value < other
+            return self._component_values["value"] < other._component_values["value"]
+        return self._component_values["value"] < other
     
     def __le__(self, other) -> bool:
         """
@@ -187,8 +185,8 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
             True if this value is less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._value <= other._value
-        return self._value <= other
+            return self._component_values["value"] <= other._component_values["value"]
+        return self._component_values["value"] <= other
     
     def __gt__(self, other) -> bool:
         """
@@ -201,77 +199,192 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
             True if this value is greater than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._value > other._value
-        return self._value > other
+            return self._component_values["value"] > other._component_values["value"]
+        return self._component_values["value"] > other
     
     def __ge__(self, other) -> bool:
-        """Compare with another value or observable"""
+        """
+        Compare if this value is greater than or equal to another value or observable.
+        
+        Args:
+            other: Value or ObservableSingleValue to compare with
+            
+        Returns:
+            True if this value is greater than or equal to the other, False otherwise
+        """
         if isinstance(other, ObservableSingleValue):
-            return self._value >= other._value
-        return self._value >= other
+            return self._component_values["value"] >= other._component_values["value"]
+        return self._component_values["value"] >= other
     
     def __hash__(self) -> int:
-        """Hash based on the current value"""
-        return hash(self._value)
+        """
+        Get the hash value based on the current value.
+        
+        Returns:
+            Hash value of the current value
+        """
+        return hash(self._component_values["value"])
     
     def __bool__(self) -> bool:
-        """Boolean conversion"""
-        return bool(self._value)
+        """
+        Convert the value to a boolean.
+        
+        Returns:
+            Boolean representation of the current value
+        """
+        return bool(self._component_values["value"])
     
     def __int__(self) -> int:
-        """Integer conversion"""
-        return int(self._value) # type: ignore
+        """
+        Convert the value to an integer.
+        
+        Returns:
+            Integer representation of the current value
+            
+        Raises:
+            ValueError: If the value cannot be converted to an integer
+        """
+        return int(self._component_values["value"]) # type: ignore
     
     def __float__(self) -> float:
-        """Float conversion"""
-        return float(self._value) # type: ignore
+        """
+        Convert the value to a float.
+        
+        Returns:
+            Float representation of the current value
+            
+        Raises:
+            ValueError: If the value cannot be converted to a float
+        """
+        return float(self._component_values["value"]) # type: ignore
     
     def __complex__(self) -> complex:
-        """Complex conversion"""
-        return complex(self._value) # type: ignore
+        """
+        Convert the value to a complex number.
+        
+        Returns:
+            Complex representation of the current value
+            
+        Raises:
+            ValueError: If the value cannot be converted to a complex number
+        """
+        return complex(self._component_values["value"]) # type: ignore
     
     def __abs__(self) -> float:
-        """Absolute value"""
-        return abs(self._value) # type: ignore
+        """
+        Get the absolute value.
+        
+        Returns:
+            Absolute value of the current value
+            
+        Raises:
+            TypeError: If the value doesn't support absolute value operation
+        """
+        return abs(self._component_values["value"]) # type: ignore
     
     def __round__(self, ndigits=None):
-        """Round the value"""
-        return round(self._value, ndigits) # type: ignore
+        """
+        Round the value to the specified number of decimal places.
+        
+        Args:
+            ndigits: Number of decimal places to round to (default: 0)
+            
+        Returns:
+            Rounded value
+            
+        Raises:
+            TypeError: If the value doesn't support rounding
+        """
+        return round(self._component_values["value"], ndigits) # type: ignore
     
     def __floor__(self):
-        """Floor division"""
+        """
+        Get the floor value (greatest integer less than or equal to the value).
+        
+        Returns:
+            Floor value
+            
+        Raises:
+            TypeError: If the value doesn't support floor operation
+        """
         import math
-        return math.floor(self._value) # type: ignore
+        return math.floor(self._component_values["value"]) # type: ignore
     
     def __ceil__(self):
-        """Ceiling division"""
+        """
+        Get the ceiling value (smallest integer greater than or equal to the value).
+        
+        Returns:
+            Ceiling value
+            
+        Raises:
+            TypeError: If the value doesn't support ceiling operation
+        """
         import math
-        return math.ceil(self._value) # type: ignore
+        return math.ceil(self._component_values["value"]) # type: ignore
     
     def __trunc__(self):
-        """Truncate the value"""
+        """
+        Get the truncated value (integer part of the value).
+        
+        Returns:
+            Truncated value
+            
+        Raises:
+            TypeError: If the value doesn't support truncation
+        """
         import math
-        return math.trunc(self._value) # type: ignore
+        return math.trunc(self._component_values["value"]) # type: ignore
     
     def bind_to_observable(self, observable: CarriesBindableSingleValue[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+        """
+        Create a bidirectional binding with another observable.
+        
+        This method establishes a bidirectional binding between this observable and
+        another observable. When either observable's value changes, the other will
+        automatically update to maintain synchronization.
+        
+        Args:
+            observable: The observable to bind to
+            initial_sync_mode: Determines which value is used for initial synchronization
+            
+        Raises:
+            ValueError: If the observable is None
+        """
         if observable is None:
             raise ValueError("Cannot bind to None observable")
-        self._binding_handler.establish_binding(observable._get_single_value_binding_handler(), initial_sync_mode)
+        self._get_single_value_binding_handler().establish_binding(observable._get_single_value_binding_handler(), initial_sync_mode)
 
     def unbind_from_observable(self, observable: "ObservableSingleValue[T]") -> None:
-        self._binding_handler.remove_binding(observable._get_single_value_binding_handler())
+        """
+        Remove the bidirectional binding with another observable.
+        
+        This method removes the bidirectional binding between this observable and
+        another observable. After unbinding, changes in one observable will no longer
+        affect the other.
+        
+        Args:
+            observable: The observable to unbind from
+        """
+        self._get_single_value_binding_handler().remove_binding(observable._get_single_value_binding_handler())
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
-        binding_state_consistent, binding_state_consistent_message = self._binding_handler.check_binding_state_consistency()
+        """
+        Check the consistency of the binding system.
+        
+        This method performs comprehensive checks on the binding system to ensure
+        that all bindings are in a consistent state and that values are properly
+        synchronized across all bound observables.
+        
+        Returns:
+            A tuple containing:
+                - bool: True if the binding system is consistent, False otherwise
+                - str: Description of the binding system state or error message
+        """
+        binding_state_consistent, binding_state_consistent_message = self._get_single_value_binding_handler().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._binding_handler.check_values_synced()
+        values_synced, values_synced_message = self._get_single_value_binding_handler().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
-    
-    def get_observed_values(self) -> tuple[T]:
-        return (self._value,)
-    
-    def set_observed_values(self, values: tuple[T]) -> None:
-        self.set_value(values[0])

@@ -65,27 +65,6 @@ class CarriesEnum(CarriesBindable, Generic[E]):
         ...
 
     @abstractmethod
-    def _check_enum(self, enum_to_check: E) -> bool:
-        """
-        Check if an enum value is valid for this observable.
-        
-        This method is called by the binding system to validate enum values
-        before they are set. Implementations should return True if the
-        value is acceptable, False otherwise.
-        
-        Args:
-            enum_to_check: The enum value to validate
-            
-        Returns:
-            True if the enum value is valid, False otherwise
-            
-        Note:
-            This is an internal method called by the binding system.
-            It should not be called directly by users.
-        """
-        ...
-
-    @abstractmethod
     def _get_enum_binding_handler(self) -> InternalBindingHandler[E]:
         """
         Get the binding handler for enum bindings.

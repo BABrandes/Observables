@@ -1,4 +1,4 @@
-from typing import Generic, Optional , TypeVar, overload
+from typing import Any, Generic, Optional , TypeVar, overload
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_set import CarriesBindableSet
 from .._utils.observable import Observable
@@ -58,8 +58,10 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         
         Args:
             value: Initial set, observable set to bind to, or None for empty set
+
+        Raises:
+            ValueError: If the initial set is not a set
         """
-        super().__init__()
         if value is None:
             initial_value: set[T] = set()
             bindable_set_carrier: Optional[CarriesBindableSet[T]] = None
@@ -70,9 +72,20 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
             initial_value: set[T] = value.copy()
             bindable_set_carrier: Optional[CarriesBindableSet[T]] = None
         
-        self._binding_handler: InternalBindingHandler[set[T]] = InternalBindingHandler(self, self._get_set, self._set_set, self._check_set)
-
-        self._value: set[T] = initial_value
+        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+            if not isinstance(x["value"], set):
+                return False, "Value is not a set"
+            return True, "Verification method passed"
+        
+        super().__init__(
+            {
+                "value": initial_value
+            },
+            {
+                "value": InternalBindingHandler(self, self._get_set, self._set_set)
+            },
+            verification_method=verification_method
+        )
 
         if bindable_set_carrier is not None:
             self.bind_to_observable(bindable_set_carrier)
@@ -86,40 +99,49 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Returns:
             A copy of the current set to prevent external modification
         """
-        return self._value.copy()    
+        return self._get_set().copy()    
     
     def _get_set(self) -> set[T]:
-        """Internal method to get set for binding system."""
-        return self._value
+        """
+        Get the current set value. No copy is made!
+        
+        Returns:
+            The current set value
+        """
+        return self._component_values["value"]
     
     def _set_set(self, set_to_set: set[T]) -> None:
-        """Internal method to set set from binding system."""
+        """
+        Internal method to set set from binding system.
+        
+        Args:
+            set_to_set: The new set to set
+        """
         self.set_set(set_to_set)
     
     def _get_set_binding_handler(self) -> InternalBindingHandler[set[T]]:
-        """Internal method to get binding handler for binding system."""
-        return self._binding_handler
-    
-    def _check_set(self, set_to_check: set[T]) -> bool:
-        """Internal method to check set validity for binding system."""
-        return True
+        """
+        Internal method to get binding handler for binding system.
+        
+        Returns:
+            The binding handler for the set
+        """
+        return self._component_binding_handlers["value"]
     
     def set_set(self, set_to_set: set[T]) -> None:
         """
         Set the entire set to a new value.
         
-        This method replaces the current set with a new one, triggering binding updates
-        and listener notifications. If the new set is identical to the current one,
-        no action is taken.
+        This method replaces the current set with a new one, using set_observed_values
+        to ensure all changes go through the centralized protocol method.
         
         Args:
             set_to_set: The new set to set
         """
-        if set_to_set == self._value:
+        if set_to_set == self._get_set():
             return
-        self._value = set_to_set.copy()
-        self._binding_handler.notify_bindings(self._value)
-        self._notify_listeners()
+        # Use the protocol method to set the value
+        self.set_observed_values((set_to_set,))
 
     def bind_to_observable(self, observable: CarriesBindableSet[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
         """
@@ -138,7 +160,7 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         """
         if observable is None:
             raise ValueError("Cannot bind to None observable")
-        self._binding_handler.establish_binding(observable._get_set_binding_handler(), initial_sync_mode)
+        self._get_set_binding_handler().establish_binding(observable._get_set_binding_handler(), initial_sync_mode)
 
     def unbind_from_observable(self, observable: CarriesBindableSet[T]) -> None:
         """
@@ -153,7 +175,7 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._binding_handler.remove_binding(observable._get_set_binding_handler())
+        self._get_set_binding_handler().remove_binding(observable._get_set_binding_handler())
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -167,10 +189,10 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
-        binding_state_consistent, binding_state_consistent_message = self._binding_handler.check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_set_binding_handler().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._binding_handler.check_values_synced()
+        values_synced, values_synced_message = self._get_set_binding_handler().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
@@ -181,22 +203,22 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Add an element to the set.
         
         This method adds an item to the set if it's not already present,
-        triggering binding updates and listener notifications.
+        using set_observed_values to ensure all changes go through the centralized protocol method.
         
         Args:
             item: The element to add to the set
         """
-        if item not in self._value:
-            self._value.add(item)
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+        if item not in self._component_values["value"]:
+            new_set = self._component_values["value"].copy()
+            new_set.add(item)
+            self.set_observed_values((new_set,))
     
     def remove(self, item: T) -> None:
         """
         Remove an element from the set.
         
         This method removes an item from the set if it's present,
-        triggering binding updates and listener notifications.
+        using set_observed_values to ensure all changes go through the centralized protocol method.
         
         Args:
             item: The element to remove from the set
@@ -204,154 +226,331 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Raises:
             KeyError: If the item is not in the set
         """
-        if item in self._value:
-            self._value.remove(item)
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+        if item in self._get_set():
+            new_set = self._get_set().copy()
+            new_set.remove(item)
+            self.set_observed_values((new_set,))
     
     def discard(self, item: T) -> None:
         """
         Remove an element from the set if it is present.
         
         This method removes an item from the set if it's present,
-        triggering binding updates and listener notifications.
+        using set_observed_values to ensure all changes go through the centralized protocol method.
         Unlike remove(), this method does not raise an error if the item is not found.
         
         Args:
             item: The element to remove from the set
         """
-        if item in self._value:
-            self._value.discard(item)
+        if item in self._get_set():
+            new_set = self._get_set().copy()
+            new_set.discard(item)
+            self.set_observed_values((new_set,))
     
     def pop(self) -> T:
-        """Remove and return an arbitrary set element"""
-        item = self._value.pop()
-        self._binding_handler.notify_bindings(self._value)
-        self._notify_listeners()
+        """
+        Remove and return an arbitrary element from the set.
+        
+        This method removes and returns an arbitrary element from the set,
+        using set_observed_values to ensure all changes go through the centralized protocol method.
+        
+        Returns:
+            The removed element
+            
+        Raises:
+            KeyError: If the set is empty
+        """
+        item = next(iter(self._get_set()))
+        new_set = self._get_set().copy()
+        new_set.pop()
+        self.set_observed_values((new_set,))
         return item
     
     def clear(self) -> None:
-        """Remove all elements from the set"""
-        if self._value:
-            self._value.clear()
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+        """
+        Remove all elements from the set.
+        
+        This method removes all elements from the set, making it empty.
+        It uses set_observed_values to ensure all changes go through the centralized protocol method.
+        """
+        if self._get_set():
+            new_set = set()
+            self.set_observed_values((new_set,))
     
     def update(self, *others) -> None:
-        """Update the set with elements from all others"""
-        old_value = self._value.copy()
+        """
+        Update the set with elements from all other iterables.
+        
+        This method adds all elements from the provided iterables to the set,
+        using set_observed_values to ensure all changes go through the centralized protocol method.
+        
+        Args:
+            *others: Variable number of iterables to add elements from
+        """
+        new_set = self._get_set().copy()
         for other in others:
-            self._value.update(other)
-        if old_value != self._value:
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+            new_set.update(other)
+        if new_set != self._get_set():
+            self.set_observed_values((new_set,))
     
     def intersection_update(self, *others) -> None:
-        """Update the set keeping only elements found in it and all others"""
-        old_value = self._value.copy()
+        """
+        Update the set keeping only elements found in this set and all others.
+        
+        This method modifies the set to contain only elements that are present
+        in this set and all the provided iterables, using set_observed_values
+        to ensure all changes go through the centralized protocol method.
+        
+        Args:
+            *others: Variable number of iterables to intersect with
+        """
+        new_set = self._get_set().copy()
         for other in others:
-            self._value.intersection_update(other)
-        if old_value != self._value:
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+            new_set.intersection_update(other)
+        if new_set != self._get_set():
+            self.set_observed_values((new_set,))
     
     def difference_update(self, *others) -> None:
-        """Update the set removing elements found in others"""
-        old_value = self._value.copy()
+        """
+        Update the set removing elements found in any of the others.
+        
+        This method removes from this set all elements that are present in any
+        of the provided iterables, using set_observed_values to ensure all
+        changes go through the centralized protocol method.
+        
+        Args:
+            *others: Variable number of iterables to remove elements from
+        """
+        new_set = self._get_set().copy()
         for other in others:
-            self._value.difference_update(other)
-        if old_value != self._value:
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+            new_set.difference_update(other)
+        if new_set != self._get_set():
+            self.set_observed_values((new_set,))
     
     def symmetric_difference_update(self, other) -> None:
-        """Update the set keeping only elements found in either set but not both"""
-        old_value = self._value.copy()
-        self._value.symmetric_difference_update(other)
-        if old_value != self._value:
-            self._binding_handler.notify_bindings(self._value)
-            self._notify_listeners()
+        """
+        Update the set keeping only elements found in either set but not both.
+        
+        This method modifies the set to contain only elements that are present
+        in either this set or the other iterable, but not in both, using
+        set_observed_values to ensure all changes go through the centralized protocol method.
+        
+        Args:
+            other: An iterable to compute symmetric difference with
+        """
+        new_set = self._get_set().copy()
+        new_set.symmetric_difference_update(other)
+        if new_set != self._get_set():
+            self.set_observed_values((new_set,))
     
     def __str__(self) -> str:
-        return f"OS(options={self._value})"
+        return f"OS(options={self._get_set()})"
     
     def __repr__(self) -> str:
-        return f"ObservableSet({self._value})"
+        return f"ObservableSet({self._get_set()})"
     
     def __len__(self) -> int:
-        return len(self._value)
+        """
+        Get the number of elements in the set.
+        
+        Returns:
+            The number of elements in the set
+        """
+        return len(self._get_set())
     
     def __contains__(self, item: T) -> bool:
-        return item in self._value
+        """
+        Check if an element is contained in the set.
+        
+        Args:
+            item: The element to check for
+            
+        Returns:
+            True if the element is in the set, False otherwise
+        """
+        return item in self._get_set()
     
     def __iter__(self):
-        """Iterate over the options"""
-        return iter(self._value)
+        """
+        Get an iterator over the set elements.
+        
+        Returns:
+            An iterator that yields each element in the set
+        """
+        return iter(self._get_set())
     
     def __eq__(self, other) -> bool:
-        """Compare with another set or observable"""
+        """
+        Check equality with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to compare with
+            
+        Returns:
+            True if the sets contain the same elements, False otherwise
+        """
         if isinstance(other, ObservableSet):
-            return self._value == other._value
-        return self._value == other
+            return self._get_set() == other._get_set()
+        return self._get_set() == other
     
     def __ne__(self, other) -> bool:
-        """Compare with another set or observable"""
+        """
+        Check inequality with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to compare with
+            
+        Returns:
+            True if the sets are not equal, False otherwise
+        """
         return not (self == other)
     
     def __le__(self, other) -> bool:
-        """Check if this set is a subset of another"""
+        """
+        Check if this set is a subset of another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to check against
+            
+        Returns:
+            True if this set is a subset of the other, False otherwise
+        """
         if isinstance(other, ObservableSet):
-            return self._value <= other._value
-        return self._value <= other
+            return self._get_set() <= other._get_set()
+        return self._get_set() <= other
     
     def __lt__(self, other) -> bool:
-        """Check if this set is a proper subset of another"""
+        """
+        Check if this set is a proper subset of another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to check against
+            
+        Returns:
+            True if this set is a proper subset of the other, False otherwise
+        """
         if isinstance(other, ObservableSet):
-            return self._value < other._value
-        return self._value < other
+            return self._get_set() < other._get_set()
+        return self._get_set() < other
     
     def __ge__(self, other) -> bool:
-        """Check if this set is a superset of another"""
+        """
+        Check if this set is a superset of another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to check against
+            
+        Returns:
+            True if this set is a superset of the other, False otherwise
+        """
         if isinstance(other, ObservableSet):
-            return self._value >= other._value
-        return self._value >= other
+            return self._get_set() >= other._get_set()
+        return self._get_set() >= other
     
     def __gt__(self, other) -> bool:
-        """Check if this set is a proper superset of another"""
+        """
+        Check if this set is a proper superset of another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to check against
+            
+        Returns:
+            True if this set is a proper superset of the other, False otherwise
+        """
         if isinstance(other, ObservableSet):
-            return self._value > other._value
-        return self._value > other
+            return self._get_set() > other._get_set()
+        return self._get_set() > other
     
     def __and__(self, other):
-        """Set intersection"""
+        """
+        Compute the intersection with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to intersect with
+            
+        Returns:
+            A new set containing elements common to both sets
+        """
         if isinstance(other, ObservableSet):
-            return self._value & other._value
-        return self._value & other
+            return self._get_set() & other._get_set()
+        return self._get_set() & other
     
     def __or__(self, other):
-        """Set union"""
+        """
+        Compute the union with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to union with
+            
+        Returns:
+            A new set containing all elements from both sets
+        """
         if isinstance(other, ObservableSet):
-            return self._value | other._value
-        return self._value | other
+            return self._get_set() | other._get_set()
+        return self._get_set() | other
     
     def __sub__(self, other):
-        """Set difference"""
+        """
+        Compute the difference with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to subtract from this set
+            
+        Returns:
+            A new set containing elements in this set but not in the other
+        """
         if isinstance(other, ObservableSet):
-            return self._value - other._value
-        return self._value - other
+            return self._get_set() - other._get_set()
+        return self._get_set() - other
     
     def __xor__(self, other):
-        """Set symmetric difference"""
+        """
+        Compute the symmetric difference with another set or observable set.
+        
+        Args:
+            other: Another set or ObservableSet to compute symmetric difference with
+            
+        Returns:
+            A new set containing elements in either set but not in both
+        """
         if isinstance(other, ObservableSet):
-            return self._value ^ other._value
-        return self._value ^ other
+            return self._get_set() ^ other._get_set()
+        return self._get_set() ^ other
     
     def __hash__(self) -> int:
-        """Hash based on the current options"""
-        return hash(frozenset(self._value))
+        """
+        Get the hash value based on the current set contents.
+        
+        Returns:
+            Hash value of the set as a frozenset
+        """
+        return hash(frozenset(self._get_set()))
     
-    def get_observed_values(self) -> tuple[set[T]]:
-        return tuple(self._value)
+    def get_observed_component_values(self) -> tuple[set[T]]:
+        """
+        Get the values of all observables that are bound to this observable.
+        
+        This method is part of the Observable protocol and provides access to
+        the current values of all bound observables.
+        
+        Returns:
+            A tuple containing the current set value
+        """
+        return tuple(self._get_set())
     
     def set_observed_values(self, values: tuple[set[T]]) -> None:
-        self.set_set(values[0])
+        """
+        Set the values of all observables that are bound to this observable.
+        
+        This method is part of the Observable protocol and allows external
+        systems to update this observable's value. It handles all internal
+        state changes, binding updates, and listener notifications.
+        
+        Args:
+            values: A tuple containing the new set value to set
+        """
+        new_set = values[0]
+        
+        self._set_component_values(
+            {"value": new_set}
+        )

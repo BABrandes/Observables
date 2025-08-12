@@ -63,28 +63,7 @@ class CarriesBindableSingleValue(CarriesBindable, Generic[T]):
             It should not be called directly by users.
         """
         ...
-
-    @abstractmethod
-    def _check_single_value(self, single_value_to_check: T) -> bool:
-        """
-        Check if a value is valid for this observable.
         
-        This method is called by the binding system to validate values
-        before they are set. Implementations should return True if the
-        value is acceptable, False otherwise.
-        
-        Args:
-            single_value_to_check: The value to validate
-            
-        Returns:
-            True if the value is valid, False otherwise
-            
-        Note:
-            This is an internal method called by the binding system.
-            It should not be called directly by users.
-        """
-        ...
-
     @abstractmethod
     def _get_single_value_binding_handler(self) -> InternalBindingHandler[T]:
         """

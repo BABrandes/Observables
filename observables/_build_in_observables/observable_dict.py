@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, overload
+from typing import Generic, TypeVar, Optional, overload, Any
 from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
 from .._utils._carries_bindable_dict import CarriesBindableDict
 from .._utils.observable import Observable
@@ -59,9 +59,11 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         
         Args:
             initial_dict: Initial dictionary, observable dictionary to bind to, or None for empty dict
+
+        Raises:
+            ValueError: If the initial dictionary is not a dictionary
         """
-        super().__init__()
-        
+
         if initial_dict is None:
             initial_dict_value: dict[K, V] = {}
             bindable_dict_carrier: Optional[CarriesBindableDict[K, V]] = None
@@ -72,9 +74,20 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
             initial_dict_value: dict[K, V] = initial_dict.copy()
             bindable_dict_carrier: Optional[CarriesBindableDict[K, V]] = None
 
-        self._binding_handler: InternalBindingHandler[dict[K, V]] = InternalBindingHandler(self, self._get_dict, self._set_dict, self._check_dict)
+        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+            if not isinstance(x["value"], dict):
+                return False, "Value is not a dictionary"
+            return True, "Verification method passed"
 
-        self._dict: dict[K, V] = initial_dict_value
+        super().__init__(
+            {
+                "value": initial_dict_value
+            },
+            {
+                "value": InternalBindingHandler(self, self._get_dict, self._set_dict)
+            },
+            verification_method=verification_method
+        )
 
         if bindable_dict_carrier is not None:
             self.bind_to_observable(bindable_dict_carrier)
@@ -86,59 +99,67 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         
         Returns:
             A copy of the current dictionary to prevent external modification
-        """
-        return self._dict.copy()  # Return a copy to prevent external modification
+        """ 
+        return self._get_dict().copy()  # Return a copy to prevent external modification
     
     def _get_dict(self) -> dict[K, V]:
-        """Internal method to get dictionary for binding system."""
-        return self._dict
+        """
+        Internal method to get dictionary for binding system. No copy is made!
+        
+        Returns:
+            The current dictionary value
+        """
+        return self._component_values["value"]
     
     def _set_dict(self, dict_to_set: dict[K, V]) -> None:
-        """Internal method to set dictionary from binding system."""
+        """
+        Internal method to set dictionary from binding system.
+        
+        Args:
+            dict_to_set: The new dictionary to set
+        """
         self.change_dict(dict_to_set)
     
     def _get_dict_binding_handler(self) -> InternalBindingHandler[dict[K, V]]:
-        """Internal method to get binding handler for binding system."""
-        return self._binding_handler
-    
-    def _check_dict(self, dict_to_check: dict[K, V]) -> bool:
-        """Internal method to check dictionary validity for binding system."""
-        return True  # Always accept any dictionary
+        """
+        Internal method to get binding handler for binding system.
+        
+        Returns:
+            The binding handler for the dictionary
+        """
+        return self._component_binding_handlers["value"]
     
     def change_dict(self, new_dict: dict[K, V]) -> None:
         """
         Change the entire dictionary to a new value.
         
-        This method replaces the current dictionary with a new one, triggering binding updates
-        and listener notifications. If the new dictionary is identical to the current one,
-        no action is taken.
+        This method replaces the current dictionary with a new one, using set_observed_values
+        to ensure all changes go through the centralized protocol method.
         
         Args:
             new_dict: The new dictionary to set
         """
-        if new_dict == self._dict:
+        if new_dict == self._get_dict():
             return
-        self._dict = new_dict.copy()  # Store a copy to prevent external modification
-        self._binding_handler.notify_bindings(self._dict)
-        self._notify_listeners()
+        # Use the protocol method to set the value
+        self.set_observed_values((new_dict,))
     
     def set_item(self, key: K, value: V) -> None:
         """
         Set a single key-value pair.
         
-        This method sets or updates a key-value pair in the dictionary, triggering
-        binding updates and listener notifications. If the key already exists with
-        the same value, no action is taken.
+        This method sets or updates a key-value pair in the dictionary, using
+        set_observed_values to ensure all changes go through the centralized protocol method.
         
         Args:
             key: The key to set or update
             value: The value to associate with the key
         """
-        if key in self._dict and self._dict[key] == value:
+        if key in self._get_dict() and self._get_dict()[key] == value:
             return  # No change
-        self._dict[key] = value
-        self._binding_handler.notify_bindings(self._dict)
-        self._notify_listeners()
+        new_dict = self._get_dict().copy()
+        new_dict[key] = value
+        self.set_observed_values((new_dict,))
     
     def get_item(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """
@@ -151,7 +172,7 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         Returns:
             The value associated with the key, or the default value if key not found
         """
-        return self._dict.get(key, default)
+        return self._get_dict().get(key, default)
     
     def has_key(self, key: K) -> bool:
         """
@@ -163,110 +184,241 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._dict
+        return key in self._get_dict()
     
     def remove_item(self, key: K) -> None:
         """
         Remove a key-value pair from the dictionary.
         
-        This method removes a key-value pair if it exists, triggering binding updates
-        and listener notifications. If the key doesn't exist, no action is taken.
+        This method removes a key-value pair if it exists, using set_observed_values
+        to ensure all changes go through the centralized protocol method.
         
         Args:
             key: The key to remove
         """
-        if key not in self._dict:
+        if key not in self._get_dict():
             return  # No change
-        del self._dict[key]
-        self._binding_handler.notify_bindings(self._dict)
-        self._notify_listeners()
+        new_dict = self._get_dict().copy()
+        del new_dict[key]
+        self.set_observed_values((new_dict,))
     
     def clear(self) -> None:
         """
         Clear all items from the dictionary.
         
-        This method removes all key-value pairs from the dictionary, triggering
-        binding updates and listener notifications. If the dictionary is already
-        empty, no action is taken.
+        This method removes all key-value pairs from the dictionary, using
+        set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if not self._dict:
+        if not self._get_dict():
             return  # No change
-        self._dict.clear()
-        self._binding_handler.notify_bindings(self._dict)
-        self._notify_listeners()
+        new_dict = {}
+        self.set_observed_values((new_dict,))
     
     def update(self, other_dict: dict[K, V]) -> None:
-        """Update the dictionary with items from another dictionary"""
+        """
+        Update the dictionary with items from another dictionary.
+        
+        This method adds or updates key-value pairs from the provided dictionary,
+        using set_observed_values to ensure all changes go through the centralized protocol method.
+        
+        Args:
+            other_dict: Dictionary containing items to add or update
+        """
         if not other_dict:
             return  # No change
         # Check if any values would actually change
         has_changes = False
         for key, value in other_dict.items():
-            if key not in self._dict or self._dict[key] != value:
+            if key not in self._get_dict() or self._get_dict()[key] != value:
                 has_changes = True
                 break
         
         if not has_changes:
             return  # No change
         
-        self._dict.update(other_dict)
-        self._binding_handler.notify_bindings(self._dict)
-        self._notify_listeners()
+        new_dict = self._get_dict().copy()
+        new_dict.update(other_dict)
+        self.set_observed_values((new_dict,))
     
     def keys(self) -> set[K]:
-        """Get all keys as a set"""
-        return set(self._dict.keys())
+        """
+        Get all keys from the dictionary as a set.
+        
+        Returns:
+            A set containing all keys in the dictionary
+        """
+        return set(self._get_dict())
     
     def values(self) -> list[V]:
-        """Get all values as a list"""
-        return list(self._dict.values())
+        """
+        Get all values from the dictionary as a list.
+        
+        Returns:
+            A list containing all values in the dictionary
+        """
+        return list(self._get_dict().values())
     
     def items(self) -> list[tuple[K, V]]:
-        """Get all key-value pairs as a list of tuples"""
-        return list(self._dict.items())
+        """
+        Get all key-value pairs from the dictionary as a list of tuples.
+        
+        Returns:
+            A list of tuples, each containing a key-value pair
+        """
+        return list(self._get_dict().items())
     
     def __len__(self) -> int:
-        return len(self._dict)
+        """
+        Get the number of key-value pairs in the dictionary.
+        
+        Returns:
+            The number of key-value pairs
+        """
+        return len(self._component_values["value"])
     
     def __contains__(self, key: K) -> bool:
-        return key in self._dict
+        """
+        Check if a key exists in the dictionary.
+        
+        Args:
+            key: The key to check for
+            
+        Returns:
+            True if the key exists, False otherwise
+        """
+        return key in self._get_dict()
     
     def __getitem__(self, key: K) -> V:
-        if key not in self._dict:
+        """
+        Get a value by key.
+        
+        Args:
+            key: The key to look up
+            
+        Returns:
+            The value associated with the key
+            
+        Raises:
+            KeyError: If the key is not found in the dictionary
+        """
+        if key not in self._get_dict():
             raise KeyError(f"Key '{key}' not found in dictionary")
-        return self._dict[key]
+        return self._get_dict()[key]
     
     def __setitem__(self, key: K, value: V) -> None:
+        """
+        Set a key-value pair in the dictionary.
+        
+        This method sets or updates a key-value pair, triggering binding updates
+        and listener notifications if the value changes.
+        
+        Args:
+            key: The key to set or update
+            value: The value to associate with the key
+        """
         self.set_item(key, value)
     
     def __delitem__(self, key: K) -> None:
+        """
+        Remove a key-value pair from the dictionary.
+        
+        This method removes a key-value pair if it exists, triggering binding updates
+        and listener notifications.
+        
+        Args:
+            key: The key to remove
+            
+        Raises:
+            KeyError: If the key is not found in the dictionary
+        """
         self.remove_item(key)
     
     def __str__(self) -> str:
-        return f"OD(dict={self._dict})"
+        return f"OD(dict={self._get_dict()})"
     
     def __repr__(self) -> str:
-        return f"ObservableDict({self._dict})"
+        return f"ObservableDict({self._get_dict()})"
 
     def bind_to_observable(self, observable: CarriesBindableDict[K, V], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+        """
+        Establish a bidirectional binding with another observable dictionary.
+        
+        This method creates a bidirectional binding between this observable dictionary and another,
+        ensuring that changes to either observable are automatically propagated to the other.
+        The binding can be configured with different initial synchronization modes.
+        
+        Args:
+            observable: The observable dictionary to bind to
+            initial_sync_mode: How to synchronize values initially
+            
+        Raises:
+            ValueError: If observable is None
+        """
         if observable is None:
             raise ValueError("Cannot bind to None observable")
-        self._binding_handler.establish_binding(observable._get_dict_binding_handler(), initial_sync_mode)
+        self._get_dict_binding_handler().establish_binding(observable._get_dict_binding_handler(), initial_sync_mode)
 
     def unbind_from_observable(self, observable: CarriesBindableDict[K, V]) -> None:
-        self._binding_handler.remove_binding(observable._get_dict_binding_handler())
+        """
+        Remove the bidirectional binding with another observable dictionary.
+        
+        This method removes the binding between this observable dictionary and another,
+        preventing further automatic synchronization of changes.
+        
+        Args:
+            observable: The observable dictionary to unbind from
+            
+        Raises:
+            ValueError: If there is no binding to remove
+        """
+        self._get_dict_binding_handler().remove_binding(observable._get_dict_binding_handler())
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
-        binding_state_consistent, binding_state_consistent_message = self._binding_handler.check_binding_state_consistency()
+        """
+        Check the consistency of the binding system.
+        
+        This method performs comprehensive checks on the binding system to ensure
+        that all bindings are in a consistent state and values are properly synchronized.
+        
+        Returns:
+            Tuple of (is_consistent, message) where is_consistent is a boolean
+            indicating if the system is consistent, and message provides details
+            about any inconsistencies found.
+        """
+        binding_state_consistent, binding_state_consistent_message = self._get_dict_binding_handler().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._binding_handler.check_values_synced()
+        values_synced, values_synced_message = self._get_dict_binding_handler().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
 
-    def get_observed_values(self) -> tuple[dict[K, V]]:
-        return tuple(self._dict)
+    def get_observed_component_values(self) -> tuple[dict[K, V]]:
+        """
+        Get the values of all observables that are bound to this observable.
+        
+        This method is part of the Observable protocol and provides access to
+        the current values of all bound observables.
+        
+        Returns:
+            A tuple containing the current dictionary value
+        """
+        return tuple(self._get_dict())
     
     def set_observed_values(self, values: tuple[dict[K, V]]) -> None:
-        self.change_dict(values[0])
+        """
+        Set the values of all observables that are bound to this observable.
+        
+        The order of the values is important and should not be changed - it is characteristic to this observable.
+        
+        This method is part of the Observable protocol and allows external
+        systems to update this observable's value. It handles all internal
+        state changes, binding updates, and listener notifications.
+        
+        Args:
+            values: A tuple containing the new dictionary value to set
+        """
+ 
+        self._set_component_values(
+            {"value": values[0]}
+        )

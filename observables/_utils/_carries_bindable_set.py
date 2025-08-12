@@ -65,27 +65,6 @@ class CarriesBindableSet(CarriesBindable, Generic[T]):
         ...
 
     @abstractmethod
-    def _check_set(self, set_to_check: set[T]) -> bool:
-        """
-        Check if a set is valid for this observable.
-        
-        This method is called by the binding system to validate sets
-        before they are set. Implementations should return True if the
-        set is acceptable, False otherwise.
-        
-        Args:
-            set_to_check: The set to validate
-            
-        Returns:
-            True if the set is valid, False otherwise
-            
-        Note:
-            This is an internal method called by the binding system.
-            It should not be called directly by users.
-        """
-        ...
-
-    @abstractmethod
     def _get_set_binding_handler(self) -> InternalBindingHandler[set[T]]:
         """
         Get the binding handler for set bindings.

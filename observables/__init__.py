@@ -7,13 +7,21 @@ It's designed to make it easy to create reactive applications where data changes
 automatically propagate through a network of interconnected objects.
 
 Core Features:
-- Bidirectional bindings between observables
+- Bidirectional bindings between observables with automatic synchronization
+- Component-based architecture for flexible observable composition
 - Automatic change propagation and synchronization
 - Listener notification system for change events
-- Type-safe generic implementations
-- Full compatibility with Python's built-in data structures
-- Custom validation support
-- Performance-optimized change detection
+- Type-safe generic implementations with full type hints
+- Custom validation support with verification methods
+- Performance-optimized change detection and binding management
+- Memory-efficient binding cleanup and listener management
+
+Architecture:
+The library uses a component-based architecture where observables are composed of:
+- Component values: The actual data being observed
+- Binding handlers: Manage bidirectional connections between observables
+- Verification methods: Validate data changes before applying them
+- Copy methods: Control how data is duplicated during binding operations
 
 Available Observable Types:
 - ObservableSingleValue: Wrapper around any single value with validation
@@ -72,7 +80,7 @@ __all__ = [
 ]
 
 # Package metadata
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'
 
@@ -92,7 +100,6 @@ __classifiers__ = [
     'Intended Audience :: Developers',
     'License :: OSI Approved :: Apache 2.0 Software License',
     'Operating System :: OS Independent',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',

@@ -2,7 +2,7 @@
 
 A Python library for creating observable objects with automatic change notifications and bidirectional bindings.
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/observables.svg)](https://badge.fury.io/py/observables)
 [![Tests](https://github.com/yourusername/observables/workflows/Tests/badge.svg)](https://github.com/yourusername/observables/actions)
@@ -122,6 +122,23 @@ country_selector.selected_option = "Canada"  # Triggers notification
 country_selector.options = ["USA", "Canada", "UK", "Germany", "France"]
 ```
 
+## Architecture
+
+The Observables library uses a **component-based architecture** that provides flexibility and performance:
+
+### Component Structure
+Each observable is composed of:
+- **Component Values**: The actual data being observed
+- **Binding Handlers**: Manage bidirectional connections between observables
+- **Verification Methods**: Validate data changes before applying them
+- **Copy Methods**: Control how data is duplicated during binding operations
+
+### Benefits
+- **Flexibility**: Easily compose complex observables from simple components
+- **Performance**: Optimized binding and change detection
+- **Memory Efficiency**: Automatic cleanup of unused bindings and listeners
+- **Type Safety**: Full generic support with comprehensive type hints
+
 ## Advanced Features
 
 ### Custom Validation
@@ -157,6 +174,64 @@ a.set_value(10)
 print(f"a: {a.value}, b: {b.value}, c: {c.value}")  # a: 10, b: 10, c: 10
 ```
 
+### Component-Based Architecture
+
+```python
+from observables import ObservableSingleValue
+from observables._utils._internal_binding_handler import InternalBindingHandler
+
+# Create a custom observable with component-based architecture
+class CustomObservable(Observable):
+    def __init__(self, initial_value: str):
+        # Define component values
+        component_values = {"text": initial_value}
+        
+        # Define binding handlers for each component
+        component_binding_handlers = {
+            "text": InternalBindingHandler(
+                self, 
+                self._get_text, 
+                self._set_text
+            )
+        }
+        
+        # Define verification method
+        def verify_changes(components: dict) -> tuple[bool, str]:
+            text = components.get("text", "")
+            if len(text) > 100:
+                return False, "Text too long (max 100 characters)"
+            return True, "Valid"
+        
+        # Define copy methods
+        component_copy_methods = {"text": str}
+        
+        super().__init__(
+            component_values,
+            component_binding_handlers,
+            verification_method=verify_changes,
+            component_copy_methods=component_copy_methods
+        )
+    
+    def _get_text(self) -> str:
+        return self._component_values["text"]
+    
+    def _set_text(self, value: str) -> None:
+        self._set_component_values({"text": value})
+    
+    @property
+    def text(self) -> str:
+        return self._get_text()
+    
+    @text.setter
+    def text(self, value: str) -> None:
+        self._set_text(value)
+
+# Usage
+custom_obs = CustomObservable("Hello")
+custom_obs.add_listeners(lambda: print(f"Text changed to: {custom_obs.text}"))
+custom_obs.text = "World"  # Triggers notification
+```
+
 ### Conditional Bindings
 
 ```python
@@ -181,16 +256,25 @@ is_enabled.add_listeners(update_binding)
 
 ### Core Classes
 
-- **`ObservableSingleValue[T]`**: Observable wrapper for single values
+- **`Observable`**: Base class for all observables with component-based architecture
+- **`ObservableSingleValue[T]`**: Observable wrapper for single values with validation
 - **`ObservableList[T]`**: Observable list with change notifications
 - **`ObservableDict[K, V]`**: Observable dictionary with change notifications
 - **`ObservableSet[T]`**: Observable set with change notifications
 - **`ObservableSelectionOption[T]`**: Observable selection from options
+- **`ObservableEnum[T]`**: Observable enum with options management
+
+### Architecture Classes
+
+- **`CarriesBindable*`**: Mixin classes that enable binding capabilities
+- **`InternalBindingHandler`**: Manages binding operations and synchronization
+- **`ListeningBase`**: Base class for listener management
 
 ### Binding Modes
 
 - **`SyncMode.UPDATE_VALUE_FROM_OBSERVABLE`**: Target gets initial value from source
 - **`SyncMode.UPDATE_OBSERVABLE_FROM_SELF`**: Source gets initial value from target
+- **`SyncMode.DEFAULT`**: Default synchronization behavior
 
 ### Common Methods
 
@@ -201,6 +285,7 @@ All observable classes support:
 - `remove_all_listeners()`: Remove all callbacks
 - `bind_to_observable(other, sync_mode)`: Create bidirectional binding
 - `unbind_from_observable(other)`: Remove binding
+- Component-based initialization with custom verification and copy methods
 
 ## Use Cases
 
@@ -219,6 +304,8 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ```bash
 git clone https://github.com/yourusername/observables.git
 cd observables
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .[dev]
 ```
 

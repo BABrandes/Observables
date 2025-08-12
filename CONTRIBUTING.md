@@ -5,7 +5,7 @@ Thank you for your interest in contributing to the Observables library! This doc
 ## Getting Started
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Git
 - pip
 
@@ -17,15 +17,14 @@ Thank you for your interest in contributing to the Observables library! This doc
    cd observables
    ```
 
-2. **Install in development mode**
-   ```bash
-   pip install -e .[dev]
-   ```
-
-3. **Create a virtual environment (recommended)**
+2. **Create a virtual environment (recommended)**
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install in development mode**
+   ```bash
    pip install -e .[dev]
    ```
 
@@ -73,6 +72,21 @@ make test-cov
 # Clean build artifacts
 make clean
 ```
+
+## Architecture Overview
+
+The Observables library uses a **component-based architecture** where observables are composed of:
+
+- **Component Values**: The actual data being observed
+- **Binding Handlers**: Manage bidirectional connections between observables  
+- **Verification Methods**: Validate data changes before applying them
+- **Copy Methods**: Control how data is duplicated during binding operations
+
+### Key Design Principles
+- **Composition over Inheritance**: Use component composition for flexibility
+- **Type Safety**: Full generic support with comprehensive type hints
+- **Performance**: Optimized binding and change detection
+- **Memory Efficiency**: Automatic cleanup of unused bindings and listeners
 
 ## Code Style
 

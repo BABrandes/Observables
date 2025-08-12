@@ -19,10 +19,10 @@ def read_requirements():
 
 setup(
     name="observables",
-    version="0.1.1",
+    version="0.2.0",
     author="Benedikt Axel Brandes",
     author_email="benedikt.brandes@example.com",
-    description="A Python library for creating observable objects with automatic change notifications and bidirectional bindings",
+    description="A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/observables",
@@ -38,8 +38,7 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
+
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
@@ -47,7 +46,7 @@ setup(
         "Topic :: Software Development :: User Interfaces",
         "Topic :: Software Development :: Object Brokering",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     install_requires=[],
     extras_require={
         "dev": [

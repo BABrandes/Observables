@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "observables"
-version = "0.1.1"
-description = "A Python library for creating observable objects with automatic change notifications and bidirectional bindings"
+version = "0.2.0"
+description = "A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache 2.0"}
 authors = [
     {name = "Benedikt Axel Brandes", email = "benedikt.brandes@example.com"}
 ]
@@ -20,10 +20,10 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: User Interfaces",
     "Topic :: Software Development :: Object Brokering",
@@ -65,7 +65,7 @@ observables = ["py.typed"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
 /(

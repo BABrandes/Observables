@@ -8,14 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of the observables library
-- Core observable classes: ObservableSingleValue, ObservableList, ObservableDict, ObservableSet
-- ObservableSelectionOption for selection-based observables
-- Bidirectional binding system with sync modes
-- Automatic change notifications
-- Comprehensive type hints and generic support
-- Thread-safe listener management
-- Memory-efficient binding cleanup
+- Component-based architecture for flexible observable composition
+- Enhanced binding system with automatic synchronization
+- Improved verification methods for data validation
+- Better memory management and binding cleanup
+- Enhanced type safety and generic support
+
+### Changed
+- Refactored entire codebase to use component-based architecture
+- Updated Observable base class to support component composition
+- Improved binding handler system for better performance
+- Enhanced error handling and validation
+
+## [0.2.0] - 2025-01-XX
+
+### Added
+- Component-based observable architecture
+- Enhanced binding system with automatic synchronization
+- Improved verification methods for data validation
+- Better memory management and binding cleanup
+- Enhanced type safety and generic support
+
+### Changed
+- Refactored entire codebase to use component-based architecture
+- Updated Observable base class to support component composition
+- Improved binding handler system for better performance
+- Enhanced error handling and validation
+
+## [0.1.1] - 2025-01-XX
+
+### Added
+- Initial beta release
+- Basic observable functionality
+- Core binding system
+- Listener management
+- Type safety features
 
 ### Changed
 - N/A

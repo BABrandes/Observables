@@ -116,6 +116,8 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
             ValueError: If the initial enum value is not in the options set
         """
 
+        self._allow_none = allow_none
+
         if enum_value is None:
             if not allow_none:
                 raise ValueError("None is not allowed as an enum value, if allow_none is False")
@@ -576,3 +578,13 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
 
         # Update internal state
         self._set_component_values({"enum_value": values[0], "enum_options": values[1]})
+
+    @property
+    def is_none_enum_value_allowed(self) -> bool:
+        """
+        Check if None enum value is allowed.
+        
+        Returns:
+            True if None enum value is allowed, False otherwise
+        """
+        return self._allow_none

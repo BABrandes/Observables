@@ -21,6 +21,7 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
     - Listener notification system for change events
     - Full set interface for options management
     - Type-safe generic implementation
+    - None selection is allowed by default
 
     Handling of no selection:
     - If allow_none is True, the selected option can be None
@@ -526,3 +527,13 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
             True if there is a selected option, False if selected_option is None
         """
         return bool(self._get_single_value())
+    
+    @property
+    def is_none_selection_allowed(self) -> bool:
+        """
+        Check if none selection is allowed.
+        
+        Returns:
+            True if none selection is allowed, False otherwise
+        """
+        return self._allow_none

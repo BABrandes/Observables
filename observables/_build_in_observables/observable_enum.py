@@ -144,7 +144,7 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
                 bindable_set_carrier: Optional[CarriesBindableSet[E]] = None
             else:
                 initial_enum_options: set[E] = enum_options.copy()
-                bindable_set_carrier: Optional[CarriesBindableSet[E]] = enum_options
+                bindable_set_carrier: Optional[CarriesBindableSet[E]] = None
 
         # Validate that the initial enum value is in the options set
         if initial_enum_value not in initial_enum_options:
@@ -588,3 +588,18 @@ class ObservableEnum(Observable, CarriesEnum[E], CarriesBindableSet[E], Generic[
             True if None enum value is allowed, False otherwise
         """
         return self._allow_none
+    
+    def set_allow_none_enum_value(self, allow_none: bool) -> None:
+        """
+        Set if None enum value is allowed.
+        
+        Args:
+            allow_none: True if None enum value is allowed, False otherwise
+
+        Raises:
+            ValueError: If trying to set allow_none to False if enum value is None
+        """
+        if self._get_enum() is None and not allow_none:
+            raise ValueError("Cannot set allow_none to False if enum value is None")
+
+        self._allow_none = allow_none

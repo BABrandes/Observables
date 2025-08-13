@@ -553,3 +553,17 @@ class ObservableSelectionOption(Observable, CarriesBindableSingleValue[Optional[
             True if none selection is allowed, False otherwise
         """
         return self._allow_none
+    
+    def set_allow_none_selection(self, allow_none: bool) -> None:
+        """
+        Set if none selection is allowed.
+        
+        Args:
+            allow_none: True if none selection is allowed, False otherwise
+
+        Raises:
+            ValueError: If trying to set allow_none to False if selected option is None
+        """
+        if self._get_single_value() is None and not allow_none:
+            raise ValueError("Cannot set allow_none to False if selected option is None")
+        self._allow_none = allow_none

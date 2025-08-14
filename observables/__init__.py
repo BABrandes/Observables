@@ -28,6 +28,7 @@ Available Observable Types:
 - ObservableList: Reactive list with full list interface compatibility
 - ObservableSet: Reactive set with full set interface compatibility
 - ObservableDict: Reactive dictionary with full dict interface compatibility
+- ObservableTuple: Reactive tuple with individual element binding support
 - ObservableSelectionOption: Combined options set and selected value management
 - ObservableMultiSelectionOption: Combined available options set and multiple selected values management
 - ObservableEnum: Reactive enum with options management and validation
@@ -65,10 +66,11 @@ from ._build_in_observables.observable_list import ObservableList
 from ._build_in_observables.observable_set import ObservableSet
 from ._build_in_observables.observable_single_value import ObservableSingleValue
 from ._build_in_observables.observable_enum import ObservableEnum
+from ._build_in_observables.observable_tuple import ObservableTuple
 from ._other_observables.observable_selection_option import ObservableSelectionOption
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption
 from ._utils.observable import Observable
-from ._utils._internal_binding_handler import SyncMode
+from ._utils.sync_mode import SyncMode
 
 __all__ = [
     'ObservableDict',
@@ -76,6 +78,7 @@ __all__ = [
     'ObservableSet',
     'ObservableSingleValue',
     'ObservableEnum',
+    'ObservableTuple',
     'ObservableSelectionOption',
     'ObservableMultiSelectionOption',
     'Observable',

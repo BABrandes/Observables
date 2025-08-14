@@ -1,12 +1,13 @@
 from typing import Any, Generic, TypeVar, overload
 from typing import Optional
-from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
-from .._utils._carries_bindable_list import CarriesBindableList
+from .._utils.hook import Hook
+from .._utils.sync_mode import SyncMode
+from .._utils.carries_distinct_list_hook import CarriesDistinctListHook
 from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
+class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -39,21 +40,21 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
     """
 
     @overload
-    def __init__(self, value: list[T]):
+    def __init__(self, list_value: list[T]):
         """Initialize with a direct list value."""
         ...
 
     @overload
-    def __init__(self, value: CarriesBindableList[T]):
+    def __init__(self, hook: CarriesDistinctListHook[T]|Hook[list[T]]):
         """Initialize with another observable list, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, value: None):
+    def __init__(self, list_value: None):
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, value: list[T] | CarriesBindableList[T] | None = None):
+    def __init__(self, hook_or_value: list[T] | CarriesDistinctListHook[T] | Hook[list[T]] | None = None):
         """
         Initialize the ObservableList.
         
@@ -64,15 +65,18 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
             ValueError: If the initial list is not a list
         """
 
-        if value is None:
+        if hook_or_value is None:
             initial_value: list[T] = []
-            bindable_list_carrier: Optional[CarriesBindableList[T]] = None
-        elif isinstance(value, CarriesBindableList):
-            initial_value: list[T] = value._get_list().copy()
-            bindable_list_carrier: Optional[CarriesBindableList[T]] = value
+            hook: Optional[Hook[list[T]]] = None
+        elif isinstance(hook_or_value, CarriesDistinctListHook):
+            initial_value: list[T] = hook_or_value.get_list_value()
+            hook: Optional[Hook[list[T]]] = hook_or_value._get_list_hook()
+        elif isinstance(hook_or_value, Hook):
+            initial_value: list[T] = hook_or_value._get_callback()
+            hook: Optional[Hook[list[T]]] = hook_or_value
         else:
-            initial_value: list[T] = value.copy()
-            bindable_list_carrier: Optional[CarriesBindableList[T]] = None
+            initial_value: list[T] = hook_or_value.copy()
+            hook: Optional[Hook[list[T]]] = None
 
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], list):
@@ -84,13 +88,13 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": InternalBindingHandler(self, self._get_list, self._set_list)
+                "value": Hook(self, self._get_list, self._set_list)
             },
             verification_method=verification_method
         )
 
-        if bindable_list_carrier is not None:
-            self.bind_to_observable(bindable_list_carrier)
+        if hook is not None:
+            self.bind_to(hook)
 
     @property
     def value(self) -> list[T]:
@@ -120,9 +124,20 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
         """
         return self._component_values["value"]
     
-    def _get_list_binding_handler(self) -> InternalBindingHandler[list[T]]:
-        """Internal method to get binding handler for binding system."""
-        return self._component_binding_handlers["value"]
+    def _get_list_hook(self) -> Hook[list[T]]:
+        """
+        Get the hook for the list.
+        """
+        return self._component_hooks["value"]
+    
+    def get_list_value(self) -> list[T]:
+        """
+        Get the current value of the list as a copy.
+        
+        Returns:
+            A copy of the current list value
+        """
+        return self._component_values["value"].copy()
     
     def set_list(self, list_to_set: list[T]) -> None:
         """
@@ -139,7 +154,7 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
         # Use the protocol method to set the value
         self.set_observed_values((list_to_set,))
 
-    def bind_to_observable(self, observable: CarriesBindableList[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+    def bind_to(self, hook: CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable list.
         
@@ -148,17 +163,19 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
         The binding can be configured with different initial synchronization modes.
         
         Args:
-            observable: The observable list to bind to
+            hook: The hook to bind to
             initial_sync_mode: How to synchronize values initially
             
         Raises:
             ValueError: If observable is None
         """
-        if observable is None:
+        if hook is None:
             raise ValueError("Cannot bind to None observable")
-        self._get_list_binding_handler().establish_binding(observable._get_list_binding_handler(), initial_sync_mode)
+        if isinstance(hook, CarriesDistinctListHook):
+            hook = hook._get_list_hook()
+        self._get_list_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from_observable(self, observable: CarriesBindableList[T]) -> None:
+    def unbind_from(self, hook: CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
         """
         Remove the bidirectional binding with another observable list.
         
@@ -166,12 +183,14 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
         preventing further automatic synchronization of changes.
         
         Args:
-            observable: The observable list to unbind from
+            hook: The hook to unbind from
             
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._get_list_binding_handler().remove_binding(observable._get_list_binding_handler())
+        if isinstance(hook, CarriesDistinctListHook):
+            hook = hook._get_list_hook()
+        self._get_list_hook().remove_binding(hook)
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -185,10 +204,10 @@ class ObservableList(Observable, CarriesBindableList[T], Generic[T]):
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
-        binding_state_consistent, binding_state_consistent_message = self._get_list_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_list_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_list_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_list_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"

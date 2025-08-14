@@ -1,6 +1,6 @@
 from abc import ABC
 
-class CarriesBindable(ABC):
+class CarriesDistinctHook(ABC):
     """
     Base abstract class for objects that can participate in bidirectional bindings.
     

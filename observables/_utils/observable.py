@@ -1,7 +1,6 @@
 from typing import Any, Callable, Optional
-from abc import abstractmethod
-from .._utils._listening_base import ListeningBase
-from .._utils._internal_binding_handler import InternalBindingHandler
+from .listening_base import ListeningBase
+from .hook import Hook
 from collections.abc import Mapping
 
 class Observable(ListeningBase):
@@ -70,7 +69,7 @@ class Observable(ListeningBase):
     def __init__(
             self,
             component_values: dict[str, Any],
-            component_binding_handlers: dict[str, InternalBindingHandler[Any]],
+            component_hooks: dict[str, Hook[Any]],
             verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = None,
             component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = {}):
         """
@@ -78,7 +77,7 @@ class Observable(ListeningBase):
 
         Args:
             component_values: A dictionary of component values.
-            component_binding_handlers: A dictionary of component binding handlers.
+            component_hooks: A dictionary of component hooks.
             component_copy_methods: A dictionary of component copy methods.
 
         If the component_copy_methods is not provided, the method will try to use the copy method of the value if it is available.
@@ -87,11 +86,11 @@ class Observable(ListeningBase):
 
         super().__init__()
 
-        if component_values.keys() != component_binding_handlers.keys():
-            raise ValueError("The keys of the component_values and component_binding_handlers must be the same")
+        if component_values.keys() != component_hooks.keys():
+            raise ValueError("The keys of the component_values and component_hooks must be the same")
 
         self._component_values: dict[str, Any] = {}
-        self._component_binding_handlers: dict[str, InternalBindingHandler[Any]] = component_binding_handlers.copy()
+        self._component_hooks: dict[str, Hook[Any]] = component_hooks.copy()
         self._verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = verification_method
         self._component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = component_copy_methods.copy()
         self._set_component_values(component_values)
@@ -102,7 +101,7 @@ class Observable(ListeningBase):
 
         This method will copy the values if the copy method is provided.
         It will also verify the values if the verification method is provided.
-        It will also notify the binding handlers and the listeners.
+        It will also notify the hooks and the listeners.
 
         This is the only method that should be used to set the component values.
 
@@ -130,16 +129,18 @@ class Observable(ListeningBase):
             else:
                 self._component_values[key] = value
 
+        # Notfy bindings
         try:
             for key, value in dict_of_values.items():
-                self._component_binding_handlers[key].notify_bindings(value)
+                self._component_hooks[key].notify_bindings(value)
         except Exception as e:
             if not reverting_to_old_values:
                 self._set_component_values(old_component_values, reverting_to_old_values=True)
-                raise ValueError(f"Error notifying the binding handlers (Reverting to old values): {e}")
+                raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
             else:
-                raise ValueError(f"Fatal error notifying the binding handlers, could not recover: {e}")
+                raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
         
+        # Notify listeners
         self._notify_listeners()
 
     @property

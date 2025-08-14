@@ -1,12 +1,13 @@
-from typing import Generic, TypeVar, Optional, overload, Any
-from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
-from .._utils._carries_bindable_dict import CarriesBindableDict
+from typing import Generic, TypeVar, Optional, overload, Any, Callable
+from .._utils.hook import Hook
+from .._utils.sync_mode import SyncMode
+from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
 from .._utils.observable import Observable
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
+class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -39,21 +40,21 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
     """
     
     @overload
-    def __init__(self, initial_dict: dict[K, V]):
+    def __init__(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None):
         """Initialize with a direct dictionary value."""
         ...
     
     @overload
-    def __init__(self, initial_dict: CarriesBindableDict[K, V]):
+    def __init__(self, dict_value: dict[K, V]):
         """Initialize with another observable dictionary, establishing a bidirectional binding."""
         ...
     
     @overload
-    def __init__(self, initial_dict: None):
+    def __init__(self, dict_value: None):
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, initial_dict: dict[K, V] | CarriesBindableDict[K, V] | None = None):
+    def __init__(self, hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | Hook[dict[K, V]] | None = None):
         """
         Initialize the ObservableDict.
         
@@ -64,15 +65,18 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
             ValueError: If the initial dictionary is not a dictionary
         """
 
-        if initial_dict is None:
+        if hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
-            bindable_dict_carrier: Optional[CarriesBindableDict[K, V]] = None
-        elif isinstance(initial_dict, CarriesBindableDict):
-            initial_dict_value: dict[K, V] = initial_dict._get_dict().copy()
-            bindable_dict_carrier: Optional[CarriesBindableDict[K, V]] = initial_dict
+            hook: Optional[Hook[dict[K, V]]] = None
+        elif isinstance(hook_or_value, CarriesDistinctDictHook):
+            initial_dict_value: dict[K, V] = hook_or_value.get_dict_value()
+            hook: Optional[Hook[dict[K, V]]] = hook_or_value._get_dict_hook()
+        elif isinstance(hook_or_value, Hook):
+            initial_dict_value: dict[K, V] = hook_or_value._get_callback()
+            hook: Optional[Hook[dict[K, V]]] = hook_or_value
         else:
-            initial_dict_value: dict[K, V] = initial_dict.copy()
-            bindable_dict_carrier: Optional[CarriesBindableDict[K, V]] = None
+            initial_dict_value: dict[K, V] = hook_or_value.copy()
+            hook: Optional[Hook[dict[K, V]]] = None
 
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], dict):
@@ -84,13 +88,13 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
                 "value": initial_dict_value
             },
             {
-                "value": InternalBindingHandler(self, self._get_dict, self._set_dict)
+                "value": Hook(self, self._get_dict, self._set_dict)
             },
             verification_method=verification_method
         )
 
-        if bindable_dict_carrier is not None:
-            self.bind_to_observable(bindable_dict_carrier)
+        if hook is not None:
+            self.bind_to(hook)
 
     @property
     def value(self) -> dict[K, V]:
@@ -120,14 +124,23 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         """
         self.change_dict(dict_to_set)
     
-    def _get_dict_binding_handler(self) -> InternalBindingHandler[dict[K, V]]:
+    def _get_dict_hook(self) -> Hook[dict[K, V]]:
         """
-        Internal method to get binding handler for binding system.
+        Internal method to get hook for binding system.
         
         Returns:
-            The binding handler for the dictionary
+            The hook for the dictionary
         """
-        return self._component_binding_handlers["value"]
+        return self._component_hooks["value"]
+    
+    def get_dict_value(self) -> dict[K, V]:
+        """
+        Get the current value of the dictionary as a copy.
+        
+        Returns:
+            A copy of the current dictionary value
+        """
+        return self._component_values["value"].copy()
     
     def change_dict(self, new_dict: dict[K, V]) -> None:
         """
@@ -339,26 +352,28 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
     def __repr__(self) -> str:
         return f"ObservableDict({self._get_dict()})"
 
-    def bind_to_observable(self, observable: CarriesBindableDict[K, V], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+    def bind_to(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
-        Establish a bidirectional binding with another observable dictionary.
+        Establish a bidirectional binding with another observable dictionary via. a hook.
         
         This method creates a bidirectional binding between this observable dictionary and another,
         ensuring that changes to either observable are automatically propagated to the other.
         The binding can be configured with different initial synchronization modes.
         
         Args:
-            observable: The observable dictionary to bind to
+            hook: The hook to bind to
             initial_sync_mode: How to synchronize values initially
             
         Raises:
             ValueError: If observable is None
         """
-        if observable is None:
+        if hook is None:
             raise ValueError("Cannot bind to None observable")
-        self._get_dict_binding_handler().establish_binding(observable._get_dict_binding_handler(), initial_sync_mode)
+        if isinstance(hook, CarriesDistinctDictHook):
+            hook = hook._get_dict_hook()
+        self._get_dict_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from_observable(self, observable: CarriesBindableDict[K, V]) -> None:
+    def unbind_from(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]]) -> None:
         """
         Remove the bidirectional binding with another observable dictionary.
         
@@ -366,12 +381,14 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
         preventing further automatic synchronization of changes.
         
         Args:
-            observable: The observable dictionary to unbind from
+            hook: The hook to unbind from
             
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._get_dict_binding_handler().remove_binding(observable._get_dict_binding_handler())
+        if isinstance(hook, CarriesDistinctDictHook):
+            hook = hook._get_dict_hook()
+        self._get_dict_hook().remove_binding(hook)
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -385,10 +402,10 @@ class ObservableDict(Observable, CarriesBindableDict[K, V], Generic[K, V]):
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
-        binding_state_consistent, binding_state_consistent_message = self._get_dict_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_dict_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_dict_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_dict_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"

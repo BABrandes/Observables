@@ -1,11 +1,12 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload
-from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
-from .._utils._carries_bindable_single_value import CarriesBindableSingleValue
+from .._utils.hook import Hook
+from .._utils.sync_mode import SyncMode
+from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T]):
+class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     
@@ -42,7 +43,7 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
     """
     
     @overload
-    def __init__(self, value: CarriesBindableSingleValue[T], validator: Optional[Callable[[T], bool]] = None):
+    def __init__(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], validator: Optional[Callable[[T], bool]] = None):
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
     
@@ -51,7 +52,7 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         """Initialize with a direct value."""
         ...
 
-    def __init__(self, value: T | CarriesBindableSingleValue[T], validator: Optional[Callable[[T], bool]] = None):
+    def __init__(self, hook_or_value: T | CarriesDistinctSingleValueHook[T] | Hook[T], validator: Optional[Callable[[T], bool]] = None):
         """
         Initialize the ObservableSingleValue.
         
@@ -63,12 +64,15 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
             ValueError: If the initial value fails validation
         """
 
-        if isinstance(value, CarriesBindableSingleValue):
-            initial_value: T = value._get_single_value()
-            bindable_single_value_carrier: Optional[CarriesBindableSingleValue[T]] = value
+        if isinstance(hook_or_value, CarriesDistinctSingleValueHook):
+            initial_value: T = hook_or_value.get_single_value()
+            hook: Optional[Hook[T]] = hook_or_value._get_single_value_hook()
+        elif isinstance(hook_or_value, Hook):
+            initial_value: T = hook_or_value._get_callback()
+            hook: Optional[Hook[T]] = hook_or_value
         else:
-            initial_value: T = value
-            bindable_single_value_carrier: Optional[CarriesBindableSingleValue[T]] = None
+            initial_value: T = hook_or_value
+            hook: Optional[Hook[T]] = None
 
         if validator is not None:
             def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
@@ -84,13 +88,13 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
                 "value": initial_value
             },
             {
-                "value": InternalBindingHandler(self, self._get_single_value, self._set_single_value)
+                "value": Hook(self, self._get_single_value, self._set_single_value)
             },
             verification_method=verification_method,
         )
         
-        if bindable_single_value_carrier is not None:
-            self.bind_to_observable(bindable_single_value_carrier)
+        if hook is not None:
+            self.bind_to(hook)
 
     @property
     def value(self) -> T:
@@ -115,16 +119,34 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         self._set_component_values({"value": new_value})
     
     def _get_single_value(self) -> T:
-        """Internal method to get the current value for binding system."""
+        """
+        Internal method to get the current value for binding system.
+        
+        Returns:
+            The current value
+        """
         return self._component_values["value"]
     
     def _set_single_value(self, single_value_to_set: T) -> None:
         """Internal method to set value from binding system."""
         self.set_value(single_value_to_set)
     
-    def _get_single_value_binding_handler(self) -> InternalBindingHandler[T]:
-        """Internal method to get binding handler for binding system."""
-        return self._component_binding_handlers["value"]
+    def _get_single_value_hook(self) -> Hook[T]:
+        """Internal method to get hook for binding system.
+        
+        Returns:
+            The hook for the single value
+        """
+        return self._component_hooks["value"]
+    
+    def get_single_value(self) -> T:
+        """
+        Get the current value.
+        
+        Returns:
+            The current value
+        """
+        return self._component_values["value"]
         
     def __str__(self) -> str:
         """String representation of the observable."""
@@ -336,7 +358,7 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         import math
         return math.trunc(self._component_values["value"]) # type: ignore
     
-    def bind_to_observable(self, observable: CarriesBindableSingleValue[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+    def bind_to(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Create a bidirectional binding with another observable.
         
@@ -351,11 +373,13 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         Raises:
             ValueError: If the observable is None
         """
-        if observable is None:
+        if hook is None:
             raise ValueError("Cannot bind to None observable")
-        self._get_single_value_binding_handler().establish_binding(observable._get_single_value_binding_handler(), initial_sync_mode)
+        if isinstance(hook, CarriesDistinctSingleValueHook):
+            hook = hook._get_single_value_hook()
+        self._get_single_value_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from_observable(self, observable: "ObservableSingleValue[T]") -> None:
+    def unbind_from(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T]) -> None:
         """
         Remove the bidirectional binding with another observable.
         
@@ -364,9 +388,11 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
         affect the other.
         
         Args:
-            observable: The observable to unbind from
+            hook: The hook to unbind from
         """
-        self._get_single_value_binding_handler().remove_binding(observable._get_single_value_binding_handler())
+        if isinstance(hook, CarriesDistinctSingleValueHook):
+            hook = hook._get_single_value_hook()
+        self._get_single_value_hook().remove_binding(hook)
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -381,10 +407,10 @@ class ObservableSingleValue(Observable, CarriesBindableSingleValue[T], Generic[T
                 - bool: True if the binding system is consistent, False otherwise
                 - str: Description of the binding system state or error message
         """
-        binding_state_consistent, binding_state_consistent_message = self._get_single_value_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_single_value_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_single_value_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_single_value_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"

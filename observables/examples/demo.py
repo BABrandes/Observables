@@ -90,7 +90,7 @@ def demo_bidirectional_bindings() -> None:
     print("\nBinding USD to EUR...")
     price_usd.bind_to_observable(
         price_eur, 
-        initial_sync_mode=SyncMode.UPDATE_VALUE_FROM_OBSERVABLE
+        initial_sync_mode=SyncMode.UPDATE_SELF_FROM_OBSERVABLE
     )
     
     print("\nNow changing USD price:")

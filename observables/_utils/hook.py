@@ -1,59 +1,49 @@
-from typing import Callable, Generic, TypeVar, TYPE_CHECKING
-from enum import Enum
+from typing import Any, Callable, Generic, Optional, TypeVar, TYPE_CHECKING
+from .sync_mode import SyncMode
 
 if TYPE_CHECKING:
-    from .._utils.observable import Observable
+    from .observable import Observable
 
 T = TypeVar("T")
 
-class SyncMode(Enum):
-    """
-    Synchronization modes for establishing bidirectional bindings between observables.
-    
-    This enum defines how two observables should synchronize their values when
-    establishing a bidirectional binding. The initial sync mode determines which
-    observable's value is used as the source of truth during binding establishment.
-    
-    Attributes:
-        UPDATE_VALUE_FROM_OBSERVABLE: Use the target observable's value for initial sync
-        UPDATE_OBSERVABLE_FROM_SELF: Use this observable's value for initial sync
-    
-    Example:
-        >>> from observables import ObservableSingleValue, SyncMode
-        
-        >>> # Create observables with different values
-        >>> source = ObservableSingleValue(10)
-        >>> target = ObservableSingleValue(20)
-        
-        >>> # Bind with different sync modes
-        >>> # This will set target to 10 (source's value)
-        >>> source.bind_to_observable(target, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
-        >>> print(target.value)  # Output: 10
-        
-        >>> # This would set source to 20 (target's value)
-        >>> # source.bind_to_observable(target, SyncMode.UPDATE_VALUE_FROM_OBSERVABLE)
-    """
-    UPDATE_VALUE_FROM_OBSERVABLE = "update_value_from_observable"
-    UPDATE_OBSERVABLE_FROM_SELF = "update_observable_from_self"
+class Hook(Generic[T]):
 
-DEFAULT_SYNC_MODE = SyncMode.UPDATE_OBSERVABLE_FROM_SELF
-
-class InternalBindingHandler(Generic[T]):
-
-    def __init__(self, owner: "Observable", get_callback: Callable[[], T], set_callback: Callable[[T], None]):
+    def __init__(self, owner: "Observable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
 
         self._owner = owner
-        self._bound_binding_handlers: set["InternalBindingHandler[T]"] = set()
-        self._get_callback: Callable[[], T] = get_callback
-        self._set_callback: Callable[[T], None] = set_callback
+        self._connected_hooks: set["Hook[T]"] = set()
+        self._get_callback: Callable[[], T]|Callable[[dict[str, Any]], T] = get_callback
+        self._set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None] = set_callback
+        self._auxiliary_information: Optional[dict[str, Any]] = auxiliary_information
         self._is_updating_from_binding = False
         self._is_establishing_binding = False
         self._is_checking_binding_state = False
         self._is_notifying = False
 
+    @property
+    def owner(self) -> "Observable":
+        """
+        Get the owner of this hook.
+        """
+        return self._owner
+    
+    @property
+    def connected_hooks(self) -> set["Hook[T]"]:
+        """
+        Get the set of connected hooks.
+        """
+        return self._connected_hooks.copy()
+    
+    @property
+    def auxiliary_information(self) -> Optional[dict[str, Any]]:
+        """
+        Get the auxiliary information of this hook.
+        """
+        return self._auxiliary_information.copy()
+
     def establish_binding(
             self,
-            binding_handler: "InternalBindingHandler[T]",
+            binding_handler: "Hook[T]",
             initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF
             ) -> None:
         """
@@ -74,16 +64,16 @@ class InternalBindingHandler(Generic[T]):
         # Step 1: Safety check: prevent binding establishment if already in progress
         if self._is_establishing_binding:
             raise ValueError(f"Cannot establish binding while already establishing a binding")
-        for bound_binding_handler in self._bound_binding_handlers:
+        for bound_binding_handler in self._connected_hooks:
             if bound_binding_handler._is_establishing_binding:
                 raise ValueError(f"Cannot establish binding while {bound_binding_handler} is establishing a binding")
-        for bound_binding_handler in binding_handler._bound_binding_handlers:
+        for bound_binding_handler in binding_handler._connected_hooks:
             if bound_binding_handler._is_establishing_binding:
                 raise ValueError(f"Cannot establish binding while {bound_binding_handler} is establishing a binding")
             
         # Step 2: Get the value to sync
         match initial_sync_mode:
-            case SyncMode.UPDATE_VALUE_FROM_OBSERVABLE:
+            case SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
                 value_to_sync: T = binding_handler._get_callback()
             case SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
                 value_to_sync: T = self._get_callback()
@@ -100,12 +90,12 @@ class InternalBindingHandler(Generic[T]):
                 raise ValueError(f"Cannot bind to None binding handler")
             elif binding_handler == self:
                 raise ValueError(f"Cannot bind observable to itself")
-            elif binding_handler in self._bound_binding_handlers:
+            elif binding_handler in self._connected_hooks:
                 raise ValueError(f"Already bound to {binding_handler}")
             
             # Step 6: Establish the connection between self and binding_handler
-            self._bound_binding_handlers.add(binding_handler)
-            binding_handler._bound_binding_handlers.add(self)
+            self._connected_hooks.add(binding_handler)
+            binding_handler._connected_hooks.add(self)
 
             # Step 7: Check binding state to ensure all connections are bidirectional
             binding_state_consistent, binding_state_consistent_message = self.check_binding_state_consistency()
@@ -123,7 +113,7 @@ class InternalBindingHandler(Generic[T]):
         self._set_callback(value_to_sync)
         binding_handler._set_callback(value_to_sync)
 
-    def remove_binding(self, binding_handler: "InternalBindingHandler[T]") -> None:
+    def remove_binding(self, binding_handler: "Hook[T]") -> None:
         """
         Remove a binding between this handler and the given binding handler.
         Since the network is fully connected (everyone to everyone), removing one binding
@@ -139,27 +129,27 @@ class InternalBindingHandler(Generic[T]):
         elif binding_handler == self:
             raise ValueError(f"Cannot remove binding from self")
         
-        if binding_handler not in self._bound_binding_handlers or self not in binding_handler._bound_binding_handlers:
+        if binding_handler not in self._connected_hooks or self not in binding_handler._connected_hooks:
             raise ValueError(f"Cannot remove binding that is not bound to {self} or {binding_handler}")
 
-        self._bound_binding_handlers.remove(binding_handler)
-        binding_handler._bound_binding_handlers.remove(self)
+        self._connected_hooks.remove(binding_handler)
+        binding_handler._connected_hooks.remove(self)
 
         state_consistent, state_consistent_message = self.check_binding_state_consistency()
         if not state_consistent:
             raise ValueError(state_consistent_message)
 
-    def is_bound_to(self, binding_handler: "InternalBindingHandler[T]") -> bool:
+    def is_bound_to(self, binding_handler: "Hook[T]") -> bool:
         """
         Check if this handler is bound to the given binding handler.
         Since bindings are bidirectional, this checks if we notify the given handler.
         """
-        return binding_handler in self._bound_binding_handlers
+        return binding_handler in self._connected_hooks
     
     def notify_bindings(self, value: T) -> None:
         """
-        Notify all bound handlers of a value change.
-        Since bindings are bidirectional, this notifies all handlers that this handler is bound to.
+        Notify all connected hooks of a value change.
+        Since connections are bidirectional, this notifies all hooks that this hook is connected to.
         This method is transitive - it will propagate through the entire binding chain.
         """
         # Safety check: prevent notification during binding establishment
@@ -175,14 +165,14 @@ class InternalBindingHandler(Generic[T]):
             return
 
         self._is_notifying = True
-        for bound_binding_handler in self._bound_binding_handlers:
-            bound_binding_handler._set_callback(value)
+        for connected_hook in self._connected_hooks:
+            connected_hook._set_callback(value)
         self._is_notifying = False
     
     def check_binding_state_consistency(self) -> tuple[bool, str]:
         """
-        Check that all bindings are bidirectional.
-        This ensures that if A is bound to B, then B is also bound to A.
+        Check that all connections are bidirectional.
+        This ensures that if A is connected to B, then B is also connected to A.
         """
 
         if self._is_checking_binding_state:
@@ -190,28 +180,34 @@ class InternalBindingHandler(Generic[T]):
 
         self._is_checking_binding_state = True
 
-        for binding_handler in self._bound_binding_handlers:
-            if self not in binding_handler._bound_binding_handlers:
-                return False, f"Binding state inconsistency detected: {self} is bound to {binding_handler}, but {binding_handler} is not bound to {self}. All bindings must be bidirectional."
+        for connected_hook in self._connected_hooks:
+            if self not in connected_hook._connected_hooks:
+                return False, f"Binding state inconsistency detected: {self} is connected to {connected_hook}, but {connected_hook} is not connected to {self}. All connections must be bidirectional."
 
         self._is_checking_binding_state = False
 
-        return True, "All bindings are bidirectional"
+        return True, "All connections are bidirectional"
     
     def check_values_synced(self) -> tuple[bool, str]:
         """
-        Check if all bound handlers have synchronized values.
-        This ensures that after binding, all handlers have consistent values.
+        Check if all connected hooks have synchronized values.
+        This ensures that after binding, all hooks have consistent values.
         """
-        if not self._bound_binding_handlers:
+        if not self._connected_hooks:
             return True, "No bindings to check" # No bindings to check
         
         # Get the reference value from this handler
-        reference_value = self._get_callback()
+        if self._auxiliary_information is None:
+            reference_value = self._get_callback()
+        else:
+            reference_value = self._get_callback(self._auxiliary_information)
         
-        # Check that all bound handlers have the same value
-        for binding_handler in self._bound_binding_handlers:
-            handler_value = binding_handler._get_callback()
+        # Check that all connected hooks have the same value
+        for connected_hook in self._connected_hooks:
+            if connected_hook._auxiliary_information is None:
+                handler_value = connected_hook._get_callback()
+            else:
+                handler_value = connected_hook._get_callback(connected_hook._auxiliary_information)
             if handler_value != reference_value:
-                return False, f"Value synchronization check failed: {self} has value {reference_value}, but {binding_handler} has value {handler_value}. All bound handlers should have synchronized values."
+                return False, f"Value synchronization check failed: {self} has value {reference_value}, but {connected_hook} has value {handler_value}. All connected hooks should have synchronized values."
         return True, "All values are synced"

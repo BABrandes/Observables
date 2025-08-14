@@ -1,12 +1,12 @@
 from typing import Any, Generic, Optional, TypeVar, overload
-from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
-from .._utils._carries_bindable_single_value import CarriesBindableSingleValue
-from .._utils._carries_bindable_set import CarriesBindableSet
+from .._utils.hook import Hook
+from .._utils.sync_mode import SyncMode
 from .._utils.observable import Observable
+from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 
 T = TypeVar("T")
 
-class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[T]):
+class ObservableMultiSelectionOption(Observable, Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -50,17 +50,17 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
     """
     
     @overload
-    def __init__(self, selected_options: CarriesBindableSet[T], available_options: CarriesBindableSet[T]):
+    def __init__(self, selected_options: Hook[set[T]]|CarriesDistinctSetHook[T], available_options: Hook[set[T]]|CarriesDistinctSetHook[T]):
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: CarriesBindableSet[T]):
+    def __init__(self, selected_options: set[T], available_options: Hook[set[T]]|CarriesDistinctSetHook[T]):
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: CarriesBindableSet[T], available_options: set[T]):
+    def __init__(self, selected_options: Hook[set[T]]|CarriesDistinctSetHook[T], available_options: set[T]):
         """Initialize with direct available options and observable selected options."""
         ...
     
@@ -69,7 +69,7 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
         """Initialize with direct available options and direct selected options."""
         ...
 
-    def __init__(self, selected_options: set[T] | CarriesBindableSet[T], available_options: set[T] | CarriesBindableSet[T]):
+    def __init__(self, selected_options: set[T] | Hook[set[T]]|CarriesDistinctSetHook[T], available_options: set[T] | Hook[set[T]]|CarriesDistinctSetHook[T]):
         """
         Initialize the ObservableMultiSelectionOption.
         
@@ -81,19 +81,25 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
             ValueError: If any selected option is not in available options set
         """
         
-        if isinstance(available_options, CarriesBindableSet):
-            initial_available_options: set[T] = available_options._get_set().copy()
-            bindable_set_carrier: Optional[CarriesBindableSet[T]] = available_options
+        if isinstance(available_options, CarriesDistinctSetHook):
+            initial_available_options: set[T] = available_options.get_set_value()
+            available_options_hook: Optional[Hook[set[T]]] = available_options._get_set_hook()
+        elif isinstance(available_options, Hook):
+            initial_available_options: set[T] = available_options._get_callback()
+            available_options_hook: Optional[Hook[set[T]]] = available_options
         else:
             initial_available_options: set[T] = available_options.copy()
-            bindable_set_carrier: Optional[CarriesBindableSet[T]] = None
+            available_options_hook: Optional[Hook[set[T]]] = None
 
-        if isinstance(selected_options, CarriesBindableSet):
-            initial_selected_options: set[T] = selected_options._get_set().copy()
-            bindable_selected_options_carrier: Optional[CarriesBindableSet[T]] = selected_options
+        if isinstance(selected_options, CarriesDistinctSetHook):
+            initial_selected_options: set[T] = selected_options.get_set_value()
+            selected_options_hook: Optional[Hook[set[T]]] = selected_options._get_set_hook()
+        elif isinstance(selected_options, Hook):
+            initial_selected_options: set[T] = selected_options._get_callback()
+            selected_options_hook: Optional[Hook[set[T]]] = selected_options
         else:
             initial_selected_options: set[T] = selected_options.copy()
-            bindable_selected_options_carrier: Optional[CarriesBindableSet[T]] = None
+            selected_options_hook: Optional[Hook[set[T]]] = None
 
         if initial_selected_options and not initial_selected_options.issubset(initial_available_options):
             invalid_options = initial_selected_options - initial_available_options
@@ -118,16 +124,16 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
                 "available_options": initial_available_options
             },
             {
-                "selected_options": InternalBindingHandler(self, self._get_selected_options_set, self._set_selected_options_set),
-                "available_options": InternalBindingHandler(self, self._get_available_options_set, self._set_available_options_set)
+                "selected_options": Hook(self, self._get_selected_options_set, self._set_selected_options_set),
+                "available_options": Hook(self, self._get_available_options_set, self._set_available_options_set)
             },
             verification_method=verification_method
         )
 
-        if bindable_set_carrier is not None:
-            self.bind_available_options_to_observable(bindable_set_carrier)
-        if bindable_selected_options_carrier is not None:
-            self.bind_selected_options_to_observable(bindable_selected_options_carrier)
+        if available_options_hook is not None:
+            self.bind_available_options_to(available_options_hook)
+        if selected_options_hook is not None and selected_options_hook is not available_options_hook:
+            self.bind_selected_options_to(selected_options_hook)
 
     @property
     def available_options(self) -> set[T]:
@@ -225,54 +231,9 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
         Args:
             value: The new selected options set to set
         """
-        self.set_selected_options(value)
-    
-    def _get_set(self) -> set[T]:
-        """
-        Get the current selected options set for the CarriesBindableSet interface.
-        No copy is made!
-        
-        Returns:
-            The current selected options set
-        """
-        return self._component_values["selected_options"]
-    
-    def _set_set(self, value: set[T]) -> None:
-        """
-        Internal method to set selected options from binding system for the CarriesBindableSet interface.
-        
-        Args:
-            value: The new selected options set to set
-        """
-        self.set_selected_options(value)
-    
-    def _get_selected_options_binding_handler(self) -> InternalBindingHandler[set[T]]:
-        """
-        Internal method to get selected options binding handler.
-        
-        Returns:
-            The binding handler for the selected options
-        """
-        return self._component_binding_handlers["selected_options"]
-    
-    def _get_available_options_binding_handler(self) -> InternalBindingHandler[set[T]]:
-        """
-        Internal method to get available options binding handler.
-        
-        Returns:
-            The binding handler for the available options set
-        """
-        return self._component_binding_handlers["available_options"]
-    
-    def _get_set_binding_handler(self) -> InternalBindingHandler[set[T]]:
-        """
-        Internal method to get selected options binding handler for the CarriesBindableSet interface.
-        
-        Returns:
-            The binding handler for the selected options
-        """
-        return self._component_binding_handlers["selected_options"]
-    
+        # Use the atomic setter to ensure consistency
+        self.set_selected_options_and_available_options(value, self._component_values["available_options"])
+
     def set_selected_options_and_available_options(self, selected_options: set[T], options: set[T]) -> None:
         """
         Set both the selected options and available options atomically.
@@ -358,7 +319,7 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
             invalid_options = selected_options - available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {available_options}")
 
-    def bind_selected_options_to_observable(self, observable: CarriesBindableSet[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+    def bind_selected_options_to(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding for the selected options with another observable.
         
@@ -366,17 +327,19 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
         and another observable, ensuring that changes to either are automatically propagated.
         
         Args:
-            observable: The observable to bind the selected options to
+            hook: The hook to bind the selected options to
             initial_sync_mode: How to synchronize values initially
             
         Raises:
-            ValueError: If the observable is None
+            ValueError: If the hook is None
         """
-        if observable is None:
-            raise ValueError("Observable is None")
-        self._get_selected_options_binding_handler().establish_binding(observable._get_set_binding_handler(), initial_sync_mode)
+        if hook is None:
+            raise ValueError("Hook is None")
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_selected_options_hook().establish_binding(hook, initial_sync_mode)
 
-    def bind_available_options_to_observable(self, observable: CarriesBindableSet[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:        
+    def bind_available_options_to(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:        
         """
         Establish a bidirectional binding for the available options set with another observable.
         
@@ -384,17 +347,52 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
         and another observable, ensuring that changes to either are automatically propagated.
         
         Args:
-            observable: The observable to bind the available options to
+            hook: The hook to bind the available options to
+            initial_sync_mode: How to synchronize values initially
+            
+        Raises:
+            ValueError: If the hook is None
+        """
+        if hook is None:
+            raise ValueError("Hook is None")
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_available_options_hook().establish_binding(hook, initial_sync_mode)
+
+    def bind_to(self, observable: "ObservableMultiSelectionOption[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding for the selected options with another instance of this class.
+        
+        This method creates a bidirectional binding between this observable's selected options
+        and another instance of this class, ensuring that changes to either are automatically propagated.
+
+        Args:
+            observable: The observable to bind to
             initial_sync_mode: How to synchronize values initially
             
         Raises:
             ValueError: If the observable is None
         """
-        if observable is None:
-            raise ValueError("Observable is None")
-        self._get_available_options_binding_handler().establish_binding(observable._get_set_binding_handler(), initial_sync_mode)
+        
+        # First, synchronize the values atomically to maintain consistency
+        if initial_sync_mode == SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
+            # Update both values at once to maintain consistency
+            self.set_selected_options_and_available_options(
+                observable.selected_options, 
+                observable.available_options
+            )
+        elif initial_sync_mode == SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
+            # Update the other observable's values at once
+            observable.set_selected_options_and_available_options(
+                self.selected_options, 
+                self.available_options
+            )
+        
+        # Then, establish the bindings
+        self._get_available_options_hook().establish_binding(observable._get_available_options_hook(), initial_sync_mode)
+        self._get_selected_options_hook().establish_binding(observable._get_selected_options_hook(), initial_sync_mode)
 
-    def unbind_selected_options_from_observable(self, observable: CarriesBindableSet[T]) -> None:
+    def unbind_selected_options_from(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
         """
         Remove the bidirectional binding for the selected options with another observable.
         
@@ -402,27 +400,42 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
         and another observable, preventing further automatic synchronization.
         
         Args:
-            observable: The observable to unbind the selected options from
+            hook: The hook to unbind the selected options from
             
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._get_selected_options_binding_handler().remove_binding(observable._get_set_binding_handler())
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_selected_options_hook().remove_binding(hook)
 
-    def unbind_available_options_from_observable(self, observable: CarriesBindableSet[T]) -> None:
+    def unbind_available_options_from(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
         """
         Remove the bidirectional binding for the available options set with another observable.
         
-        This method removes the binding between this observable's available options set
+        This method removes the bidirectional binding between this observable's available options set
         and another observable, preventing further automatic synchronization.
         
         Args:
-            observable: The observable to unbind the available options from
+            hook: The hook to unbind the available options from
             
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._get_available_options_binding_handler().remove_binding(observable._get_set_binding_handler())
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_available_options_hook().remove_binding(hook)
+
+    def unbind_from(self, observable: "ObservableMultiSelectionOption[T]") -> None:
+        """
+        Remove the bidirectional binding for the selected options with another instance of this class.
+        
+        This method removes the binding between this observable's selected options
+        and another instance of this class, preventing further automatic synchronization.
+        """
+        
+        self._get_available_options_hook().remove_binding(observable._get_available_options_hook())
+        self._get_selected_options_hook().remove_binding(observable._get_selected_options_hook())
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -437,19 +450,37 @@ class ObservableMultiSelectionOption(Observable, CarriesBindableSet[T], Generic[
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
-        binding_state_consistent, binding_state_consistent_message = self._get_selected_options_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_available_options_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        binding_state_consistent, binding_state_consistent_message = self._get_available_options_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_selected_options_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_selected_options_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_available_options_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
-        values_synced, values_synced_message = self._get_available_options_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_selected_options_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"
+    
+    def _get_available_options_hook(self) -> Hook[set[T]]:
+        """
+        Get the hook for the available options set.
+        
+        Returns:
+            The hook for the available options set
+        """
+        return self._component_hooks["available_options"]
+    
+    def _get_selected_options_hook(self) -> Hook[set[T]]:
+        """
+        Get the hook for the selected options set.
+        
+        Returns:
+            The hook for the selected options set
+        """
+        return self._component_hooks["selected_options"]
     
     def add(self, item: T) -> None:
         """

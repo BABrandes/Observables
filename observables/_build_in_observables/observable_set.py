@@ -1,11 +1,12 @@
-from typing import Any, Generic, Optional , TypeVar, overload
-from .._utils._internal_binding_handler import InternalBindingHandler, SyncMode, DEFAULT_SYNC_MODE
-from .._utils._carries_bindable_set import CarriesBindableSet
+from typing import Any, Generic, Optional, TypeVar, overload, Callable
+from .._utils.hook import Hook
+from .._utils.sync_mode import SyncMode
+from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from .._utils.observable import Observable
 
 T = TypeVar("T")
 
-class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
+class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -38,12 +39,12 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
     """
 
     @overload
-    def __init__(self, value: set[T]):
+    def __init__(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], validator: Optional[Callable[[set[T]], bool]] = None):
         """Initialize with a direct set value."""
         ...
 
     @overload
-    def __init__(self, value: CarriesBindableSet[T]):
+    def __init__(self, value: set[T]):
         """Initialize with another observable set, establishing a bidirectional binding."""
         ...
 
@@ -52,7 +53,7 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, value: set[T] | CarriesBindableSet[T] | None = None):
+    def __init__(self, hook_or_value: set[T] | CarriesDistinctSetHook[T] | None = None):
         """
         Initialize the ObservableSet.
         
@@ -62,15 +63,18 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Raises:
             ValueError: If the initial set is not a set
         """
-        if value is None:
+        if hook_or_value is None:
             initial_value: set[T] = set()
-            bindable_set_carrier: Optional[CarriesBindableSet[T]] = None
-        elif isinstance(value, CarriesBindableSet):
-            initial_value: set[T] = value._get_set().copy()
-            bindable_set_carrier: Optional[CarriesBindableSet[T]] = value
+            hook: Optional[Hook[set[T]]] = None
+        elif isinstance(hook_or_value, CarriesDistinctSetHook):
+            initial_value: set[T] = hook_or_value.get_set_value()
+            hook: Optional[Hook[set[T]]] = hook_or_value._get_set_hook()
+        elif isinstance(hook_or_value, Hook):
+            initial_value: set[T] = hook_or_value._get_callback()
+            hook: Optional[Hook[set[T]]] = hook_or_value
         else:
-            initial_value: set[T] = value.copy()
-            bindable_set_carrier: Optional[CarriesBindableSet[T]] = None
+            initial_value: set[T] = hook_or_value.copy()
+            hook: Optional[Hook[set[T]]] = None
         
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], set):
@@ -82,13 +86,13 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": InternalBindingHandler(self, self._get_set, self._set_set)
+                "value": Hook(self, self._get_set, self._set_set)
             },
             verification_method=verification_method
         )
 
-        if bindable_set_carrier is not None:
-            self.bind_to_observable(bindable_set_carrier)
+        if hook is not None:
+            self.bind_to(hook)
     
 
     @property
@@ -112,21 +116,30 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
     
     def _set_set(self, set_to_set: set[T]) -> None:
         """
-        Internal method to set set from binding system.
+        Internal method to set set from hook.
         
         Args:
             set_to_set: The new set to set
         """
         self.set_set(set_to_set)
     
-    def _get_set_binding_handler(self) -> InternalBindingHandler[set[T]]:
+    def _get_set_hook(self) -> Hook[set[T]]:
         """
-        Internal method to get binding handler for binding system.
+        Internal method to get hook for binding system.
         
         Returns:
-            The binding handler for the set
+            The hook for the set
         """
-        return self._component_binding_handlers["value"]
+        return self._component_hooks["value"]
+    
+    def get_set_value(self) -> set[T]:
+        """
+        Get the current value of the set as a copy.
+        
+        Returns:
+            A copy of the current set value
+        """
+        return self._component_values["value"].copy()
     
     def set_set(self, set_to_set: set[T]) -> None:
         """
@@ -143,7 +156,7 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         # Use the protocol method to set the value
         self.set_observed_values((set_to_set,))
 
-    def bind_to_observable(self, observable: CarriesBindableSet[T], initial_sync_mode: SyncMode = DEFAULT_SYNC_MODE) -> None:
+    def bind_to(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable set.
         
@@ -158,11 +171,13 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Raises:
             ValueError: If observable is None
         """
-        if observable is None:
+        if hook is None:
             raise ValueError("Cannot bind to None observable")
-        self._get_set_binding_handler().establish_binding(observable._get_set_binding_handler(), initial_sync_mode)
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_set_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from_observable(self, observable: CarriesBindableSet[T]) -> None:
+    def unbind_from(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
         """
         Remove the bidirectional binding with another observable set.
         
@@ -175,7 +190,9 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
         Raises:
             ValueError: If there is no binding to remove
         """
-        self._get_set_binding_handler().remove_binding(observable._get_set_binding_handler())
+        if isinstance(hook, CarriesDistinctSetHook):
+            hook = hook._get_set_hook()
+        self._get_set_hook().remove_binding(hook)
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -189,10 +206,10 @@ class ObservableSet(Observable, CarriesBindableSet[T], Generic[T]):
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
-        binding_state_consistent, binding_state_consistent_message = self._get_set_binding_handler().check_binding_state_consistency()
+        binding_state_consistent, binding_state_consistent_message = self._get_set_hook().check_binding_state_consistency()
         if not binding_state_consistent:
             return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_set_binding_handler().check_values_synced()
+        values_synced, values_synced_message = self._get_set_hook().check_values_synced()
         if not values_synced:
             return False, values_synced_message
         return True, "Binding system is consistent"

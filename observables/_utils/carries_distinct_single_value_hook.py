@@ -31,13 +31,32 @@ class CarriesDistinctSingleValueHook(CarriesDistinctHook, Generic[T]):
     @abstractmethod
     def _get_single_value_hook(self) -> Hook[T]:
         """
-        Get the hook for the single value.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for the single value.
+        
+        Returns:
+            The hook for the single value
         """
         ...
 
     @abstractmethod
-    def get_single_value(self) -> T:
+    def _get_single_value(self) -> T:
         """
-        Get the current value of the single value.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the current value of the single value.
+        
+        Returns:
+            The current value of the single value
+        """
+        ...
+
+    @abstractmethod
+    def _set_single_value(self, single_value_to_set: T) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the single value.
         """
         ...

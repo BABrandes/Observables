@@ -65,7 +65,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         """
 
         if isinstance(hook_or_value, CarriesDistinctSingleValueHook):
-            initial_value: T = hook_or_value.get_single_value()
+            initial_value: T = hook_or_value._get_single_value()
             hook: Optional[Hook[T]] = hook_or_value._get_single_value_hook()
         elif isinstance(hook_or_value, Hook):
             initial_value: T = hook_or_value._get_callback()
@@ -97,7 +97,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             self.bind_to(hook)
 
     @property
-    def value(self) -> T:
+    def single_value(self) -> T:
         """
         Get the current value.
         
@@ -106,7 +106,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         """
         return self._component_values["value"]
     
-    def set_value(self, new_value: T) -> None:
+    @single_value.setter
+    def single_value(self, new_value: T) -> None:
         """
         Set a new value, triggering validation, binding updates, and listener notifications.
         
@@ -120,7 +121,9 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
     
     def _get_single_value(self) -> T:
         """
-        Internal method to get the current value for binding system.
+        INTERNAL. Do not use this method directly.
+
+        Method to get the current value for binding system.
         
         Returns:
             The current value
@@ -128,33 +131,32 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         return self._component_values["value"]
     
     def _set_single_value(self, single_value_to_set: T) -> None:
-        """Internal method to set value from binding system."""
-        self.set_value(single_value_to_set)
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to set value from binding system.
+        
+        Args:
+            single_value_to_set: The new value to set
+        """
+        self.single_value = single_value_to_set
     
     def _get_single_value_hook(self) -> Hook[T]:
-        """Internal method to get hook for binding system.
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to get hook for binding system. No copy is made!
         
         Returns:
             The hook for the single value
         """
         return self._component_hooks["value"]
     
-    def get_single_value(self) -> T:
-        """
-        Get the current value.
-        
-        Returns:
-            The current value
-        """
-        return self._component_values["value"]
-        
     def __str__(self) -> str:
-        """String representation of the observable."""
-        return f"OSV(value={self._component_values['value']})"
+        return f"OSV(value={self._get_single_value()})"
     
     def __repr__(self) -> str:
-        """Detailed string representation of the observable."""
-        return f"OSV(value={self._component_values['value']})"
+        return f"OSV(value={self._get_single_value()})"
     
     def __eq__(self, other) -> bool:
         """
@@ -167,8 +169,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_values["value"] == other._component_values["value"]
-        return self._component_values["value"] == other
+            return self._get_single_value() == other._get_single_value()
+        return self._get_single_value() == other
     
     def __ne__(self, other) -> bool:
         """
@@ -193,8 +195,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             True if this value is less than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_values["value"] < other._component_values["value"]
-        return self._component_values["value"] < other
+            return self._get_single_value() < other._get_single_value()
+        return self._get_single_value() < other
     
     def __le__(self, other) -> bool:
         """
@@ -207,8 +209,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             True if this value is less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_values["value"] <= other._component_values["value"]
-        return self._component_values["value"] <= other
+            return self._get_single_value() <= other._get_single_value()
+        return self._get_single_value() <= other
     
     def __gt__(self, other) -> bool:
         """
@@ -221,8 +223,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             True if this value is greater than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_values["value"] > other._component_values["value"]
-        return self._component_values["value"] > other
+            return self._get_single_value() > other._get_single_value()
+        return self._get_single_value() > other
     
     def __ge__(self, other) -> bool:
         """
@@ -235,8 +237,8 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             True if this value is greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_values["value"] >= other._component_values["value"]
-        return self._component_values["value"] >= other
+            return self._get_single_value() >= other._get_single_value()
+        return self._get_single_value() >= other
     
     def __hash__(self) -> int:
         """
@@ -245,7 +247,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Returns:
             Hash value of the current value
         """
-        return hash(self._component_values["value"])
+        return hash(self._get_single_value())
     
     def __bool__(self) -> bool:
         """
@@ -254,7 +256,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Returns:
             Boolean representation of the current value
         """
-        return bool(self._component_values["value"])
+        return bool(self._get_single_value())
     
     def __int__(self) -> int:
         """
@@ -266,7 +268,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             ValueError: If the value cannot be converted to an integer
         """
-        return int(self._component_values["value"]) # type: ignore
+        return int(self._get_single_value()) # type: ignore
     
     def __float__(self) -> float:
         """
@@ -278,7 +280,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             ValueError: If the value cannot be converted to a float
         """
-        return float(self._component_values["value"]) # type: ignore
+        return float(self._get_single_value()) # type: ignore
     
     def __complex__(self) -> complex:
         """
@@ -290,7 +292,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             ValueError: If the value cannot be converted to a complex number
         """
-        return complex(self._component_values["value"]) # type: ignore
+        return complex(self._get_single_value()) # type: ignore
     
     def __abs__(self) -> float:
         """
@@ -302,7 +304,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             TypeError: If the value doesn't support absolute value operation
         """
-        return abs(self._component_values["value"]) # type: ignore
+        return abs(self._get_single_value()) # type: ignore
     
     def __round__(self, ndigits=None):
         """
@@ -317,7 +319,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             TypeError: If the value doesn't support rounding
         """
-        return round(self._component_values["value"], ndigits) # type: ignore
+        return round(self._get_single_value(), ndigits) # type: ignore
     
     def __floor__(self):
         """
@@ -330,7 +332,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             TypeError: If the value doesn't support floor operation
         """
         import math
-        return math.floor(self._component_values["value"]) # type: ignore
+        return math.floor(self._get_single_value()) # type: ignore
     
     def __ceil__(self):
         """
@@ -343,7 +345,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             TypeError: If the value doesn't support ceiling operation
         """
         import math
-        return math.ceil(self._component_values["value"]) # type: ignore
+        return math.ceil(self._get_single_value()) # type: ignore
     
     def __trunc__(self):
         """
@@ -356,7 +358,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
             TypeError: If the value doesn't support truncation
         """
         import math
-        return math.trunc(self._component_values["value"]) # type: ignore
+        return math.trunc(self._get_single_value()) # type: ignore
     
     def bind_to(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
@@ -393,24 +395,3 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         if isinstance(hook, CarriesDistinctSingleValueHook):
             hook = hook._get_single_value_hook()
         self._get_single_value_hook().remove_binding(hook)
-
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on the binding system to ensure
-        that all bindings are in a consistent state and that values are properly
-        synchronized across all bound observables.
-        
-        Returns:
-            A tuple containing:
-                - bool: True if the binding system is consistent, False otherwise
-                - str: Description of the binding system state or error message
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_single_value_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_single_value_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"

@@ -18,7 +18,9 @@ class CarriesDistinctTupleHook(CarriesDistinctHook, Generic[T]):
     @abstractmethod
     def _get_tuple_hook(self) -> Hook[tuple[T]]:
         """
-        Get the hook for tuple.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for tuple.
         
         This method provides access to the internal hook that
         manages bidirectional bindings for this observable. The binding
@@ -34,8 +36,22 @@ class CarriesDistinctTupleHook(CarriesDistinctHook, Generic[T]):
         ...
 
     @abstractmethod
-    def get_tuple_value(self) -> tuple[T]:
+    def _get_tuple_value(self) -> tuple[T]:
         """
-        Get the current value of the tuple.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the current value of the tuple.
+        
+        Returns:
+            The current value of the tuple
+        """
+        ...
+
+    @abstractmethod
+    def _set_tuple_value(self, tuple_to_set: tuple[T]) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the tuple.
         """
         ...

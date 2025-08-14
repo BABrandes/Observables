@@ -16,12 +16,12 @@ class TestObservableDict(unittest.TestCase):
     
     def test_initial_value(self):
         """Test that initial value is set correctly"""
-        self.assertEqual(self.observable.value, {"a": 1, "b": 2, "c": 3})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "b": 2, "c": 3})
     
     def test_set_item(self):
         """Test setting a single key-value pair"""
         self.observable.set_item("d", 4)
-        self.assertEqual(self.observable.value, {"a": 1, "b": 2, "c": 3, "d": 4})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "b": 2, "c": 3, "d": 4})
         self.assertEqual(self.notification_count, 0)  # No listener added yet
     
     def test_get_item(self):
@@ -37,22 +37,22 @@ class TestObservableDict(unittest.TestCase):
     def test_remove_item(self):
         """Test removing a key-value pair"""
         self.observable.remove_item("b")
-        self.assertEqual(self.observable.value, {"a": 1, "c": 3})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "c": 3})
     
     def test_clear(self):
         """Test clearing all items"""
         self.observable.clear()
-        self.assertEqual(self.observable.value, {})
+        self.assertEqual(self.observable.dict_value, {})
     
     def test_update(self):
         """Test updating with another dictionary"""
         self.observable.update({"d": 4, "e": 5})
-        self.assertEqual(self.observable.value, {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5})
     
     def test_keys_values_items(self):
         """Test getting keys, values, and items"""
         self.assertEqual(self.observable.keys(), {"a", "b", "c"})
-        self.assertEqual(self.observable.values(), [1, 2, 3])
+        self.assertEqual(list(self.observable.values()), [1, 2, 3])
         self.assertEqual(self.observable.items(), [("a", 1), ("b", 2), ("c", 3)])
     
     def test_magic_methods(self):
@@ -64,11 +64,11 @@ class TestObservableDict(unittest.TestCase):
         
         # Test __setitem__
         self.observable["d"] = 4
-        self.assertEqual(self.observable.value, {"a": 1, "b": 2, "c": 3, "d": 4})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "b": 2, "c": 3, "d": 4})
         
         # Test __delitem__
         del self.observable["b"]
-        self.assertEqual(self.observable.value, {"a": 1, "c": 3, "d": 4})
+        self.assertEqual(self.observable.dict_value, {"a": 1, "c": 3, "d": 4})
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
@@ -123,17 +123,17 @@ class TestObservableDict(unittest.TestCase):
         dict1.bind_to(dict2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         
         # After binding, dict1 should have dict2's value
-        self.assertEqual(dict1.value, {"c": 3, "d": 4})
+        self.assertEqual(dict1.dict_value, {"c": 3, "d": 4})
         
         # Change dict1, dict2 should update to match dict1's content
         dict1.set_item("e", 5)
-        self.assertEqual(dict1.value, {"c": 3, "d": 4, "e": 5})
-        self.assertEqual(dict2.value, {"c": 3, "d": 4, "e": 5})
+        self.assertEqual(dict1.dict_value, {"c": 3, "d": 4, "e": 5})
+        self.assertEqual(dict2.dict_value, {"c": 3, "d": 4, "e": 5})
         
         # Change dict2, dict1 should update to match dict2's content
         dict2.set_item("f", 6)
-        self.assertEqual(dict1.value, {"c": 3, "d": 4, "e": 5, "f": 6})
-        self.assertEqual(dict2.value, {"c": 3, "d": 4, "e": 5, "f": 6})
+        self.assertEqual(dict1.dict_value, {"c": 3, "d": 4, "e": 5, "f": 6})
+        self.assertEqual(dict2.dict_value, {"c": 3, "d": 4, "e": 5, "f": 6})
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
@@ -142,13 +142,13 @@ class TestObservableDict(unittest.TestCase):
         
         # Test UPDATE_VALUE_FROM_OBSERVABLE
         dict1.bind_to(dict2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        self.assertEqual(dict1.value, {"c": 3, "d": 4})
+        self.assertEqual(dict1.dict_value, {"c": 3, "d": 4})
         
         # Test UPDATE_OBSERVABLE_FROM_SELF
         dict3 = ObservableDict({"e": 5, "f": 6})
         dict4 = ObservableDict({"g": 7, "h": 8})
         dict3.bind_to(dict4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
-        self.assertEqual(dict4.value, {"e": 5, "f": 6})
+        self.assertEqual(dict4.dict_value, {"e": 5, "f": 6})
     
     def test_unbinding(self):
         """Test unbinding observables"""
@@ -160,7 +160,7 @@ class TestObservableDict(unittest.TestCase):
         
         # Changes should no longer propagate
         dict1.set_item("e", 5)
-        self.assertEqual(dict2.value, {"c": 3, "d": 4})
+        self.assertEqual(dict2.dict_value, {"c": 3, "d": 4})
     
     def test_unbinding_multiple_times(self):
         """Test that unbinding multiple times raises ValueError"""
@@ -178,7 +178,7 @@ class TestObservableDict(unittest.TestCase):
         dict1.set_item("e", 5)
         # Since we used UPDATE_OBSERVABLE_FROM_SELF, dict2 was updated to dict1's value ({"a": 1, "b": 2}) during binding
         # After unbinding, dict2 should still have that value, not the original {"c": 3, "d": 4}
-        self.assertEqual(dict2.value, {"a": 1, "b": 2})
+        self.assertEqual(dict2.dict_value, {"a": 1, "b": 2})
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
@@ -197,21 +197,21 @@ class TestObservableDict(unittest.TestCase):
         dict2.bind_to(target, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         
         # After binding, both should have target's value
-        self.assertEqual(dict1.value, {"a": 1, "b": 2})
-        self.assertEqual(dict2.value, {"a": 1, "b": 2})
+        self.assertEqual(dict1.dict_value, {"a": 1, "b": 2})
+        self.assertEqual(dict2.dict_value, {"a": 1, "b": 2})
         
         # Change target, both should update to match target's content
         target.set_item("g", 7)
-        self.assertEqual(target.value, {"a": 1, "b": 2, "g": 7})
-        self.assertEqual(dict1.value, {"a": 1, "b": 2, "g": 7})
-        self.assertEqual(dict2.value, {"a": 1, "b": 2, "g": 7})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2, "g": 7})
+        self.assertEqual(dict1.dict_value, {"a": 1, "b": 2, "g": 7})
+        self.assertEqual(dict2.dict_value, {"a": 1, "b": 2, "g": 7})
         
         # Change one of the observables, target should update to match that observable's content
         dict1.set_item("h", 8)
-        self.assertEqual(target.value, {"a": 1, "b": 2, "g": 7, "h": 8})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2, "g": 7, "h": 8})
         # With bidirectional binding, all observables should update to the same value
-        self.assertEqual(dict1.value, {"a": 1, "b": 2, "g": 7, "h": 8})
-        self.assertEqual(dict2.value, {"a": 1, "b": 2, "g": 7, "h": 8})
+        self.assertEqual(dict1.dict_value, {"a": 1, "b": 2, "g": 7, "h": 8})
+        self.assertEqual(dict2.dict_value, {"a": 1, "b": 2, "g": 7, "h": 8})
     
     def test_listener_management(self):
         """Test listener management methods"""
@@ -234,13 +234,13 @@ class TestObservableDict(unittest.TestCase):
     def test_empty_dict_initialization(self):
         """Test initialization with empty dictionary"""
         empty_dict = ObservableDict()
-        self.assertEqual(empty_dict.value, {})
+        self.assertEqual(empty_dict.dict_value, {})
         self.assertEqual(len(empty_dict), 0)
     
     def test_none_initialization(self):
         """Test initialization with None"""
         none_dict = ObservableDict(None)
-        self.assertEqual(none_dict.value, {})
+        self.assertEqual(none_dict.dict_value, {})
         self.assertEqual(len(none_dict), 0)
     
     def test_copy_protection(self):
@@ -252,7 +252,7 @@ class TestObservableDict(unittest.TestCase):
         external_dict["z"] = 30
         
         # Observable should not be affected
-        self.assertEqual(obs_dict.value, {"x": 10, "y": 20})
+        self.assertEqual(obs_dict.dict_value, {"x": 10, "y": 20})
         
         # Observable changes should not affect external dict
         obs_dict.set_item("w", 40)
@@ -267,15 +267,15 @@ class TestObservableDict(unittest.TestCase):
         target = ObservableDict(source)
         
         # Check that the target has the same initial value
-        self.assertEqual(target.value, {"a": 1, "b": 2})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2})
         
         # Check that they are bound together
         source.set_item("c", 3)
-        self.assertEqual(target.value, {"a": 1, "b": 2, "c": 3})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2, "c": 3})
         
         # Check bidirectional binding
         target.set_item("d", 4)
-        self.assertEqual(source.value, {"a": 1, "b": 2, "c": 3, "d": 4})
+        self.assertEqual(source.dict_value, {"a": 1, "b": 2, "c": 3, "d": 4})
     
     def test_initialization_with_carries_bindable_dict_chain(self):
         """Test initialization with CarriesBindableDict in a chain"""
@@ -285,15 +285,15 @@ class TestObservableDict(unittest.TestCase):
         obs3 = ObservableDict(obs2)
         
         # Check initial values
-        self.assertEqual(obs1.value, {"x": 10})
-        self.assertEqual(obs2.value, {"x": 10})
-        self.assertEqual(obs3.value, {"x": 10})
+        self.assertEqual(obs1.dict_value, {"x": 10})
+        self.assertEqual(obs2.dict_value, {"x": 10})
+        self.assertEqual(obs3.dict_value, {"x": 10})
         
         # Change the first observable
         obs1.set_item("y", 20)
-        self.assertEqual(obs1.value, {"x": 10, "y": 20})
-        self.assertEqual(obs2.value, {"x": 10, "y": 20})
-        self.assertEqual(obs3.value, {"x": 10, "y": 20})
+        self.assertEqual(obs1.dict_value, {"x": 10, "y": 20})
+        self.assertEqual(obs2.dict_value, {"x": 10, "y": 20})
+        self.assertEqual(obs3.dict_value, {"x": 10, "y": 20})
     
     def test_initialization_with_carries_bindable_dict_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
@@ -303,15 +303,15 @@ class TestObservableDict(unittest.TestCase):
         target3 = ObservableDict(source)
         
         # Check initial values
-        self.assertEqual(target1.value, {"key1": "value1"})
-        self.assertEqual(target2.value, {"key1": "value1"})
-        self.assertEqual(target3.value, {"key1": "value1"})
+        self.assertEqual(target1.dict_value, {"key1": "value1"})
+        self.assertEqual(target2.dict_value, {"key1": "value1"})
+        self.assertEqual(target3.dict_value, {"key1": "value1"})
         
         # Change source, all targets should update
         source.set_item("key2", "value2")
-        self.assertEqual(target1.value, {"key1": "value1", "key2": "value2"})
-        self.assertEqual(target2.value, {"key1": "value1", "key2": "value2"})
-        self.assertEqual(target3.value, {"key1": "value1", "key2": "value2"})
+        self.assertEqual(target1.dict_value, {"key1": "value1", "key2": "value2"})
+        self.assertEqual(target2.dict_value, {"key1": "value1", "key2": "value2"})
+        self.assertEqual(target3.dict_value, {"key1": "value1", "key2": "value2"})
     
     def test_initialization_with_carries_bindable_dict_unbinding(self):
         """Test that initialization with CarriesBindableDict can be unbound"""
@@ -319,37 +319,37 @@ class TestObservableDict(unittest.TestCase):
         target = ObservableDict(source)
         
         # Verify they are bound
-        self.assertEqual(target.value, {"a": 1})
+        self.assertEqual(target.dict_value, {"a": 1})
         source.set_item("b", 2)
-        self.assertEqual(target.value, {"a": 1, "b": 2})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2})
         
         # Unbind them
         target.unbind_from(source)
         
         # Change source, target should not update
         source.set_item("c", 3)
-        self.assertEqual(target.value, {"a": 1, "b": 2})  # Should remain unchanged
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2})  # Should remain unchanged
         
         # Change target, source should not update
         target.set_item("d", 4)
-        self.assertEqual(source.value, {"a": 1, "b": 2, "c": 3})  # Should remain unchanged
+        self.assertEqual(source.dict_value, {"a": 1, "b": 2, "c": 3})  # Should remain unchanged
     
     def test_initialization_with_carries_bindable_dict_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableDict"""
         # Test with empty dict
         source_empty = ObservableDict({})
         target_empty = ObservableDict(source_empty)
-        self.assertEqual(target_empty.value, {})
+        self.assertEqual(target_empty.dict_value, {})
         
         # Test with None values in dict
         source_none = ObservableDict({"key": None})
         target_none = ObservableDict(source_none)
-        self.assertIsNone(target_none.value["key"])
+        self.assertIsNone(target_none.dict_value["key"])
         
         # Test with nested dict
         source_nested = ObservableDict({"nested": {"inner": "value"}})
         target_nested = ObservableDict(source_nested)
-        self.assertEqual(target_nested.value, {"nested": {"inner": "value"}})
+        self.assertEqual(target_nested.dict_value, {"nested": {"inner": "value"}})
     
     def test_initialization_with_carries_bindable_dict_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableDict"""
@@ -383,4 +383,4 @@ class TestObservableDict(unittest.TestCase):
         # Verify the last target is properly bound
         target = ObservableDict(source)
         source.set_item("d", 4)
-        self.assertEqual(target.value, {"a": 1, "b": 2, "c": 3, "d": 4})
+        self.assertEqual(target.dict_value, {"a": 1, "b": 2, "c": 3, "d": 4})

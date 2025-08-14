@@ -93,9 +93,9 @@ class Observable(ListeningBase):
         self._component_hooks: dict[str, Hook[Any]] = component_hooks.copy()
         self._verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = verification_method
         self._component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = component_copy_methods.copy()
-        self._set_component_values(component_values)
+        self._set_component_values(component_values, skip_notification=True)
 
-    def _set_component_values(self, dict_of_values: dict[str, Any], reverting_to_old_values: bool = False) -> None:
+    def _set_component_values(self, dict_of_values: dict[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
         """
         Set the values of the component values.
 
@@ -116,6 +116,7 @@ class Observable(ListeningBase):
                 raise ValueError(f"Invalid values: {dict_of_values}. {verification_message}")
             
         old_component_values: dict[str, Any] = self._component_values.copy()
+        new_component_values: dict[str, Any] = {}
 
         for key, value in dict_of_values.items():
             copy_method: Optional[Callable[[Any], Any]] = None
@@ -125,23 +126,29 @@ class Observable(ListeningBase):
                 copy_method = lambda x: x.copy()
             
             if copy_method is not None:
-                self._component_values[key] = copy_method(value)
+                new_component_values[key] = copy_method(value)
             else:
-                self._component_values[key] = value
+                new_component_values[key] = value
+
+        if old_component_values.items() == new_component_values.items():
+            return
+        
+        self._component_values = new_component_values
 
         # Notfy bindings
-        try:
-            for key, value in dict_of_values.items():
-                self._component_hooks[key].notify_bindings(value)
-        except Exception as e:
-            if not reverting_to_old_values:
-                self._set_component_values(old_component_values, reverting_to_old_values=True)
-                raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
-            else:
-                raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
-        
-        # Notify listeners
-        self._notify_listeners()
+        if not skip_notification:
+            try:
+                for key, value in new_component_values.items():
+                    self._component_hooks[key].notify_bindings(value)
+            except Exception as e:
+                if not reverting_to_old_values:
+                    self._set_component_values(old_component_values, reverting_to_old_values=True)
+                    raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
+                else:
+                    raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
+            
+            # Notify listeners
+            self._notify_listeners()
 
     @property
     def observed_component_values(self) -> tuple[Any, ...]:
@@ -151,3 +158,26 @@ class Observable(ListeningBase):
         The main purpose of this method is for serialization of the observable.
         """
         return tuple(self._component_values.values())
+
+    def check_binding_system_consistency(self) -> tuple[bool, str]:
+        """
+        Check the consistency of the binding system.
+        
+        This method performs comprehensive checks on all bindings to ensure they are in a consistent state and
+        values are properly synchronized.
+        
+        Returns:
+            Tuple of (is_consistent, message) where is_consistent is a boolean
+            indicating if the system is consistent, and message provides details
+            about any inconsistencies found.
+        """
+
+        for _, value in self._component_hooks.items():
+            binding_state_consistent, binding_state_consistent_message = value.check_binding_state_consistency()
+            if not binding_state_consistent:
+                return False, binding_state_consistent_message
+            values_synced, values_synced_message = value.check_values_synced()
+            if not values_synced:
+                return False, values_synced_message
+
+        return True, "Binding system is consistent"

@@ -31,7 +31,9 @@ class CarriesDistinctDictHook(CarriesDistinctHook, Generic[K, V]):
     @abstractmethod
     def _get_dict_hook(self) -> Hook[dict[K, V]]:
         """
-        Get the hook for dictionary.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for dictionary.
         
         This method provides access to the internal hook that
         manages bidirectional bindings for this observable. The binding
@@ -47,12 +49,23 @@ class CarriesDistinctDictHook(CarriesDistinctHook, Generic[K, V]):
         ...
 
     @abstractmethod
-    def get_dict_value(self) -> dict[K, V]:
+    def _get_dict_value(self) -> dict[K, V]:
         """
-        Get the current value of the dictionary as a copy.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get dictionary for binding system.
         
         Returns:
-            The current value of the dictionary
+            The current dictionary value
+        """
+        ...
+
+    @abstractmethod
+    def _set_dict_value(self, dict_to_set: dict[K, V]) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the dictionary.
         """
         ...
     

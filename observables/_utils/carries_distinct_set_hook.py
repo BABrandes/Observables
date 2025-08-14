@@ -31,7 +31,9 @@ class CarriesDistinctSetHook(CarriesDistinctHook, Generic[T]):
     @abstractmethod
     def _get_set_hook(self) -> Hook[set[T]]:
         """
-        Get the hook for set.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for set.
         
         This method provides access to the internal hook that
         manages bidirectional bindings for this observable. The binding
@@ -47,9 +49,22 @@ class CarriesDistinctSetHook(CarriesDistinctHook, Generic[T]):
         ...
 
     @abstractmethod
-    def get_set_value(self) -> set[T]:
+    def _get_set_value(self) -> set[T]:
         """
-        Get the current value of the set as a copy.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the current value of the set as a copy.
+        
+        Returns:
+            The current value of the set as a copy
         """
         ...
-    
+
+    @abstractmethod
+    def _set_set_value(self, set_to_set: set[T]) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the set.
+        """
+        ...

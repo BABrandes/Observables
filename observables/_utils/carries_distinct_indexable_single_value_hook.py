@@ -13,13 +13,27 @@ class CarriesDistinctIndexableSingleValueHook(CarriesDistinctHook, Generic[T]):
     @abstractmethod
     def _get_indexable_single_value_hook(self, index: int) -> Hook[T]:
         """
-        Get the hook for the indexable single value.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for the indexable single value.
+        
+        Returns:
+            The hook for the indexable single value
         """
         ...
 
     @abstractmethod
-    def get_indexable_single_value(self, index: int) -> T:
+    def _get_indexable_single_value(self, index: int) -> T:
         """
         Get the value at the given index.
+        """
+        ...
+
+    @abstractmethod
+    def _set_indexable_single_value(self, index: int, value: T) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the value at the given index.
         """
         ...

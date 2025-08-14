@@ -41,7 +41,7 @@ def demo_basic_usage() -> None:
         print(f"  Age changed to: {age.value}")
     
     def on_scores_change():
-        print(f"  Scores changed to: {scores.value}")
+        print(f"  Scores changed to: {scores.list_value}")
     
     def on_user_data_change():
         print(f"  User data changed to: {user_data.value}")
@@ -54,7 +54,7 @@ def demo_basic_usage() -> None:
     print("Initial values:")
     print(f"  Name: {name.value}")
     print(f"  Age: {age.value}")
-    print(f"  Scores: {scores.value}")
+    print(f"  Scores: {scores.list_value}")
     print(f"  User data: {user_data.value}")
     
     print("\nMaking changes:")
@@ -107,9 +107,9 @@ def demo_observable_collections() -> None:
     # Observable List
     print("Observable List:")
     todo_list = ObservableList(["Buy groceries", "Walk dog"])
-    todo_list.add_listeners(lambda: print(f"  Todo list updated: {todo_list.value}"))
+    todo_list.add_listeners(lambda: print(f"  Todo list updated: {todo_list.list_value}"))
     
-    print(f"  Initial: {todo_list.value}")
+    print(f"  Initial: {todo_list.list_value}")
     todo_list.append("Read book")
     todo_list[0] = "Buy organic groceries"
     todo_list.remove("Walk dog")

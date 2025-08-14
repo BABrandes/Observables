@@ -69,7 +69,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             initial_value: list[T] = []
             hook: Optional[Hook[list[T]]] = None
         elif isinstance(hook_or_value, CarriesDistinctListHook):
-            initial_value: list[T] = hook_or_value.get_list_value()
+            initial_value: list[T] = hook_or_value._get_list_value()
             hook: Optional[Hook[list[T]]] = hook_or_value._get_list_hook()
         elif isinstance(hook_or_value, Hook):
             initial_value: list[T] = hook_or_value._get_callback()
@@ -88,7 +88,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_list, self._set_list)
+                "value": Hook(self, self._get_list_value, self._set_list_value)
             },
             verification_method=verification_method
         )
@@ -97,27 +97,38 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             self.bind_to(hook)
 
     @property
-    def value(self) -> list[T]:
+    def list_value(self) -> list[T]:
         """
         Get a copy of the current list value.
         
         Returns:
             A copy of the current list to prevent external modification
         """
-        return self._get_list().copy()
+        return self._get_list_value().copy()
     
-    def _set_list(self, list_to_set: list[T]) -> None:
+    @list_value.setter
+    def list_value(self, value: list[T]) -> None:
         """
-        Internal method to set list from binding system.
+        Set the current value of the list.
+        """
+        self._set_list_value(value)
+
+    def _set_list_value(self, list_to_set: list[T]) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to set list from binding system.
         
         Args:
             list_to_set: The new list to set
         """
-        self.set_list(list_to_set)
+        self._set_component_values({"value": list_to_set})
     
-    def _get_list(self) -> list[T]:
+    def _get_list_value(self) -> list[T]:
         """
-        Get the current list value. No copy is made!
+        INTERNAL. Do not use this method directly.
+
+        Method to get list value for binding system. No copy is made!
         
         Returns:
             The current list value
@@ -126,33 +137,11 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
     
     def _get_list_hook(self) -> Hook[list[T]]:
         """
-        Get the hook for the list.
+        INTERNAL. Do not use this method directly.
+
+        Method to get hook for binding system.
         """
         return self._component_hooks["value"]
-    
-    def get_list_value(self) -> list[T]:
-        """
-        Get the current value of the list as a copy.
-        
-        Returns:
-            A copy of the current list value
-        """
-        return self._component_values["value"].copy()
-    
-    def set_list(self, list_to_set: list[T]) -> None:
-        """
-        Set the entire list to a new value.
-        
-        This method replaces the current list with a new one, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
-        
-        Args:
-            list_to_set: The new list to set
-        """
-        if list_to_set == self._get_list():
-            return
-        # Use the protocol method to set the value
-        self.set_observed_values((list_to_set,))
 
     def bind_to(self, hook: CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
@@ -191,26 +180,6 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         if isinstance(hook, CarriesDistinctListHook):
             hook = hook._get_list_hook()
         self._get_list_hook().remove_binding(hook)
-
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on the binding system to ensure
-        that all bindings are in a consistent state and values are properly synchronized.
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_list_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_list_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"
     
     # Standard list methods
     def append(self, item: T) -> None:
@@ -220,7 +189,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Args:
             item: The item to add to the list
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.append(item)
         self.set_observed_values((new_list,))
     
@@ -231,9 +200,9 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Args:
             iterable: The iterable containing elements to add
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.extend(iterable)
-        if new_list != self._get_list():
+        if new_list != self._get_list_value():
             self.set_observed_values((new_list,))
     
     def insert(self, index: int, item: T) -> None:
@@ -244,7 +213,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             index: The position to insert the item at
             item: The item to insert
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.insert(index, item)
         self.set_observed_values((new_list,))
     
@@ -262,8 +231,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             If the item is not found in the list, no action is taken and no
             notifications are triggered.
         """
-        if item in self._get_list():
-            new_list = self._get_list().copy()
+        if item in self._get_list_value():
+            new_list = self._get_list_value().copy()
             new_list.remove(item)
             self.set_observed_values((new_list,))
     
@@ -284,7 +253,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             IndexError: If the index is out of range
         """
         item = self._component_values["value"][index]
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.pop(index)
         self.set_observed_values((new_list,))
         return item
@@ -296,7 +265,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         This method removes all items from the list, making it empty. It uses
         set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if self._get_list():
+        if self._get_list_value():
             new_list = []
             self.set_observed_values((new_list,))
     
@@ -311,9 +280,9 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             key: Optional function to extract comparison key from each element
             reverse: If True, sort in descending order (default: False)
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.sort(key=key, reverse=reverse)
-        if new_list != self._get_list():
+        if new_list != self._get_list_value():
             self.set_observed_values((new_list,))
     
     def reverse(self) -> None:
@@ -323,9 +292,9 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         This method reverses the order of elements in the list, using set_observed_values
         to ensure all changes go through the centralized protocol method.
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list.reverse()
-        if new_list != self._get_list():
+        if new_list != self._get_list_value():
             self.set_observed_values((new_list,))
     
     def count(self, item: T) -> int:
@@ -338,7 +307,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             The number of times the item appears in the list
         """
-        return self._get_list().count(item)
+        return self._get_list_value().count(item)
     
     def index(self, item: T, start=0, stop=None) -> int:
         """
@@ -355,13 +324,13 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Raises:
             ValueError: If the item is not found in the specified range
         """
-        return self._get_list().index(item, start, stop)
+        return self._get_list_value().index(item, start, stop)
     
     def __str__(self) -> str:
-        return f"OL(value={self._get_list()})"
+        return f"OL(value={self._get_list_value()})"
     
     def __repr__(self) -> str:
-        return f"ObservableList({self._get_list()})"
+        return f"ObservableList({self._get_list_value()})"
     
     def __len__(self) -> int:
         """
@@ -370,7 +339,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             The number of items in the list
         """
-        return len(self._get_list())
+        return len(self._get_list_value())
     
     def __getitem__(self, index):
         """
@@ -385,7 +354,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        return self._get_list()[index]
+        return self._get_list_value()[index]
     
     def __setitem__(self, index, value):
         """
@@ -401,9 +370,9 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         new_list[index] = value
-        if new_list != self._get_list():
+        if new_list != self._get_list_value():
             self.set_observed_values((new_list,))
     
     def __delitem__(self, index):
@@ -419,9 +388,9 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._get_list().copy()
+        new_list = self._get_list_value().copy()
         del new_list[index]
-        if new_list != self._get_list():
+        if new_list != self._get_list_value():
             self.set_observed_values((new_list,))
     
     def __contains__(self, item: T) -> bool:
@@ -434,7 +403,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             True if the item is in the list, False otherwise
         """
-        return item in self._get_list()
+        return item in self._get_list_value()
     
     def __iter__(self):
         """
@@ -443,7 +412,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             An iterator that yields each item in the list
         """
-        return iter(self._get_list())
+        return iter(self._get_list_value())
     
     def __reversed__(self):
         """
@@ -452,7 +421,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             A reverse iterator that yields each item in the list in reverse order
         """
-        return reversed(self._get_list())
+        return reversed(self._get_list_value())
     
     def __eq__(self, other) -> bool:
         """
@@ -465,8 +434,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             True if the lists contain the same items in the same order, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list() == other._get_list()
-        return self._get_list() == other
+            return self._get_list_value() == other._get_list_value()
+        return self._get_list_value() == other
     
     def __ne__(self, other) -> bool:
         """
@@ -491,8 +460,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             True if this list is lexicographically less than the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list() < other._get_list()
-        return self._get_list() < other
+            return self._get_list_value() < other._get_list_value()
+        return self._get_list_value() < other
     
     def __le__(self, other) -> bool:
         """
@@ -505,8 +474,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             True if this list is lexicographically less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list() <= other._get_list()
-        return self._get_list() <= other
+            return self._get_list_value() <= other._get_list_value()
+        return self._get_list_value() <= other
     
     def __gt__(self, other) -> bool:
         """
@@ -519,8 +488,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             True if this list is lexicographically greater than the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list() > other._get_list()
-        return self._get_list() > other
+            return self._get_list_value() > other._get_list_value()
+        return self._get_list_value() > other
     
     def __ge__(self, other) -> bool:
         """
@@ -533,8 +502,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             True if this list is lexicographically greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list() >= other._get_list()
-        return self._get_list() >= other
+            return self._get_list_value() >= other._get_list_value()
+        return self._get_list_value() >= other
     
     def __add__(self, other):
         """
@@ -547,8 +516,8 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
             A new list containing all items from both lists
         """
         if isinstance(other, ObservableList):
-            return self._get_list() + other._get_list()
-        return self._get_list() + other
+            return self._get_list_value() + other._get_list_value()
+        return self._get_list_value() + other
     
     def __mul__(self, other):
         """
@@ -560,7 +529,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             A new list with the original items repeated
         """
-        return self._get_list() * other
+        return self._get_list_value() * other
     
     def __rmul__(self, other):
         """
@@ -572,7 +541,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             A new list with the original items repeated
         """
-        return other * self._get_list()
+        return other * self._get_list_value()
     
     def __hash__(self) -> int:
         """
@@ -581,7 +550,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             Hash value of the list as a tuple
         """
-        return hash(tuple(self._get_list()))
+        return hash(tuple(self._get_list_value()))
     
     def get_observed_component_values(self) -> tuple[list[T]]:
         """
@@ -593,7 +562,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Returns:
             A tuple containing the current list value
         """
-        return tuple(self._get_list())
+        return tuple(self._get_list_value())
     
     def set_observed_values(self, values: tuple[list[T]]) -> None:
         """

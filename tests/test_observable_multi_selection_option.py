@@ -175,10 +175,10 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         
         # Check bidirectional binding
         target.add_available_option(6)
-        self.assertEqual(source_available_options.value, {1, 2, 3, 4, 5, 6})
+        self.assertEqual(source_available_options.set_value, {1, 2, 3, 4, 5, 6})
         
         target.selected_options = {1, 5}
-        self.assertEqual(source_selected_options.value, {1, 5})
+        self.assertEqual(source_selected_options.set_value, {1, 5})
     
     def test_initialization_with_carries_bindable_set_only(self):
         """Test initialization with only CarriesBindableSet for available options"""
@@ -198,7 +198,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         
         # Check bidirectional binding
         target.add_available_option(50)
-        self.assertEqual(source_available_options.value, {10, 20, 30, 40, 50})
+        self.assertEqual(source_available_options.set_value, {10, 20, 30, 40, 50})
     
     def test_initialization_with_carries_bindable_set_only_selected(self):
         """Test initialization with only CarriesBindableSet for selected options"""
@@ -218,16 +218,20 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         
         # Check bidirectional binding
         target.selected_options = {200, 300}
-        self.assertEqual(source_selected_options.value, {200, 300})
+        self.assertEqual(source_selected_options.set_value, {200, 300})
     
     def test_initialization_with_carries_bindable_chain(self):
         """Test initialization with CarriesBindableSet in a chain"""
         # Create a chain of observable multi-selection options
         obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2})
-        obs2 = ObservableMultiSelectionOption(obs1, obs1)
-        obs3 = ObservableMultiSelectionOption(obs2, obs2)
+        obs2 = ObservableMultiSelectionOption({3, 4}, {3, 4})
+        obs3 = ObservableMultiSelectionOption({5, 6}, {5, 6})
         
-        # Check initial values
+        # Bind them in a chain
+        obs2.bind_to(obs1, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        obs3.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        
+        # Check initial values after binding
         self.assertEqual(obs1.available_options, {1, 2})
         self.assertEqual(obs1.selected_options, {1, 2})
         self.assertEqual(obs2.available_options, {1, 2})

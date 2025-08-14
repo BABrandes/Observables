@@ -69,7 +69,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
             initial_dict_value: dict[K, V] = {}
             hook: Optional[Hook[dict[K, V]]] = None
         elif isinstance(hook_or_value, CarriesDistinctDictHook):
-            initial_dict_value: dict[K, V] = hook_or_value.get_dict_value()
+            initial_dict_value: dict[K, V] = hook_or_value._get_dict_value()
             hook: Optional[Hook[dict[K, V]]] = hook_or_value._get_dict_hook()
         elif isinstance(hook_or_value, Hook):
             initial_dict_value: dict[K, V] = hook_or_value._get_callback()
@@ -88,7 +88,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
                 "value": initial_dict_value
             },
             {
-                "value": Hook(self, self._get_dict, self._set_dict)
+                "value": Hook(self, self._get_dict_value, self._set_dict_value)
             },
             verification_method=verification_method
         )
@@ -97,27 +97,38 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
             self.bind_to(hook)
 
     @property
-    def value(self) -> dict[K, V]:
+    def dict_value(self) -> dict[K, V]:
         """
-        Get a copy of the current dictionary value.
+        Get the current value of the dictionary as a copy.
         
         Returns:
-            A copy of the current dictionary to prevent external modification
-        """ 
-        return self._get_dict().copy()  # Return a copy to prevent external modification
-    
-    def _get_dict(self) -> dict[K, V]:
+            A copy of the current dictionary value
         """
-        Internal method to get dictionary for binding system. No copy is made!
+        return self._get_dict_value().copy()
+    
+    @dict_value.setter
+    def dict_value(self, value: dict[K, V]) -> None:
+        """
+        Set the current value of the dictionary.
+        """
+        self.change_dict(value)
+
+    def _get_dict_value(self) -> dict[K, V]:
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to get dictionary for binding system. No copy is made!
         
         Returns:
             The current dictionary value
         """
         return self._component_values["value"]
     
-    def _set_dict(self, dict_to_set: dict[K, V]) -> None:
+    def _set_dict_value(self, dict_to_set: dict[K, V]) -> None:
         """
-        Internal method to set dictionary from binding system.
+        INTERNAL. Do not use this method directly.
+
+        Method to set dictionary from binding system.
         
         Args:
             dict_to_set: The new dictionary to set
@@ -126,21 +137,14 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
     
     def _get_dict_hook(self) -> Hook[dict[K, V]]:
         """
-        Internal method to get hook for binding system.
+        INTERNAL. Do not use this method directly.
+
+        Method to get hook for binding system.
         
         Returns:
             The hook for the dictionary
         """
         return self._component_hooks["value"]
-    
-    def get_dict_value(self) -> dict[K, V]:
-        """
-        Get the current value of the dictionary as a copy.
-        
-        Returns:
-            A copy of the current dictionary value
-        """
-        return self._component_values["value"].copy()
     
     def change_dict(self, new_dict: dict[K, V]) -> None:
         """
@@ -152,7 +156,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Args:
             new_dict: The new dictionary to set
         """
-        if new_dict == self._get_dict():
+        if new_dict == self._get_dict_value():
             return
         # Use the protocol method to set the value
         self.set_observed_values((new_dict,))
@@ -168,9 +172,9 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
             key: The key to set or update
             value: The value to associate with the key
         """
-        if key in self._get_dict() and self._get_dict()[key] == value:
+        if key in self._get_dict_value() and self._get_dict_value()[key] == value:
             return  # No change
-        new_dict = self._get_dict().copy()
+        new_dict = self._get_dict_value().copy()
         new_dict[key] = value
         self.set_observed_values((new_dict,))
     
@@ -185,7 +189,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             The value associated with the key, or the default value if key not found
         """
-        return self._get_dict().get(key, default)
+        return self._get_dict_value().get(key, default)
     
     def has_key(self, key: K) -> bool:
         """
@@ -197,7 +201,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._get_dict()
+        return key in self._get_dict_value()
     
     def remove_item(self, key: K) -> None:
         """
@@ -209,9 +213,9 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Args:
             key: The key to remove
         """
-        if key not in self._get_dict():
+        if key not in self._get_dict_value():
             return  # No change
-        new_dict = self._get_dict().copy()
+        new_dict = self._get_dict_value().copy()
         del new_dict[key]
         self.set_observed_values((new_dict,))
     
@@ -222,7 +226,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         This method removes all key-value pairs from the dictionary, using
         set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if not self._get_dict():
+        if not self._get_dict_value():
             return  # No change
         new_dict = {}
         self.set_observed_values((new_dict,))
@@ -242,14 +246,14 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         # Check if any values would actually change
         has_changes = False
         for key, value in other_dict.items():
-            if key not in self._get_dict() or self._get_dict()[key] != value:
+            if key not in self._get_dict_value() or self._get_dict_value()[key] != value:
                 has_changes = True
                 break
         
         if not has_changes:
             return  # No change
         
-        new_dict = self._get_dict().copy()
+        new_dict = self._get_dict_value().copy()
         new_dict.update(other_dict)
         self.set_observed_values((new_dict,))
     
@@ -260,7 +264,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             A set containing all keys in the dictionary
         """
-        return set(self._get_dict())
+        return set(self._get_dict_value())
     
     def values(self) -> list[V]:
         """
@@ -269,7 +273,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             A list containing all values in the dictionary
         """
-        return list(self._get_dict().values())
+        return list(self._get_dict_value().values())
     
     def items(self) -> list[tuple[K, V]]:
         """
@@ -278,7 +282,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             A list of tuples, each containing a key-value pair
         """
-        return list(self._get_dict().items())
+        return list(self._get_dict_value().items())
     
     def __len__(self) -> int:
         """
@@ -299,7 +303,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._get_dict()
+        return key in self._get_dict_value()
     
     def __getitem__(self, key: K) -> V:
         """
@@ -314,9 +318,9 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        if key not in self._get_dict():
+        if key not in self._get_dict_value():
             raise KeyError(f"Key '{key}' not found in dictionary")
-        return self._get_dict()[key]
+        return self._get_dict_value()[key]
     
     def __setitem__(self, key: K, value: V) -> None:
         """
@@ -347,10 +351,10 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         self.remove_item(key)
     
     def __str__(self) -> str:
-        return f"OD(dict={self._get_dict()})"
+        return f"OD(dict={self._get_dict_value()})"
     
     def __repr__(self) -> str:
-        return f"ObservableDict({self._get_dict()})"
+        return f"ObservableDict({self._get_dict_value()})"
 
     def bind_to(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
@@ -390,26 +394,6 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
             hook = hook._get_dict_hook()
         self._get_dict_hook().remove_binding(hook)
 
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on the binding system to ensure
-        that all bindings are in a consistent state and values are properly synchronized.
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_dict_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_dict_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"
-
     def get_observed_component_values(self) -> tuple[dict[K, V]]:
         """
         Get the values of all observables that are bound to this observable.
@@ -420,7 +404,7 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
         Returns:
             A tuple containing the current dictionary value
         """
-        return tuple(self._get_dict())
+        return tuple(self._get_dict_value())
     
     def set_observed_values(self, values: tuple[dict[K, V]]) -> None:
         """

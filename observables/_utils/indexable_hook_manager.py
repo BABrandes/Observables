@@ -91,4 +91,13 @@ class IndexableHookManager(Generic[T]):
         """
         Connect the hook to the managed hook at the given index.
         """
-        self.get_hook(index_of_managed_hook).establish_binding(hook_to_connect, initial_sync_mode)
+        # Swap the sync mode since we want the external hook to update from the managed hook
+        # when using UPDATE_SELF_FROM_OBSERVABLE
+        if initial_sync_mode == SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
+            swapped_sync_mode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF
+        elif initial_sync_mode == SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
+            swapped_sync_mode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE
+        else:
+            swapped_sync_mode = initial_sync_mode
+            
+        self.get_hook(index_of_managed_hook).establish_binding(hook_to_connect, swapped_sync_mode)

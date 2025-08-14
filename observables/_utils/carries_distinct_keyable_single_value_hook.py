@@ -14,8 +14,10 @@ class CarriesKeyableSingleValueHook(CarriesDistinctHook, Generic[K, V]):
     @abstractmethod
     def _get_keyable_single_value_hook(self, key: K) -> Hook[V]:
         """
-        Get the hook for the keyable single value.
+        INTERNAL. Do not use this method directly.
 
+        Method to get the hook for the keyable single value.
+        
         Args:
             key: The key to get the hook for
 
@@ -25,8 +27,22 @@ class CarriesKeyableSingleValueHook(CarriesDistinctHook, Generic[K, V]):
         ...
 
     @abstractmethod
-    def get_keyable_single_value(self, key: K) -> V:
+    def _get_keyable_single_value(self, key: K) -> V:
         """
-        Get the value at the given key.
+        INTERNAL. Do not use this method directly.
+
+        Method to get the value at the given key.
+
+        Returns:
+            The value at the given key
+        """
+        ...
+
+    @abstractmethod
+    def _set_keyable_single_value(self, key: K, value: V) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to set the value at the given key.
         """
         ...

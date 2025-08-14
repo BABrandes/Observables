@@ -30,7 +30,9 @@ class CarriesDistinctListHook(CarriesDistinctHook, Generic[T]):
     @abstractmethod
     def _get_list_hook(self) -> Hook[list[T]]:
         """
-        Get the hook for list.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for list.
         
         This method provides access to the internal hook that
         manages bidirectional bindings for this observable. The binding
@@ -46,9 +48,22 @@ class CarriesDistinctListHook(CarriesDistinctHook, Generic[T]):
         ...
 
     @abstractmethod
-    def get_list_value(self) -> list[T]:
+    def _get_list_value(self) -> list[T]:
         """
-        Get the current value of the list as a copy.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the current value of the list as a copy.
+        
+        Returns:
+            The current value of the list as a copy
         """
         ...
-    
+
+    @abstractmethod
+    def _set_list_value(self, list_to_set: list[T]) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the list.
+        """
+        ...

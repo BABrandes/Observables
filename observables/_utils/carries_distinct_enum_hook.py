@@ -31,7 +31,9 @@ class CarriesDistinctEnumHook(CarriesDistinctHook, Generic[E]):
     @abstractmethod
     def _get_enum_hook(self) -> Hook[E]:
         """
-        Get the hook for enum.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get the hook for enum.
         
         This method provides access to the internal hook that
         manages bidirectional bindings for this observable. The binding
@@ -47,11 +49,22 @@ class CarriesDistinctEnumHook(CarriesDistinctHook, Generic[E]):
         ...
 
     @abstractmethod
-    def get_enum_value(self) -> E:
+    def _get_enum_value(self) -> E:
         """
-        Get the current value of the enum.
+        INTERNAL. Do not use this method directly.
+        
+        Method to get enum for binding system.
         
         Returns:
-            The current value of the enum
+            The current enum value
+        """
+        ...
+
+    @abstractmethod
+    def _set_enum_value(self, enum_value_to_set: E) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Method to set the current value of the enum.
         """
         ...

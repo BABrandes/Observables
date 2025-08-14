@@ -71,7 +71,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
             initial_value: tuple[T] = ()
             bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = None
         elif isinstance(value, CarriesDistinctTupleHook):
-            initial_value: tuple[T] = value._get_tuple()
+            initial_value: tuple[T] = value._get_tuple_value()
             bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = value
         else:
             initial_value: tuple[T] = value
@@ -87,7 +87,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_tuple, self._set_tuple)
+                "value": Hook(self, self._get_tuple_value, self._set_tuple_value)
             },
             verification_method=verification_method
         )
@@ -95,72 +95,32 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         if bindable_tuple_carrier is not None:
             self.bind_to(bindable_tuple_carrier)
 
-        self._indexable_hook_manager: IndexableHookManager[T] = IndexableHookManager(self, "value", len(initial_value), lambda idx: self._get_tuple()[idx], self._set_tuple_element)
+        self._indexable_hook_manager: IndexableHookManager[T] = IndexableHookManager(self, "value", len(initial_value), lambda idx: self._get_tuple_value()[idx], self._set_indexable_single_value)
 
     @property
-    def value(self) -> tuple[T]:
+    def tuple_value(self) -> tuple[T]:
         """
         Get a copy of the current tuple value.
         
         Returns:
             A copy of the current tuple to prevent external modification
         """
-        return self._get_tuple()
+        return self._get_tuple_value()
     
-    def _set_tuple(self, tuple_to_set: tuple[T]) -> None:
+    @tuple_value.setter
+    def tuple_value(self, new_value: tuple[T]) -> None:
         """
-        Internal method to set tuple from binding system.
+        Set the current tuple value.
         
         Args:
-            tuple_to_set: The new tuple to set
+            new_value: The new tuple to set
         """
-        self.set_tuple(tuple_to_set)
+        self._set_tuple_value(new_value)
     
-    def _get_tuple(self) -> tuple[T]:
+    def _set_tuple_value(self, tuple_to_set: tuple[T]) -> None:
         """
-        Get the current tuple value. No copy is made!
-        
-        Returns:
-            The current tuple value
-        """
-        return self._component_values["value"]
-    
-    def _get_tuple_hook(self) -> Hook[tuple[T]]:
-        """Internal method to get hook for binding system."""
-        return self._component_hooks["value"]
-    
-    def get_tuple_value(self) -> tuple[T]:
-        """
-        Get the current value of the tuple as a copy.
-        
-        Returns:
-            A copy of the current tuple value
-        """
-        return self._component_values["value"]
-    
-    def _get_indexable_single_value_hook(self, index: int) -> Hook[T]:
-        """Internal method to get hook for indexable single value binding system."""
-        return self._component_hooks[f"value_{index}"]
-    
-    def get_indexable_single_value(self, index: int) -> T:
-        """
-        Get the current value at the specified index.
-        
-        Args:
-            index: The index of the element to get
-            
-        Returns:
-            The value at the specified index
-            
-        Raises:
-            IndexError: If the index is out of bounds
-        """
-        if index < 0 or index >= len(self._component_values["value"]):
-            raise IndexError(f"Index {index} is out of bounds for tuple of length {len(self._component_values['value'])}")
-        return self._component_values["value"][index]
-    
-    def set_tuple(self, tuple_to_set: tuple[T]) -> None:
-        """
+        INTERNAL. Do not use this method directly.
+
         Set the entire tuple to a new value.
         
         This method replaces the current tuple with a new one, using set_observed_values
@@ -169,7 +129,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         Args:
             tuple_to_set: The new tuple to set
         """
-        if tuple_to_set == self._get_tuple():
+        if tuple_to_set == self._get_tuple_value():
             return
         
         # Check if there are individual element bindings that need to be validated
@@ -184,19 +144,57 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         
         # Use the protocol method to set the value
         self.set_observed_values((tuple_to_set,))
-
-    def _set_tuple_element(self, index: int, value: T) -> None:
+    
+    def _get_tuple_value(self) -> tuple[T]:
         """
-        Set a specific element in the tuple.
+        INTERNAL. Do not use this method directly.
+
+        Method to get the current tuple value for binding system. No copy is made!
         
-        This method is used internally by the binding system to update
-        individual elements of the tuple.
+        Returns:
+            The current tuple value
+        """
+        return self._component_values["value"]
+    
+    def _get_tuple_hook(self) -> Hook[tuple[T]]:
+        """Internal method to get hook for binding system."""
+        return self._component_hooks["value"]
+
+    def _get_indexable_single_value_hook(self, index: int) -> Hook[T]:
+        """Internal method to get hook for indexable single value binding system."""
+        return self._component_hooks[f"value_{index}"]
+    
+    def _get_indexable_single_value(self, index: int) -> T:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Get the value at the given index.
+        
+        Args:
+            index: The index of the element to get
+            
+        Returns:
+            The value at the specified index
+            
+        Raises:
+            IndexError: If the index is out of bounds
+        """
+        if index < 0 or index >= len(self._component_values["value"]):
+            raise IndexError(f"Index {index} is out of bounds for tuple of length {len(self._component_values['value'])}")
+        return self._component_values["value"][index]
+    
+    def _set_indexable_single_value(self, index: int, value: T) -> None:
+        """
+        INTERNAL. Do not use this method directly.
+        
+        Set the value at the given index.
         
         Args:
             index: The index of the element to set
             value: The new value for the element
         """
-        current_tuple = list(self._get_tuple())
+
+        current_tuple: list[T] = list(self._get_tuple_value())
         if index < 0 or index >= len(current_tuple):
             raise ValueError(f"Index {index} is out of bounds for tuple of length {len(current_tuple)}")
         
@@ -259,8 +257,8 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         if not isinstance(tuple_index, int):
             raise ValueError(f"Index must be an integer, got {type(tuple_index).__name__}")
         
-        if tuple_index < 0 or tuple_index >= len(self._get_tuple()):
-            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple())}")
+        if tuple_index < 0 or tuple_index >= len(self._get_tuple_value()):
+            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple_value())}")
         
         # Establish the binding
         if isinstance(hook, CarriesDistinctIndexableSingleValueHook):
@@ -292,8 +290,8 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         if not isinstance(tuple_index, int):
             raise ValueError(f"Index must be an integer, got {type(tuple_index).__name__}")
         
-        if tuple_index < 0 or tuple_index >= len(self._get_tuple()):
-            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple())}")
+        if tuple_index < 0 or tuple_index >= len(self._get_tuple_value()):
+            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple_value())}")
         
         if isinstance(hook, CarriesDistinctIndexableSingleValueHook):
             hook = hook._get_indexable_single_value_hook(tuple_index)
@@ -320,26 +318,6 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         if isinstance(hook, CarriesDistinctTupleHook):
             hook = hook._get_tuple_hook()
         self._get_tuple_hook().remove_binding(hook)
-
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on the binding system to ensure
-        that all bindings are in a consistent state and values are properly synchronized.
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_tuple_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_tuple_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"
     
     def get_observed_component_values(self) -> tuple[tuple[T]]:
         """
@@ -351,7 +329,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         Returns:
             A tuple containing the current tuple value
         """
-        return tuple(self._get_tuple())
+        return tuple(self._get_tuple_value())
     
     def set_observed_values(self, values: tuple[tuple[T]]) -> None:
         """
@@ -389,8 +367,8 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
     
     def __str__(self) -> str:
         """String representation of the observable tuple."""
-        return f"OT(tuple={self._get_tuple()})"
+        return f"OT(tuple={self._get_tuple_value()})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable tuple."""
-        return f"ObservableTuple({self._get_tuple()})"
+        return f"ObservableTuple({self._get_tuple_value()})"

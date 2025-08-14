@@ -82,7 +82,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         """
         
         if isinstance(available_options, CarriesDistinctSetHook):
-            initial_available_options: set[T] = available_options.get_set_value()
+            initial_available_options: set[T] = available_options._get_set_value()
             available_options_hook: Optional[Hook[set[T]]] = available_options._get_set_hook()
         elif isinstance(available_options, Hook):
             initial_available_options: set[T] = available_options._get_callback()
@@ -92,7 +92,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
             available_options_hook: Optional[Hook[set[T]]] = None
 
         if isinstance(selected_options, CarriesDistinctSetHook):
-            initial_selected_options: set[T] = selected_options.get_set_value()
+            initial_selected_options: set[T] = selected_options._get_set_value()
             selected_options_hook: Optional[Hook[set[T]]] = selected_options._get_set_hook()
         elif isinstance(selected_options, Hook):
             initial_selected_options: set[T] = selected_options._get_callback()
@@ -436,33 +436,6 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         
         self._get_available_options_hook().remove_binding(observable._get_available_options_hook())
         self._get_selected_options_hook().remove_binding(observable._get_selected_options_hook())
-
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on both the selected options
-        and available options bindings to ensure they are in a consistent state and
-        values are properly synchronized.
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_available_options_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        binding_state_consistent, binding_state_consistent_message = self._get_selected_options_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_available_options_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        values_synced, values_synced_message = self._get_selected_options_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"
     
     def _get_available_options_hook(self) -> Hook[set[T]]:
         """

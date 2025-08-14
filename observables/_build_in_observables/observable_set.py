@@ -67,7 +67,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             initial_value: set[T] = set()
             hook: Optional[Hook[set[T]]] = None
         elif isinstance(hook_or_value, CarriesDistinctSetHook):
-            initial_value: set[T] = hook_or_value.get_set_value()
+            initial_value: set[T] = hook_or_value._get_set_value()
             hook: Optional[Hook[set[T]]] = hook_or_value._get_set_hook()
         elif isinstance(hook_or_value, Hook):
             initial_value: set[T] = hook_or_value._get_callback()
@@ -86,7 +86,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_set, self._set_set)
+                "value": Hook(self, self._get_set_value, self._set_set_value)
             },
             verification_method=verification_method
         )
@@ -96,66 +96,55 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
     
 
     @property
-    def value(self) -> set[T]:
+    def set_value(self) -> set[T]:
         """
         Get a copy of the current set value.
         
         Returns:
             A copy of the current set to prevent external modification
         """
-        return self._get_set().copy()    
+        return self._get_set_value().copy()    
     
-    def _get_set(self) -> set[T]:
+    @set_value.setter
+    def set_value(self, value: set[T]) -> None:
         """
-        Get the current set value. No copy is made!
+        Set the current value of the set.
+        """
+        self._set_set_value(value)
+    
+    def _get_set_value(self) -> set[T]:
+        """
+        INTERNAL. Do not use this method directly.
+
+        Method to get set value for binding system. No copy is made!
         
         Returns:
             The current set value
         """
         return self._component_values["value"]
-    
-    def _set_set(self, set_to_set: set[T]) -> None:
+        
+    def _set_set_value(self, set_to_set: set[T]) -> None:
         """
-        Internal method to set set from hook.
+        INTERNAL. Do not use this method directly.
+
+        Method to set set from hook.
         
         Args:
             set_to_set: The new set to set
         """
-        self.set_set(set_to_set)
+        self.set_observed_values((set_to_set,))
     
     def _get_set_hook(self) -> Hook[set[T]]:
         """
-        Internal method to get hook for binding system.
+        INTERNAL. Do not use this method directly.
+
+        Method to get hook for binding system.
         
         Returns:
             The hook for the set
         """
         return self._component_hooks["value"]
     
-    def get_set_value(self) -> set[T]:
-        """
-        Get the current value of the set as a copy.
-        
-        Returns:
-            A copy of the current set value
-        """
-        return self._component_values["value"].copy()
-    
-    def set_set(self, set_to_set: set[T]) -> None:
-        """
-        Set the entire set to a new value.
-        
-        This method replaces the current set with a new one, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
-        
-        Args:
-            set_to_set: The new set to set
-        """
-        if set_to_set == self._get_set():
-            return
-        # Use the protocol method to set the value
-        self.set_observed_values((set_to_set,))
-
     def bind_to(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable set.
@@ -193,26 +182,6 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         if isinstance(hook, CarriesDistinctSetHook):
             hook = hook._get_set_hook()
         self._get_set_hook().remove_binding(hook)
-
-    def check_binding_system_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        
-        This method performs comprehensive checks on the binding system to ensure
-        that all bindings are in a consistent state and values are properly synchronized.
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        binding_state_consistent, binding_state_consistent_message = self._get_set_hook().check_binding_state_consistency()
-        if not binding_state_consistent:
-            return False, binding_state_consistent_message
-        values_synced, values_synced_message = self._get_set_hook().check_values_synced()
-        if not values_synced:
-            return False, values_synced_message
-        return True, "Binding system is consistent"
     
     # Standard set methods
     def add(self, item: T) -> None:
@@ -243,8 +212,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Raises:
             KeyError: If the item is not in the set
         """
-        if item in self._get_set():
-            new_set = self._get_set().copy()
+        if item in self._get_set_value():
+            new_set = self._get_set_value().copy()
             new_set.remove(item)
             self.set_observed_values((new_set,))
     
@@ -259,8 +228,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Args:
             item: The element to remove from the set
         """
-        if item in self._get_set():
-            new_set = self._get_set().copy()
+        if item in self._get_set_value():
+            new_set = self._get_set_value().copy()
             new_set.discard(item)
             self.set_observed_values((new_set,))
     
@@ -277,8 +246,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Raises:
             KeyError: If the set is empty
         """
-        item = next(iter(self._get_set()))
-        new_set = self._get_set().copy()
+        item = next(iter(self._get_set_value()))
+        new_set = self._get_set_value().copy()
         new_set.pop()
         self.set_observed_values((new_set,))
         return item
@@ -290,7 +259,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         This method removes all elements from the set, making it empty.
         It uses set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if self._get_set():
+        if self._get_set_value():
             new_set = set()
             self.set_observed_values((new_set,))
     
@@ -304,10 +273,10 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Args:
             *others: Variable number of iterables to add elements from
         """
-        new_set = self._get_set().copy()
+        new_set = self._get_set_value().copy()
         for other in others:
             new_set.update(other)
-        if new_set != self._get_set():
+        if new_set != self._get_set_value():
             self.set_observed_values((new_set,))
     
     def intersection_update(self, *others) -> None:
@@ -321,10 +290,10 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Args:
             *others: Variable number of iterables to intersect with
         """
-        new_set = self._get_set().copy()
+        new_set = self._get_set_value().copy()
         for other in others:
             new_set.intersection_update(other)
-        if new_set != self._get_set():
+        if new_set != self._get_set_value():
             self.set_observed_values((new_set,))
     
     def difference_update(self, *others) -> None:
@@ -338,10 +307,10 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Args:
             *others: Variable number of iterables to remove elements from
         """
-        new_set = self._get_set().copy()
+        new_set = self._get_set_value().copy()
         for other in others:
             new_set.difference_update(other)
-        if new_set != self._get_set():
+        if new_set != self._get_set_value():
             self.set_observed_values((new_set,))
     
     def symmetric_difference_update(self, other) -> None:
@@ -355,16 +324,16 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Args:
             other: An iterable to compute symmetric difference with
         """
-        new_set = self._get_set().copy()
+        new_set = self._get_set_value().copy()
         new_set.symmetric_difference_update(other)
-        if new_set != self._get_set():
+        if new_set != self._get_set_value():
             self.set_observed_values((new_set,))
     
     def __str__(self) -> str:
-        return f"OS(options={self._get_set()})"
+        return f"OS(options={self._get_set_value()})"
     
     def __repr__(self) -> str:
-        return f"ObservableSet({self._get_set()})"
+        return f"ObservableSet({self._get_set_value()})"
     
     def __len__(self) -> int:
         """
@@ -373,7 +342,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Returns:
             The number of elements in the set
         """
-        return len(self._get_set())
+        return len(self._get_set_value())
     
     def __contains__(self, item: T) -> bool:
         """
@@ -385,7 +354,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Returns:
             True if the element is in the set, False otherwise
         """
-        return item in self._get_set()
+        return item in self._get_set_value()
     
     def __iter__(self):
         """
@@ -394,7 +363,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Returns:
             An iterator that yields each element in the set
         """
-        return iter(self._get_set())
+        return iter(self._get_set_value())
     
     def __eq__(self, other) -> bool:
         """
@@ -407,8 +376,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             True if the sets contain the same elements, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() == other._get_set()
-        return self._get_set() == other
+            return self._get_set_value() == other._get_set_value()
+        return self._get_set_value() == other
     
     def __ne__(self, other) -> bool:
         """
@@ -433,8 +402,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             True if this set is a subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() <= other._get_set()
-        return self._get_set() <= other
+            return self._get_set_value() <= other._get_set_value()
+        return self._get_set_value() <= other
     
     def __lt__(self, other) -> bool:
         """
@@ -447,8 +416,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             True if this set is a proper subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() < other._get_set()
-        return self._get_set() < other
+            return self._get_set_value() < other._get_set_value()
+        return self._get_set_value() < other
     
     def __ge__(self, other) -> bool:
         """
@@ -461,8 +430,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             True if this set is a superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() >= other._get_set()
-        return self._get_set() >= other
+            return self._get_set_value() >= other._get_set_value()
+        return self._get_set_value() >= other
     
     def __gt__(self, other) -> bool:
         """
@@ -475,8 +444,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             True if this set is a proper superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() > other._get_set()
-        return self._get_set() > other
+            return self._get_set_value() > other._get_set_value()
+        return self._get_set_value() > other
     
     def __and__(self, other):
         """
@@ -489,8 +458,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             A new set containing elements common to both sets
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() & other._get_set()
-        return self._get_set() & other
+            return self._get_set_value() & other._get_set_value()
+        return self._get_set_value() & other
     
     def __or__(self, other):
         """
@@ -503,8 +472,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             A new set containing all elements from both sets
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() | other._get_set()
-        return self._get_set() | other
+            return self._get_set_value() | other._get_set_value()
+        return self._get_set_value() | other
     
     def __sub__(self, other):
         """
@@ -517,8 +486,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             A new set containing elements in this set but not in the other
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() - other._get_set()
-        return self._get_set() - other
+            return self._get_set_value() - other._get_set_value()
+        return self._get_set_value() - other
     
     def __xor__(self, other):
         """
@@ -531,8 +500,8 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
             A new set containing elements in either set but not in both
         """
         if isinstance(other, ObservableSet):
-            return self._get_set() ^ other._get_set()
-        return self._get_set() ^ other
+            return self._get_set_value() ^ other._get_set_value()
+        return self._get_set_value() ^ other
     
     def __hash__(self) -> int:
         """
@@ -541,7 +510,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Returns:
             Hash value of the set as a frozenset
         """
-        return hash(frozenset(self._get_set()))
+        return hash(frozenset(self._get_set_value()))
     
     def get_observed_component_values(self) -> tuple[set[T]]:
         """
@@ -553,7 +522,7 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         Returns:
             A tuple containing the current set value
         """
-        return tuple(self._get_set())
+        return tuple(self._get_set_value())
     
     def set_observed_values(self, values: tuple[set[T]]) -> None:
         """

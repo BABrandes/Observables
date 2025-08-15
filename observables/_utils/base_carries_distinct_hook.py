@@ -24,4 +24,5 @@ class BaseCarriesDistinctHook(Protocol):
         This protocol can be used directly by end users for type hints and
         interface definitions when working with observable objects.
     """
+
     pass

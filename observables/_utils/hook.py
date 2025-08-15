@@ -61,7 +61,7 @@ class Hook(HookLike[T], Generic[T]):
     def __init__(self, owner: "BaseObservable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
 
         self._owner = owner
-        self._connected_hooks: set["Hook[T]"] = set()
+        self._connected_hooks: set[HookLike[T]] = set()
         self._get_callback: Callable[[], T]|Callable[[dict[str, Any]], T] = get_callback
         self._set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None] = set_callback
         self._auxiliary_information: Optional[dict[str, Any]] = auxiliary_information
@@ -87,7 +87,7 @@ class Hook(HookLike[T], Generic[T]):
         return self._owner
     
     @property
-    def connected_hooks(self) -> set["Hook[T]"]:
+    def connected_hooks(self) -> set[HookLike[T]]:
         """
         Get the set of connected hooks.
         """
@@ -103,7 +103,7 @@ class Hook(HookLike[T], Generic[T]):
 
     def establish_binding(
             self,
-            hook_for_binding: "Hook[T]",
+            hook_for_binding: HookLike[T],
             initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF
             ) -> None:
         """
@@ -129,7 +129,7 @@ class Hook(HookLike[T], Generic[T]):
 
     def _establish_binding_unsafe(
             self,
-            hook_for_binding: "Hook[T]",
+            hook_for_binding: HookLike[T],
             initial_sync_mode: SyncMode
             ) -> None:
         """
@@ -192,7 +192,7 @@ class Hook(HookLike[T], Generic[T]):
         self._set_callback(value_to_sync)
         hook_for_binding._set_callback(value_to_sync)
 
-    def remove_binding(self, hook_for_binding: "Hook[T]") -> None:
+    def remove_binding(self, hook_for_binding: HookLike[T]) -> None:
         """
         Remove a binding between this hook and the given hook for binding.
         Since the network is fully connected (everyone to everyone), removing one binding
@@ -209,7 +209,7 @@ class Hook(HookLike[T], Generic[T]):
             with lock2:
                 self._remove_binding_unsafe(hook_for_binding)
 
-    def _remove_binding_unsafe(self, hook_for_binding: "Hook[T]") -> None:
+    def _remove_binding_unsafe(self, hook_for_binding: HookLike[T]) -> None:
         """
         Internal method for removing bindings without locks.
         This method should only be called when the caller already holds the necessary locks.
@@ -234,7 +234,7 @@ class Hook(HookLike[T], Generic[T]):
         if not state_consistent:
             raise ValueError(state_consistent_message)
 
-    def is_bound_to(self, hook_for_binding: "Hook[T]") -> bool:
+    def is_bound_to(self, hook_for_binding: HookLike[T]) -> bool:
         """
         Check if this hook is bound to the given hook for binding.
         Since bindings are bidirectional, this checks if we notify the given hook for binding.

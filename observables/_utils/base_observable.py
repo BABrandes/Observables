@@ -1,20 +1,20 @@
 import threading
 from abc import abstractmethod
 from typing import Any, Callable, Optional
-from .listening_base import ListeningBase
+from .base_listening import BaseListening
 from .hook import Hook
 from collections.abc import Mapping
 
-class Observable(ListeningBase):
+class BaseObservable(BaseListening):
     """
-    Class defining the interface for all observable objects in the library.
+    Base class defining the interface for all observable objects in the library.
 
     This class serves as a contract that ensures all observable classes implement
     a consistent set of methods and behaviors. It enables type safety, polymorphism,
     and enables the creation of generic utilities that work with any observable type.
     
     **Purpose:**
-    The Observable class provides a standardized interface that allows different
+    The BaseObservable class provides a standardized interface that allows different
     observable types (ObservableEnum, ObservableDict, ObservableList, etc.) to be
     used interchangeably in generic contexts while maintaining type safety.
     
@@ -28,20 +28,20 @@ class Observable(ListeningBase):
     
     1. **Generic Collections:**
         from typing import List
-        from observables import Observable
+        from observables import BaseObservable
 
-        def process_observables(obs_list: List[Observable]) -> None:
+        def process_observables(obs_list: List[BaseObservable]) -> None:
             for obs in obs_list:
                 # All observables implement the same interface
                 obs.add_listener(lambda: print("Changed!"))
     
     2. **Class-Based Functions:**
-        def create_binding(source: Observable, target: Observable) -> None:
+        def create_binding(source: BaseObservable, target: BaseObservable) -> None:
             # Works with any observable type
             source.bind_to_observable(target)
     
     3. **Type-Safe Factories:**
-        T = TypeVar('T', bound=Observable)
+        T = TypeVar('T', bound=BaseObservable)
         
         def create_observable(obs_type: Type[T], *args, **kwargs) -> T:
             return obs_type(*args, **kwargs)
@@ -75,7 +75,7 @@ class Observable(ListeningBase):
             verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = None,
             component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = {}):
         """
-        Initialize the Observable.
+        Initialize the BaseObservable.
 
         Args:
             component_values: A dictionary of component values.

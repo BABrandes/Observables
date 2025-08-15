@@ -2,11 +2,11 @@ from typing import Any, Callable, Generic, Optional, TypeVar, overload
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Generic[T]):
+class ObservableSingleValue(BaseObservable, CarriesDistinctSingleValueHook[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     

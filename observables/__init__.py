@@ -90,7 +90,7 @@ from ._build_in_observables.observable_enum import ObservableEnum
 from ._build_in_observables.observable_tuple import ObservableTuple
 from ._other_observables.observable_selection_option import ObservableSelectionOption
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption
-from ._utils.observable import Observable
+from ._utils.base_observable import BaseObservable
 from ._utils.sync_mode import SyncMode
 from ._utils.hook import Hook
 from ._utils.base_carries_distinct_hook import BaseCarriesDistinctHook
@@ -112,7 +112,7 @@ __all__ = [
     'ObservableTuple',
     'ObservableSelectionOption',
     'ObservableMultiSelectionOption',
-    'Observable',
+    'BaseObservable',
     'Hook',
     'BaseCarriesDistinctHook',
     'CarriesDistinctDictHook',

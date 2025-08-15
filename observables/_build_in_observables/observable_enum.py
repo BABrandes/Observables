@@ -4,12 +4,12 @@ from .._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 E = TypeVar("E", bound=Enum)
 
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnum(Observable, CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], Generic[E]):
+class ObservableEnum(BaseObservable, CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     

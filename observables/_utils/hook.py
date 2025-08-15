@@ -3,13 +3,13 @@ from typing import Any, Callable, Generic, Optional, TypeVar, TYPE_CHECKING
 from .sync_mode import SyncMode
 
 if TYPE_CHECKING:
-    from .observable import Observable
+    from .base_observable import BaseObservable
 
 T = TypeVar("T")
 
 class Hook(Generic[T]):
 
-    def __init__(self, owner: "Observable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
+    def __init__(self, owner: "BaseObservable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
 
         self._owner = owner
         self._connected_hooks: set["Hook[T]"] = set()
@@ -24,7 +24,7 @@ class Hook(Generic[T]):
         self._lock = threading.RLock()
 
     @property
-    def owner(self) -> "Observable":
+    def owner(self) -> "BaseObservable":
         """
         Get the owner of this hook.
         """

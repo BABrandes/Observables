@@ -1,6 +1,6 @@
 from typing import Callable
 
-class ListeningBase():
+class BaseListening():
     """
     Base class providing listener management functionality for observables.
     

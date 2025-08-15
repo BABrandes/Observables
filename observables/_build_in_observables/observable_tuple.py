@@ -5,11 +5,11 @@ from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
 from .._utils.carries_distinct_indexable_single_value_hook import CarriesDistinctIndexableSingleValueHook
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.indexable_hook_manager import IndexableHookManager
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIndexableSingleValueHook[T], Generic[T]):
+class ObservableTuple(BaseObservable, CarriesDistinctTupleHook[T], CarriesDistinctIndexableSingleValueHook[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     

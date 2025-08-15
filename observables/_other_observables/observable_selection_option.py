@@ -91,11 +91,11 @@ from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optional[T]], CarriesDistinctSetHook[T], Generic[T]):
+class ObservableSelectionOption(BaseObservable, CarriesDistinctSingleValueHook[Optional[T]], CarriesDistinctSetHook[T], Generic[T]):
     """
     An observable selection option that manages both available options and a selected value.
     

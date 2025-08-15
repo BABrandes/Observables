@@ -1,12 +1,12 @@
 from typing import Any, Generic, Optional, TypeVar, overload
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 
 T = TypeVar("T")
 
-class ObservableMultiSelectionOption(Observable, Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable, Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     

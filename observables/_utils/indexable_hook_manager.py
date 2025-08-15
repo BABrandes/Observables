@@ -1,7 +1,7 @@
 from typing import Generic, Optional, TypeVar
 from typing import Callable
 from .hook import Hook
-from .observable import Observable
+from .base_observable import BaseObservable
 from .hook import SyncMode
 
 T = TypeVar("T")
@@ -13,13 +13,13 @@ class IndexableHookManager(Generic[T]):
 
     def __init__(
             self,
-            owner: Observable,
+            owner: BaseObservable,
             identifier_string: str,
             initial_number_of_hooks: int,
             get_by_index: Callable[[int], T],
             set_by_index: Callable[[int, T], None]):
 
-        self._owner: Observable = owner
+        self._owner: BaseObservable = owner
         self._identifier_string: str = identifier_string
 
         self._get_by_index: Callable[[int], T] = get_by_index

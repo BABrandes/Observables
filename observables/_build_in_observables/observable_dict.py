@@ -2,12 +2,12 @@ from typing import Generic, TypeVar, Optional, overload, Any, Callable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable, CarriesDistinctDictHook[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     

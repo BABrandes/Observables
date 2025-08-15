@@ -3,11 +3,11 @@ from typing import Optional
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_list_hook import CarriesDistinctListHook
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
+class ObservableList(BaseObservable, CarriesDistinctListHook[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     

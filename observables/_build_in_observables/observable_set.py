@@ -2,11 +2,11 @@ from typing import Any, Generic, Optional, TypeVar, overload, Callable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.observable import Observable
+from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
+class ObservableSet(BaseObservable, CarriesDistinctSetHook[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     

@@ -42,6 +42,12 @@ class ObservableEnumLike(CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], 
         """
         ...
 
+    def set_enum_value_and_options(self, enum_value: Optional[E], enum_options: set[E]) -> None:
+        """
+        Set the enum value and options.
+        """
+        ...
+
     def bind_enum_value_to_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|Hook[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding for the enum value with another observable.

@@ -40,6 +40,12 @@ class ObservableMultiSelectionOptionLike(Protocol[T]):
         """
         ...
 
+    def set_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+        """
+        Set the selected options and available options.
+        """
+        ...
+
     def bind_selected_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the selected options to an observable.

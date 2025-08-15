@@ -126,6 +126,12 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
 
+    def set_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
+        """
+        Set the selected option and available options.
+        """
+        ...
+
     def bind_selected_option_to_observable(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the selected option to an observable.

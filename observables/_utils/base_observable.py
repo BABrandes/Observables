@@ -1,8 +1,8 @@
 import threading
-from abc import abstractmethod
-from typing import Any, Callable, Optional, Protocol, runtime_checkable
-from .base_listening import BaseListening, BaseListeningLike
-from .hook import Hook
+from abc import abstractmethod∂
+from typing import Any, Callable, Optional
+from .base_listening import BaseListening
+from .hook import HookLike
 from collections.abc import Mapping
 
 class BaseObservable(BaseListening):
@@ -71,7 +71,7 @@ class BaseObservable(BaseListening):
     def __init__(
             self,
             component_values: dict[str, Any],
-            component_hooks: dict[str, Hook[Any]],
+            component_hooks: dict[str, HookLike[Any]],
             verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = None,
             component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = {}):
         """
@@ -92,7 +92,7 @@ class BaseObservable(BaseListening):
             raise ValueError("The keys of the component_values and component_hooks must be the same")
 
         self._component_values: dict[str, Any] = {}
-        self._component_hooks: dict[str, Hook[Any]] = component_hooks.copy()
+        self._component_hooks: dict[str, HookLike[Any]] = component_hooks.copy()
         self._verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = verification_method
         self._component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = component_copy_methods.copy()
         # Thread safety: Lock for protecting component values and hooks

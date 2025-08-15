@@ -46,25 +46,25 @@ class ObservableMultiSelectionOptionLike(Protocol[T]):
         """
         ...
 
-    def bind_selected_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_selected_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the selected options to an observable.
         """
         ...
     
-    def bind_available_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the available options to an observable.
         """
         ...
 
-    def unbind_selected_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
+    def unbind_selected_options_from(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
         """
         Unbind the selected options from an observable.
         """
         ...
 
-    def unbind_available_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
+    def unbind_available_options_from(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
         """
         Unbind the available options from an observable.
         """

@@ -63,7 +63,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption(1, {1, 2, 3, 4, 5, 6})
         obs2 = ObservableSelectionOption(4, {1, 2, 3, 4, 5, 6})
         
-        obs1.bind_selected_option_to_observable(obs2)
+        obs1.bind_selected_option_to(obs2)
         
         # Change obs1 selected option, obs2 should update
         obs1.selected_option = 2
@@ -79,7 +79,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption(1, {1, 2, 3, 4, 5, 6})
         obs2 = ObservableSelectionOption(4, {1, 2, 3, 4, 5, 6})
         
-        obs1.bind_available_options_to_observable(obs2)
+        obs1.bind_available_options_to(obs2)
         
         # Change obs1 options, obs2 should update
         # Use options that include the current selected option (1)
@@ -103,8 +103,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption(1, {1, 2, 3, 4, 5, 6})
         obs2 = ObservableSelectionOption(4, {1, 2, 3, 4, 5, 6})
         
-        obs1.bind_selected_option_to_observable(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        obs1.unbind_selected_option_from_observable(obs2)
+        obs1.bind_selected_option_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        obs1.unbind_selected_option_from(obs2)
         
         # Changes should no longer propagate
         obs1.selected_option = 2
@@ -116,12 +116,12 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption(1, {1, 2, 3, 4, 5, 6})
         obs2 = ObservableSelectionOption(4, {1, 2, 3, 4, 5, 6})
         
-        obs1.bind_selected_option_to_observable(obs2, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
-        obs1.unbind_selected_option_from_observable(obs2)
+        obs1.bind_selected_option_to(obs2, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        obs1.unbind_selected_option_from(obs2)
         
         # Second unbind should raise ValueError since there's nothing to unbind
         with self.assertRaises(ValueError):
-            obs1.unbind_selected_option_from_observable(obs2)
+            obs1.unbind_selected_option_from(obs2)
         
         # Changes should still not propagate
         obs1.selected_option = 2
@@ -133,7 +133,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableSelectionOption(1, {1, 2, 3})
         with self.assertRaises(ValueError):
-            obs.bind_selected_option_to_observable(obs)
+            obs.bind_selected_option_to(obs)
     
     def test_multiple_bindings(self):
         """Test multiple bindings to the same observable"""
@@ -143,8 +143,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3 = ObservableSelectionOption(7, {1, 2, 3, 4, 5, 6, 7, 8, 9})
         
         # Bind obs2 and obs3 selected options to obs1
-        obs2.bind_selected_option_to_observable(obs1)
-        obs3.bind_selected_option_to_observable(obs1)
+        obs2.bind_selected_option_to(obs1)
+        obs3.bind_selected_option_to(obs1)
         
         # Change obs1 selected option, both should update
         obs1.selected_option = 2
@@ -302,8 +302,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.assertEqual(target.selected_option, 2)
         
         # Unbind them
-        target.unbind_available_options_from_observable(source_options)
-        target.unbind_selected_option_from_observable(source_selected)
+        target.unbind_available_options_from(source_options)
+        target.unbind_selected_option_from(source_selected)
         
         # Change sources, target should not update
         source_options.add(4)
@@ -488,7 +488,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         
         # Binding should work even with None values
         # Use UPDATE_VALUE_FROM_OBSERVABLE so obs1 gets updated to obs2's value
-        obs1.bind_selected_option_to_observable(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        obs1.bind_selected_option_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         self.assertEqual(obs1.selected_option, 4)
         
         # Test with allow_none=False
@@ -496,5 +496,5 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs4 = ObservableSelectionOption(4, {1, 2, 3, 4}, allow_none=False)
         
         # Binding should work with valid values
-        obs3.bind_selected_option_to_observable(obs4, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        obs3.bind_selected_option_to(obs4, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         self.assertEqual(obs3.selected_option, 4)

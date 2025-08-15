@@ -49,6 +49,12 @@ class HookLike(Protocol[T]):
         Check if all connected hooks have synchronized values.
         """
         ...
+    
+    def value(self) -> T:
+        """
+        Get the value behind this hook.
+        """
+        ...
 
 class Hook(HookLike[T], Generic[T]):
 
@@ -65,6 +71,13 @@ class Hook(HookLike[T], Generic[T]):
         self._is_notifying = False
         # Thread safety: Lock for protecting binding operations and state
         self._lock = threading.RLock()
+
+    @property
+    def value(self) -> T:
+        """
+        Get the value behind this hook.
+        """
+        return self._get_callback()
 
     @property
     def owner(self) -> "BaseObservable":

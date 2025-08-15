@@ -1,13 +1,32 @@
 from abc import abstractmethod
 from typing import Callable, Generic, TypeVar
 from .hook import Hook
-from .carries_distinct_hook import CarriesDistinctHook
+from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 T = TypeVar("T")
 
-class CarriesDistinctIndexableSingleValueHook(CarriesDistinctHook, Generic[T]):
+class CarriesDistinctIndexableSingleValueHook(BaseCarriesDistinctHook, Generic[T]):
     """
-    Interface for objects that carry a single value and can be indexed.
+    Protocol for objects that carry a single value and can be indexed.
+    
+    This protocol defines the interface that must be implemented by any
+    observable class that wants to support indexed access to single values.
+    It extends the base BaseCarriesDistinctHook protocol with specific methods for
+    indexed single value management.
+    
+    Classes implementing this protocol must provide:
+    - Methods to get and set values at specific indices
+    - Access to hooks for individual indices
+    - Validation logic for indexed value changes
+    
+    This protocol is implemented by:
+    - ObservableTuple (for individual element access)
+    - ObservableList (for individual element access)
+    
+    Note:
+        This protocol can be used directly by end users for type hints and
+        interface definitions when working with indexable observables.
+        The individual methods remain internal implementation details.
     """
 
     @abstractmethod

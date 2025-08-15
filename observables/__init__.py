@@ -23,6 +23,18 @@ The library uses a component-based architecture where observables are composed o
 - Verification methods: Validate data changes before applying them
 - Copy methods: Control how data is duplicated during binding operations
 
+Protocols and Interfaces:
+The library provides several protocols that can be used for type hints and interface definitions:
+- BaseCarriesDistinctHook: Base protocol for all observable types
+- CarriesDistinctSingleValueHook: Protocol for single value observables
+- CarriesDistinctListHook: Protocol for list observables
+- CarriesDistinctSetHook: Protocol for set observables
+- CarriesDistinctDictHook: Protocol for dictionary observables
+- CarriesDistinctTupleHook: Protocol for tuple observables
+- CarriesDistinctEnumHook: Protocol for enum observables
+- CarriesDistinctIndexableSingleValueHook: Protocol for indexable observables
+- CarriesDistinctKeyableSingleValueHook: Protocol for keyable observables
+
 Available Observable Types:
 - ObservableSingleValue: Wrapper around any single value with validation
 - ObservableList: Reactive list with full list interface compatibility
@@ -57,6 +69,15 @@ Example Usage:
     >>> print(name.value, age.value, todo_list.value)
     Jane 25 ['Buy groceries', 'Walk dog', 'Read book']
 
+    >>> # Using protocols for type hints
+    >>> from observables import CarriesDistinctSingleValueHook, CarriesDistinctListHook
+    
+    >>> def process_observable(obs: CarriesDistinctSingleValueHook[str]) -> str:
+    ...     return obs._get_single_value().upper()
+    
+    >>> def process_list_observable(obs: CarriesDistinctListHook[str]) -> list[str]:
+    ...     return [item.upper() for item in obs._get_list_value()]
+
 For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
 """
@@ -71,6 +92,16 @@ from ._other_observables.observable_selection_option import ObservableSelectionO
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption
 from ._utils.observable import Observable
 from ._utils.sync_mode import SyncMode
+from ._utils.hook import Hook
+from ._utils.base_carries_distinct_hook import BaseCarriesDistinctHook
+from ._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
+from ._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
+from ._utils.carries_distinct_indexable_single_value_hook import CarriesDistinctIndexableSingleValueHook
+from ._utils.carries_distinct_keyable_single_value_hook import CarriesDistinctKeyableSingleValueHook
+from ._utils.carries_distinct_list_hook import CarriesDistinctListHook
+from ._utils.carries_distinct_set_hook import CarriesDistinctSetHook
+from ._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
+from ._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
 
 __all__ = [
     'ObservableDict',
@@ -82,6 +113,16 @@ __all__ = [
     'ObservableSelectionOption',
     'ObservableMultiSelectionOption',
     'Observable',
+    'Hook',
+    'BaseCarriesDistinctHook',
+    'CarriesDistinctDictHook',
+    'CarriesDistinctEnumHook',
+    'CarriesDistinctIndexableSingleValueHook',
+    'CarriesDistinctKeyableSingleValueHook',
+    'CarriesDistinctListHook',
+    'CarriesDistinctSetHook',
+    'CarriesDistinctSingleValueHook',
+    'CarriesDistinctTupleHook',
     'SyncMode',
 ]
 

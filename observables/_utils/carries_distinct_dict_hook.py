@@ -1,31 +1,32 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Generic, TypeVar
 from .hook import Hook
-from .carries_distinct_hook import CarriesDistinctHook
+from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class CarriesDistinctDictHook(CarriesDistinctHook, Generic[K, V]):
+class CarriesDistinctDictHook(BaseCarriesDistinctHook, Generic[K, V]):
     """
-    Abstract base class for observables that carry a dictionary and can participate in bindings via. a hook.
+    Protocol for observables that carry a dictionary and can participate in bindings via. a hook.
     
-    This abstract base class defines the interface that must be implemented by any
+    This protocol defines the interface that must be implemented by any
     observable class that wants to support bidirectional bindings for dictionaries via. a hook.
-    It extends the base CarriesDistinctHook interface with specific methods for
+    It extends the base BaseCarriesDistinctHook protocol with specific methods for
     dictionary management.
     
-    Classes implementing this interface must provide:
+    Classes implementing this protocol must provide:
     - Methods to get and set dictionaries
     - Validation logic for dictionary changes
     - Access to the internal hook
     
-    This interface is implemented by:
+    This protocol is implemented by:
     - ObservableDict
     
     Note:
-        This is an internal interface not intended for direct use by end users.
-        Use the concrete ObservableDict class instead.
+        This protocol can be used directly by end users for type hints and
+        interface definitions when working with dictionary observables.
+        The individual methods remain internal implementation details.
     """
 
     @abstractmethod

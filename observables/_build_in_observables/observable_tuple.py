@@ -41,6 +41,13 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         value: Initial tuple, another ObservableTuple to bind to, or None for empty tuple
     """
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"value"}
+
     @overload
     def __init__(self, value: tuple[T]):
         """Initialize with a direct tuple value."""
@@ -354,7 +361,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
                 self._indexable_hook_manager.remove_hook(index)
         
         # Update internal state
-        self._set_component_values(
+        self._set_component_values_from_dict(
             {"value": new_tuple}
         )
         

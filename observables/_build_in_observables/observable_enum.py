@@ -85,6 +85,13 @@ class ObservableEnum(Observable, CarriesDistinctEnumHook[E], CarriesDistinctSetH
     - Memory usage scales linearly with the number of bindings and listeners
     """
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"enum_value", "enum_options"}
+
     @overload
     def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, allow_none: bool = True):
         """Initialize with a direct enum value."""
@@ -571,7 +578,7 @@ class ObservableEnum(Observable, CarriesDistinctEnumHook[E], CarriesDistinctSetH
         """
 
         # Update internal state
-        self._set_component_values({"enum_value": values[0], "enum_options": values[1]})
+        self._set_component_values_from_dict({"enum_value": values[0], "enum_options": values[1]})
 
     @property
     def is_none_enum_value_allowed(self) -> bool:

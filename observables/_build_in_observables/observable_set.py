@@ -38,6 +38,13 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         value: Initial set, another ObservableSet to bind to, or None for empty set
     """
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"value"}
+
     @overload
     def __init__(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], validator: Optional[Callable[[set[T]], bool]] = None):
         """Initialize with a direct set value."""
@@ -94,7 +101,6 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         if hook is not None:
             self.bind_to(hook)
     
-
     @property
     def set_value(self) -> set[T]:
         """
@@ -537,6 +543,6 @@ class ObservableSet(Observable, CarriesDistinctSetHook[T], Generic[T]):
         """
         new_set = values[0]
         
-        self._set_component_values(
+        self._set_component_values_from_dict(
             {"value": new_set}
         )

@@ -39,6 +39,13 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         value: Initial list, another ObservableList to bind to, or None for empty list
     """
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"value"}
+
     @overload
     def __init__(self, list_value: list[T]):
         """Initialize with a direct list value."""
@@ -95,7 +102,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
 
         if hook is not None:
             self.bind_to(hook)
-
+    
     @property
     def list_value(self) -> list[T]:
         """
@@ -122,7 +129,7 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         Args:
             list_to_set: The new list to set
         """
-        self._set_component_values({"value": list_to_set})
+        self._set_component_values_from_dict({"value": list_to_set})
     
     def _get_list_value(self) -> list[T]:
         """
@@ -579,6 +586,6 @@ class ObservableList(Observable, CarriesDistinctListHook[T], Generic[T]):
         new_list = values[0]
         
         # Update internal state
-        self._set_component_values(
+        self._set_component_values_from_dict(
             {"value": new_list}
         )

@@ -303,6 +303,13 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         """
         ...
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"selected_option", "available_options"}
+
     def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T]] | Hook[Optional[T]], options: set[T] | CarriesDistinctSetHook[T] | Hook[set[T]], allow_none: bool = True):
         """
         Initialize the ObservableSelectionOption.
@@ -417,6 +424,13 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
             
         if selected_option_hook is not None:
             self.bind_selected_option_to_observable(selected_option_hook)
+
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"selected_option", "available_options"}
 
     ############################################################
     # Properties (Getters and Setters)
@@ -671,7 +685,7 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         Returns:
             The current options set
         """
-        return self._component_values["available_options"]
+        return self._get_component_value("available_options")
     
     def _get_single_value(self) -> T:
         """
@@ -682,7 +696,7 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         Returns:
             The current selected option
         """
-        return self._component_values["selected_option"]
+        return self._get_component_value("selected_option")
     
     def _set_set_value(self, value: set[T]) -> None:
         """
@@ -691,10 +705,7 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         Args:
             value: The new options set to set
         """
-        # Merge with existing values to avoid losing other keys
-        current_values = self._component_values.copy()
-        current_values["available_options"] = value
-        self._set_component_values(current_values)
+        self._set_component_value("available_options", value)
     
     def _set_single_value(self, value: T) -> None:
         """
@@ -703,10 +714,7 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         Args:
             value: The new selected option to set
         """
-        # Merge with existing values to avoid losing other keys
-        current_values = self._component_values.copy()
-        current_values["selected_option"] = value
-        self._set_component_values(current_values)
+        self._set_component_value("selected_option", value)
     
     ############################################################
     # Combined set and selected option methods
@@ -790,15 +798,8 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
         if not self._allow_none and options == set():
             raise ValueError("Options set is empty but allow_none is False")
         
-        if options == self._component_values["available_options"] and selected_option == self._component_values["selected_option"]:
-            return
-        
         # Use the protocol method to set the values
-        # Merge with existing values to avoid losing other keys
-        current_values = self._component_values.copy()
-        current_values["selected_option"] = selected_option
-        current_values["available_options"] = options
-        self._set_component_values(current_values)
+        self._set_component_values_from_tuples(("selected_option", selected_option), ("available_options", options))
 
     ############################################################
     # Internal hook methods
@@ -1149,14 +1150,10 @@ class ObservableSelectionOption(Observable, CarriesDistinctSingleValueHook[Optio
             The method automatically handles the case where the item is
             already present in the options set (no-op).
         """
-        new_options = self._get_set_value().copy()
+        new_options: set[T] = self._get_set_value().copy()
         if item not in new_options:
             new_options.add(item)
-        # Merge with existing values to avoid losing other keys
-        current_values = self._component_values.copy()
-        current_values["selected_option"] = self._get_single_value()
-        current_values["available_options"] = new_options
-        self._set_component_values(current_values)
+        self._set_component_values_from_tuples(("selected_option", self._get_single_value()), ("available_options", new_options))
     
     def __str__(self) -> str:
         return f"OSO(options={self._get_set_value()}, selected={self._get_single_value()})"

@@ -1,3 +1,5 @@
+import threading
+from abc import abstractmethod
 from typing import Any, Callable, Optional
 from .listening_base import ListeningBase
 from .hook import Hook
@@ -93,9 +95,28 @@ class Observable(ListeningBase):
         self._component_hooks: dict[str, Hook[Any]] = component_hooks.copy()
         self._verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = verification_method
         self._component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = component_copy_methods.copy()
-        self._set_component_values(component_values, skip_notification=True)
+        # Thread safety: Lock for protecting component values and hooks
+        self._lock = threading.RLock()
+        self._set_component_values_from_dict(component_values, skip_notification=True)
 
-    def _set_component_values(self, dict_of_values: dict[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
+    @classmethod
+    @abstractmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        ...
+
+    def _set_component_values_from_tuples(self, *tuple_of_values: tuple[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
+        """
+        Set the values of the component values.
+        """
+        with self._lock:
+            # Convert tuple of (key, value) pairs to a dictionary
+            dict_of_values = dict(tuple_of_values)
+            self._set_component_values_from_dict(dict_of_values, reverting_to_old_values=reverting_to_old_values, skip_notification=skip_notification)
+
+    def _set_component_values_from_dict(self, dict_of_values: dict[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
         """
         Set the values of the component values.
 
@@ -109,46 +130,67 @@ class Observable(ListeningBase):
             dict_of_values: A dictionary of values.
             reverting_to_old_values: If True, it means, the method was called by the _set_component_values method due to an error, and we are reverting to the old values.
         """
+        with self._lock:
 
-        if self._verification_method is not None:
-            verification_result, verification_message = self._verification_method(dict_of_values)
-            if not verification_result:
-                raise ValueError(f"Invalid values: {dict_of_values}. {verification_message}")
+            # Safety check: prevent setting values with keys that are not in the mandatory component value keys
+            if not set(dict_of_values.keys()).issubset(self.__class__._mandatory_component_value_keys()):
+                raise ValueError(f"Invalid values: {dict_of_values}. The keys must be a subset of {self.__class__._mandatory_component_value_keys()}")
             
-        old_component_values: dict[str, Any] = self._component_values.copy()
-        new_component_values: dict[str, Any] = {}
-
-        for key, value in dict_of_values.items():
-            copy_method: Optional[Callable[[Any], Any]] = None
-            if key in self._component_copy_methods:
-                copy_method = self._component_copy_methods[key]
-            elif hasattr(value, "copy") and callable(value.copy):
-                copy_method = lambda x: x.copy()
+            # Verification method: check if the values are valid
+            if self._verification_method is not None:
+                verification_result, verification_message = self._verification_method(dict_of_values)
+                if not verification_result:
+                    raise ValueError(f"Invalid values: {dict_of_values}. {verification_message}")
             
-            if copy_method is not None:
-                new_component_values[key] = copy_method(value)
-            else:
-                new_component_values[key] = value
+            # Copy the values
+            old_component_values: dict[str, Any] = self._component_values.copy()
+            new_component_values: dict[str, Any] = {}
 
-        if old_component_values.items() == new_component_values.items():
-            return
-        
-        self._component_values = new_component_values
-
-        # Notfy bindings
-        if not skip_notification:
-            try:
-                for key, value in new_component_values.items():
-                    self._component_hooks[key].notify_bindings(value)
-            except Exception as e:
-                if not reverting_to_old_values:
-                    self._set_component_values(old_component_values, reverting_to_old_values=True)
-                    raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
+            for key, value in dict_of_values.items():
+                copy_method: Optional[Callable[[Any], Any]] = None
+                if key in self._component_copy_methods:
+                    copy_method = self._component_copy_methods[key]
+                elif hasattr(value, "copy") and callable(value.copy):
+                    copy_method = lambda x: x.copy()
+                
+                if copy_method is not None:
+                    new_component_values[key] = copy_method(value)
                 else:
-                    raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
+                    new_component_values[key] = value
+
+            # Safety check: prevent setting values that are the same as the old values
+            if old_component_values.items() == new_component_values.items():
+                return
             
-            # Notify listeners
-            self._notify_listeners()
+            # Set the new values
+            self._component_values = new_component_values
+
+            # Notify bindings
+            if not skip_notification:
+                try:
+                    # Get a copy of hooks to avoid holding lock during notifications
+                    hooks_copy = self._component_hooks.copy()
+                    values_copy = new_component_values.copy()
+                except Exception as e:
+                    if not reverting_to_old_values:
+                        self._set_component_values_from_dict(old_component_values, reverting_to_old_values=True)
+                        raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
+                    else:
+                        raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
+                
+                # Notify hooks outside of lock to prevent deadlocks
+                try:
+                    for key, value in values_copy.items():
+                        hooks_copy[key].notify_bindings(value)
+                except Exception as e:
+                    if not reverting_to_old_values:
+                        self._set_component_values_from_dict(old_component_values, reverting_to_old_values=True)
+                        raise ValueError(f"Error notifying the hooks (Reverting to old values): {e}")
+                    else:
+                        raise ValueError(f"Fatal error notifying the hooks, could not recover: {e}")
+                
+                # Notify listeners
+                self._notify_listeners()
 
     @property
     def observed_component_values(self) -> tuple[Any, ...]:
@@ -157,7 +199,8 @@ class Observable(ListeningBase):
 
         The main purpose of this method is for serialization of the observable.
         """
-        return tuple(self._component_values.values())
+        with self._lock:
+            return tuple(self._component_values.values())
 
     def check_binding_system_consistency(self) -> tuple[bool, str]:
         """
@@ -171,8 +214,12 @@ class Observable(ListeningBase):
             indicating if the system is consistent, and message provides details
             about any inconsistencies found.
         """
+        with self._lock:
+            # Get a copy to avoid holding lock during iteration
+            hooks_copy = self._component_hooks.copy()
 
-        for _, value in self._component_hooks.items():
+        # Check consistency outside of lock to prevent deadlocks
+        for _, value in hooks_copy.items():
             binding_state_consistent, binding_state_consistent_message = value.check_binding_state_consistency()
             if not binding_state_consistent:
                 return False, binding_state_consistent_message
@@ -181,3 +228,19 @@ class Observable(ListeningBase):
                 return False, values_synced_message
 
         return True, "Binding system is consistent"
+    
+    def _get_component_value(self, key: str) -> Any:
+        """
+        Get the value of a component.
+        """
+        with self._lock:
+            return self._component_values[key]
+    
+    def _set_component_value(self, key: str, value: Any) -> None:
+        """
+        Set the value of a component.
+        """
+        with self._lock:
+            current_values = self._component_values.copy()
+            current_values[key] = value
+            self._set_component_values_from_dict(current_values)

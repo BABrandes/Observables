@@ -135,6 +135,13 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
             self.bind_selected_options_to(selected_options_hook)
 
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"selected_options", "available_options"}
+
     @property
     def available_options(self) -> set[T]:
         """
@@ -257,7 +264,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
             return
         
         # Use the protocol method to set the values
-        self._set_component_values({"selected_options": selected_options, "available_options": options})
+        self._set_component_values_from_dict({"selected_options": selected_options, "available_options": options})
     
     def set_available_options(self, available_options: set[T]) -> None:
         """
@@ -278,7 +285,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         self._raise_if_selected_options_not_in_available_options(self._component_values["selected_options"], available_options)
 
         # Use the protocol method to set the values
-        self._set_component_values({"selected_options": self._component_values["selected_options"], "available_options": available_options})
+        self._set_component_values_from_dict({"selected_options": self._component_values["selected_options"], "available_options": available_options})
 
     def set_selected_options(self, selected_options: set[T]) -> None:
         """
@@ -299,7 +306,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         self._raise_if_selected_options_not_in_available_options(selected_options, self._component_values["available_options"])
 
         # Use the protocol method to set the values
-        self._set_component_values({"selected_options": selected_options, "available_options": self._component_values["available_options"]})
+        self._set_component_values_from_dict({"selected_options": selected_options, "available_options": self._component_values["available_options"]})
 
     def _raise_if_selected_options_not_in_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
         """
@@ -468,7 +475,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         new_selected_options = self._get_selected_options_set().copy()
         if item not in new_selected_options:
             new_selected_options.add(item)
-        self._set_component_values({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
+        self._set_component_values_from_dict({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
     
     def remove(self, item: T) -> None:
         """
@@ -487,7 +494,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         if item not in new_selected_options:
             raise KeyError(f"Item {item} not in selected options")
         new_selected_options.remove(item)
-        self._set_component_values({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
+        self._set_component_values_from_dict({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
     
     def discard(self, item: T) -> None:
         """
@@ -501,7 +508,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         """
         new_selected_options = self._get_selected_options_set().copy()
         new_selected_options.discard(item)
-        self._set_component_values({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
+        self._set_component_values_from_dict({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
     
     def pop(self) -> T:
         """
@@ -520,7 +527,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         if not new_selected_options:
             raise KeyError("Selected options set is empty")
         item = new_selected_options.pop()
-        self._set_component_values({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
+        self._set_component_values_from_dict({"selected_options": new_selected_options, "available_options": self._get_available_options_set()})
         return item
     
     def clear(self) -> None:
@@ -531,7 +538,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         _set_component_values to ensure all changes go through the centralized protocol method.
         
         """
-        self._set_component_values({"selected_options": set(), "available_options": self._get_available_options_set()})
+        self._set_component_values_from_dict({"selected_options": set(), "available_options": self._get_available_options_set()})
     
     def add_available_option(self, item: T) -> None:
         """
@@ -546,7 +553,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         new_available_options = self._get_available_options_set().copy()
         if item not in new_available_options:
             new_available_options.add(item)
-        self._set_component_values({"selected_options": self._get_selected_options_set(), "available_options": new_available_options})
+        self._set_component_values_from_dict({"selected_options": self._get_selected_options_set(), "available_options": new_available_options})
     
     def remove_available_option(self, item: T) -> None:
         """
@@ -570,7 +577,7 @@ class ObservableMultiSelectionOption(Observable, Generic[T]):
         new_selected_options = self._get_selected_options_set().copy()
         new_selected_options.discard(item)
         
-        self._set_component_values({"selected_options": new_selected_options, "available_options": new_available_options})
+        self._set_component_values_from_dict({"selected_options": new_selected_options, "available_options": new_available_options})
     
     def __str__(self) -> str:
         return f"OMSO(available_options={self._get_available_options_set()}, selected={self._get_selected_options_set()})"

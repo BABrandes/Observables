@@ -38,7 +38,14 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
     Args:
         initial_dict: Initial dictionary, another ObservableDict to bind to, or None for empty dict
     """
-    
+
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"value"}
+
     @overload
     def __init__(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None):
         """Initialize with a direct dictionary value."""
@@ -420,6 +427,6 @@ class ObservableDict(Observable, CarriesDistinctDictHook[K, V], Generic[K, V]):
             values: A tuple containing the new dictionary value to set
         """
  
-        self._set_component_values(
+        self._set_component_values_from_dict(
             {"value": values[0]}
         )

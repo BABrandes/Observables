@@ -42,6 +42,13 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         ValueError: If the initial value fails validation
     """
     
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"value"}
+
     @overload
     def __init__(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], validator: Optional[Callable[[T], bool]] = None):
         """Initialize with another observable, establishing a bidirectional binding."""
@@ -117,7 +124,7 @@ class ObservableSingleValue(Observable, CarriesDistinctSingleValueHook[T], Gener
         Raises:
             ValueError: If the new value fails validation
         """
-        self._set_component_values({"value": new_value})
+        self._set_component_values_from_dict({"value": new_value})
     
     def _get_single_value(self) -> T:
         """

@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Callable, Generic, Optional, TypeVar, TYPE_CHECKING
+from typing import Any, Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol
 from .sync_mode import SyncMode
 
 if TYPE_CHECKING:
@@ -7,7 +7,50 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-class Hook(Generic[T]):
+@runtime_checkable
+class HookLike(Protocol[T]):
+    """
+    Protocol for hook objects.
+    """
+    ...
+
+    def establish_binding(self, binding_handler: "Hook[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF) -> None:
+        """
+        Establish a binding between this hook and the given binding handler.
+        """
+        ...
+    
+    def remove_binding(self, binding_handler: "Hook[T]") -> None:
+        """
+        Remove a binding between this hook and the given binding handler.
+        """
+        ...
+    
+    def is_bound_to(self, binding_handler: "Hook[T]") -> bool:
+        """
+        Check if this hook is bound to the given binding handler.
+        """
+        ...
+    
+    def notify_bindings(self, value: T) -> None:
+        """
+        Notify all connected hooks of a value change.
+        """
+        ...
+    
+    def check_binding_state_consistency(self) -> tuple[bool, str]:
+        """
+        Check that all connections are bidirectional.
+        """
+        ...
+    
+    def check_values_synced(self) -> tuple[bool, str]:
+        """
+        Check if all connected hooks have synchronized values.
+        """
+        ...
+
+class Hook(HookLike[T], Generic[T]):
 
     def __init__(self, owner: "BaseObservable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
 

@@ -92,7 +92,7 @@ from ._other_observables.observable_selection_option import ObservableSelectionO
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._utils.base_observable import BaseObservable
 from ._utils.sync_mode import SyncMode
-from ._utils.hook import Hook
+from ._utils.hook import Hook, HookLike
 from ._utils.base_carries_distinct_hook import BaseCarriesDistinctHook
 from ._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
 from ._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
@@ -122,6 +122,7 @@ __all__ = [
     'ObservableMultiSelectionOptionLike',
     'BaseObservable',
     'Hook',
+    'HookLike',
     'BaseCarriesDistinctHook',
     'CarriesDistinctDictHook',
     'CarriesDistinctEnumHook',

@@ -14,19 +14,19 @@ class HookLike(Protocol[T]):
     """
     ...
 
-    def establish_binding(self, hook_for_binding: "Hook[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF) -> None:
+    def establish_binding(self, hook_for_binding: "HookLike[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF) -> None:
         """
         Establish a binding between this hook and the given hook for binding.
         """
         ...
     
-    def remove_binding(self, hook_for_binding: "Hook[T]") -> None:
+    def remove_binding(self, hook_for_binding: "HookLike[T]") -> None:
         """
         Remove a binding between this hook and the given hook for binding.
         """
         ...
     
-    def is_bound_to(self, hook_for_binding: "Hook[T]") -> bool:
+    def is_bound_to(self, hook_for_binding: "HookLike[T]") -> bool:
         """
         Check if this hook is bound to the given hook for binding.
         """

@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, overload
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.base_observable import BaseObservable
@@ -6,7 +6,77 @@ from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 
 T = TypeVar("T")
 
-class ObservableMultiSelectionOption(BaseObservable, Generic[T]):
+@runtime_checkable
+class ObservableMultiSelectionOptionLike(Protocol[T]):
+    """
+    Protocol for observable multi-selection option objects.
+    """
+    
+    @property
+    def selected_options(self) -> set[T]:
+        """
+        Get the selected options.
+        """
+        ...
+    
+    @selected_options.setter
+    def selected_options(self, value: set[T]) -> None:
+        """
+        Set the selected options.
+        """
+        ...
+
+    @property
+    def available_options(self) -> set[T]:
+        """
+        Get the available options.
+        """
+        ...
+    
+    @available_options.setter
+    def available_options(self, value: set[T]) -> None:
+        """
+        Set the available options.
+        """
+        ...
+
+    def bind_selected_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Bind the selected options to an observable.
+        """
+        ...
+    
+    def bind_available_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Bind the available options to an observable.
+        """
+        ...
+
+    def unbind_selected_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+        """
+        Unbind the selected options from an observable.
+        """
+        ...
+
+    def unbind_available_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+        """
+        Unbind the available options from an observable.
+        """
+        ...
+
+    def bind_to(self, observable: "ObservableMultiSelectionOptionLike[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable.
+        """
+        ...
+
+    def unbind_from(self, observable: "ObservableMultiSelectionOptionLike[T]") -> None:
+        """
+        Remove the bidirectional binding with another observable.
+        """
+        ...
+
+class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -366,7 +436,7 @@ class ObservableMultiSelectionOption(BaseObservable, Generic[T]):
             hook = hook._get_set_hook()
         self._get_available_options_hook().establish_binding(hook, initial_sync_mode)
 
-    def bind_to(self, observable: "ObservableMultiSelectionOption[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable: "ObservableMultiSelectionOptionLike[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding for the selected options with another instance of this class.
         
@@ -399,7 +469,7 @@ class ObservableMultiSelectionOption(BaseObservable, Generic[T]):
         self._get_available_options_hook().establish_binding(observable._get_available_options_hook(), initial_sync_mode)
         self._get_selected_options_hook().establish_binding(observable._get_selected_options_hook(), initial_sync_mode)
 
-    def unbind_selected_options_from(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+    def unbind_selected_options_from(self, hook: "ObservableMultiSelectionOptionLike[T]|CarriesDistinctSetHook[T]|Hook[set[T]]") -> None:
         """
         Remove the bidirectional binding for the selected options with another observable.
         

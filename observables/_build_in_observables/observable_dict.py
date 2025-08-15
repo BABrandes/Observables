@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, overload, Any, Callable
+from typing import Generic, TypeVar, Optional, overload, Any, Callable, Protocol, runtime_checkable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
@@ -7,7 +7,39 @@ from .._utils.base_observable import BaseObservable
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableDict(BaseObservable, CarriesDistinctDictHook[K, V], Generic[K, V]):
+@runtime_checkable
+class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
+    """
+    Protocol for observable dictionary objects.
+    """
+    
+    @property
+    def dict_value(self) -> dict[K, V]:
+        """
+        Get the dictionary value.
+        """
+        ...
+    
+    @dict_value.setter
+    def dict_value(self, value: dict[K, V]) -> None:
+        """
+        Set the dictionary value.
+        """
+        ...
+
+    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable dictionary.
+        """
+        ...
+
+    def unbind_from(self, observable_or_hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]]) -> None:
+        """
+        Remove the bidirectional binding with another observable dictionary.
+        """
+        ...
+
+class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     

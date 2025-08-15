@@ -1,12 +1,13 @@
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import TypeVar, Protocol, runtime_checkable
 from enum import Enum
 from .hook import Hook
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 E = TypeVar("E", bound=Enum)
 
-class CarriesDistinctEnumHook(BaseCarriesDistinctHook, Generic[E]):
+@runtime_checkable
+class CarriesDistinctEnumHook(BaseCarriesDistinctHook, Protocol[E]):
     """
     Protocol for observables that carry an enum value and can participate in bindings via. a hook.
     

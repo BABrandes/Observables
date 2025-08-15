@@ -1,11 +1,12 @@
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import TypeVar, Protocol, runtime_checkable
 from .hook import Hook
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 T = TypeVar("T")
 
-class CarriesDistinctSetHook(BaseCarriesDistinctHook, Generic[T]):
+@runtime_checkable
+class CarriesDistinctSetHook(BaseCarriesDistinctHook, Protocol[T]):
     """
     Protocol for observables that carry a set and can participate in bindings via. a hook.
     

@@ -1,5 +1,5 @@
-from typing import Any, Generic, TypeVar, overload
-from typing import Optional
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
+from typing import Optional, TypeVar, runtime_checkable, Protocol
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_list_hook import CarriesDistinctListHook
@@ -7,7 +7,39 @@ from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableList(BaseObservable, CarriesDistinctListHook[T], Generic[T]):
+@runtime_checkable
+class ObservableListLike(CarriesDistinctListHook[T], Protocol[T]):
+    """
+    Protocol for observable list objects.
+    """
+    
+    @property
+    def list_value(self) -> list[T]:
+        """
+        Get the list value.
+        """
+        ...
+    
+    @list_value.setter
+    def list_value(self, value: list[T]) -> None:
+        """
+        Set the list value.
+        """
+        ...
+
+    def bind_to(self, observable_or_hook: "CarriesDistinctListHook[T]|Hook[list[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable list.
+        """
+        ...
+
+    def unbind_from(self, observable_or_hook: "CarriesDistinctListHook[T]|Hook[list[T]]") -> None:
+        """
+        Remove the bidirectional binding with another observable list.
+        """
+        ...
+
+class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -150,7 +182,7 @@ class ObservableList(BaseObservable, CarriesDistinctListHook[T], Generic[T]):
         """
         return self._component_hooks["value"]
 
-    def bind_to(self, hook: CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, hook: ObservableListLike|CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable list.
         
@@ -171,7 +203,7 @@ class ObservableList(BaseObservable, CarriesDistinctListHook[T], Generic[T]):
             hook = hook._get_list_hook()
         self._get_list_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from(self, hook: CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
+    def unbind_from(self, hook: ObservableListLike|CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
         """
         Remove the bidirectional binding with another observable list.
         

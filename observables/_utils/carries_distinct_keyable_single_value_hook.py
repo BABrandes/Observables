@@ -1,12 +1,13 @@
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import TypeVar, Protocol, runtime_checkable
 from .hook import Hook
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class CarriesDistinctKeyableSingleValueHook(BaseCarriesDistinctHook, Generic[K, V]):
+@runtime_checkable
+class CarriesDistinctKeyableSingleValueHook(BaseCarriesDistinctHook, Protocol[K, V]):
     """
     Protocol for objects that carry a single value and can be keyed.
     

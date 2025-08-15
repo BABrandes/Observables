@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
 from typing import Optional
 from .._utils.hook import Hook, SyncMode
 from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
@@ -9,7 +9,39 @@ from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableTuple(BaseObservable, CarriesDistinctTupleHook[T], CarriesDistinctIndexableSingleValueHook[T], Generic[T]):
+@runtime_checkable
+class ObservableTupleLike(CarriesDistinctTupleHook[T], CarriesDistinctIndexableSingleValueHook[T], Protocol[T]):
+    """
+    Protocol for observable tuple objects.
+    """
+    
+    @property
+    def tuple_value(self) -> tuple[T, ...]:
+        """
+        Get the tuple value.
+        """
+        ...
+    
+    @tuple_value.setter
+    def tuple_value(self, value: tuple[T, ...]) -> None:
+        """
+        Set the tuple value.
+        """
+        ...
+
+    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable tuple.
+        """
+        ...
+
+    def unbind_from(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
+        """
+        Remove the bidirectional binding with another observable tuple.
+        """
+        ...
+
+class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     

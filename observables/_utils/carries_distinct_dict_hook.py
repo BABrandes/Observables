@@ -1,12 +1,13 @@
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, Protocol, runtime_checkable
 from .hook import Hook
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class CarriesDistinctDictHook(BaseCarriesDistinctHook, Generic[K, V]):
+@runtime_checkable
+class CarriesDistinctDictHook(BaseCarriesDistinctHook, Protocol[K, V]):
     """
     Protocol for observables that carry a dictionary and can participate in bindings via. a hook.
     

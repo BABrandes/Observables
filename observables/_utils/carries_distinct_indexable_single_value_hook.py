@@ -1,11 +1,12 @@
 from abc import abstractmethod
-from typing import Callable, Generic, TypeVar
+from typing import TypeVar, Protocol, runtime_checkable  
 from .hook import Hook
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 T = TypeVar("T")
 
-class CarriesDistinctIndexableSingleValueHook(BaseCarriesDistinctHook, Generic[T]):
+@runtime_checkable
+class CarriesDistinctIndexableSingleValueHook(BaseCarriesDistinctHook, Protocol[T]):
     """
     Protocol for objects that carry a single value and can be indexed.
     

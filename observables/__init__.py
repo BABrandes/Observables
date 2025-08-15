@@ -82,14 +82,14 @@ For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
 """
 
-from ._build_in_observables.observable_dict import ObservableDict
-from ._build_in_observables.observable_list import ObservableList
-from ._build_in_observables.observable_set import ObservableSet
-from ._build_in_observables.observable_single_value import ObservableSingleValue
-from ._build_in_observables.observable_enum import ObservableEnum
-from ._build_in_observables.observable_tuple import ObservableTuple
+from ._build_in_observables.observable_dict import ObservableDict, ObservableDictLike
+from ._build_in_observables.observable_list import ObservableList, ObservableListLike
+from ._build_in_observables.observable_set import ObservableSet, ObservableSetLike
+from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
+from ._build_in_observables.observable_enum import ObservableEnum, ObservableEnumLike
+from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike
-from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption
+from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._utils.base_observable import BaseObservable
 from ._utils.sync_mode import SyncMode
 from ._utils.hook import Hook
@@ -111,8 +111,15 @@ __all__ = [
     'ObservableEnum',
     'ObservableTuple',
     'ObservableSelectionOption',
-    'ObservableSelectionOptionLike',
     'ObservableMultiSelectionOption',
+    'ObservableDictLike',
+    'ObservableListLike',
+    'ObservableSetLike',
+    'ObservableSingleValueLike',
+    'ObservableEnumLike',
+    'ObservableTupleLike',
+    'ObservableSelectionOptionLike',
+    'ObservableMultiSelectionOptionLike',
     'BaseObservable',
     'Hook',
     'BaseCarriesDistinctHook',

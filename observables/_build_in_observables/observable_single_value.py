@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generic, Optional, TypeVar, overload
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -6,7 +6,39 @@ from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableSingleValue(BaseObservable, CarriesDistinctSingleValueHook[T], Generic[T]):
+@runtime_checkable
+class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
+    """
+    Protocol for observable single value objects.
+    """
+    
+    @property
+    def single_value(self) -> T:
+        """
+        Get the single value.
+        """
+        ...
+    
+    @single_value.setter
+    def single_value(self, value: T) -> None:
+        """
+        Set the single value.
+        """
+        ...
+
+    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable single value.
+        """
+        ...
+
+    def unbind_from(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T]) -> None:
+        """
+        Remove the bidirectional binding with another observable single value.
+        """
+        ...
+
+class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     

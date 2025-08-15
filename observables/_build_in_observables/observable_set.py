@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, overload, Callable
+from typing import Any, Generic, Optional, TypeVar, overload, Callable, Protocol, runtime_checkable
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
@@ -6,7 +6,39 @@ from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
-class ObservableSet(BaseObservable, CarriesDistinctSetHook[T], Generic[T]):
+@runtime_checkable
+class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
+    """
+    Protocol for observable set objects.
+    """
+    
+    @property
+    def set_value(self) -> set[T]:
+        """
+        Get the set value.
+        """
+        ...
+    
+    @set_value.setter
+    def set_value(self, value: set[T]) -> None:
+        """
+        Set the set value.
+        """
+        ...
+
+    def bind_to(self, observable_or_hook: "CarriesDistinctSetHook[T]|Hook[set[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable set.
+        """
+        ...
+
+    def unbind_from(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+        """
+        Remove the bidirectional binding with another observable set.
+        """
+        ...
+
+class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     

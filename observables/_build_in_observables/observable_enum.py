@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, Optional, overload
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable
 from enum import Enum
 from .._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
@@ -8,8 +8,78 @@ from .._utils.base_observable import BaseObservable
 
 E = TypeVar("E", bound=Enum)
 
+@runtime_checkable
+class ObservableEnumLike(CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], Protocol[E]):
+    """
+    Protocol for observable enum objects.
+    """
+    
+    @property
+    def enum_value(self) -> Optional[E]:
+        """
+        Get the enum value.
+        """
+        ...
+    
+    @enum_value.setter
+    def enum_value(self, value: Optional[E]) -> None:
+        """
+        Set the enum value.
+        """
+        ...
+
+    @property
+    def enum_options(self) -> set[E]:
+        """
+        Get the enum options.
+        """
+        ...
+    
+    @enum_options.setter
+    def enum_options(self, value: set[E]) -> None:
+        """
+        Set the enum options.
+        """
+        ...
+
+    def bind_enum_value_to_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|Hook[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding for the enum value with another observable.
+        """
+        ...
+
+    def bind_enum_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding for the enum options with another observable.
+        """
+        ...
+
+    def unbind_enum_value_from_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|Hook[E]) -> None:
+        """
+        Remove the bidirectional binding for the enum value with another observable.
+        """
+        ...
+        
+    def unbind_enum_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[E]) -> None:
+        """
+        Remove the bidirectional binding for the enum options with another observable.
+        """
+        ...
+
+    def bind_to(self, observable: "ObservableEnumLike[E]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable enum.
+        """
+        ...
+        
+    def unbind_from(self, observable: "ObservableEnumLike[E]") -> None:
+        """
+        Remove the bidirectional binding with another observable enum.
+        """
+        ...
+
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnum(BaseObservable, CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], Generic[E]):
+class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     
@@ -427,6 +497,13 @@ class ObservableEnum(BaseObservable, CarriesDistinctEnumHook[E], CarriesDistinct
             hook = hook._get_set_hook()
         self._get_set_hook().establish_binding(hook, initial_sync_mode)
 
+    def bind_to(self, observable: ObservableEnumLike[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+        """
+        Establish a bidirectional binding with another observable enum.
+        """
+        self.bind_enum_value_to(observable._get_enum_hook(), initial_sync_mode)
+        self.bind_enum_options_to(observable._get_set_hook(), initial_sync_mode)
+
     def unbind_enum_value_from(self, hook: CarriesDistinctEnumHook[E]|Hook[E]) -> None:
         """
         Remove the bidirectional binding for the enum value with another observable.
@@ -460,6 +537,13 @@ class ObservableEnum(BaseObservable, CarriesDistinctEnumHook[E], CarriesDistinct
         if isinstance(hook, CarriesDistinctSetHook):
             hook = hook._get_set_hook()
         self._get_set_hook().remove_binding(hook)
+
+    def unbind_from(self, observable: ObservableEnumLike[E]) -> None:
+        """
+        Remove the bidirectional binding with another observable enum.
+        """
+        self.unbind_enum_value_from(observable._get_enum_hook())
+        self.unbind_enum_options_from(observable._get_set_hook())
 
     def add_enum_option(self, option: E) -> None:
         """

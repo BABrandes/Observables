@@ -12,8 +12,99 @@ class HookLike(Protocol[T]):
     """
     Protocol for hook objects.
     """
-    ...
+    
+    # Properties
+    @property
+    def value(self) -> T:
+        """
+        Get the value behind this hook.
+        """
+        ...
+    
+    @property
+    def owner(self) -> "BaseObservable":
+        """
+        Get the owner of this hook.
+        """
+        ...
+    
+    @property
+    def connected_hooks(self) -> set["HookLike[T]"]:
+        """
+        Get the set of connected hooks as a copy.
+        """
+        ...
 
+    def _remove_connected_hook(self, hook: "HookLike[T]") -> None:
+        """
+        Internal method to remove a connected hook.
+        """
+        ...
+
+    def _add_connected_hook(self, hook: "HookLike[T]") -> None:
+        """
+        Internal method to add a connected hook.
+        """
+        ...
+    
+    @property
+    def auxiliary_information(self) -> Optional[dict[str, Any]]:
+        """
+        Get the auxiliary information of this hook.
+        """
+        ...
+    
+    @property
+    def lock(self) -> threading.RLock:
+        """
+        Get the lock for thread safety.
+        """
+        ...
+    
+    # State flags
+    @property
+    def is_receiving(self) -> bool:
+        """
+        Check if this hook can receive values.
+        """
+        ...
+    
+    @property
+    def is_sending(self) -> bool:
+        """
+        Check if this hook can send values.
+        """
+        ...
+    
+    @property
+    def is_updating_from_binding(self) -> bool:
+        """
+        Check if this hook is currently updating from a binding.
+        """
+        ...
+    
+    @property
+    def is_establishing_binding(self) -> bool:
+        """
+        Check if this hook is currently establishing a binding.
+        """
+        ...
+    
+    @property
+    def is_checking_binding_state(self) -> bool:
+        """
+        Check if this hook is currently checking binding state.
+        """
+        ...
+    
+    @property
+    def is_notifying(self) -> bool:
+        """
+        Check if this hook is currently notifying bindings.
+        """
+        ...
+    
+    # Methods
     def establish_binding(self, hook_for_binding: "HookLike[T]", initial_sync_mode: SyncMode = SyncMode.UPDATE_OBSERVABLE_FROM_SELF) -> None:
         """
         Establish a binding between this hook and the given hook for binding.
@@ -50,11 +141,19 @@ class HookLike(Protocol[T]):
         """
         ...
     
-    def value(self) -> T:
+    # Internal methods (used by the binding system)
+    def _get_callback(self, auxiliary_information: Optional[dict[str, Any]] = None) -> T:
         """
-        Get the value behind this hook.
+        Get the value from the callback.
         """
         ...
+    
+    def _set_callback(self, value: T, auxiliary_information: Optional[dict[str, Any]] = None) -> None:
+        """
+        Set the value via the callback.
+        """
+        ...
+
 
 class Hook(HookLike[T], Generic[T]):
 
@@ -95,12 +194,22 @@ class Hook(HookLike[T], Generic[T]):
         return self._owner
     
     @property
-    def connected_hooks(self) -> set[HookLike[T]]:
+    def _connected_hooks_no_copy(self) -> set[HookLike[T]]:
         """
         Get the set of connected hooks.
         """
-        with self._lock:
+        with self.lock:
+            return self._connected_hooks
+    
+    @property
+    def connected_hooks(self) -> set[HookLike[T]]:
+        """
+        Get the set of connected hooks as a copy.
+        """
+        with self.lock:
             return self._connected_hooks.copy()
+    
+
     
     @property
     def auxiliary_information(self) -> Optional[dict[str, Any]]:
@@ -110,6 +219,114 @@ class Hook(HookLike[T], Generic[T]):
         if self._auxiliary_information is None:
             return None
         return self._auxiliary_information.copy()
+    
+    @property
+    def lock(self) -> threading.RLock:
+        """
+        Get the lock for thread safety.
+        """
+        return self._lock
+    
+    @property
+    def is_receiving(self) -> bool:
+        """
+        Check if this hook can receive values.
+        """
+        return self._is_receiving
+    
+    @property
+    def is_sending(self) -> bool:
+        """
+        Check if this hook can send values.
+        """
+        return self._is_sending
+    
+    @property
+    def is_updating_from_binding(self) -> bool:
+        """
+        Check if this hook is currently updating from a binding.
+        """
+        return self._is_updating_from_binding
+    
+    @property
+    def is_establishing_binding(self) -> bool:
+        """
+        Check if this hook is currently establishing a binding.
+        """
+        return self._is_establishing_binding
+    
+    @is_establishing_binding.setter
+    def is_establishing_binding(self, value: bool) -> None:
+        """
+        Set if this hook is currently establishing a binding.
+        """
+        self._is_establishing_binding = value
+    
+    @property
+    def is_checking_binding_state(self) -> bool:
+        """
+        Check if this hook is currently checking binding state.
+        """
+        return self._is_checking_binding_state
+    
+    @is_checking_binding_state.setter
+    def is_checking_binding_state(self, value: bool) -> None:
+        """
+        Set if this hook is currently checking binding state.
+        """
+        self._is_checking_binding_state = value
+    
+    @property
+    def is_notifying(self) -> bool:
+        """
+        Check if this hook is currently notifying bindings.
+        """
+        return self._is_notifying
+    
+    @is_notifying.setter
+    def is_notifying(self, value: bool) -> None:
+        """
+        Set if this hook is currently notifying bindings.
+        """
+        self._is_notifying = value
+    
+    def _remove_connected_hook(self, hook: "HookLike[T]") -> None:
+        """
+        Internal method to remove a connected hook.
+        """
+        with self.lock:
+            self._connected_hooks.remove(hook)
+    
+    def _add_connected_hook(self, hook: "HookLike[T]") -> None:
+        """
+        Internal method to add a connected hook.
+        """
+        with self.lock:
+            self._connected_hooks.add(hook)
+    
+    def _get_callback(self, auxiliary_information: Optional[dict[str, Any]] = None) -> T:
+        """
+        Get the value from the callback.
+        """
+        if auxiliary_information is None:
+            auxiliary_information = self._auxiliary_information
+        
+        if auxiliary_information is None:
+            return self._get_callback()
+        else:
+            return self._get_callback(auxiliary_information)
+    
+    def _set_callback(self, value: T, auxiliary_information: Optional[dict[str, Any]] = None) -> None:
+        """
+        Set the value via the callback.
+        """
+        if auxiliary_information is None:
+            auxiliary_information = self._auxiliary_information
+        
+        if auxiliary_information is None:
+            self._set_callback(value)
+        else:
+            self._set_callback(value, auxiliary_information)
 
     def establish_binding(
             self,
@@ -129,9 +346,9 @@ class Hook(HookLike[T], Generic[T]):
         # Thread safety: Acquire locks from both hooks to prevent deadlocks
         # Use a consistent ordering to prevent deadlocks
         if id(self) < id(hook_for_binding):
-            lock1, lock2 = self._lock, hook_for_binding._lock
+            lock1, lock2 = self.lock, hook_for_binding.lock
         else:
-            lock1, lock2 = hook_for_binding._lock, self._lock
+            lock1, lock2 = hook_for_binding.lock, self.lock
         
         with lock1:
             with lock2:
@@ -148,26 +365,26 @@ class Hook(HookLike[T], Generic[T]):
         """
         def set_establishing_binding_flags(is_establishing_binding: bool):
             self._is_establishing_binding = is_establishing_binding
-            hook_for_binding._is_establishing_binding = is_establishing_binding
+            hook_for_binding.is_establishing_binding = is_establishing_binding
 
         # Step 1: Safety check: prevent binding establishment if already in progress
-        if self._is_establishing_binding:
+        if self.is_establishing_binding:
             raise ValueError(f"Cannot establish binding while already establishing a binding")
-        for bound_binding_handler in self._connected_hooks:
-            if bound_binding_handler._is_establishing_binding:
+        for bound_binding_handler in self.connected_hooks:
+            if bound_binding_handler.is_establishing_binding:
                 raise ValueError(f"Cannot establish binding while {bound_binding_handler} is establishing a binding")
-        for bound_binding_handler in hook_for_binding._connected_hooks:
-            if bound_binding_handler._is_establishing_binding:
+        for bound_binding_handler in hook_for_binding.connected_hooks:
+            if bound_binding_handler.is_establishing_binding:
                 raise ValueError(f"Cannot establish binding while {bound_binding_handler} is establishing a binding")
             
         # Step 2: Get the value to sync
         match initial_sync_mode:
             case SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
-                if not hook_for_binding._is_sending:
+                if not hook_for_binding.is_sending:
                     raise ValueError(f"Cannot update self from hook_for_binding if hook_for_binding is not sending")
                 value_to_sync: T = hook_for_binding._get_callback()
             case SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
-                if not self._is_sending:
+                if not self.is_sending:
                     raise ValueError(f"Cannot update hook_for_binding from self if self is not sending")
                 value_to_sync: T = self._get_callback()
             case _:
@@ -187,8 +404,8 @@ class Hook(HookLike[T], Generic[T]):
                 raise ValueError(f"Already bound to {hook_for_binding}")
             
             # Step 6: Establish the connection between self and hook_for_binding
-            self._connected_hooks.add(hook_for_binding)
-            hook_for_binding._connected_hooks.add(self)
+            self._add_connected_hook(hook_for_binding)
+            hook_for_binding._add_connected_hook(self)
 
             # Step 7: Check binding state to ensure all connections are bidirectional
             binding_state_consistent, binding_state_consistent_message = self.check_binding_state_consistency()
@@ -203,9 +420,9 @@ class Hook(HookLike[T], Generic[T]):
             raise e
 
         # Step 9: Sync the value
-        if self._is_receiving:
+        if self.is_receiving:
             self._set_callback(value_to_sync)
-        if hook_for_binding._is_receiving:
+        if hook_for_binding.is_receiving:
             hook_for_binding._set_callback(value_to_sync)
 
     def remove_binding(self, hook_for_binding: HookLike[T]) -> None:
@@ -217,9 +434,9 @@ class Hook(HookLike[T], Generic[T]):
         # Thread safety: Acquire locks from both hooks to prevent deadlocks
         # Use a consistent ordering to prevent deadlocks
         if id(self) < id(hook_for_binding):
-            lock1, lock2 = self._lock, hook_for_binding._lock
+            lock1, lock2 = self.lock, hook_for_binding.lock
         else:
-            lock1, lock2 = hook_for_binding._lock, self._lock
+            lock1, lock2 = hook_for_binding.lock, self.lock
         
         with lock1:
             with lock2:
@@ -231,7 +448,7 @@ class Hook(HookLike[T], Generic[T]):
         This method should only be called when the caller already holds the necessary locks.
         """
         # Safety check: prevent removal during binding establishment
-        if self._is_establishing_binding:
+        if self.is_establishing_binding:
             raise ValueError(f"Cannot remove binding while establishing a binding")
         
         # Check binding state
@@ -240,11 +457,11 @@ class Hook(HookLike[T], Generic[T]):
         elif hook_for_binding == self:
             raise ValueError(f"Cannot remove binding from self")
         
-        if hook_for_binding not in self._connected_hooks or self not in hook_for_binding._connected_hooks:
+        if hook_for_binding not in self.connected_hooks or self not in hook_for_binding.connected_hooks:
             raise ValueError(f"Cannot remove binding that is not bound to {self} or {hook_for_binding}")
 
-        self._connected_hooks.remove(hook_for_binding)
-        hook_for_binding._connected_hooks.remove(self)
+        self._remove_connected_hook(hook_for_binding)
+        hook_for_binding._remove_connected_hook(self)
 
         state_consistent, state_consistent_message = self.check_binding_state_consistency()
         if not state_consistent:
@@ -255,8 +472,8 @@ class Hook(HookLike[T], Generic[T]):
         Check if this hook is bound to the given hook for binding.
         Since bindings are bidirectional, this checks if we notify the given hook for binding.
         """
-        with self._lock:
-            return hook_for_binding in self._connected_hooks
+        with self.lock:
+            return hook_for_binding in self.connected_hooks
     
     def notify_bindings(self, value: T) -> None:
         """
@@ -264,30 +481,30 @@ class Hook(HookLike[T], Generic[T]):
         Since connections are bidirectional, this notifies all hooks that this hook is connected to.
         This method is transitive - it will propagate through the entire binding chain. This method is called by the owner of the hook.
         """
-        with self._lock:
+        with self.lock:
             # Safety check: prevent notification during binding establishment
-            if self._is_establishing_binding:
+            if self.is_establishing_binding:
                 raise ValueError(f"Cannot notify bindings while establishing a binding")
             
             # Safety check: prevent notification during value updates from binding
-            if self._is_updating_from_binding:
+            if self.is_updating_from_binding:
                 return
             
             # Prevent recursive calls by checking if we're already processing
-            if self._is_notifying:
+            if self.is_notifying:
                 return
 
             # Get a copy of connected hooks to avoid holding lock during callbacks
-            connected_hooks_copy = self._connected_hooks.copy()
+            connected_hooks_copy = self.connected_hooks
             self._is_notifying = True
         
         # Execute callbacks outside of lock to prevent deadlocks
         for connected_hook in connected_hooks_copy:
-            if connected_hook._is_receiving:
+            if connected_hook.is_receiving:
                 connected_hook._set_callback(value)
         
         # Reset the notifying flag after all callbacks complete successfully
-        with self._lock:
+        with self.lock:
             self._is_notifying = False
     
     def check_binding_state_consistency(self) -> tuple[bool, str]:
@@ -295,14 +512,14 @@ class Hook(HookLike[T], Generic[T]):
         Check that all connections are bidirectional.
         This ensures that if A is connected to B, then B is also connected to A.
         """
-        with self._lock:
-            if self._is_checking_binding_state:
+        with self.lock:
+            if self.is_checking_binding_state:
                 return True, "Already checking binding state"
 
             self._is_checking_binding_state = True
 
             # Get a copy to avoid holding lock during iteration
-            connected_hooks_copy = self._connected_hooks.copy()
+            connected_hooks_copy = self.connected_hooks
 
         # Check consistency outside of lock to prevent deadlocks
         try:
@@ -310,7 +527,7 @@ class Hook(HookLike[T], Generic[T]):
                 if not connected_hook.is_bound_to(self):
                     return False, f"Binding state inconsistency detected: {self} is connected to {connected_hook}, but {connected_hook} is not connected to {self}. All connections must be bidirectional."
         finally:
-            with self._lock:
+            with self.lock:
                 self._is_checking_binding_state = False
 
         return True, "All connections are bidirectional"
@@ -320,12 +537,12 @@ class Hook(HookLike[T], Generic[T]):
         Check if all connected hooks have synchronized values.
         This ensures that after binding, all hooks have consistent values.
         """
-        with self._lock:
-            if not self._connected_hooks:
+        with self.lock:
+            if not self.connected_hooks:
                 return True, "No bindings to check" # No bindings to check
             
             # Get a copy to avoid holding lock during iteration
-            connected_hooks_copy = self._connected_hooks.copy()
+            connected_hooks_copy = self.connected_hooks
         
         # Get the reference value from this hook
         if self._auxiliary_information is None:

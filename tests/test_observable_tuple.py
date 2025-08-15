@@ -1151,9 +1151,9 @@ class TestObservableIntegration(unittest.TestCase):
         hook2 = tuple_obs._component_hooks["value_2"]
         hook4 = tuple_obs._component_hooks["value_4"]
         
-        self.assertEqual(len(hook0.connected_hooks), 1)
-        self.assertEqual(len(hook2.connected_hooks), 1)
-        self.assertEqual(len(hook4.connected_hooks), 1)
+        self.assertEqual(len(hook0._connected_hooks_no_copy), 1)
+        self.assertEqual(len(hook2._connected_hooks_no_copy), 1)
+        self.assertEqual(len(hook4._connected_hooks_no_copy), 1)
     
     def test_tuple_element_binding_cleanup(self):
         """Test cleanup behavior for tuple element bindings"""

@@ -1,5 +1,5 @@
 from typing import Any, Generic, Optional, TypeVar, overload, Callable, Protocol, runtime_checkable
-from .._utils.hook import Hook
+from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from .._utils.base_observable import BaseObservable
@@ -26,13 +26,13 @@ class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: "CarriesDistinctSetHook[T]|Hook[set[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: "CarriesDistinctSetHook[T]|HookLike[set[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable set.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+    def unbind_from(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
         """
         Remove the bidirectional binding with another observable set.
         """

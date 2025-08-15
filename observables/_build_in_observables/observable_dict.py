@@ -1,5 +1,5 @@
 from typing import Generic, TypeVar, Optional, overload, Any, Callable, Protocol, runtime_checkable
-from .._utils.hook import Hook
+from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
 from .._utils.base_observable import BaseObservable
@@ -27,13 +27,13 @@ class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable dictionary.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]]) -> None:
+    def unbind_from(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]]) -> None:
         """
         Remove the bidirectional binding with another observable dictionary.
         """
@@ -79,7 +79,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         return {"value"}
 
     @overload
-    def __init__(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None):
+    def __init__(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None):
         """Initialize with a direct dictionary value."""
         ...
     
@@ -93,7 +93,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | Hook[dict[K, V]] | None = None):
+    def __init__(self, hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | HookLike[dict[K, V]] | None = None):
         """
         Initialize the ObservableDict.
         
@@ -106,16 +106,16 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
 
         if hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
-            hook: Optional[Hook[dict[K, V]]] = None
+            hook: Optional[HookLike[dict[K, V]]] = None
         elif isinstance(hook_or_value, CarriesDistinctDictHook):
             initial_dict_value: dict[K, V] = hook_or_value._get_dict_value()
-            hook: Optional[Hook[dict[K, V]]] = hook_or_value._get_dict_hook()
-        elif isinstance(hook_or_value, Hook):
+            hook: Optional[HookLike[dict[K, V]]] = hook_or_value._get_dict_hook()
+        elif isinstance(hook_or_value, HookLike):
             initial_dict_value: dict[K, V] = hook_or_value._get_callback()
-            hook: Optional[Hook[dict[K, V]]] = hook_or_value
+            hook: Optional[HookLike[dict[K, V]]] = hook_or_value
         else:
             initial_dict_value: dict[K, V] = hook_or_value.copy()
-            hook: Optional[Hook[dict[K, V]]] = None
+            hook: Optional[HookLike[dict[K, V]]] = None
 
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], dict):
@@ -174,7 +174,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         """
         self.change_dict(dict_to_set)
     
-    def _get_dict_hook(self) -> Hook[dict[K, V]]:
+    def _get_dict_hook(self) -> HookLike[dict[K, V]]:
         """
         INTERNAL. Do not use this method directly.
 
@@ -395,7 +395,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
     def __repr__(self) -> str:
         return f"ObservableDict({self._get_dict_value()})"
 
-    def bind_to(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable dictionary via. a hook.
         
@@ -416,7 +416,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
             hook = hook._get_dict_hook()
         self._get_dict_hook().establish_binding(hook, initial_sync_mode)
 
-    def unbind_from(self, hook: CarriesDistinctDictHook[K, V]|Hook[dict[K, V]]) -> None:
+    def unbind_from(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]]) -> None:
         """
         Remove the bidirectional binding with another observable dictionary.
         

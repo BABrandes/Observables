@@ -1,6 +1,7 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
 from typing import Optional
-from .._utils.hook import Hook, SyncMode
+from .._utils.hook import Hook, HookLike
+from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
 from .._utils.carries_distinct_indexable_single_value_hook import CarriesDistinctIndexableSingleValueHook
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -29,13 +30,13 @@ class ObservableTupleLike(CarriesDistinctTupleHook[T], CarriesDistinctIndexableS
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable tuple.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
+    def unbind_from(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]]) -> None:
         """
         Remove the bidirectional binding with another observable tuple.
         """

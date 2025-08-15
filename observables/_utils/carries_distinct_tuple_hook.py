@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import TypeVar, Protocol, runtime_checkable
-from .hook import Hook
+from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 T = TypeVar("T")
@@ -30,7 +30,7 @@ class CarriesDistinctTupleHook(BaseCarriesDistinctHook, Protocol[T]):
     """
 
     @abstractmethod
-    def _get_tuple_hook(self) -> Hook[tuple[T, ...]]:
+    def _get_tuple_hook(self) -> HookLike[tuple[T, ...]]:
         """
         INTERNAL. Do not use this method directly.
         

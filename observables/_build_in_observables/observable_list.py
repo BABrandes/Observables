@@ -1,6 +1,6 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
 from typing import Optional, TypeVar, runtime_checkable, Protocol
-from .._utils.hook import Hook
+from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_list_hook import CarriesDistinctListHook
 from .._utils.base_observable import BaseObservable
@@ -27,13 +27,13 @@ class ObservableListLike(CarriesDistinctListHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: "CarriesDistinctListHook[T]|Hook[list[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: "CarriesDistinctListHook[T]|HookLike[list[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable list.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: "CarriesDistinctListHook[T]|Hook[list[T]]") -> None:
+    def unbind_from(self, observable_or_hook: "CarriesDistinctListHook[T]|HookLike[list[T]]") -> None:
         """
         Remove the bidirectional binding with another observable list.
         """

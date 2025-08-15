@@ -2,7 +2,7 @@ from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_
 from enum import Enum
 from .._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.hook import Hook
+from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.base_observable import BaseObservable
 
@@ -48,7 +48,7 @@ class ObservableEnumLike(CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], 
         """
         ...
 
-    def bind_enum_value_to_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|Hook[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_enum_value_to_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|HookLike[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding for the enum value with another observable.
         """
@@ -60,7 +60,7 @@ class ObservableEnumLike(CarriesDistinctEnumHook[E], CarriesDistinctSetHook[E], 
         """
         ...
 
-    def unbind_enum_value_from_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|Hook[E]) -> None:
+    def unbind_enum_value_from_observable(self, observable_or_hook: CarriesDistinctEnumHook[E]|HookLike[E]) -> None:
         """
         Remove the bidirectional binding for the enum value with another observable.
         """

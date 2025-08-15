@@ -1,5 +1,5 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable
-from .._utils.hook import Hook
+from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.base_observable import BaseObservable
@@ -26,13 +26,13 @@ class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable single value.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T]) -> None:
+    def unbind_from(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T]) -> None:
         """
         Remove the bidirectional binding with another observable single value.
         """

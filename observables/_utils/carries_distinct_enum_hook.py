@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import TypeVar, Protocol, runtime_checkable
 from enum import Enum
-from .hook import Hook
+from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 E = TypeVar("E", bound=Enum)
@@ -31,7 +31,7 @@ class CarriesDistinctEnumHook(BaseCarriesDistinctHook, Protocol[E]):
     """
 
     @abstractmethod
-    def _get_enum_hook(self) -> Hook[E]:
+    def _get_enum_hook(self) -> HookLike[E]:
         """
         INTERNAL. Do not use this method directly.
         

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import TypeVar, runtime_checkable, Protocol
-from .hook import Hook
+from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
 T = TypeVar("T")
@@ -31,7 +31,7 @@ class CarriesDistinctSingleValueHook(BaseCarriesDistinctHook, Protocol[T]):
     """
 
     @abstractmethod
-    def _get_single_value_hook(self) -> Hook[T]:
+    def _get_single_value_hook(self) -> HookLike[T]:
         """
         INTERNAL. Do not use this method directly.
         

@@ -58,13 +58,21 @@ class HookLike(Protocol[T]):
 
 class Hook(HookLike[T], Generic[T]):
 
-    def __init__(self, owner: "BaseObservable", get_callback: Callable[[], T]|Callable[[dict[str, Any]], T], set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None], auxiliary_information: Optional[dict[str, Any]] = None):
+    def __init__(
+            self,
+            owner: "BaseObservable",
+            get_callback: Optional[Callable[[], T]|Callable[[dict[str, Any]], T]] = None,
+            set_callback: Optional[Callable[[T], None]|Callable[[T, dict[str, Any]], None]] = None,
+            auxiliary_information: Optional[dict[str, Any]] = None,
+            ) -> None:
 
         self._owner = owner
         self._connected_hooks: set[HookLike[T]] = set()
         self._get_callback: Callable[[], T]|Callable[[dict[str, Any]], T] = get_callback
-        self._set_callback: Callable[[T], None]|Callable[[T, dict[str, Any]], None] = set_callback
+        self._set_callback: Optional[Callable[[T], None]|Callable[[T, dict[str, Any]], None]] = set_callback
         self._auxiliary_information: Optional[dict[str, Any]] = auxiliary_information
+        self._is_receiving = True if set_callback is not None else False
+        self._is_sending = True if get_callback is not None else False
         self._is_updating_from_binding = False
         self._is_establishing_binding = False
         self._is_checking_binding_state = False
@@ -99,6 +107,8 @@ class Hook(HookLike[T], Generic[T]):
         """
         Get the auxiliary information of this hook.
         """
+        if self._auxiliary_information is None:
+            return None
         return self._auxiliary_information.copy()
 
     def establish_binding(
@@ -153,8 +163,12 @@ class Hook(HookLike[T], Generic[T]):
         # Step 2: Get the value to sync
         match initial_sync_mode:
             case SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
+                if not hook_for_binding._is_sending:
+                    raise ValueError(f"Cannot update self from hook_for_binding if hook_for_binding is not sending")
                 value_to_sync: T = hook_for_binding._get_callback()
             case SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
+                if not self._is_sending:
+                    raise ValueError(f"Cannot update hook_for_binding from self if self is not sending")
                 value_to_sync: T = self._get_callback()
             case _:
                 raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
@@ -189,8 +203,10 @@ class Hook(HookLike[T], Generic[T]):
             raise e
 
         # Step 9: Sync the value
-        self._set_callback(value_to_sync)
-        hook_for_binding._set_callback(value_to_sync)
+        if self._is_receiving:
+            self._set_callback(value_to_sync)
+        if hook_for_binding._is_receiving:
+            hook_for_binding._set_callback(value_to_sync)
 
     def remove_binding(self, hook_for_binding: HookLike[T]) -> None:
         """
@@ -266,12 +282,13 @@ class Hook(HookLike[T], Generic[T]):
             self._is_notifying = True
         
         # Execute callbacks outside of lock to prevent deadlocks
-        try:
-            for connected_hook in connected_hooks_copy:
+        for connected_hook in connected_hooks_copy:
+            if connected_hook._is_receiving:
                 connected_hook._set_callback(value)
-        finally:
-            with self._lock:
-                self._is_notifying = False
+        
+        # Reset the notifying flag after all callbacks complete successfully
+        with self._lock:
+            self._is_notifying = False
     
     def check_binding_state_consistency(self) -> tuple[bool, str]:
         """

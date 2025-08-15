@@ -79,7 +79,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption(1, {1, 2, 3, 4, 5, 6})
         obs2 = ObservableSelectionOption(4, {1, 2, 3, 4, 5, 6})
         
-        obs1.bind_options_to_observable(obs2)
+        obs1.bind_available_options_to_observable(obs2)
         
         # Change obs1 options, obs2 should update
         # Use options that include the current selected option (1)

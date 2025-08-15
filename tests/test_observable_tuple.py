@@ -671,7 +671,7 @@ class TestObservableIntegration(unittest.TestCase):
         # Bind single value to selection option
         single_obs.bind_to(selection_obs, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         # Bind selection option to set (through options)
-        selection_obs.bind_options_to_observable(set_obs, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        selection_obs.bind_available_options_to_observable(set_obs, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         
         # Change single value, should propagate through chain
         single_obs.single_value =(6)

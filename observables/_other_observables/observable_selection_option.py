@@ -138,7 +138,7 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
         
-    def bind_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_available_options_to_observable(self, observable_or_hook: CarriesDistinctSetHook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the options to an observable.
         """
@@ -150,7 +150,7 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
     
-    def unbind_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]) -> None:
+    def unbind_available_options_from_observable(self, observable_or_hook: CarriesDistinctSetHook[T]) -> None:
         """
         Unbind the options from an observable.
         """
@@ -493,7 +493,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         )
         
         if available_options_hook is not None:
-            self.bind_options_to_observable(available_options_hook)
+            self.bind_available_options_to_observable(available_options_hook)
             
         if selected_option_hook is not None:
             self.bind_selected_option_to_observable(selected_option_hook)
@@ -963,7 +963,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             hook = hook._get_single_value_hook()
         self._get_single_value_hook().establish_binding(hook, initial_sync_mode)
 
-    def bind_options_to_observable(self, hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:        
+    def bind_available_options_to_observable(self, hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:        
         """
         Establish a bidirectional binding for the options set with another observable.
         
@@ -1053,7 +1053,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
 
         # Then, establish the bindings with UPDATE_SELF_FROM_OBSERVABLE mode
         # to ensure this observable gets updated from the other one
-        self.bind_options_to_observable(observable._get_set_hook(), SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        self.bind_available_options_to_observable(observable._get_set_hook(), SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
         self.bind_selected_option_to_observable(observable._get_single_value_hook(), SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
 
 

@@ -1,11 +1,57 @@
 import threading
 from abc import abstractmethod
 from typing import Any, Callable, Optional
-from .base_listening import BaseListening
+from .base_listening import BaseListening, BaseListeningLike
 from .hook import Hook
 from collections.abc import Mapping
 
-class BaseObservable(BaseListening):
+class BaseObservableLike(BaseListeningLike):
+    """
+    Protocol defining the interface for all observable objects in the library.
+    """
+    @abstractmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        ...
+
+    @abstractmethod
+    def _set_component_values_from_tuples(self, *tuple_of_values: tuple[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
+        """
+        Set the values of the component values.
+        """
+        ...
+
+    @abstractmethod
+    def _set_component_values_from_dict(self, dict_of_values: dict[str, Any], reverting_to_old_values: bool = False, skip_notification: bool = False) -> None:
+        """
+        Set the values of the component values.
+        """
+        ...
+
+    @abstractmethod
+    def _get_component_value(self, key: str) -> Any:
+        """
+        Get the value of a component.
+        """
+        ...
+
+    @abstractmethod
+    def _set_component_value(self, key: str, value: Any) -> None:
+        """
+        Set the value of a component.
+        """
+        ...
+
+    @abstractmethod
+    def _get_component_values(self) -> dict[str, Any]:
+        """
+        Get the values of all components.
+        """
+        ...
+
+class BaseObservable(BaseListening, BaseObservableLike):
     """
     Base class defining the interface for all observable objects in the library.
 

@@ -1,6 +1,55 @@
-from typing import Callable
+from typing import Callable, Protocol, abstractmethod
 
-class BaseListening():
+class BaseListeningLike(Protocol):
+    """
+    Protocol defining the interface for all listening objects in the library.
+    """
+    ...
+
+    @property
+    @abstractmethod
+    def listeners(self) -> set[Callable[[], None]]:
+        """
+        Get the listeners.
+        """
+        ...
+
+    @abstractmethod
+    def add_listeners(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Add one or more listeners to the observable.
+        """
+        ...
+
+    @abstractmethod
+    def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Remove one or more listeners from the observable.
+        """
+        ...
+
+    @abstractmethod
+    def remove_all_listeners(self) -> set[Callable[[], None]]:
+        """
+        Remove all listeners from the observable.
+        """
+        ...
+
+    @abstractmethod
+    def is_listening_to(self, callback: Callable[[], None]) -> bool:
+        """
+        Check if a specific callback is registered as a listener.
+        """
+        ...
+
+    @abstractmethod
+    def _notify_listeners(self) -> None:
+        """
+        Notify the listeners.
+        """
+        ...
+
+class BaseListening(BaseListeningLike):
     """
     Base class providing listener management functionality for observables.
     

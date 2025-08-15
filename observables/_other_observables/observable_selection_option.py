@@ -86,14 +86,49 @@ See Also:
 - SyncMode: For binding synchronization modes
 """
 
+from abc import abstractmethod
 from typing import Any, Generic, Optional, TypeVar, overload
 from .._utils.hook import Hook
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.base_observable import BaseObservable
+from .._utils.base_observable import BaseObservable, BaseObservableLike
 
 T = TypeVar("T")
+
+class ObservableSelectionOptionLike(BaseObservableLike, CarriesDistinctSingleValueHook[Optional[T]], CarriesDistinctSetHook[T], Generic[T]):
+
+    @property
+    @abstractmethod
+    def selected_option(self) -> Optional[T]:
+        """
+        Get the selected option.
+        """
+        ...
+    
+    @selected_option.setter
+    @abstractmethod
+    def selected_option(self, selected_option: Optional[T]) -> None:
+        """
+        Set the selected option.
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def available_options(self) -> set[T]:
+        """
+        Get the available options.
+        """
+        ...
+    
+    @available_options.setter
+    @abstractmethod
+    def available_options(self, available_options: set[T]) -> None:
+        """
+        Set the available options.
+        """
+        ...
 
 class ObservableSelectionOption(BaseObservable, CarriesDistinctSingleValueHook[Optional[T]], CarriesDistinctSetHook[T], Generic[T]):
     """

@@ -16,7 +16,7 @@ class CarriesDistinctTupleHook(CarriesDistinctHook, Generic[T]):
     """
 
     @abstractmethod
-    def _get_tuple_hook(self) -> Hook[tuple[T]]:
+    def _get_tuple_hook(self) -> Hook[tuple[T, ...]]:
         """
         INTERNAL. Do not use this method directly.
         
@@ -36,7 +36,7 @@ class CarriesDistinctTupleHook(CarriesDistinctHook, Generic[T]):
         ...
 
     @abstractmethod
-    def _get_tuple_value(self) -> tuple[T]:
+    def _get_tuple_value(self) -> tuple[T, ...]:
         """
         INTERNAL. Do not use this method directly.
         
@@ -48,7 +48,7 @@ class CarriesDistinctTupleHook(CarriesDistinctHook, Generic[T]):
         ...
 
     @abstractmethod
-    def _set_tuple_value(self, tuple_to_set: tuple[T]) -> None:
+    def _set_tuple_value(self, tuple_to_set: tuple[T, ...]) -> None:
         """
         INTERNAL. Do not use this method directly.
         

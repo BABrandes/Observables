@@ -49,7 +49,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         return {"value"}
 
     @overload
-    def __init__(self, value: tuple[T]):
+    def __init__(self, value: tuple[T, ...]):
         """Initialize with a direct tuple value."""
         ...
 
@@ -63,7 +63,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, value: tuple[T] | CarriesDistinctTupleHook[T] | None = None):
+    def __init__(self, value: tuple[T, ...] | CarriesDistinctTupleHook[T] | None = None):
         """
         Initialize the ObservableList.
         
@@ -75,13 +75,13 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         """
 
         if value is None:
-            initial_value: tuple[T] = ()
+            initial_value: tuple[T, ...] = ()
             bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = None
         elif isinstance(value, CarriesDistinctTupleHook):
-            initial_value: tuple[T] = value._get_tuple_value()
+            initial_value: tuple[T, ...] = value._get_tuple_value()
             bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = value
         else:
-            initial_value: tuple[T] = value
+            initial_value: tuple[T, ...] = value
             bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = None
 
         def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
@@ -105,7 +105,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         self._indexable_hook_manager: IndexableHookManager[T] = IndexableHookManager(self, "value", len(initial_value), lambda idx: self._get_tuple_value()[idx], self._set_indexable_single_value)
 
     @property
-    def tuple_value(self) -> tuple[T]:
+    def tuple_value(self) -> tuple[T, ...]:
         """
         Get a copy of the current tuple value.
         
@@ -115,7 +115,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         return self._get_tuple_value()
     
     @tuple_value.setter
-    def tuple_value(self, new_value: tuple[T]) -> None:
+    def tuple_value(self, new_value: tuple[T, ...]) -> None:
         """
         Set the current tuple value.
         
@@ -124,7 +124,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         """
         self._set_tuple_value(new_value)
     
-    def _set_tuple_value(self, tuple_to_set: tuple[T]) -> None:
+    def _set_tuple_value(self, tuple_to_set: tuple[T, ...]) -> None:
         """
         INTERNAL. Do not use this method directly.
 
@@ -152,7 +152,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         # Use the protocol method to set the value
         self.set_observed_values((tuple_to_set,))
     
-    def _get_tuple_value(self) -> tuple[T]:
+    def _get_tuple_value(self) -> tuple[T, ...]:
         """
         INTERNAL. Do not use this method directly.
 
@@ -163,7 +163,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         """
         return self._component_values["value"]
     
-    def _get_tuple_hook(self) -> Hook[tuple[T]]:
+    def _get_tuple_hook(self) -> Hook[tuple[T, ...]]:
         """Internal method to get hook for binding system."""
         return self._component_hooks["value"]
 
@@ -219,7 +219,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         # Notify listeners
         self._notify_listeners()
 
-    def bind_to(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable tuple.
         
@@ -307,7 +307,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         
         self._indexable_hook_manager.remove_hook_from_hook(tuple_index, hook)
 
-    def unbind_from(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T]]) -> None:
+    def unbind_from(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
         """
         Remove the bidirectional binding with another observable tuple.
         
@@ -326,7 +326,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
             hook = hook._get_tuple_hook()
         self._get_tuple_hook().remove_binding(hook)
     
-    def get_observed_component_values(self) -> tuple[tuple[T]]:
+    def get_observed_component_values(self) -> tuple[tuple[T, ...]]:
         """
         Get the values of all observables that are bound to this observable.
         
@@ -338,7 +338,7 @@ class ObservableTuple(Observable, CarriesDistinctTupleHook[T], CarriesDistinctIn
         """
         return tuple(self._get_tuple_value())
     
-    def set_observed_values(self, values: tuple[tuple[T]]) -> None:
+    def set_observed_values(self, values: tuple[tuple[T, ...]]) -> None:
         """
         Set the values of all observables that are bound to this observable.
         

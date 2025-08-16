@@ -40,6 +40,18 @@ class ObservableMultiSelectionOptionLike(Protocol[T]):
         """
         ...
 
+    def get_selected_options_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the selected options set.
+        """
+        ...
+    
+    def get_available_options_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the available options set.
+        """
+        ...
+
     def set_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
         """
         Set the selected options and available options.

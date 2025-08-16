@@ -363,7 +363,11 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             ValueError: If the item is not found in the specified range
         """
-        return self._get_list_value().index(item, start, stop)
+        list_value = self._get_list_value()
+        if stop is None:
+            return list_value.index(item, start)
+        else:
+            return list_value.index(item, start, stop)
     
     def __str__(self) -> str:
         return f"OL(value={self._get_list_value()})"

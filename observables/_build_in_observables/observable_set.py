@@ -241,7 +241,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         """
         Remove an element from the set.
         
-        This method removes an item from the set if it's present,
+        This method removes an item from the set,
         using set_observed_values to ensure all changes go through the centralized protocol method.
         
         Args:
@@ -250,10 +250,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             KeyError: If the item is not in the set
         """
-        if item in self._get_set_value():
-            new_set = self._get_set_value().copy()
-            new_set.remove(item)
-            self.set_observed_values((new_set,))
+        set_value = self._get_set_value()
+        if item not in set_value:
+            raise KeyError(item)
+        
+        new_set = set_value.copy()
+        new_set.remove(item)
+        self.set_observed_values((new_set,))
     
     def discard(self, item: T) -> None:
         """
@@ -284,9 +287,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             KeyError: If the set is empty
         """
-        item = next(iter(self._get_set_value()))
-        new_set = self._get_set_value().copy()
-        new_set.pop()
+        set_value = self._get_set_value()
+        if not set_value:
+            raise KeyError("pop from an empty set")
+        
+        item = next(iter(set_value))
+        new_set = set_value.copy()
+        new_set.remove(item)
         self.set_observed_values((new_set,))
         return item
     
@@ -362,9 +369,12 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             other: An iterable to compute symmetric difference with
         """
-        new_set = self._get_set_value().copy()
+        current_set = self._get_set_value()
+        new_set = current_set.copy()
         new_set.symmetric_difference_update(other)
-        if new_set != self._get_set_value():
+        
+        # Only update if there's an actual change
+        if new_set != current_set:
             self.set_observed_values((new_set,))
     
     def __str__(self) -> str:

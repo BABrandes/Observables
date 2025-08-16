@@ -396,6 +396,12 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
         # Use the protocol method to set the values
         self._set_component_values_from_dict({"selected_options": selected_options, "available_options": self._component_values["available_options"]})
 
+    def get_selected_options_hook(self) -> HookLike[set[T]]:
+        return self._component_hooks["selected_options"]
+    
+    def get_available_options_hook(self) -> HookLike[set[T]]:
+        return self._component_hooks["available_options"]
+
     def _raise_if_selected_options_not_in_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
         """
         Internal method to validate that selected options are valid for the given available options set.

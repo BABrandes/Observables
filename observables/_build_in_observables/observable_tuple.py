@@ -1,17 +1,14 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Mapping
 from typing import Optional
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
-from .._utils.carries_distinct_indexable_single_value_hook import CarriesDistinctIndexableSingleValueHook
-from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
-from .._utils.indexable_hook_manager import IndexableHookManager
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesDistinctTupleHook[T], CarriesDistinctIndexableSingleValueHook[T], Protocol[T]):
+class ObservableTupleLike(CarriesDistinctTupleHook[T], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -36,7 +33,7 @@ class ObservableTupleLike(CarriesDistinctTupleHook[T], CarriesDistinctIndexableS
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable tuple.
         """
@@ -52,23 +49,23 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
     
     Features:
     - Bidirectional bindings with other ObservableTuple instances
-    - Full tuple interface compatibility (append, extend, insert, remove, etc.)
+    - Full tuple interface compatibility
     - Listener notification system for change events
     - Automatic copying to prevent external modification
     - Type-safe generic implementation
     
     Example:
         >>> # Create an observable tuple
-        >>> todo_tuple = ObservableTuple(["Buy groceries", "Walk dog"])
-        >>> todo_tuple.add_listeners(lambda: print("Tuple changed!"))
-        >>> todo_tuple.append("Read book")  # Triggers listener
-        Tuple changed!
+        >>> coordinates = ObservableTuple((1, 2, 3))
+        >>> coordinates.add_listeners(lambda: print("Coordinates changed!"))
+        >>> coordinates.tuple_value = (4, 5, 6)  # Triggers listener
+        Coordinates changed!
         
         >>> # Create bidirectional binding
-        >>> todo_copy = ObservableTuple(todo_tuple)
-        >>> todo_copy.append("Exercise")  # Updates both tuples
-        >>> print(todo_tuple.value, todo_copy.value)
-        ['Buy groceries', 'Walk dog', 'Read book', 'Exercise'] ['Buy groceries', 'Walk dog', 'Read book', 'Exercise']
+        >>> coords_copy = ObservableTuple(coordinates)
+        >>> coords_copy.tuple_value = (7, 8, 9)  # Updates both tuples
+        >>> print(coordinates.tuple_value, coords_copy.tuple_value)
+        (7, 8, 9) (7, 8, 9)
     
     Args:
         value: Initial tuple, another ObservableTuple to bind to, or None for empty tuple
@@ -82,42 +79,45 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         return {"value"}
 
     @overload
-    def __init__(self, value: tuple[T, ...]):
+    def __init__(self, tuple_value: tuple[T, ...]) -> None:
         """Initialize with a direct tuple value."""
         ...
 
     @overload
-    def __init__(self, value: CarriesDistinctTupleHook[T]):
+    def __init__(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
         """Initialize with another observable tuple, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, value: None):
+    def __init__(self, tuple_value: None) -> None:
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, value: tuple[T, ...] | CarriesDistinctTupleHook[T] | None = None):
+    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | CarriesDistinctTupleHook[T] | Hook[tuple[T, ...]] | None = None) -> None: # type: ignore
         """
-        Initialize the ObservableList.
+        Initialize the ObservableTuple.
         
         Args:
-            value: Initial list, observable list to bind to, or None for empty list
+            value: Initial tuple, observable tuple to bind to, or None for empty tuple
 
         Raises:
-            ValueError: If the initial list is not a list
+            ValueError: If the initial tuple is not a tuple
         """
 
-        if value is None:
+        if observable_or_hook_or_value is None:
             initial_value: tuple[T, ...] = ()
-            bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = None
-        elif isinstance(value, CarriesDistinctTupleHook):
-            initial_value: tuple[T, ...] = value._get_tuple_value()
-            bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = value
+            hook: Optional[Hook[tuple[T, ...]]] = None
+        elif isinstance(observable_or_hook_or_value, CarriesDistinctTupleHook):
+            initial_value: tuple[T, ...] = observable_or_hook_or_value.distinct_tuple_reference
+            hook: Optional[Hook[tuple[T, ...]]] = observable_or_hook_or_value.distinct_tuple_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, Hook):
+            initial_value: tuple[T, ...] = observable_or_hook_or_value.value
+            hook: Optional[Hook[tuple[T, ...]]] = observable_or_hook_or_value
         else:
-            initial_value: tuple[T, ...] = value
-            bindable_tuple_carrier: Optional[CarriesDistinctTupleHook[T]] = None
+            initial_value: tuple[T, ...] = observable_or_hook_or_value
+            hook: Optional[Hook[tuple[T, ...]]] = None
 
-        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], tuple):
                 return False, "Value is not a tuple"
             return True, "Verification method passed"
@@ -127,15 +127,13 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_tuple_value, self._set_tuple_value)
+                "value": Hook(self, lambda: self._component_values["value"], lambda value: self._set_component_values(("value", value), notify_binding_system=False))
             },
             verification_method=verification_method
         )
 
-        if bindable_tuple_carrier is not None:
-            self.bind_to(bindable_tuple_carrier)
-
-        self._indexable_hook_manager: IndexableHookManager[T] = IndexableHookManager(self, "value", len(initial_value), lambda idx: self._get_tuple_value()[idx], self._set_indexable_single_value)
+        if hook is not None:
+            self.bind_to(hook)
 
     @property
     def tuple_value(self) -> tuple[T, ...]:
@@ -145,114 +143,31 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             A copy of the current tuple to prevent external modification
         """
-        return self._get_tuple_value()
+        return self._component_values["value"]
     
     @tuple_value.setter
-    def tuple_value(self, new_value: tuple[T, ...]) -> None:
+    def tuple_value(self, value: tuple[T, ...]) -> None:
         """
         Set the current tuple value.
-        
-        Args:
-            new_value: The new tuple to set
         """
-        self._set_tuple_value(new_value)
+        if value != self._component_values["value"]:
+            self._set_component_values(("value", value), notify_binding_system=True)
     
-    def _set_tuple_value(self, tuple_to_set: tuple[T, ...]) -> None:
+    @property
+    def distinct_tuple_reference(self) -> tuple[T, ...]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Set the entire tuple to a new value.
-        
-        This method replaces the current tuple with a new one, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
-        
-        Args:
-            tuple_to_set: The new tuple to set
-        """
-        if tuple_to_set == self._get_tuple_value():
-            return
-        
-        # Check if there are individual element bindings that need to be validated
-        element_binding_keys = [key for key in self._component_hooks if key.startswith("value_")]
-        if element_binding_keys:
-            try:
-                highest_index = max(int(key.split("_")[-1]) for key in element_binding_keys)
-                if len(tuple_to_set) <= highest_index:
-                    raise ValueError(f"New tuple has {len(tuple_to_set)} elements but needs at least {highest_index + 1} elements for existing bindings")
-            except ValueError:
-                pass
-        
-        # Use the protocol method to set the value
-        self.set_observed_values((tuple_to_set,))
-    
-    def _get_tuple_value(self) -> tuple[T, ...]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get the current tuple value for binding system. No copy is made!
-        
-        Returns:
-            The current tuple value
+        Get the current value of the tuple.
         """
         return self._component_values["value"]
     
-    def _get_tuple_hook(self) -> Hook[tuple[T, ...]]:
-        """Internal method to get hook for binding system."""
+    @property
+    def distinct_tuple_hook(self) -> HookLike[tuple[T, ...]]:
+        """
+        Get the hook for the tuple.
+        """
         return self._component_hooks["value"]
 
-    def _get_indexable_single_value_hook(self, index: int) -> Hook[T]:
-        """Internal method to get hook for indexable single value binding system."""
-        return self._component_hooks[f"value_{index}"]
-    
-    def _get_indexable_single_value(self, index: int) -> T:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Get the value at the given index.
-        
-        Args:
-            index: The index of the element to get
-            
-        Returns:
-            The value at the specified index
-            
-        Raises:
-            IndexError: If the index is out of bounds
-        """
-        if index < 0 or index >= len(self._component_values["value"]):
-            raise IndexError(f"Index {index} is out of bounds for tuple of length {len(self._component_values['value'])}")
-        return self._component_values["value"][index]
-    
-    def _set_indexable_single_value(self, index: int, value: T) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Set the value at the given index.
-        
-        Args:
-            index: The index of the element to set
-            value: The new value for the element
-        """
-
-        current_tuple: list[T] = list(self._get_tuple_value())
-        if index < 0 or index >= len(current_tuple):
-            raise ValueError(f"Index {index} is out of bounds for tuple of length {len(current_tuple)}")
-        
-        current_tuple[index] = value
-        
-        # Update the internal value directly to avoid circular calls
-        old_value = self._component_values["value"]
-        if old_value == tuple(current_tuple):
-            return
-        self._component_values["value"] = tuple(current_tuple)
-        
-        # Notify the main tuple binding handler
-        self._component_hooks["value"].notify_bindings(tuple(current_tuple))
-        
-        # Notify listeners
-        self._notify_listeners()
-
-    def bind_to(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable tuple.
         
@@ -267,148 +182,197 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Raises:
             ValueError: If observable is None
         """
-        if hook is None:
-            raise ValueError("Cannot bind to None observable")
-        if isinstance(hook, CarriesDistinctTupleHook):
-            hook = hook._get_tuple_hook()
-        self._get_tuple_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctTupleHook):
+            observable_or_hook = observable_or_hook.distinct_tuple_hook
+        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def bind_to_item(self, hook: CarriesDistinctIndexableSingleValueHook[T]|CarriesDistinctSingleValueHook[T]|Hook[T], tuple_index: int,  *, hook_index_or_key: Optional[int] = None, initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
-        """
-        Establish a bidirectional binding with another observable single value.
-        
-        This method creates a bidirectional binding between this observable tuple and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-
-        Args:
-            observable: The observable single value to bind to
-            tuple_index: The index of the value in the tuple
-            hook_index_or_key: The index of the value of a CarriesIndexableSingleValueHook or the key of a CarriesKeyableSingleValueHook
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-
-        if hook is None:
-            raise ValueError("Cannot bind to None observable")
-        
-        if not isinstance(tuple_index, int):
-            raise ValueError(f"Index must be an integer, got {type(tuple_index).__name__}")
-        
-        if tuple_index < 0 or tuple_index >= len(self._get_tuple_value()):
-            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple_value())}")
-        
-        # Establish the binding
-        if isinstance(hook, CarriesDistinctIndexableSingleValueHook):
-            hook = hook._get_indexable_single_value_hook(tuple_index)
-        elif isinstance(hook, CarriesDistinctSingleValueHook):
-            hook = hook._get_single_value_hook()
-        
-        self._indexable_hook_manager.add_hook_to_hook(tuple_index, hook, initial_sync_mode)
-
-    def unbind_from_item(self, hook: CarriesDistinctIndexableSingleValueHook[T]|CarriesDistinctSingleValueHook[T]|Hook[T], tuple_index: int,  *, hook_index_or_key: Optional[int] = None) -> None:
-        """
-        Remove the bidirectional binding with another observable single value.
-        
-        This method removes the binding between this observable tuple and another,
-        preventing further automatic synchronization of changes.
-
-        Args:
-            hook: The hook to unbind from
-            tuple_index: The index of the value in the tuple
-            hook_index_or_key: The index of the value of a CarriesIndexableSingleValueHook or the key of a CarriesKeyableSingleValueHook
-
-        Raises:
-            ValueError: If observable is None
-        """
-
-        if hook is None:
-            raise ValueError("Cannot unbind from None observable")
-        
-        if not isinstance(tuple_index, int):
-            raise ValueError(f"Index must be an integer, got {type(tuple_index).__name__}")
-        
-        if tuple_index < 0 or tuple_index >= len(self._get_tuple_value()):
-            raise ValueError(f"Index {tuple_index} is out of bounds for tuple of length {len(self._get_tuple_value())}")
-        
-        if isinstance(hook, CarriesDistinctIndexableSingleValueHook):
-            hook = hook._get_indexable_single_value_hook(tuple_index)
-        elif isinstance(hook, CarriesDistinctSingleValueHook):
-            hook = hook._get_single_value_hook()
-        
-        self._indexable_hook_manager.remove_hook_from_hook(tuple_index, hook)
-
-    def unbind_from(self, hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable tuple.
         
         This method removes the binding between this observable tuple and another,
         preventing further automatic synchronization of changes.
-        
-        Args:
-            observable: The observable tuple to unbind from
-            
-        Raises:
-            ValueError: If there is no binding to remove
         """
-        if hook is None:
-            raise ValueError("Cannot unbind from None observable")
-        if isinstance(hook, CarriesDistinctTupleHook):
-            hook = hook._get_tuple_hook()
-        self._get_tuple_hook().remove_binding(hook)
-    
-    def get_observed_component_values(self) -> tuple[tuple[T, ...]]:
-        """
-        Get the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and provides access to
-        the current values of all bound observables.
-        
-        Returns:
-            A tuple containing the current tuple value
-        """
-        return tuple(self._get_tuple_value())
-    
-    def set_observed_values(self, values: tuple[tuple[T, ...]]) -> None:
-        """
-        Set the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and allows external
-        systems to update this observable's value. It handles all internal
-        state changes, binding updates, and listener notifications.
-        
-        Args:
-            values: A tuple containing the new tuple value to set
-        """
-        # Extract the tuple from the tuple (values should be a single-element tuple)
-        new_tuple = values[0]
-
-        # Handle the individual element hooks: If the tuple is longer than the number of element hooks, create new hooks, if it is shorter, remove the hooks
-        if len(new_tuple) > len(self._indexable_hook_manager.managed_hooks):
-            for index in range(len(self._indexable_hook_manager.managed_hooks), len(new_tuple)):
-                self._indexable_hook_manager.create_and_place_managed_hook(index)
-        elif len(new_tuple) < len(self._indexable_hook_manager.managed_hooks):
-            for index in range(len(new_tuple), len(self._indexable_hook_manager.managed_hooks)):
-                self._indexable_hook_manager.remove_hook(index)
-        
-        # Update internal state
-        self._set_component_values_from_dict(
-            {"value": new_tuple}
-        )
-        
-        # Notify all individual element hooks of the change
-        for index in range(len(new_tuple)):
-            hook_key = f"value_{index}"
-            if hook_key in self._component_hooks:
-                hook = self._component_hooks[hook_key]
-                hook.notify_bindings(new_tuple[index])
+        self._component_hooks["value"].disconnect()
     
     def __str__(self) -> str:
         """String representation of the observable tuple."""
-        return f"OT(tuple={self._get_tuple_value()})"
+        return f"OT(tuple={self._component_values['value']})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable tuple."""
-        return f"ObservableTuple({self._get_tuple_value()})"
+        return f"ObservableTuple({self._component_values['value']})"
+    
+    def __len__(self) -> int:
+        """
+        Get the length of the tuple.
+        
+        Returns:
+            The number of items in the tuple
+        """
+        return len(self._component_values["value"])
+    
+    def __getitem__(self, index: int) -> T:
+        """
+        Get an item at the specified index.
+        
+        Args:
+            index: Integer index
+            
+        Returns:
+            The item at the index
+            
+        Raises:
+            IndexError: If the index is out of range
+        """
+        return self._component_values["value"][index]
+    
+    def __contains__(self, item: T) -> bool:
+        """
+        Check if an item is contained in the tuple.
+        
+        Args:
+            item: The item to check for
+            
+        Returns:
+            True if the item is in the tuple, False otherwise
+        """
+        return item in self._component_values["value"]
+    
+    def __iter__(self):
+        """
+        Get an iterator over the tuple items.
+        
+        Returns:
+            An iterator that yields each item in the tuple
+        """
+        return iter(self._component_values["value"])
+    
+    def __eq__(self, other: Any) -> bool:
+        """
+        Check equality with another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if the tuples contain the same items in the same order, False otherwise
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] == other._component_values["value"]
+        return self._component_values["value"] == other
+    
+    def __ne__(self, other: Any) -> bool:
+        """
+        Check inequality with another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if the tuples are not equal, False otherwise
+        """
+        return not (self == other)
+    
+    def __lt__(self, other: Any) -> bool:
+        """
+        Check if this tuple is less than another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if this tuple is lexicographically less than the other, False otherwise
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] < other._component_values["value"]
+        return self._component_values["value"] < other
+    
+    def __le__(self, other: Any) -> bool:
+        """
+        Check if this tuple is less than or equal to another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if this tuple is lexicographically less than or equal to the other, False otherwise
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] <= other._component_values["value"]
+        return self._component_values["value"] <= other
+    
+    def __gt__(self, other: Any) -> bool:
+        """
+        Check if this tuple is greater than another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if this tuple is lexicographically greater than the other, False otherwise
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] > other._component_values["value"]
+        return self._component_values["value"] > other
+    
+    def __ge__(self, other: Any) -> bool:
+        """
+        Check if this tuple is greater than or equal to another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to compare with
+            
+        Returns:
+            True if this tuple is lexicographically greater than or equal to the other, False otherwise
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] >= other._component_values["value"]
+        return self._component_values["value"] >= other
+    
+    def __add__(self, other: Any) -> tuple[T, ...]:
+        """
+        Concatenate this tuple with another tuple or observable tuple.
+        
+        Args:
+            other: Another tuple or ObservableTuple to concatenate with
+            
+        Returns:
+            A new tuple containing all items from both tuples
+        """
+        if isinstance(other, ObservableTuple):
+            return self._component_values["value"] + other._component_values["value"]
+        return self._component_values["value"] + other
+    
+    def __mul__(self, other: int) -> tuple[T, ...]:
+        """
+        Repeat the tuple a specified number of times.
+        
+        Args:
+            other: The number of times to repeat the tuple
+            
+        Returns:
+            A new tuple with the original items repeated
+        """
+        return self._component_values["value"] * other
+    
+    def __rmul__(self, other: int) -> tuple[T, ...]:
+        """
+        Repeat the tuple a specified number of times (right multiplication).
+        
+        Args:
+            other: The number of times to repeat the tuple
+            
+        Returns:
+            A new tuple with the original items repeated
+        """
+        return other * self._component_values["value"]
+    
+    def __hash__(self) -> int:
+        """
+        Get the hash value based on the current tuple contents.
+        
+        Returns:
+            Hash value of the tuple
+        """
+        return hash(self._component_values["value"])

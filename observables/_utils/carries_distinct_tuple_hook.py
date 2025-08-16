@@ -1,4 +1,4 @@
-from abc import abstractmethod
+
 from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
@@ -29,11 +29,9 @@ class CarriesDistinctTupleHook(BaseCarriesDistinctHook, Protocol[T]):
         The individual methods remain internal implementation details.
     """
 
-    @abstractmethod
-    def _get_tuple_hook(self) -> HookLike[tuple[T, ...]]:
+    @property
+    def distinct_tuple_hook(self) -> HookLike[tuple[T, ...]]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the hook for tuple.
         
         This method provides access to the internal hook that
@@ -49,23 +47,12 @@ class CarriesDistinctTupleHook(BaseCarriesDistinctHook, Protocol[T]):
         """
         ...
 
-    @abstractmethod
-    def _get_tuple_value(self) -> tuple[T, ...]:
+    @property
+    def distinct_tuple_reference(self) -> tuple[T, ...]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the current value of the tuple.
         
         Returns:
             The current value of the tuple
-        """
-        ...
-
-    @abstractmethod
-    def _set_tuple_value(self, tuple_to_set: tuple[T, ...]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Method to set the current value of the tuple.
         """
         ...

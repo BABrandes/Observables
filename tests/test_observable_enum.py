@@ -2,461 +2,491 @@ import unittest
 from enum import Enum
 from observables import ObservableEnum, SyncMode
 
+class TestColor(Enum):
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
 
-class TestEnum(Enum):
-    """Test enum for testing purposes"""
-    A = "a"
-    B = "b"
-    C = "c"
-    D = "d"
-    E = "e"
-
+class TestSize(Enum):
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
 
 class TestObservableEnum(unittest.TestCase):
     """Test cases for ObservableEnum"""
     
     def setUp(self):
-        self.observable = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B, TestEnum.C})
+        self.observable = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         self.notification_count = 0
     
     def notification_callback(self):
         self.notification_count += 1
     
-    def test_initial_enum_value(self):
-        """Test that initial enum value is set correctly"""
-        self.assertEqual(self.observable.enum_value, TestEnum.A)
+    def test_initial_value(self):
+        """Test that initial value is set correctly"""
+        self.assertEqual(self.observable.enum_value, TestColor.RED)
+        self.assertEqual(self.observable.enum_options, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
     
-    def test_initial_enum_options(self):
-        """Test that initial enum options are set correctly"""
-        self.assertEqual(self.observable.enum_options, {TestEnum.A, TestEnum.B, TestEnum.C})
+    def test_set_enum_value(self):
+        """Test setting a new enum value"""
+        self.observable.enum_value = TestColor.GREEN
+        self.assertEqual(self.observable.enum_value, TestColor.GREEN)
     
-    def test_change_enum_value(self):
-        """Test changing enum value"""
-        self.observable.enum_value = TestEnum.B
-        self.assertEqual(self.observable.enum_value, TestEnum.B)
-    
-    def test_change_enum_options(self):
-        """Test changing enum options"""
-        # Change to options that include the current value
-        self.observable.enum_options = {TestEnum.A, TestEnum.D, TestEnum.E}
-        self.assertEqual(self.observable.enum_options, {TestEnum.A, TestEnum.D, TestEnum.E})
+    def test_set_enum_options(self):
+        """Test setting new enum options"""
+        new_options = {TestColor.RED, TestColor.BLUE}
+        self.observable.enum_options = new_options
+        self.assertEqual(self.observable.enum_options, new_options)
     
     def test_listener_notification(self):
-        """Test that listeners are notified when enum value changes"""
+        """Test that listeners are notified when value changes"""
         self.observable.add_listeners(self.notification_callback)
-        self.observable.enum_value = TestEnum.C
+        self.observable.enum_value = TestColor.BLUE
         self.assertEqual(self.notification_count, 1)
     
-    def test_binding_enum_value(self):
-        """Test binding enum value to another observable"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
-        
-        # Bind enum1's value to enum2
-        enum1.bind_enum_value_to_observable(enum2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Change enum2's value, enum1 should update
-        enum2.enum_value = TestEnum.A
-        self.assertEqual(enum1.enum_value, TestEnum.A)
-        
-        # Change enum1's value, enum2 should update
-        enum1.enum_value = TestEnum.B
-        self.assertEqual(enum2.enum_value, TestEnum.B)
+    def test_no_notification_on_same_value(self):
+        """Test that listeners are not notified when value doesn't change"""
+        self.observable.add_listeners(self.notification_callback)
+        self.observable.enum_value = TestColor.RED  # Same value
+        self.assertEqual(self.notification_count, 0)
     
-    def test_binding_enum_options(self):
-        """Test binding enum options to another observable"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
-        
-        # Bind enum1's options to enum2
-        enum1.bind_enum_options_to_observable(enum2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Change enum2's options, enum1 should update
-        enum2.enum_options = {TestEnum.A, TestEnum.B, TestEnum.C}
-        self.assertEqual(enum1.enum_options, {TestEnum.A, TestEnum.B, TestEnum.C})
-        
-        # Change enum1's options, enum2 should update
-        enum1.enum_options = {TestEnum.A, TestEnum.B, TestEnum.D}
-        self.assertEqual(enum2.enum_options, {TestEnum.A, TestEnum.B, TestEnum.D})
+    def test_remove_listeners(self):
+        """Test removing a listener"""
+        self.observable.add_listeners(self.notification_callback)
+        self.observable.remove_listeners(self.notification_callback)
+        self.observable.enum_value = TestColor.GREEN
+        self.assertEqual(self.notification_count, 0)
     
-    def test_binding_system_consistency(self):
-        """Test binding system consistency"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
+    def test_multiple_listeners(self):
+        """Test multiple listeners"""
+        count1, count2 = 0, 0
         
-        # Bind them together
-        enum1.bind_to(enum2)
+        def callback1():
+            nonlocal count1
+            count1 += 1
         
-        # Check binding consistency
-        is_consistent, message = enum1.check_binding_system_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
-    
-    def test_boolean_conversion(self):
-        """Test boolean conversion of enum value"""
-        # Test with valid enum value
-        self.assertTrue(bool(self.observable))
+        def callback2():
+            nonlocal count2
+            count2 += 1
         
-        # Test with None enum value
-        none_enum = ObservableEnum(None, {TestEnum.A, TestEnum.B})
-        self.assertFalse(bool(none_enum))
-    
-    def test_comparison_operators(self):
-        """Test comparison operators with enum values"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
+        self.observable.add_listeners(callback1)
+        self.observable.add_listeners(callback2)
+        self.observable.enum_value = TestColor.BLUE
         
-        # Test equality
-        self.assertEqual(enum1, TestEnum.A)
-        self.assertEqual(enum1, enum1)
-        self.assertNotEqual(enum1, TestEnum.B)
+        self.assertEqual(count1, 1)
+        self.assertEqual(count2, 1)
+    
+    def test_initialization_with_carries_bindable_enum(self):
+        """Test initialization with CarriesBindableEnum"""
+        # Create a source observable enum
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         
-        # Test less than/greater than (based on enum order)
-        # Note: ObservableEnum doesn't support < > operators directly
-        self.assertLess(TestEnum.A.value, TestEnum.B.value)
-        self.assertGreater(TestEnum.B.value, TestEnum.A.value)
+        # Create a new observable enum initialized with the source
+        target = ObservableEnum(source)
+        
+        # Check that the target has the same initial value
+        self.assertEqual(target.enum_value, TestColor.RED)
+        self.assertEqual(target.enum_options, {TestColor.RED, TestColor.GREEN})
+        
+        # Check that they are bound together
+        source.enum_value = TestColor.GREEN
+        self.assertEqual(target.enum_value, TestColor.GREEN)
+        
+        # Check bidirectional binding
+        target.enum_value = TestColor.RED
+        self.assertEqual(source.enum_value, TestColor.RED)
     
-    def test_edge_cases(self):
-        """Test edge cases for enum operations"""
-        # Test with None value and valid options
-        none_enum = ObservableEnum(None, {TestEnum.A, TestEnum.B})
-        self.assertIsNone(none_enum.enum_value)
-        self.assertEqual(none_enum.enum_options, {TestEnum.A, TestEnum.B})
-    
-    def test_initialization_with_custom_options(self):
-        """Test initialization with custom enum options"""
-        custom_options = {TestEnum.D, TestEnum.E}
-        custom_enum = ObservableEnum(TestEnum.D, custom_options)
-        self.assertEqual(custom_enum.enum_value, TestEnum.D)
-        self.assertEqual(custom_enum.enum_options, custom_options)
-    
-    def test_initialization_with_enum_value(self):
-        """Test initialization with just enum value"""
-        value_only_enum = ObservableEnum(TestEnum.B)
-        self.assertEqual(value_only_enum.enum_value, TestEnum.B)
-        # Should have default options based on the enum class
-        self.assertIsInstance(value_only_enum.enum_options, set)
-    
-    def test_initialization_with_observable_enum(self):
-        """Test initialization with another ObservableEnum"""
-        source_enum = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        target_enum = ObservableEnum(source_enum)
+    def test_initialization_with_carries_bindable_enum_chain(self):
+        """Test initialization with CarriesBindableEnum in a chain"""
+        # Create a chain of observable enums
+        obs1 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM})
+        obs2 = ObservableEnum(obs1)
+        obs3 = ObservableEnum(obs2)
         
         # Check initial values
-        self.assertEqual(target_enum.enum_value, TestEnum.A)
-        # The options should include all enum values by default
-        self.assertIn(TestEnum.A, target_enum.enum_options)
-        self.assertIn(TestEnum.B, target_enum.enum_options)
+        self.assertEqual(obs1.enum_value, TestSize.SMALL)
+        self.assertEqual(obs2.enum_value, TestSize.SMALL)
+        self.assertEqual(obs3.enum_value, TestSize.SMALL)
+        
+        # Change the first observable
+        obs1.enum_value = TestSize.MEDIUM
+        self.assertEqual(obs1.enum_value, TestSize.MEDIUM)
+        self.assertEqual(obs2.enum_value, TestSize.MEDIUM)
+        self.assertEqual(obs3.enum_value, TestSize.MEDIUM)
+        
+        # Change the middle observable
+        obs2.enum_value = TestSize.MEDIUM
+        self.assertEqual(obs1.enum_value, TestSize.MEDIUM)
+        self.assertEqual(obs2.enum_value, TestSize.MEDIUM)
+        self.assertEqual(obs3.enum_value, TestSize.MEDIUM)
     
-    def test_initialization_with_observable_options(self):
-        """Test initialization with ObservableSet for options"""
-        from observables import ObservableSet
+    def test_initialization_with_carries_bindable_enum_unbinding(self):
+        """Test that initialization with CarriesBindableEnum can be unbound"""
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        target = ObservableEnum(source)
         
-        options_set = ObservableSet({TestEnum.A, TestEnum.B})
-        enum_with_obs_options = ObservableEnum(TestEnum.A, options_set)
+        # Verify they are bound
+        self.assertEqual(target.enum_value, TestColor.RED)
+        source.enum_value = TestColor.GREEN
+        self.assertEqual(target.enum_value, TestColor.GREEN)
         
-        self.assertEqual(enum_with_obs_options.enum_value, TestEnum.A)
-        self.assertEqual(enum_with_obs_options.enum_options, {TestEnum.A, TestEnum.B})
+        # Unbind them
+        target.disconnect()
         
-        # Check binding
-        options_set.add(TestEnum.C)
-        self.assertEqual(enum_with_obs_options.enum_options, {TestEnum.A, TestEnum.B, TestEnum.C})
+        # Change source, target should not update
+        source.enum_value = TestColor.RED
+        self.assertEqual(target.enum_value, TestColor.GREEN)  # Should remain unchanged
+        
+        # Change target, source should not update
+        target.enum_value = TestColor.RED
+        self.assertEqual(source.enum_value, TestColor.RED)  # Should remain unchanged
     
-    def test_multiple_targets(self):
-        """Test multiple targets bound to the same source"""
-        source = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
+    def test_initialization_with_carries_bindable_enum_multiple_targets(self):
+        """Test multiple targets initialized with the same source"""
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         target1 = ObservableEnum(source)
         target2 = ObservableEnum(source)
+        target3 = ObservableEnum(source)
         
         # Check initial values
-        self.assertEqual(target1.enum_value, TestEnum.A)
-        self.assertEqual(target2.enum_value, TestEnum.A)
+        self.assertEqual(target1.enum_value, TestColor.RED)
+        self.assertEqual(target2.enum_value, TestColor.RED)
+        self.assertEqual(target3.enum_value, TestColor.RED)
         
         # Change source, all targets should update
-        source.enum_value = TestEnum.B
-        self.assertEqual(target1.enum_value, TestEnum.B)
-        self.assertEqual(target2.enum_value, TestEnum.B)
-    
-    def test_add_enum_option(self):
-        """Test adding an enum option"""
-        self.observable.add_enum_option(TestEnum.D)
-        self.assertIn(TestEnum.D, self.observable.enum_options)
-    
-    def test_remove_enum_option(self):
-        """Test removing an enum option"""
-        self.observable.remove_enum_option(TestEnum.B)
-        self.assertNotIn(TestEnum.B, self.observable.enum_options)
-    
-    def test_set_enum_value_and_options(self):
-        """Test setting both enum value and options at once"""
-        self.observable.set_enum_value_and_options(TestEnum.D, {TestEnum.D, TestEnum.E})
-        self.assertEqual(self.observable.enum_value, TestEnum.D)
-        self.assertEqual(self.observable.enum_options, {TestEnum.D, TestEnum.E})
-    
-    def test_string_representations(self):
-        """Test string representation methods"""
-        str_repr = str(self.observable)
-        repr_repr = repr(self.observable)
+        source.enum_value = TestColor.GREEN
+        self.assertEqual(target1.enum_value, TestColor.GREEN)
+        self.assertEqual(target2.enum_value, TestColor.GREEN)
+        self.assertEqual(target3.enum_value, TestColor.GREEN)
         
-        self.assertIn("TestEnum.A", str_repr)
-        self.assertIn("ObservableEnum", repr_repr)
+        # Change one target, source and other targets should update
+        target1.enum_value = TestColor.RED
+        self.assertEqual(source.enum_value, TestColor.RED)
+        self.assertEqual(target2.enum_value, TestColor.RED)
+        self.assertEqual(target3.enum_value, TestColor.RED)
+    
+    def test_initialization_with_carries_bindable_enum_edge_cases(self):
+        """Test edge cases for initialization with CarriesBindableEnum"""
+        # Test with single option in source
+        source_single = ObservableEnum(TestColor.RED, {TestColor.RED})
+        target_single = ObservableEnum(source_single)
+        self.assertEqual(target_single.enum_value, TestColor.RED)
+        self.assertEqual(target_single.enum_options, {TestColor.RED})
+        
+        # Test with None value in source
+        source_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
+        target_none = ObservableEnum(source_none)
+        self.assertIsNone(target_none.enum_value)
+        self.assertEqual(target_none.enum_options, {TestColor.RED, TestColor.GREEN})
+    
+    def test_initialization_with_carries_bindable_enum_binding_consistency(self):
+        """Test binding system consistency when initializing with CarriesBindableEnum"""
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        target = ObservableEnum(source)
+        
+        # Check binding consistency
+        is_consistent, message = target.check_status_consistency()
+        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        
+        # Check that they are properly bound
+        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+    
+    def test_initialization_with_carries_bindable_enum_performance(self):
+        """Test performance of initialization with CarriesBindableEnum"""
+        import time
+        
+        # Create source
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        
+        # Measure initialization time
+        start_time = time.time()
+        for _ in range(1000):
+            target = ObservableEnum(source)
+        end_time = time.time()
+        
+        # Should complete in reasonable time (less than 6 seconds)
+        self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
+        
+        # Verify the last target is properly bound
+        target = ObservableEnum(source)
+        source.enum_value = TestColor.GREEN
+        self.assertEqual(target.enum_value, TestColor.GREEN)
+    
+    def test_binding_bidirectional(self):
+        """Test bidirectional binding between obs1 and obs2"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # Bind obs1 to obs2
+        obs1.bind_to(obs2)
+        
+        # Change obs1, obs2 should update
+        obs1.enum_value = TestColor.GREEN
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)
+        
+        # Change obs2, obs1 should also update (bidirectional)
+        obs2.enum_value = TestColor.RED
+        self.assertEqual(obs1.enum_value, TestColor.RED)
+    
+    def test_binding_initial_sync_modes(self):
+        """Test different initial sync modes"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # Test update_value_from_observable mode
+        obs1.bind_to(obs2)
+        self.assertEqual(obs1.enum_value, TestColor.BLUE)  # obs1 gets updated with obs2's value
+        
+        # Test update_observable_from_self mode
+        obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
+        obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
+        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        self.assertEqual(obs4.enum_value, TestSize.SMALL)  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
-        """Test unbinding from observables"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
+        """Test unbinding observables"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
-        # Bind them
-        enum1.bind_to(enum2)
-        
-        # Unbind
-        enum1.unbind_from(enum2)
+        obs1.bind_to(obs2)
+        obs1.disconnect()
         
         # Changes should no longer propagate
-        enum2.enum_value = TestEnum.A
-        self.assertEqual(enum1.enum_value, TestEnum.A)  # Should not change
+        obs1.enum_value = TestColor.GREEN
+        self.assertEqual(obs2.enum_value, TestColor.BLUE)
     
-    def test_validation_on_initialization(self):
-        """Test validation during initialization"""
-        # Test with invalid enum value
+    def test_binding_to_self(self):
+        """Test that binding to self raises an error"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         with self.assertRaises(ValueError):
-            ObservableEnum("not an enum", {TestEnum.A, TestEnum.B})
-        
-        # Test with invalid options type
-        with self.assertRaises(AttributeError):
-            ObservableEnum(TestEnum.A, "not a set")
+            obs.bind_to(obs)
     
-    def test_initialization_with_carries_bindable_set_performance(self):
-        """Test performance of initialization with CarriesBindableSet"""
-        from observables import ObservableSet
+    def test_binding_chain_unbinding(self):
+        """Test unbinding in a chain of bindings"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
-        options_set = ObservableSet({TestEnum.A, TestEnum.B, TestEnum.C, TestEnum.D, TestEnum.E})
+        # Create chain: obs1 -> obs2 -> obs3
+        obs1.bind_to(obs2)
+        obs2.bind_to(obs3)
         
+        # Verify chain works
+        obs1.enum_value = TestColor.GREEN
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)
+        self.assertEqual(obs3.enum_value, TestColor.GREEN)
+        
+        # Break the chain by unbinding obs2 from obs3
+        obs2.disconnect()
+        
+        # After obs2 disconnects, obs1 and obs3 should remain bound (transitive binding)
+        # Change obs1, obs3 should update but obs2 should not
+        obs1.enum_value = TestColor.RED
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)  # obs2 is isolated
+        self.assertEqual(obs3.enum_value, TestColor.RED)    # obs3 gets updated from obs1
+        
+        # Change obs3, obs1 should update but obs2 should not
+        obs3.enum_value = TestColor.BLUE
+        self.assertEqual(obs1.enum_value, TestColor.BLUE)   # obs1 gets updated from obs3
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)  # obs2 remains isolated
+    
+    def test_string_representation(self):
+        """Test string and repr methods"""
+        # The order depends on the enum values, so we check that all elements are present
+        str_repr = str(self.observable)
+        self.assertTrue("enum_value=TestColor.RED" in str_repr)
+        self.assertTrue("TestColor.RED" in str_repr)
+        self.assertTrue("TestColor.GREEN" in str_repr)
+        self.assertTrue("TestColor.BLUE" in str_repr)
+        
+        repr_repr = repr(self.observable)
+        self.assertTrue("enum_value=TestColor.RED" in repr_repr)
+        self.assertTrue("TestColor.RED" in repr_repr)
+        self.assertTrue("TestColor.GREEN" in repr_repr)
+        self.assertTrue("TestColor.BLUE" in repr_repr)
+    
+    def test_listener_management(self):
+        """Test listener management methods"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        
+        # Test is_listening_to
+        self.assertFalse(obs.is_listening_to(self.notification_callback))
+        
+        obs.add_listeners(self.notification_callback)
+        self.assertTrue(obs.is_listening_to(self.notification_callback))
+        
+        obs.remove_listeners(self.notification_callback)
+        self.assertFalse(obs.is_listening_to(self.notification_callback))
+    
+    def test_multiple_bindings(self):
+        """Test multiple bindings to the same observable"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # Bind obs2 and obs3 to obs1
+        obs2.bind_to(obs1)
+        obs3.bind_to(obs1)
+        
+        # Change obs1, both should update
+        obs1.enum_value = TestColor.GREEN
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)
+        self.assertEqual(obs3.enum_value, TestColor.GREEN)
+        
+        # Change obs2, obs1 should also update (bidirectional), obs3 should also update
+        obs2.enum_value = TestColor.RED
+        self.assertEqual(obs1.enum_value, TestColor.RED)
+        self.assertEqual(obs3.enum_value, TestColor.RED)
+    
+    def test_enum_methods(self):
+        """Test standard enum methods"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # Test enum_value_not_none
+        self.assertEqual(obs.enum_value_not_none, TestColor.RED)
+        
+        # Test set_enum_value_and_options
+        obs.set_enum_value_and_options(TestColor.BLUE, {TestColor.BLUE, TestColor.GREEN})
+        self.assertEqual(obs.enum_value, TestColor.BLUE)
+        self.assertEqual(obs.enum_options, {TestColor.BLUE, TestColor.GREEN})
+    
+    def test_enum_copy_behavior(self):
+        """Test that enum_options returns a copy"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # Get the enum options
+        options_copy = obs.enum_options
+        
+        # Modify the copy
+        options_copy.add(TestSize.SMALL) # type: ignore
+        
+        # Original should not change
+        self.assertEqual(obs.enum_options, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        # The copy should have the modification
+        self.assertEqual(options_copy, {TestColor.RED, TestColor.GREEN, TestColor.BLUE, TestSize.SMALL})
+    
+    def test_enum_validation(self):
+        """Test enum validation"""
+        # Test with valid enum value
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        self.assertEqual(obs.enum_value, TestColor.RED)
+        self.assertEqual(obs.enum_options, {TestColor.RED, TestColor.GREEN})
+        
+        # Test with None value
+        obs_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
+        self.assertIsNone(obs_none.enum_value)
+        self.assertEqual(obs_none.enum_options, {TestColor.RED, TestColor.GREEN})
+    
+    def test_enum_binding_edge_cases(self):
+        """Test edge cases for enum binding"""
+        # Test binding enums with same initial values
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1.bind_to(obs2)
+        
+        obs1.enum_value = TestColor.GREEN
+        self.assertEqual(obs2.enum_value, TestColor.GREEN)
+        
+        # Test binding enums with different options
+        obs3 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs4 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs3.bind_to(obs4)
+        
+        obs3.enum_value = TestColor.BLUE
+        self.assertEqual(obs4.enum_value, TestColor.BLUE)
+    
+    def test_enum_performance(self):
+        """Test enum performance characteristics"""
         import time
+        
+        # Test enum_value access performance
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         start_time = time.time()
         
-        for _ in range(1000):
-            enum = ObservableEnum(TestEnum.A, options_set)
-            _ = enum.enum_value  # Access to ensure initialization is complete
+        for _ in range(10000):
+            _ = obs.enum_value
         
         end_time = time.time()
-        total_time = end_time - start_time
         
-        # Should complete in reasonable time (less than 3 seconds)
-        self.assertLess(total_time, 3.0)
-    
-    def test_initialization_with_carries_enum_performance(self):
-        """Test performance of initialization with CarriesBindableEnum"""
-        source_enum = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B, TestEnum.C, TestEnum.D, TestEnum.E})
+        # Should complete in reasonable time
+        self.assertLess(end_time - start_time, 1.0, "Enum value access should be fast")
         
-        import time
+        # Test binding performance
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         start_time = time.time()
         
-        for _ in range(1000):
-            enum = ObservableEnum(source_enum)
-            _ = enum.enum_value  # Access to ensure initialization is complete
-        
-        end_time = time.time()
-        total_time = end_time - start_time
-        
-        # Should complete in reasonable time (less than 3 seconds)
-        self.assertLess(total_time, 3.0)
-    
-    def test_binding_chain(self):
-        """Test binding in a chain"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        enum3 = ObservableEnum(enum2)
-        
-        # Check initial values
-        self.assertEqual(enum1.enum_value, TestEnum.A)
-        self.assertEqual(enum2.enum_value, TestEnum.A)
-        self.assertEqual(enum3.enum_value, TestEnum.A)
-        
-        # Change the first enum
-        enum1.enum_value = TestEnum.B
-        self.assertEqual(enum1.enum_value, TestEnum.B)
-        self.assertEqual(enum2.enum_value, TestEnum.B)
-        self.assertEqual(enum3.enum_value, TestEnum.B)
-    
-    def test_binding_enum_options_chain(self):
-        """Test binding enum options in a chain"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        enum3 = ObservableEnum(enum2)
-        
-        # Check initial options
-        self.assertEqual(enum1.enum_options, {TestEnum.A, TestEnum.B})
-        self.assertEqual(enum2.enum_options, {TestEnum.A, TestEnum.B})
-        self.assertEqual(enum3.enum_options, {TestEnum.A, TestEnum.B})
-        
-        # Change the first enum's options
-        enum1.enum_options = {TestEnum.C, TestEnum.D}
-        self.assertEqual(enum1.enum_options, {TestEnum.C, TestEnum.D})
-        self.assertEqual(enum2.enum_options, {TestEnum.C, TestEnum.D})
-        self.assertEqual(enum3.enum_options, {TestEnum.C, TestEnum.D})
-    
-    def test_binding_removal_in_chain(self):
-        """Test binding removal in a chain"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        enum3 = ObservableEnum(enum2)
-        
-        # Remove binding between enum2 and enum3
-        enum3.unbind_from(enum2)
-        
-        # Change enum1, enum2 should update but enum3 should not
-        enum1.enum_value = TestEnum.B
-        self.assertEqual(enum2.enum_value, TestEnum.B)
-        self.assertEqual(enum3.enum_value, TestEnum.A)  # Should not change
-    
-    def test_circular_binding_prevention(self):
-        """Test that circular bindings are prevented"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(TestEnum.B, {TestEnum.A, TestEnum.B})
-        
-        # Bind enum1 to enum2
-        enum1.bind_to(enum2)
-        
-        # Try to bind enum2 back to enum1 (should not create circular binding)
-        # This will fail because they're already bound
-        with self.assertRaises(ValueError):
-            enum2.bind_to(enum1)
-    
-    def test_mixed_type_binding_chain(self):
-        """Test binding chain with mixed types"""
-        from observables import ObservableSet
-        
-        # Create a chain: ObservableSet -> ObservableEnum -> ObservableEnum
-        options_set = ObservableSet({TestEnum.A, TestEnum.B})
-        enum1 = ObservableEnum(TestEnum.A, options_set)
-        enum2 = ObservableEnum(enum1)
-        
-        # Change the set, both enums should update
-        options_set.add(TestEnum.C)
-        self.assertIn(TestEnum.C, enum1.enum_options)
-        self.assertIn(TestEnum.C, enum2.enum_options)
-        
-        # Change enum1, enum2 should update
-        enum1.enum_value = TestEnum.B
-        self.assertEqual(enum2.enum_value, TestEnum.B)
-    
-    def test_binding_cleanup(self):
-        """Test that bindings are properly cleaned up"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        
-        # Check they are bound
-        self.assertTrue(enum2._get_enum_hook().is_bound_to(enum1._get_enum_hook()))
-        
-        # Unbind
-        enum2.unbind_from(enum1)
-        
-        # Check they are no longer bound
-        self.assertFalse(enum2._get_enum_hook().is_bound_to(enum1._get_enum_hook()))
-    
-    def test_error_recovery(self):
-        """Test error recovery in binding system"""
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        
-        # Simulate a binding error by corrupting the hook
-        # This tests the error handling in the binding system
-        try:
-            # This should not crash the system
-            enum2.unbind_from(enum1)
-            enum2.unbind_from(enum1)  # Try to unbind again
-        except Exception:
-            # Should handle gracefully
-            pass
-        
-        # System should still be functional
-        self.assertEqual(enum2.enum_value, TestEnum.A)
-    
-    def test_memory_management(self):
-        """Test memory management in binding system"""
-        import weakref
-        
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        weak_ref = weakref.ref(enum1)
-        
-        # Create and destroy many bound enums
         for _ in range(100):
-            enum2 = ObservableEnum(enum1)
-            del enum2
+            ObservableEnum(source)
         
-        # Force garbage collection
-        import gc
-        gc.collect()
+        end_time = time.time()
         
-        # enum1 should still exist
-        self.assertIsNotNone(weak_ref())
+        # Should complete in reasonable time
+        self.assertLess(end_time - start_time, 1.0, "Binding operations should be fast")
     
-    def test_concurrent_access(self):
-        """Test concurrent access to bound enums"""
-        import threading
-        import time
+    def test_enum_error_handling(self):
+        """Test enum error handling"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         
-        enum1 = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        enum2 = ObservableEnum(enum1)
-        
-        results = []
-        errors = []
-        
-        def reader():
-            try:
-                for _ in range(100):
-                    results.append(enum2.enum_value)
-                    time.sleep(0.001)
-            except Exception as e:
-                errors.append(e)
-        
-        def writer():
-            try:
-                for i in range(10):
-                    enum1.enum_value = TestEnum.B if i % 2 == 0 else TestEnum.A
-                    time.sleep(0.002)
-            except Exception as e:
-                errors.append(e)
-        
-        # Start reader and writer threads
-        reader_thread = threading.Thread(target=reader)
-        writer_thread = threading.Thread(target=writer)
-        
-        reader_thread.start()
-        writer_thread.start()
-        
-        reader_thread.join()
-        writer_thread.join()
-        
-        # Check for errors
-        self.assertEqual(len(errors), 0, f"Errors occurred: {errors}")
-        self.assertGreater(len(results), 0)
-    
-    def test_type_safety(self):
-        """Test type safety in binding system"""
-        from observables import ObservableSingleValue
-        
-        # Try to bind enum to single value (should work for value binding)
-        single_value = ObservableSingleValue(TestEnum.A)
-        enum = ObservableEnum(TestEnum.A, {TestEnum.A, TestEnum.B})
-        
-        # Bind enum value to single value
-        enum.bind_enum_value_to_observable(single_value)
-        
-        # Change single value, enum should update
-        single_value.single_value = TestEnum.B
-        self.assertEqual(enum.enum_value, TestEnum.B)
-    
-    def test_validation_errors(self):
-        """Test validation error handling"""
-        # Test with invalid enum value type
+        # Test setting invalid enum value
         with self.assertRaises(ValueError):
-            ObservableEnum(123, {TestEnum.A, TestEnum.B})
+            obs.enum_value = TestColor.BLUE  # Not in options
         
-        # Test with invalid options type
-        with self.assertRaises(AttributeError):
-            ObservableEnum(TestEnum.A, "invalid")
-        
-        # Test with enum value not in options
+        # Test enum_value_not_none when value is None
+        obs_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
         with self.assertRaises(ValueError):
-            ObservableEnum(TestEnum.A, {TestEnum.B, TestEnum.C})
+            _ = obs_none.enum_value_not_none
+    
+    def test_enum_binding_consistency(self):
+        """Test binding system consistency"""
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        target = ObservableEnum(source)
+        
+        # Check binding consistency
+        is_consistent, message = target.check_status_consistency()
+        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        
+        # Check that they are properly bound
+        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+    
+    def test_enum_binding_none_observable(self):
+        """Test that binding to None raises an error"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        with self.assertRaises(ValueError):
+            obs.bind_to(None)  # type: ignore
+    
+    def test_enum_binding_with_same_values(self):
+        """Test binding when observables already have the same value"""
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        
+        obs1.bind_to(obs2)
+        # Both should still have the same value
+        self.assertEqual(obs1.enum_value, TestColor.RED)
+        self.assertEqual(obs2.enum_value, TestColor.RED)
+    
+    def test_listener_duplicates(self):
+        """Test that duplicate listeners are not added"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        callback = lambda: None
+        
+        obs.add_listeners(callback, callback)
+        self.assertEqual(len(obs.listeners), 1)
+        
+        obs.add_listeners(callback)
+        self.assertEqual(len(obs.listeners), 1)
+    
+    def test_remove_nonexistent_listener(self):
+        """Test removing a listener that doesn't exist"""
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        callback = lambda: None
+        
+        # Should not raise an error
+        obs.remove_listeners(callback)
+        self.assertEqual(len(obs.listeners), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Mapping, Iterable, Callable
 from typing import Optional, TypeVar, runtime_checkable, Protocol
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
@@ -27,13 +27,13 @@ class ObservableListLike(CarriesDistinctListHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: "CarriesDistinctListHook[T]|HookLike[list[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable list.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: "CarriesDistinctListHook[T]|HookLike[list[T]]") -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable list.
         """
@@ -79,21 +79,21 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         return {"value"}
 
     @overload
-    def __init__(self, list_value: list[T]):
+    def __init__(self, list_value: list[T]) -> None:
         """Initialize with a direct list value."""
         ...
 
     @overload
-    def __init__(self, hook: CarriesDistinctListHook[T]|Hook[list[T]]):
+    def __init__(self, observable_or_hook: CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
         """Initialize with another observable list, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, list_value: None):
+    def __init__(self, list_value: None) -> None:
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, hook_or_value: list[T] | CarriesDistinctListHook[T] | Hook[list[T]] | None = None):
+    def __init__(self, observable_or_hook_or_value: list[T] | CarriesDistinctListHook[T] | Hook[list[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableList.
         
@@ -104,20 +104,20 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             ValueError: If the initial list is not a list
         """
 
-        if hook_or_value is None:
+        if observable_or_hook_or_value is None:
             initial_value: list[T] = []
             hook: Optional[Hook[list[T]]] = None
-        elif isinstance(hook_or_value, CarriesDistinctListHook):
-            initial_value: list[T] = hook_or_value._get_list_value()
-            hook: Optional[Hook[list[T]]] = hook_or_value._get_list_hook()
-        elif isinstance(hook_or_value, Hook):
-            initial_value: list[T] = hook_or_value._get_callback()
-            hook: Optional[Hook[list[T]]] = hook_or_value
+        elif isinstance(observable_or_hook_or_value, CarriesDistinctListHook):
+            initial_value: list[T] = observable_or_hook_or_value.distinct_list_reference
+            hook: Optional[Hook[list[T]]] = observable_or_hook_or_value.distinct_list_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, Hook):
+            initial_value: list[T] = observable_or_hook_or_value.value
+            hook: Optional[Hook[list[T]]] = observable_or_hook_or_value
         else:
-            initial_value: list[T] = hook_or_value.copy()
+            initial_value: list[T] = observable_or_hook_or_value.copy()
             hook: Optional[Hook[list[T]]] = None
 
-        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], list):
                 return False, "Value is not a list"
             return True, "Verification method passed"
@@ -127,7 +127,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_list_value, self._set_list_value)
+                "value": Hook(self, lambda: self._component_values["value"], lambda value: self._set_component_values(("value", value), notify_binding_system=False))
             },
             verification_method=verification_method
         )
@@ -143,46 +143,31 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             A copy of the current list to prevent external modification
         """
-        return self._get_list_value().copy()
+        return self._component_values["value"].copy()
     
     @list_value.setter
     def list_value(self, value: list[T]) -> None:
         """
         Set the current value of the list.
         """
-        self._set_list_value(value)
+        if value != self._component_values["value"]:
+            self._set_component_values(("value", value), notify_binding_system=True)
 
-    def _set_list_value(self, list_to_set: list[T]) -> None:
+    @property
+    def distinct_list_reference(self) -> list[T]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to set list from binding system.
-        
-        Args:
-            list_to_set: The new list to set
-        """
-        self._set_component_values_from_dict({"value": list_to_set})
-    
-    def _get_list_value(self) -> list[T]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get list value for binding system. No copy is made!
-        
-        Returns:
-            The current list value
+        Get the current value of the list.
         """
         return self._component_values["value"]
     
-    def _get_list_hook(self) -> Hook[list[T]]:
+    @property
+    def distinct_list_hook(self) -> HookLike[list[T]]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to get hook for binding system.
+        Get the hook for the list.
         """
         return self._component_hooks["value"]
 
-    def bind_to(self, hook: ObservableListLike|CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctListHook[T]|HookLike[list[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable list.
         
@@ -197,28 +182,15 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             ValueError: If observable is None
         """
-        if hook is None:
-            raise ValueError("Cannot bind to None observable")
-        if isinstance(hook, CarriesDistinctListHook):
-            hook = hook._get_list_hook()
-        self._get_list_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctListHook):
+            observable_or_hook = observable_or_hook.distinct_list_hook
+        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def unbind_from(self, hook: ObservableListLike|CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
+    def disconnect(self) -> None:
         """
-        Remove the bidirectional binding with another observable list.
-        
-        This method removes the binding between this observable list and another,
-        preventing further automatic synchronization of changes.
-        
-        Args:
-            hook: The hook to unbind from
-            
-        Raises:
-            ValueError: If there is no binding to remove
+        Remove any bindings to other observables.
         """
-        if isinstance(hook, CarriesDistinctListHook):
-            hook = hook._get_list_hook()
-        self._get_list_hook().remove_binding(hook)
+        self._component_hooks["value"].disconnect()
     
     # Standard list methods
     def append(self, item: T) -> None:
@@ -228,21 +200,21 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Args:
             item: The item to add to the list
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.append(item)
-        self.set_observed_values((new_list,))
+        self._set_component_values(("value", new_list), notify_binding_system=True)
     
-    def extend(self, iterable) -> None:
+    def extend(self, iterable: Iterable[T]) -> None:
         """
         Extend the list by appending elements from the iterable.
         
         Args:
             iterable: The iterable containing elements to add
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.extend(iterable)
-        if new_list != self._get_list_value():
-            self.set_observed_values((new_list,))
+        if new_list != self._component_values["value"]:
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def insert(self, index: int, item: T) -> None:
         """
@@ -252,9 +224,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             index: The position to insert the item at
             item: The item to insert
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.insert(index, item)
-        self.set_observed_values((new_list,))
+        self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def remove(self, item: T) -> None:
         """
@@ -270,10 +242,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             If the item is not found in the list, no action is taken and no
             notifications are triggered.
         """
-        if item in self._get_list_value():
-            new_list = self._get_list_value().copy()
+        if item in self._component_values["value"]:
+            new_list = self._component_values["value"].copy()
             new_list.remove(item)
-            self.set_observed_values((new_list,))
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def pop(self, index: int = -1) -> T:
         """
@@ -292,9 +264,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             IndexError: If the index is out of range
         """
         item = self._component_values["value"][index]
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.pop(index)
-        self.set_observed_values((new_list,))
+        self._set_component_values(("value", new_list), notify_binding_system=True)
         return item
     
     def clear(self) -> None:
@@ -304,11 +276,11 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         This method removes all items from the list, making it empty. It uses
         set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if self._get_list_value():
-            new_list = []
-            self.set_observed_values((new_list,))
+        if self._component_values["value"]:
+            new_list: list[T] = []
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
-    def sort(self, key=None, reverse=False) -> None:
+    def sort(self, key: Optional[Callable[[T], Any]] = None, reverse: bool = False) -> None:
         """
         Sort the list in place.
         
@@ -319,10 +291,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             key: Optional function to extract comparison key from each element
             reverse: If True, sort in descending order (default: False)
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.sort(key=key, reverse=reverse)
-        if new_list != self._get_list_value():
-            self.set_observed_values((new_list,))
+        if new_list != self._component_values["value"]:
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def reverse(self) -> None:
         """
@@ -331,10 +303,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         This method reverses the order of elements in the list, using set_observed_values
         to ensure all changes go through the centralized protocol method.
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list.reverse()
-        if new_list != self._get_list_value():
-            self.set_observed_values((new_list,))
+        if new_list != self._component_values["value"]:
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def count(self, item: T) -> int:
         """
@@ -346,9 +318,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             The number of times the item appears in the list
         """
-        return self._get_list_value().count(item)
+        return self._component_values["value"].count(item)
     
-    def index(self, item: T, start=0, stop=None) -> int:
+    def index(self, item: T, start: int = 0, stop: Optional[int] = None) -> int:
         """
         Return the first index of a value in the list.
         
@@ -363,17 +335,17 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             ValueError: If the item is not found in the specified range
         """
-        list_value = self._get_list_value()
+        list_value = self._component_values["value"]
         if stop is None:
             return list_value.index(item, start)
         else:
             return list_value.index(item, start, stop)
     
     def __str__(self) -> str:
-        return f"OL(value={self._get_list_value()})"
+        return f"OL(value={self._component_values['value']})"
     
     def __repr__(self) -> str:
-        return f"ObservableList({self._get_list_value()})"
+        return f"ObservableList({self._component_values['value']})"
     
     def __len__(self) -> int:
         """
@@ -382,9 +354,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             The number of items in the list
         """
-        return len(self._get_list_value())
+        return len(self._component_values["value"])
     
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> T:
         """
         Get an item at the specified index or slice.
         
@@ -397,9 +369,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        return self._get_list_value()[index]
+        return self._component_values["value"][index]
     
-    def __setitem__(self, index, value):
+    def __setitem__(self, index: int, value: T) -> None:
         """
         Set an item at the specified index or slice.
         
@@ -413,12 +385,12 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         new_list[index] = value
-        if new_list != self._get_list_value():
-            self.set_observed_values((new_list,))
+        if new_list != self._component_values["value"]:
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
-    def __delitem__(self, index):
+    def __delitem__(self, index: int) -> None:
         """
         Delete an item at the specified index or slice.
         
@@ -431,10 +403,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._get_list_value().copy()
+        new_list = self._component_values["value"].copy()
         del new_list[index]
-        if new_list != self._get_list_value():
-            self.set_observed_values((new_list,))
+        if new_list != self._component_values["value"]:
+            self._set_component_values(("value", new_list), notify_binding_system=True)
     
     def __contains__(self, item: T) -> bool:
         """
@@ -446,7 +418,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             True if the item is in the list, False otherwise
         """
-        return item in self._get_list_value()
+        return item in self._component_values["value"]
     
     def __iter__(self):
         """
@@ -455,7 +427,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             An iterator that yields each item in the list
         """
-        return iter(self._get_list_value())
+        return iter(self._component_values["value"])
     
     def __reversed__(self):
         """
@@ -464,9 +436,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             A reverse iterator that yields each item in the list in reverse order
         """
-        return reversed(self._get_list_value())
+        return reversed(self._component_values["value"])
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Check equality with another list or observable list.
         
@@ -477,10 +449,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             True if the lists contain the same items in the same order, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() == other._get_list_value()
-        return self._get_list_value() == other
+            return self._component_values["value"] == other._component_values["value"]
+        return self._component_values["value"] == other
     
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         """
         Check inequality with another list or observable list.
         
@@ -492,7 +464,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         """
         return not (self == other)
     
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Any) -> bool:
         """
         Check if this list is less than another list or observable list.
         
@@ -503,10 +475,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             True if this list is lexicographically less than the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() < other._get_list_value()
-        return self._get_list_value() < other
+            return self._component_values["value"] < other._component_values["value"]
+        return self._component_values["value"] < other
     
-    def __le__(self, other) -> bool:
+    def __le__(self, other: Any) -> bool:
         """
         Check if this list is less than or equal to another list or observable list.
         
@@ -517,10 +489,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             True if this list is lexicographically less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() <= other._get_list_value()
-        return self._get_list_value() <= other
+            return self._component_values["value"] <= other._component_values["value"]
+        return self._component_values["value"] <= other
     
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: Any) -> bool:
         """
         Check if this list is greater than another list or observable list.
         
@@ -531,10 +503,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             True if this list is lexicographically greater than the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() > other._get_list_value()
-        return self._get_list_value() > other
+            return self._component_values["value"] > other._component_values["value"]
+        return self._component_values["value"] > other
     
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: Any) -> bool:
         """
         Check if this list is greater than or equal to another list or observable list.
         
@@ -545,10 +517,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             True if this list is lexicographically greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() >= other._get_list_value()
-        return self._get_list_value() >= other
+            return self._component_values["value"] >= other._component_values["value"]
+        return self._component_values["value"] >= other
     
-    def __add__(self, other):
+    def __add__(self, other: Any) -> list[T]:
         """
         Concatenate this list with another list or observable list.
         
@@ -559,10 +531,10 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
             A new list containing all items from both lists
         """
         if isinstance(other, ObservableList):
-            return self._get_list_value() + other._get_list_value()
-        return self._get_list_value() + other
+            return self._component_values["value"] + other._component_values["value"]
+        return self._component_values["value"] + other
     
-    def __mul__(self, other):
+    def __mul__(self, other: int) -> list[T]:
         """
         Repeat the list a specified number of times.
         
@@ -572,9 +544,9 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             A new list with the original items repeated
         """
-        return self._get_list_value() * other
+        return self._component_values["value"] * other
     
-    def __rmul__(self, other):
+    def __rmul__(self, other: int) -> list[T]:
         """
         Repeat the list a specified number of times (right multiplication).
         
@@ -584,7 +556,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             A new list with the original items repeated
         """
-        return other * self._get_list_value()
+        return other * self._component_values["value"]
     
     def __hash__(self) -> int:
         """
@@ -593,35 +565,4 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Returns:
             Hash value of the list as a tuple
         """
-        return hash(tuple(self._get_list_value()))
-    
-    def get_observed_component_values(self) -> tuple[list[T]]:
-        """
-        Get the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and provides access to
-        the current values of all bound observables.
-        
-        Returns:
-            A tuple containing the current list value
-        """
-        return tuple(self._get_list_value())
-    
-    def set_observed_values(self, values: tuple[list[T]]) -> None:
-        """
-        Set the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and allows external
-        systems to update this observable's value. It handles all internal
-        state changes, binding updates, and listener notifications.
-        
-        Args:
-            values: A tuple containing the new list value to set
-        """
-        # Extract the list from the tuple (values should be a single-element tuple)
-        new_list = values[0]
-        
-        # Update internal state
-        self._set_component_values_from_dict(
-            {"value": new_list}
-        )
+        return hash(tuple(self._component_values["value"]))

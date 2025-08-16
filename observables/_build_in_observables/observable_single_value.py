@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Mapping
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -32,7 +32,7 @@ class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable single value.
         """
@@ -57,13 +57,13 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         >>> # Create an observable with validation
         >>> age = ObservableSingleValue(25, validator=lambda x: 0 <= x <= 150)
         >>> age.add_listeners(lambda: print("Age changed!"))
-        >>> age.set_value(30)  # Triggers listener and validation
+        >>> age.single_value = 30  # Triggers listener and validation
         Age changed!
         
         >>> # Create bidirectional binding
         >>> age_copy = ObservableSingleValue(age)
-        >>> age_copy.set_value(35)  # Updates both observables
-        >>> print(age.value, age_copy.value)
+        >>> age_copy.single_value = 35  # Updates both observables
+        >>> print(age.single_value, age_copy.single_value)
         35 35
     
     Args:
@@ -82,16 +82,16 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         return {"value"}
 
     @overload
-    def __init__(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], validator: Optional[Callable[[T], bool]] = None):
-        """Initialize with another observable, establishing a bidirectional binding."""
+    def __init__(self, single_value: T, validator: Optional[Callable[[T], bool]] = None) -> None:
+        """Initialize with a direct value."""
         ...
     
     @overload
-    def __init__(self, value: T, validator: Optional[Callable[[T], bool]] = None):
-        """Initialize with a direct value."""
+    def __init__(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T], validator: Optional[Callable[[T], bool]] = None) -> None:
+        """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, hook_or_value: T | CarriesDistinctSingleValueHook[T] | Hook[T], validator: Optional[Callable[[T], bool]] = None):
+    def __init__(self, observable_or_hook_or_value: T | CarriesDistinctSingleValueHook[T] | Hook[T], validator: Optional[Callable[[T], bool]] = None) -> None: # type: ignore
         """
         Initialize the ObservableSingleValue.
         
@@ -103,23 +103,23 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             ValueError: If the initial value fails validation
         """
 
-        if isinstance(hook_or_value, CarriesDistinctSingleValueHook):
-            initial_value: T = hook_or_value._get_single_value()
-            hook: Optional[Hook[T]] = hook_or_value._get_single_value_hook()
-        elif isinstance(hook_or_value, Hook):
-            initial_value: T = hook_or_value._get_callback()
-            hook: Optional[Hook[T]] = hook_or_value
+        if isinstance(observable_or_hook_or_value, CarriesDistinctSingleValueHook):
+            initial_value: T = observable_or_hook_or_value.distinct_single_value_reference # type: ignore
+            hook: Optional[Hook[T]] = observable_or_hook_or_value.distinct_single_value_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, Hook):
+            initial_value: T = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[Hook[T]] = observable_or_hook_or_value
         else:
-            initial_value: T = hook_or_value
+            initial_value: T = observable_or_hook_or_value
             hook: Optional[Hook[T]] = None
 
         if validator is not None:
-            def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+            def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
                 if validator(x["value"]) is False:
                     return False, "Value does not pass validation"
                 return True, "Verification method passed"
         else:
-            def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+            def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
                 return True, "Verification method passed"
         
         super().__init__(
@@ -127,7 +127,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_single_value, self._set_single_value)
+                "value": Hook(self, lambda: self._component_values["value"], lambda value: self._set_component_values(("value", value), notify_binding_system=False))
             },
             verification_method=verification_method,
         )
@@ -146,58 +146,39 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         return self._component_values["value"]
     
     @single_value.setter
-    def single_value(self, new_value: T) -> None:
+    def single_value(self, value: T) -> None:
         """
         Set a new value, triggering validation, binding updates, and listener notifications.
         
         Args:
-            new_value: The new value to set
+            value: The new value to set
             
         Raises:
             ValueError: If the new value fails validation
         """
-        self._set_component_values_from_dict({"value": new_value})
+        self._set_component_values(("value", value), notify_binding_system=True)
     
-    def _get_single_value(self) -> T:
+    @property
+    def distinct_single_value_reference(self) -> T:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to get the current value for binding system.
-        
-        Returns:
-            The current value
+        Get the current value of the single value.
         """
         return self._component_values["value"]
     
-    def _set_single_value(self, single_value_to_set: T) -> None:
+    @property
+    def distinct_single_value_hook(self) -> HookLike[T]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to set value from binding system.
-        
-        Args:
-            single_value_to_set: The new value to set
-        """
-        self.single_value = single_value_to_set
-    
-    def _get_single_value_hook(self) -> Hook[T]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get hook for binding system. No copy is made!
-        
-        Returns:
-            The hook for the single value
+        Get the hook for the single value.
         """
         return self._component_hooks["value"]
     
     def __str__(self) -> str:
-        return f"OSV(value={self._get_single_value()})"
+        return f"OSV(value={self._component_values['value']})"
     
     def __repr__(self) -> str:
-        return f"OSV(value={self._get_single_value()})"
+        return f"OSV(value={self._component_values['value']})"
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Compare equality with another value or observable.
         
@@ -208,10 +189,10 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._get_single_value() == other._get_single_value()
-        return self._get_single_value() == other
+            return self._component_values["value"] == other._component_values["value"]
+        return self._component_values["value"] == other
     
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         """
         Compare inequality with another value or observable.
         
@@ -223,7 +204,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         """
         return not (self == other)
     
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Any) -> bool:
         """
         Compare if this value is less than another value or observable.
         
@@ -234,10 +215,10 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             True if this value is less than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._get_single_value() < other._get_single_value()
-        return self._get_single_value() < other
+            return self._component_values["value"] < other._component_values["value"]
+        return self._component_values["value"] < other
     
-    def __le__(self, other) -> bool:
+    def __le__(self, other: Any) -> bool:
         """
         Compare if this value is less than or equal to another value or observable.
         
@@ -248,10 +229,10 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             True if this value is less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._get_single_value() <= other._get_single_value()
-        return self._get_single_value() <= other
+            return self._component_values["value"] <= other._component_values["value"]
+        return self._component_values["value"] <= other
     
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: Any) -> bool:
         """
         Compare if this value is greater than another value or observable.
         
@@ -262,10 +243,10 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             True if this value is greater than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._get_single_value() > other._get_single_value()
-        return self._get_single_value() > other
+            return self._component_values["value"] > other._component_values["value"]
+        return self._component_values["value"] > other
     
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: Any) -> bool:
         """
         Compare if this value is greater than or equal to another value or observable.
         
@@ -276,8 +257,8 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             True if this value is greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._get_single_value() >= other._get_single_value()
-        return self._get_single_value() >= other
+            return self._component_values["value"] >= other._component_values["value"]
+        return self._component_values["value"] >= other
     
     def __hash__(self) -> int:
         """
@@ -286,7 +267,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Returns:
             Hash value of the current value
         """
-        return hash(self._get_single_value())
+        return hash(self._component_values["value"])
     
     def __bool__(self) -> bool:
         """
@@ -295,7 +276,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Returns:
             Boolean representation of the current value
         """
-        return bool(self._get_single_value())
+        return bool(self._component_values["value"])
     
     def __int__(self) -> int:
         """
@@ -307,7 +288,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             ValueError: If the value cannot be converted to an integer
         """
-        return int(self._get_single_value()) # type: ignore
+        return int(self._component_values["value"]) # type: ignore
     
     def __float__(self) -> float:
         """
@@ -319,7 +300,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             ValueError: If the value cannot be converted to a float
         """
-        return float(self._get_single_value()) # type: ignore
+        return float(self._component_values["value"]) # type: ignore
     
     def __complex__(self) -> complex:
         """
@@ -331,7 +312,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             ValueError: If the value cannot be converted to a complex number
         """
-        return complex(self._get_single_value()) # type: ignore
+        return complex(self._component_values["value"]) # type: ignore
     
     def __abs__(self) -> float:
         """
@@ -343,9 +324,9 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             TypeError: If the value doesn't support absolute value operation
         """
-        return abs(self._get_single_value()) # type: ignore
+        return abs(self._component_values["value"]) # type: ignore
     
-    def __round__(self, ndigits=None):
+    def __round__(self, ndigits: Optional[int] = None) -> float:
         """
         Round the value to the specified number of decimal places.
         
@@ -358,9 +339,9 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             TypeError: If the value doesn't support rounding
         """
-        return round(self._get_single_value(), ndigits) # type: ignore
+        return round(self._component_values["value"], ndigits) # type: ignore
     
-    def __floor__(self):
+    def __floor__(self) -> int:
         """
         Get the floor value (greatest integer less than or equal to the value).
         
@@ -371,9 +352,9 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             TypeError: If the value doesn't support floor operation
         """
         import math
-        return math.floor(self._get_single_value()) # type: ignore
+        return math.floor(self._component_values["value"]) # type: ignore
     
-    def __ceil__(self):
+    def __ceil__(self) -> int:
         """
         Get the ceiling value (smallest integer greater than or equal to the value).
         
@@ -384,9 +365,9 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             TypeError: If the value doesn't support ceiling operation
         """
         import math
-        return math.ceil(self._get_single_value()) # type: ignore
+        return math.ceil(self._component_values["value"]) # type: ignore
     
-    def __trunc__(self):
+    def __trunc__(self) -> int:
         """
         Get the truncated value (integer part of the value).
         
@@ -397,9 +378,9 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             TypeError: If the value doesn't support truncation
         """
         import math
-        return math.trunc(self._get_single_value()) # type: ignore
+        return math.trunc(self._component_values["value"]) # type: ignore
     
-    def bind_to(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Create a bidirectional binding with another observable.
         
@@ -414,23 +395,20 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         Raises:
             ValueError: If the observable is None
         """
-        if hook is None:
+        # Validate that observable_or_hook is not None
+        if observable_or_hook is None: # type: ignore
             raise ValueError("Cannot bind to None observable")
-        if isinstance(hook, CarriesDistinctSingleValueHook):
-            hook = hook._get_single_value_hook()
-        self._get_single_value_hook().establish_binding(hook, initial_sync_mode)
+            
+        if isinstance(observable_or_hook, CarriesDistinctSingleValueHook):
+            observable_or_hook = observable_or_hook.distinct_single_value_hook
+        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def unbind_from(self, hook: CarriesDistinctSingleValueHook[T]|Hook[T]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable.
         
         This method removes the bidirectional binding between this observable and
         another observable. After unbinding, changes in one observable will no longer
         affect the other.
-        
-        Args:
-            hook: The hook to unbind from
         """
-        if isinstance(hook, CarriesDistinctSingleValueHook):
-            hook = hook._get_single_value_hook()
-        self._get_single_value_hook().remove_binding(hook)
+        self._component_hooks["value"].disconnect()

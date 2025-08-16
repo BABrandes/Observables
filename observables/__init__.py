@@ -29,11 +29,8 @@ The library provides several protocols that can be used for type hints and inter
 - CarriesDistinctSingleValueHook: Protocol for single value observables
 - CarriesDistinctListHook: Protocol for list observables
 - CarriesDistinctSetHook: Protocol for set observables
-- CarriesDistinctDictHook: Protocol for dictionary observables
+- CarriesDistinctDictHook: Protocol for dictionary like observables
 - CarriesDistinctTupleHook: Protocol for tuple observables
-- CarriesDistinctEnumHook: Protocol for enum observables
-- CarriesDistinctIndexableSingleValueHook: Protocol for indexable observables
-- CarriesDistinctKeyableSingleValueHook: Protocol for keyable observables
 
 Available Observable Types:
 - ObservableSingleValue: Wrapper around any single value with validation
@@ -95,9 +92,6 @@ from ._utils.sync_mode import SyncMode
 from ._utils.hook import Hook, HookLike
 from ._utils.base_carries_distinct_hook import BaseCarriesDistinctHook
 from ._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
-from ._utils.carries_distinct_enum_hook import CarriesDistinctEnumHook
-from ._utils.carries_distinct_indexable_single_value_hook import CarriesDistinctIndexableSingleValueHook
-from ._utils.carries_distinct_keyable_single_value_hook import CarriesDistinctKeyableSingleValueHook
 from ._utils.carries_distinct_list_hook import CarriesDistinctListHook
 from ._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from ._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -125,9 +119,6 @@ __all__ = [
     'HookLike',
     'BaseCarriesDistinctHook',
     'CarriesDistinctDictHook',
-    'CarriesDistinctEnumHook',
-    'CarriesDistinctIndexableSingleValueHook',
-    'CarriesDistinctKeyableSingleValueHook',
     'CarriesDistinctListHook',
     'CarriesDistinctSetHook',
     'CarriesDistinctSingleValueHook',

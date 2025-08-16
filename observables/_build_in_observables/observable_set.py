@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, overload, Callable, Protocol, runtime_checkable
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Mapping, Iterable
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
@@ -26,13 +26,13 @@ class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: "CarriesDistinctSetHook[T]|HookLike[set[T]]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable set.
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable set.
         """
@@ -78,21 +78,21 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         return {"value"}
 
     @overload
-    def __init__(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], validator: Optional[Callable[[set[T]], bool]] = None):
+    def __init__(self, set_value: set[T]) -> None:
         """Initialize with a direct set value."""
         ...
 
     @overload
-    def __init__(self, value: set[T]):
+    def __init__(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
         """Initialize with another observable set, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, value: None):
+    def __init__(self, set_value: None) -> None:
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, hook_or_value: set[T] | CarriesDistinctSetHook[T] | None = None):
+    def __init__(self, observable_or_hook_or_value: set[T] | CarriesDistinctSetHook[T] | Hook[set[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
@@ -102,20 +102,20 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             ValueError: If the initial set is not a set
         """
-        if hook_or_value is None:
+        if observable_or_hook_or_value is None:
             initial_value: set[T] = set()
             hook: Optional[Hook[set[T]]] = None
-        elif isinstance(hook_or_value, CarriesDistinctSetHook):
-            initial_value: set[T] = hook_or_value._get_set_value()
-            hook: Optional[Hook[set[T]]] = hook_or_value._get_set_hook()
-        elif isinstance(hook_or_value, Hook):
-            initial_value: set[T] = hook_or_value._get_callback()
-            hook: Optional[Hook[set[T]]] = hook_or_value
+        elif isinstance(observable_or_hook_or_value, CarriesDistinctSetHook):
+            initial_value: set[T] = observable_or_hook_or_value.distinct_set_reference
+            hook: Optional[Hook[set[T]]] = observable_or_hook_or_value.distinct_set_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, Hook):
+            initial_value: set[T] = observable_or_hook_or_value.value
+            hook: Optional[Hook[set[T]]] = observable_or_hook_or_value
         else:
-            initial_value: set[T] = hook_or_value.copy()
+            initial_value: set[T] = observable_or_hook_or_value.copy()
             hook: Optional[Hook[set[T]]] = None
         
-        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], set):
                 return False, "Value is not a set"
             return True, "Verification method passed"
@@ -125,7 +125,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
                 "value": initial_value
             },
             {
-                "value": Hook(self, self._get_set_value, self._set_set_value)
+                "value": Hook(self, lambda: self._component_values["value"], lambda value: self._set_component_values(("value", value), notify_binding_system=False))
             },
             verification_method=verification_method
         )
@@ -141,49 +141,30 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Returns:
             A copy of the current set to prevent external modification
         """
-        return self._get_set_value().copy()    
+        return self._component_values["value"].copy()    
     
     @set_value.setter
     def set_value(self, value: set[T]) -> None:
         """
         Set the current value of the set.
         """
-        self._set_set_value(value)
+        self._set_component_values(("value", value), notify_binding_system=True)
     
-    def _get_set_value(self) -> set[T]:
+    @property
+    def distinct_set_reference(self) -> set[T]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to get set value for binding system. No copy is made!
-        
-        Returns:
-            The current set value
+        Get the current value of the set.
         """
         return self._component_values["value"]
         
-    def _set_set_value(self, set_to_set: set[T]) -> None:
+    @property
+    def distinct_set_hook(self) -> HookLike[set[T]]:
         """
-        INTERNAL. Do not use this method directly.
-
-        Method to set set from hook.
-        
-        Args:
-            set_to_set: The new set to set
-        """
-        self.set_observed_values((set_to_set,))
-    
-    def _get_set_hook(self) -> Hook[set[T]]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get hook for binding system.
-        
-        Returns:
-            The hook for the set
+        Get the hook for the set.
         """
         return self._component_hooks["value"]
     
-    def bind_to(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable set.
         
@@ -198,28 +179,18 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             ValueError: If observable is None
         """
-        if hook is None:
-            raise ValueError("Cannot bind to None observable")
-        if isinstance(hook, CarriesDistinctSetHook):
-            hook = hook._get_set_hook()
-        self._get_set_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctSetHook):
+            observable_or_hook = observable_or_hook.distinct_set_hook
+        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def unbind_from(self, hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable set.
         
         This method removes the binding between this observable set and another,
         preventing further automatic synchronization of changes.
-        
-        Args:
-            observable: The observable set to unbind from
-            
-        Raises:
-            ValueError: If there is no binding to remove
         """
-        if isinstance(hook, CarriesDistinctSetHook):
-            hook = hook._get_set_hook()
-        self._get_set_hook().remove_binding(hook)
+        self._component_hooks["value"].disconnect()
     
     # Standard set methods
     def add(self, item: T) -> None:
@@ -235,7 +206,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         if item not in self._component_values["value"]:
             new_set = self._component_values["value"].copy()
             new_set.add(item)
-            self.set_observed_values((new_set,))
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
     def remove(self, item: T) -> None:
         """
@@ -250,13 +221,12 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             KeyError: If the item is not in the set
         """
-        set_value = self._get_set_value()
-        if item not in set_value:
+        if item not in self._component_values["value"]:
             raise KeyError(item)
         
-        new_set = set_value.copy()
+        new_set = self._component_values["value"].copy()
         new_set.remove(item)
-        self.set_observed_values((new_set,))
+        self._set_component_values(("value", new_set), notify_binding_system=True)
     
     def discard(self, item: T) -> None:
         """
@@ -269,10 +239,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             item: The element to remove from the set
         """
-        if item in self._get_set_value():
-            new_set = self._get_set_value().copy()
+        if item in self._component_values["value"]:
+            new_set = self._component_values["value"].copy()
             new_set.discard(item)
-            self.set_observed_values((new_set,))
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
     def pop(self) -> T:
         """
@@ -287,14 +257,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Raises:
             KeyError: If the set is empty
         """
-        set_value = self._get_set_value()
-        if not set_value:
+        if not self._component_values["value"]:
             raise KeyError("pop from an empty set")
         
-        item = next(iter(set_value))
-        new_set = set_value.copy()
+        item = next(iter(self._component_values["value"]))
+        new_set = self._component_values["value"].copy()
         new_set.remove(item)
-        self.set_observed_values((new_set,))
+        self._set_component_values(("value", new_set), notify_binding_system=True)
         return item
     
     def clear(self) -> None:
@@ -304,11 +273,11 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         This method removes all elements from the set, making it empty.
         It uses set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if self._get_set_value():
-            new_set = set()
-            self.set_observed_values((new_set,))
+        if self._component_values["value"]:
+            new_set: set[T] = set()
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
-    def update(self, *others) -> None:
+    def update(self, *others: Iterable[T]) -> None:
         """
         Update the set with elements from all other iterables.
         
@@ -318,13 +287,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             *others: Variable number of iterables to add elements from
         """
-        new_set = self._get_set_value().copy()
+        new_set = self._component_values["value"].copy()
         for other in others:
             new_set.update(other)
-        if new_set != self._get_set_value():
-            self.set_observed_values((new_set,))
+        if new_set != self._component_values["value"]:
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
-    def intersection_update(self, *others) -> None:
+    def intersection_update(self, *others: Iterable[T]) -> None:
         """
         Update the set keeping only elements found in this set and all others.
         
@@ -335,13 +304,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             *others: Variable number of iterables to intersect with
         """
-        new_set = self._get_set_value().copy()
+        new_set = self._component_values["value"].copy()
         for other in others:
             new_set.intersection_update(other)
-        if new_set != self._get_set_value():
-            self.set_observed_values((new_set,))
+        if new_set != self._component_values["value"]:
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
-    def difference_update(self, *others) -> None:
+    def difference_update(self, *others: Iterable[T]) -> None:
         """
         Update the set removing elements found in any of the others.
         
@@ -352,13 +321,13 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             *others: Variable number of iterables to remove elements from
         """
-        new_set = self._get_set_value().copy()
+        new_set = self._component_values["value"].copy()
         for other in others:
             new_set.difference_update(other)
-        if new_set != self._get_set_value():
-            self.set_observed_values((new_set,))
+        if new_set != self._component_values["value"]:
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
-    def symmetric_difference_update(self, other) -> None:
+    def symmetric_difference_update(self, other: Iterable[T]) -> None:
         """
         Update the set keeping only elements found in either set but not both.
         
@@ -369,19 +338,19 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Args:
             other: An iterable to compute symmetric difference with
         """
-        current_set = self._get_set_value()
+        current_set = self._component_values["value"]
         new_set = current_set.copy()
         new_set.symmetric_difference_update(other)
         
         # Only update if there's an actual change
         if new_set != current_set:
-            self.set_observed_values((new_set,))
+            self._set_component_values(("value", new_set), notify_binding_system=True)
     
     def __str__(self) -> str:
-        return f"OS(options={self._get_set_value()})"
+        return f"OS(options={self._component_values['value']})"
     
     def __repr__(self) -> str:
-        return f"ObservableSet({self._get_set_value()})"
+        return f"ObservableSet({self._component_values['value']})"
     
     def __len__(self) -> int:
         """
@@ -390,7 +359,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Returns:
             The number of elements in the set
         """
-        return len(self._get_set_value())
+        return len(self._component_values["value"])
     
     def __contains__(self, item: T) -> bool:
         """
@@ -402,7 +371,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Returns:
             True if the element is in the set, False otherwise
         """
-        return item in self._get_set_value()
+        return item in self._component_values["value"]
     
     def __iter__(self):
         """
@@ -411,9 +380,9 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Returns:
             An iterator that yields each element in the set
         """
-        return iter(self._get_set_value())
+        return iter(self._component_values["value"])
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Check equality with another set or observable set.
         
@@ -424,10 +393,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             True if the sets contain the same elements, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() == other._get_set_value()
-        return self._get_set_value() == other
+            return self._component_values["value"] == other._component_values["value"]
+        return self._component_values["value"] == other
     
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         """
         Check inequality with another set or observable set.
         
@@ -439,7 +408,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         """
         return not (self == other)
     
-    def __le__(self, other) -> bool:
+    def __le__(self, other: Any) -> bool:
         """
         Check if this set is a subset of another set or observable set.
         
@@ -450,10 +419,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             True if this set is a subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() <= other._get_set_value()
-        return self._get_set_value() <= other
+            return self._component_values["value"] <= other._component_values["value"]
+        return self._component_values["value"] <= other
     
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Any) -> bool:
         """
         Check if this set is a proper subset of another set or observable set.
         
@@ -464,10 +433,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             True if this set is a proper subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() < other._get_set_value()
-        return self._get_set_value() < other
+            return self._component_values["value"] < other._component_values["value"]
+        return self._component_values["value"] < other
     
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: Any) -> bool:
         """
         Check if this set is a superset of another set or observable set.
         
@@ -478,10 +447,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             True if this set is a superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() >= other._get_set_value()
-        return self._get_set_value() >= other
+            return self._component_values["value"] >= other._component_values["value"]
+        return self._component_values["value"] >= other
     
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: Any) -> bool:
         """
         Check if this set is a proper superset of another set or observable set.
         
@@ -492,10 +461,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             True if this set is a proper superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() > other._get_set_value()
-        return self._get_set_value() > other
+            return self._component_values["value"] > other._component_values["value"]
+        return self._component_values["value"] > other
     
-    def __and__(self, other):
+    def __and__(self, other: Any) -> set[T]:
         """
         Compute the intersection with another set or observable set.
         
@@ -506,10 +475,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             A new set containing elements common to both sets
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() & other._get_set_value()
-        return self._get_set_value() & other
+            return self._component_values["value"] & other._component_values["value"]
+        return self._component_values["value"] & other
     
-    def __or__(self, other):
+    def __or__(self, other: Any) -> set[T]:
         """
         Compute the union with another set or observable set.
         
@@ -520,10 +489,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             A new set containing all elements from both sets
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() | other._get_set_value()
-        return self._get_set_value() | other
+            return self._component_values["value"] | other._component_values["value"]
+        return self._component_values["value"] | other
     
-    def __sub__(self, other):
+    def __sub__(self, other: Any) -> set[T]:
         """
         Compute the difference with another set or observable set.
         
@@ -534,10 +503,10 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             A new set containing elements in this set but not in the other
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() - other._get_set_value()
-        return self._get_set_value() - other
+            return self._component_values["value"] - other._component_values["value"]
+        return self._component_values["value"] - other
     
-    def __xor__(self, other):
+    def __xor__(self, other: Any) -> set[T]:
         """
         Compute the symmetric difference with another set or observable set.
         
@@ -548,8 +517,8 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             A new set containing elements in either set but not in both
         """
         if isinstance(other, ObservableSet):
-            return self._get_set_value() ^ other._get_set_value()
-        return self._get_set_value() ^ other
+            return self._component_values["value"] ^ other._component_values["value"]
+        return self._component_values["value"] ^ other
     
     def __hash__(self) -> int:
         """
@@ -558,33 +527,4 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Returns:
             Hash value of the set as a frozenset
         """
-        return hash(frozenset(self._get_set_value()))
-    
-    def get_observed_component_values(self) -> tuple[set[T]]:
-        """
-        Get the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and provides access to
-        the current values of all bound observables.
-        
-        Returns:
-            A tuple containing the current set value
-        """
-        return tuple(self._get_set_value())
-    
-    def set_observed_values(self, values: tuple[set[T]]) -> None:
-        """
-        Set the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and allows external
-        systems to update this observable's value. It handles all internal
-        state changes, binding updates, and listener notifications.
-        
-        Args:
-            values: A tuple containing the new set value to set
-        """
-        new_set = values[0]
-        
-        self._set_component_values_from_dict(
-            {"value": new_set}
-        )
+        return hash(frozenset(self._component_values["value"]))

@@ -252,29 +252,39 @@ def update_binding():
 is_enabled.add_listeners(update_binding)
 ```
 
-## API Reference
+## 📚 Documentation
+
+For comprehensive documentation, see the [docs/](docs/) directory:
+
+- **[Main Documentation](docs/index.md)**: Complete overview with examples
+- **[Hook System Technical Details](docs/hook_system.md)**: Deep dive into the hook "bus" architecture
+- **[Examples and Use Cases](docs/examples_and_use_cases.md)**: Real-world scenarios and patterns
+
+## 🔗 API Reference
 
 ### Core Classes
 
-- **`Observable`**: Base class for all observables with component-based architecture
 - **`ObservableSingleValue[T]`**: Observable wrapper for single values with validation
 - **`ObservableList[T]`**: Observable list with change notifications
 - **`ObservableDict[K, V]`**: Observable dictionary with change notifications
 - **`ObservableSet[T]`**: Observable set with change notifications
+- **`ObservableTuple[T]**: Observable tuple with change notifications
 - **`ObservableSelectionOption[T]`**: Observable selection from options
+- **`ObservableMultiSelectionOption[T]`**: Observable multi-selection from options
 - **`ObservableEnum[T]`**: Observable enum with options management
 
 ### Architecture Classes
 
-- **`CarriesBindable*`**: Mixin classes that enable binding capabilities
-- **`InternalBindingHandler`**: Manages binding operations and synchronization
-- **`ListeningBase`**: Base class for listener management
+- **`Hook[T]`**: Fundamental unit of the binding system
+- **`HookGroup[T]`**: Collections of hooks that share data state
+- **`HookLike[T]`**: Protocol interface for hook-like objects
+- **`CarriesDistinct*Hook`**: Protocols for different hook types
 
-### Binding Modes
+### Binding System
 
-- **`SyncMode.UPDATE_VALUE_FROM_OBSERVABLE`**: Target gets initial value from source
-- **`SyncMode.UPDATE_OBSERVABLE_FROM_SELF`**: Source gets initial value from target
-- **`SyncMode.DEFAULT`**: Default synchronization behavior
+- **Transitive Binding**: Automatic propagation through binding chains
+- **Hook "Bus" Architecture**: Centralized synchronization through hook groups
+- **Synchronization Modes**: Configurable initial sync behavior
 
 ### Common Methods
 
@@ -282,18 +292,19 @@ All observable classes support:
 
 - `add_listeners(*callbacks)`: Add change notification callbacks
 - `remove_listeners(*callbacks)`: Remove specific callbacks
-- `remove_all_listeners()`: Remove all callbacks
-- `bind_to_observable(other, sync_mode)`: Create bidirectional binding
-- `unbind_from_observable(other)`: Remove binding
-- Component-based initialization with custom verification and copy methods
+- `bind_to(observable, sync_mode)`: Create bidirectional binding
+- `disconnect()`: Disconnect from all bindings
 
-## Use Cases
+## 🎯 Use Cases
 
 - **GUI Applications**: Automatic UI updates when data changes
-- **Data Synchronization**: Keep multiple data sources in sync
+- **Data Synchronization**: Keep multiple data sources in sync with transitive binding
 - **Configuration Management**: Reactive configuration with validation
-- **State Management**: Centralized state with automatic propagation
+- **State Management**: Centralized state with automatic propagation through the hook bus
 - **Event-Driven Architecture**: Decoupled components with change notifications
+- **Multi-Component Systems**: Complex binding relationships between different parts of an application
+- **Form Validation**: Cross-field validation with automatic dependency management
+- **Data Pipelines**: Multi-stage data processing with automatic synchronization
 
 ## Contributing
 

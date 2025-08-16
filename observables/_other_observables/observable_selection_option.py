@@ -86,7 +86,7 @@ See Also:
 - SyncMode: For binding synchronization modes
 """
 
-from typing import Any, Generic, Optional, TypeVar, overload, runtime_checkable, Protocol
+from typing import Any, Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Mapping
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -120,7 +120,7 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         ...
     
     @available_options.setter
-    def available_options(self, available_options: set[T]) -> None:
+    def available_options(self, options: set[T]) -> None:
         """
         Set the available options.
         """
@@ -138,21 +138,9 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
         
-    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Bind the options to an observable.
-        """
-        ...
-    
-    def unbind_selected_option_from(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]]) -> None:
-        """
-        Unbind the selected option from an observable.
-        """
-        ...
-    
-    def unbind_available_options_from(self, observable_or_hook: CarriesDistinctSetHook[T]) -> None:
-        """
-        Unbind the options from an observable.
         """
         ...
 
@@ -161,10 +149,10 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         Bind to an observable.
         """
         ...
-    
-    def unbind_from(self, observable: "ObservableSelectionOptionLike[T]") -> None:
+
+    def disconnect(self) -> None:
         """
-        Unbind from an observable.
+        Disconnect from all bindings.
         """
         ...
 
@@ -283,9 +271,16 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         ObservableSingleValue: For managing observable single values
         Hook: For creating custom binding mechanisms
     """
+
+    @classmethod
+    def _mandatory_component_value_keys(cls) -> set[str]:
+        """
+        Get the mandatory component value keys.
+        """
+        return {"selected_option", "available_options"}
     
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[T]|HookLike[T], options: CarriesDistinctSetHook[T]|HookLike[set[T]], allow_none: bool = True):
+    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]], options: CarriesDistinctSetHook[T]|HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and observable selected option.
         
@@ -310,7 +305,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], options: CarriesDistinctSetHook[T]|HookLike[set[T]], allow_none: bool = True):
+    def __init__(self, selected_option: Optional[T], options: CarriesDistinctSetHook[T]|HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and direct selected option.
         
@@ -332,7 +327,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         ...
 
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[T]|HookLike[T], options: set[T], allow_none: bool = True):
+    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
         """
         Initialize with direct options and observable selected option.
         
@@ -354,9 +349,30 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             >>> # Only the selected option will be bound; options are static
         """
         ...
+
+    @overload
+    def __init__(self, observable: ObservableSelectionOptionLike[T], *, allow_none: bool = True) -> None:
+        """
+        Initialize from another ObservableSelectionOption.
+        
+        This overload is used when initializing from another ObservableSelectionOption
+        instance. It will extract both the selected option and available options
+        from the source observable and establish bindings.
+        
+        Args:
+            observable: Another ObservableSelectionOption instance to initialize from.
+                      Both the selected option and available options will be bound.
+            allow_none: Whether to allow None as a valid selected option.
+        
+        Example:
+            >>> source = ObservableSelectionOption("A", {"A", "B", "C"})
+            >>> target = ObservableSelectionOption(source)
+            >>> # target is now bound to source and will stay synchronized
+        """
+        ...
     
     @overload
-    def __init__(self, selected_option: Optional[T], options: set[T], allow_none: bool = True):
+    def __init__(self, selected_option: Optional[T], options: set[T], *, allow_none: bool = True) -> None:
         """
         Initialize with direct options and direct selected option.
         
@@ -376,14 +392,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         """
         ...
 
-    @classmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
-        """
-        Get the mandatory component value keys.
-        """
-        return {"selected_option", "available_options"}
-
-    def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T]] | HookLike[Optional[T]], options: set[T] | CarriesDistinctSetHook[T] | HookLike[set[T]], allow_none: bool = True):
+    def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T]] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | CarriesDistinctSetHook[T] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
         """
         Initialize the ObservableSelectionOption.
         
@@ -434,45 +443,50 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         """
         
         self._allow_none = allow_none
-        
-        if isinstance(options, CarriesDistinctSetHook):
-            available_options: set[T] = options._get_set_value()
-            available_options_hook: Optional[HookLike[set[T]]] = options._get_set_hook()
-        elif isinstance(options, HookLike):
-            available_options: set[T] = options._get_callback()
-            available_options_hook: Optional[HookLike[set[T]]] = options
-        else:
-            available_options: set[T] = options.copy()
-            available_options_hook: Optional[CarriesDistinctSetHook[T]] = None
 
-        if isinstance(selected_option, CarriesDistinctSingleValueHook):
-            initial_selected_option: Optional[T] = selected_option._get_single_value()
-            selected_option_hook: Optional[HookLike[T]] = selected_option._get_single_value_hook()
-        elif isinstance(selected_option, HookLike):
-            initial_selected_option: Optional[T] = selected_option._get_callback()
-            selected_option_hook: Optional[HookLike[T]] = selected_option
+        if isinstance(selected_option, ObservableSelectionOptionLike):
+            initial_selected_option: Optional[T] = selected_option.selected_option # type: ignore
+            selected_option_hook: Optional[HookLike[Optional[T]]] = selected_option.distinct_single_value_hook # type: ignore
+            available_options_hook: Optional[HookLike[set[T]]] = selected_option.distinct_set_hook # type: ignore
+            available_options: set[T] = selected_option.available_options # type: ignore
         else:
-            initial_selected_option: Optional[T] = selected_option
-            selected_option_hook: Optional[HookLike[T]] = None
+            if options is None:
+                raise ValueError("options parameter is required when selected_option is not an ObservableSelectionOptionLike")
+            if isinstance(options, CarriesDistinctSetHook):
+                available_options: set[T] = options.distinct_set_reference
+                available_options_hook: Optional[HookLike[set[T]]] = options.distinct_set_hook # type: ignore
+            elif isinstance(options, HookLike):
+                available_options: set[T] = options.value
+                available_options_hook: Optional[HookLike[set[T]]] = options
+            else:
+                available_options: set[T] = options.copy()
+                available_options_hook: Optional[HookLike[set[T]]] = None
 
-        if not allow_none and (initial_selected_option is None or available_options == set()):
-            raise ValueError("Selected option is None but allow_none is False")
+            if isinstance(selected_option, CarriesDistinctSingleValueHook):
+                initial_selected_option: Optional[T] = selected_option.distinct_single_value_reference # type: ignore
+                selected_option_hook: Optional[HookLike[Optional[T]]] = selected_option.distinct_single_value_hook # type: ignore
+            elif isinstance(selected_option, HookLike):
+                initial_selected_option: Optional[T] = selected_option.value # type: ignore
+                selected_option_hook: Optional[HookLike[Optional[T]]] = selected_option
+            else:
+                initial_selected_option: Optional[T] = selected_option
+                selected_option_hook: Optional[HookLike[Optional[T]]] = None
+
+            if not allow_none and (initial_selected_option is None or available_options == set()):
+                raise ValueError("Selected option is None but allow_none is False")
+            
+            if initial_selected_option is not None and initial_selected_option not in available_options:
+                raise ValueError(f"Selected option {initial_selected_option} not in options {available_options}")
         
-        if initial_selected_option is not None and initial_selected_option not in available_options:
-            raise ValueError(f"Selected option {initial_selected_option} not in options {available_options}")
-        
-        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
             # Handle partial updates by getting current values for missing keys
-            current_selected = x.get("selected_option", initial_selected_option)
-            current_options = x.get("available_options", available_options)
+            current_selected: T = x.get("selected_option", initial_selected_option) # type: ignore
+            current_options: set[T] = x.get("available_options", available_options)
             
             if not self._allow_none and current_selected is None:
                 return False, "Selected option is None but allow_none is False"
-            
-            if current_options is not None and not isinstance(current_options, set):
-                return False, "Options is not a set"
-            
-            if current_selected is not None and current_options is not None and current_selected not in current_options:
+
+            if current_selected is not None and current_selected not in current_options:
                 return False, f"Selected option {current_selected} not in options {current_options}"
             
             if not self._allow_none and current_options == set():
@@ -486,8 +500,8 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
                 "available_options": available_options
             },
             {
-                "selected_option": Hook(self, self._get_single_value, self._set_single_value),
-                "available_options": Hook(self, self._get_set_value, self._set_set_value)
+                "selected_option": Hook(self, lambda: self._component_values["selected_option"], lambda value: self._set_component_values(("selected_option", value), notify_binding_system=False)),
+                "available_options": Hook(self, lambda: self._component_values["available_options"], lambda value: self._set_component_values(("available_options", value), notify_binding_system=False))
             },
             verification_method=verification_method
         )
@@ -497,13 +511,6 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             
         if selected_option_hook is not None:
             self.bind_selected_option_to(selected_option_hook)
-
-    @classmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
-        """
-        Get the mandatory component value keys.
-        """
-        return {"selected_option", "available_options"}
 
     ############################################################
     # Properties (Getters and Setters)
@@ -541,7 +548,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             mutable objects, modifications to those objects will still
             affect the internal state.
         """
-        return self._get_set_value().copy()
+        return self._component_values["available_options"].copy()
     
     @available_options.setter
     def available_options(self, options: set[T]) -> None:
@@ -592,16 +599,16 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             When using bindings, changing the options here will automatically
             propagate to all bound observables.
         """
-        if options == self._get_set_value():
+        if options == self._component_values["available_options"]:
             return
 
         if options == set():
             raise ValueError("An empty set of options can not be set without setting the selected option to None, if even it is allowed")
         
-        self._raise_if_selected_option_not_in_options(self._get_single_value(), options)
+        self._raise_if_selected_option_not_in_options(self._component_values["selected_option"], options)
 
         # Use the protocol method to set the values
-        self._set_set_value(options)
+        self._set_component_values(("available_options", options), notify_binding_system=True)
     
     @property
     def selected_option(self) -> Optional[T]:
@@ -634,7 +641,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             automatically be set to None (if allow_none=True) or an error
             will be raised (if allow_none=False).
         """
-        return self._get_single_value()
+        return self._component_values["selected_option"]
     
     @property
     def selected_option_not_none(self) -> T:
@@ -647,7 +654,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Raises:
             ValueError: If the selected option is None
         """
-        selected_option = self._get_single_value()
+        selected_option = self._component_values["selected_option"]
         if selected_option is None:
             raise ValueError("Selected option is None")
         return selected_option
@@ -708,13 +715,57 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             The setter automatically handles the case where the current selected
             option is the same as the new value (no-op).
         """
-        if selected_option == self._get_single_value():
+        if selected_option == self._component_values["selected_option"]:
             return
         
-        self._raise_if_selected_option_not_in_options(selected_option, self._get_set_value())
+        self._raise_if_selected_option_not_in_options(selected_option, self._component_values["available_options"])
 
         # Use the protocol method to set the values
-        self._set_single_value(selected_option)
+        self._set_component_values(("selected_option", selected_option), notify_binding_system=True)
+
+    @property
+    def distinct_selected_option_hook(self) -> HookLike[Optional[T]]:
+        """
+        Get the hook for the selected option.
+        """
+        return self._component_hooks["selected_option"]
+    
+    @property
+    def distinct_single_value_hook(self) -> HookLike[Optional[T]]:
+        """
+        Get the hook for the selected option (alias for distinct_selected_option_hook).
+        This property is required by the CarriesDistinctSingleValueHook protocol.
+        """
+        return self._component_hooks["selected_option"]
+    
+    @property
+    def distinct_single_value_reference(self) -> Optional[T]:
+        """
+        Get the reference for the selected option.
+        """
+        return self._component_values["selected_option"]
+    
+    @property
+    def distinct_set_reference(self) -> set[T]:
+        """
+        Get the reference for the available options.
+        """
+        return self._component_values["available_options"]
+
+    @property
+    def distinct_available_options_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the available options.
+        """
+        return self._component_hooks["available_options"]
+    
+    @property
+    def distinct_set_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the available options (alias for distinct_available_options_hook).
+        This property is required by the CarriesDistinctSetHook protocol.
+        """
+        return self._component_hooks["available_options"]
 
     ############################################################
     # Other properties
@@ -741,59 +792,15 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Raises:
             ValueError: If trying to set allow_none to False if selected option is None
         """
-        if self._get_single_value() is None and not allow_none:
+        if self._component_values["selected_option"] is None and not allow_none:
             raise ValueError("Cannot set allow_none to False if selected option is None")
         self._allow_none = allow_none
-
-    ############################################################
-    # Internal value methods
-    ############################################################
-
-    def _get_set_value(self) -> set[T]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get the current options set. No copy is made!
-        
-        Returns:
-            The current options set
-        """
-        return self._get_component_value("available_options")
-    
-    def _get_single_value(self) -> T:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get the current selected option. No copy is made!
-        
-        Returns:
-            The current selected option
-        """
-        return self._get_component_value("selected_option")
-    
-    def _set_set_value(self, value: set[T]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Args:
-            value: The new options set to set
-        """
-        self._set_component_value("available_options", value)
-    
-    def _set_single_value(self, value: T) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Args:
-            value: The new selected option to set
-        """
-        self._set_component_value("selected_option", value)
     
     ############################################################
     # Combined set and selected option methods
     ############################################################
 
-    def set_selected_option_and_available_options(self, selected_option: Optional[T], options: set[T]) -> None:
+    def set_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         """
         Set both the selected option and available options atomically.
         
@@ -820,7 +827,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             selected_option: The new selected option. Can be:
                 - A valid option from the new options set
                 - None (if allow_none=True)
-            options: The new set of available options. Must be a valid set
+            available_options: The new set of available options. Must be a valid set
                     containing all values that should be available for selection.
         
         Raises:
@@ -862,17 +869,17 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             when both need to change, as it avoids intermediate validation
             and notification cycles.
         """
-        if selected_option is not None and selected_option not in options:
-            raise ValueError(f"Selected option {selected_option} not in options {options}")
+        if selected_option is not None and selected_option not in available_options:
+            raise ValueError(f"Selected option {selected_option} not in options {available_options}")
         
         if not self._allow_none and selected_option is None:
             raise ValueError("Selected option is None but allow_none is False")
         
-        if not self._allow_none and options == set():
+        if not self._allow_none and available_options == set():
             raise ValueError("Options set is empty but allow_none is False")
         
         # Use the protocol method to set the values
-        self._set_component_values_from_tuples(("selected_option", selected_option), ("available_options", options))
+        self._set_component_values(("selected_option", selected_option), ("available_options", available_options), notify_binding_system=True)
 
     ############################################################
     # Internal hook methods
@@ -900,7 +907,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         """
         return self._component_hooks["available_options"]
 
-    def bind_selected_option_to(self, hook: HookLike[Optional[T]] | CarriesDistinctSingleValueHook[Optional[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_selected_option_to(self, observable_or_hook: HookLike[Optional[T]] | CarriesDistinctSingleValueHook[Optional[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding for the selected option with another observable.
         
@@ -923,7 +930,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         - BIDIRECTIONAL: Both observables are synchronized to a common value
         
         Args:
-            hook: The observable to bind the selected option to. Can be:
+            observable_or_hook: The observable to bind the selected option to. Can be:
                 - A Hook instance for custom binding behavior
                 - An ObservableSingleValue instance (implements CarriesDistinctSingleValueHook)
             initial_sync_mode: How to synchronize values initially. Determines which
@@ -938,7 +945,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             >>> selector2 = ObservableSelectionOption("X", {"X", "Y", "Z"})
             
             # Bind selector1's selected option to selector2
-            >>> selector1.bind_selected_option_to_observable(selector2)
+            >>> selector1.bind_selected_option_to(selector2)
             
             # Changes propagate in both directions
             >>> selector1.selected_option = "B"
@@ -957,29 +964,26 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             available options), the binding operation will fail and the original
             state will be preserved.
             
-            To remove the binding, use unbind_selected_option_from_observable().
+            To remove the binding, use disconnect().
         """
-        if isinstance(hook, CarriesDistinctSingleValueHook):
-            hook = hook._get_single_value_hook()
-        self._get_single_value_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctSingleValueHook):
+            observable_or_hook = observable_or_hook.distinct_single_value_hook
+        self._component_hooks["selected_option"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def bind_available_options_to(self, hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:        
+    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:        
         """
         Establish a bidirectional binding for the options set with another observable.
         
-        This method creates a bidirectional binding between this observable's options set
-        and another observable, ensuring that changes to either are automatically propagated.
-        
         Args:
-            observable: The observable to bind the options to
+            observable_or_hook: The observable to bind the options to
             initial_sync_mode: How to synchronize values initially
             
         Raises:
             ValueError: If the observable is None
         """
-        if isinstance(hook, CarriesDistinctSetHook):
-            hook = hook._get_set_hook()
-        self._get_set_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctSetHook):
+            observable_or_hook = observable_or_hook.distinct_set_hook
+        self._component_hooks["available_options"].connect_to(observable_or_hook, initial_sync_mode)
 
     def bind_to(self, observable: ObservableSelectionOptionLike[T], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
@@ -1031,11 +1035,14 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             from being propagated. If a binding operation would create an invalid state,
             it will fail and the original state will be preserved.
             
-            To remove bindings, use the appropriate unbind method:
-            - unbind_from() for ObservableSelectionOption bindings
-            - unbind_selected_option_from_observable() for single value bindings
-            - unbind_available_options_from_observable() for set bindings
+            To remove bindings, use the appropriate disconnect method:
+            - disconnect_from() for ObservableSelectionOption bindings
+            - disconnect() for all bindings
         """
+
+        # Validate that observable is not None
+        if observable is None: # type: ignore
+            raise ValueError("Cannot bind to None observable")
 
         # First, synchronize the values atomically to maintain consistency
         if initial_sync_mode == SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
@@ -1051,56 +1058,20 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
                 self.available_options
             )
 
-        # Then, establish the bindings with UPDATE_SELF_FROM_OBSERVABLE mode
-        # to ensure this observable gets updated from the other one
-        self.bind_available_options_to(observable._get_set_hook(), SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        self.bind_selected_option_to(observable._get_single_value_hook(), SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        # Then, establish the bindings with the specified initial sync mode
+        # to ensure proper synchronization behavior
+        self.bind_available_options_to(observable.distinct_set_hook, initial_sync_mode)
+        self.bind_selected_option_to(observable.distinct_single_value_hook, initial_sync_mode)
 
-
-    def unbind_selected_option_from(self, observable: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]]) -> None:
+    def disconnect(self) -> None:
         """
-        Remove the bidirectional binding for the selected option with another observable.
+        Disconnect from all bindings.
         
-        This method removes the binding between this observable's selected option
-        and another observable, preventing further automatic synchronization.
-        
-        Args:
-            observable: The observable to unbind the selected option from
-            
-        Raises:
-            ValueError: If there is no binding to remove
+        This method removes all bidirectional bindings, preventing further
+        automatic synchronization with other observables.
         """
-        if isinstance(observable, CarriesDistinctSingleValueHook):
-            observable = observable._get_single_value_hook()
-        self._get_single_value_hook().remove_binding(observable)
-
-    def unbind_available_options_from(self, observable: CarriesDistinctSetHook[T]|HookLike[set[T]]) -> None:
-        """
-        Remove the bidirectional binding for the options set with another observable.
-        
-        This method removes the binding between this observable's options set
-        and another observable, preventing further automatic synchronization.
-        
-        Args:
-            observable: The observable to unbind the options from
-            
-        Raises:
-            ValueError: If there is no binding to remove
-        """
-        if isinstance(observable, CarriesDistinctSetHook):
-            observable = observable._get_set_hook()
-        self._get_set_hook().remove_binding(observable)
-    
-    def unbind_from(self, observable: ObservableSelectionOptionLike[T]) -> None:
-        """
-        Remove the bidirectional binding for the selected option with another instance of this class.
-        
-        This method removes the binding between this observable's selected option
-        and another instance of this class, preventing further automatic synchronization.
-        """
-
-        self._get_set_hook().remove_binding(observable._get_set_hook())
-        self._get_single_value_hook().remove_binding(observable._get_single_value_hook())
+        self._component_hooks["selected_option"].disconnect()
+        self._component_hooks["available_options"].disconnect()
     
     ############################################################
     # Other internal methods
@@ -1175,16 +1146,47 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             The method automatically handles the case where the item is
             already present in the options set (no-op).
         """
-        new_options: set[T] = self._get_set_value().copy()
+        new_options: set[T] = self._component_values["available_options"].copy()
         if item not in new_options:
             new_options.add(item)
-        self._set_component_values_from_tuples(("selected_option", self._get_single_value()), ("available_options", new_options))
+            self._set_component_values(("available_options", new_options), notify_binding_system=True)
+    
+    def add_available_option(self, item: T) -> None:
+        """
+        Add an item to the available options (alias for add method).
+        
+        Args:
+            item: The item to add to the available options
+        """
+        self.add(item)
+    
+    def remove_available_option(self, item: T) -> None:
+        """
+        Remove an item from the available options.
+        
+        Args:
+            item: The item to remove from the available options
+            
+        Raises:
+            ValueError: If the item is the currently selected option
+        """
+        if item == self._component_values["selected_option"]:
+            raise ValueError(f"Cannot remove {item} as it is the currently selected option")
+        
+        new_options: set[T] = self._component_values["available_options"].copy()
+        if item in new_options:
+            new_options.remove(item)
+            self._set_component_values(("available_options", new_options), notify_binding_system=True)
     
     def __str__(self) -> str:
-        return f"OSO(options={self._get_set_value()}, selected={self._get_single_value()})"
+        # Sort options for consistent string representation
+        sorted_options = sorted(self._component_values['available_options'])
+        return f"OSO(selected_option={self._component_values['selected_option']}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __repr__(self) -> str:
-        return f"ObservableSelectionOption({self._get_set_value()}, {self._get_single_value()})"
+        # Sort options for consistent string representation
+        sorted_options = sorted(self._component_values['available_options'])
+        return f"OSO(selected_option={self._component_values['selected_option']}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __len__(self) -> int:
         """
@@ -1193,7 +1195,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Returns:
             The number of available options
         """
-        return len(self._get_set_value())
+        return len(self._component_values["available_options"])
     
     def __contains__(self, item: T) -> bool:
         """
@@ -1205,7 +1207,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Returns:
             True if the item is in the options set, False otherwise
         """
-        return item in self._get_set_value()
+        return item in self._component_values["available_options"]
     
     def __iter__(self):
         """
@@ -1214,9 +1216,9 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Returns:
             An iterator that yields each option in the set
         """
-        return iter(self._get_set_value())
+        return iter(self._component_values["available_options"])
     
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Check equality with another selection option or observable.
         
@@ -1227,11 +1229,11 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             True if both options sets and selected options are equal, False otherwise
         """
         if isinstance(other, ObservableSelectionOption):
-            return (self._get_set_value() == other._get_set_value() and 
-                   self._get_single_value() == other._get_single_value())
+            return (self._component_values["available_options"] == other._component_values["available_options"] and 
+                   self._component_values["selected_option"] == other._component_values["selected_option"])
         return False
     
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         """
         Check inequality with another selection option or observable.
         
@@ -1250,7 +1252,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Returns:
             Hash value based on the options set and selected option
         """
-        return hash((frozenset(self._get_set_value()), self._get_single_value()))
+        return hash((frozenset(self._component_values["available_options"]), self._component_values["selected_option"]))
     
     def __bool__(self) -> bool:
         """
@@ -1259,4 +1261,4 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         Returns:
             True if there is a selected option, False if selected_option is None
         """
-        return bool(self._get_single_value())
+        return bool(self._component_values["selected_option"])

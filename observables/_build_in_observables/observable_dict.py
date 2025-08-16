@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, overload, Any, Callable, Protocol, runtime_checkable
+from typing import Generic, TypeVar, Optional, overload, Any, Callable, Protocol, runtime_checkable, Mapping
 from .._utils.hook import Hook, HookLike
 from .._utils.sync_mode import SyncMode
 from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
@@ -33,7 +33,7 @@ class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
         """
         ...
 
-    def unbind_from(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]]) -> None:
+    def disconnect(self) -> None:
         """
         Remove the bidirectional binding with another observable dictionary.
         """
@@ -79,21 +79,21 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         return {"value"}
 
     @overload
-    def __init__(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None):
+    def __init__(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
     @overload
-    def __init__(self, dict_value: dict[K, V]):
+    def __init__(self, dict_value: dict[K, V]) -> None:
         """Initialize with another observable dictionary, establishing a bidirectional binding."""
         ...
     
     @overload
-    def __init__(self, dict_value: None):
+    def __init__(self, dict_value: None) -> None:
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | HookLike[dict[K, V]] | None = None):
+    def __init__(self, observable_or_hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | HookLike[dict[K, V]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -104,20 +104,20 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
             ValueError: If the initial dictionary is not a dictionary
         """
 
-        if hook_or_value is None:
+        if observable_or_hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
             hook: Optional[HookLike[dict[K, V]]] = None
-        elif isinstance(hook_or_value, CarriesDistinctDictHook):
-            initial_dict_value: dict[K, V] = hook_or_value._get_dict_value()
-            hook: Optional[HookLike[dict[K, V]]] = hook_or_value._get_dict_hook()
-        elif isinstance(hook_or_value, HookLike):
-            initial_dict_value: dict[K, V] = hook_or_value._get_callback()
-            hook: Optional[HookLike[dict[K, V]]] = hook_or_value
+        elif isinstance(observable_or_hook_or_value, CarriesDistinctDictHook):
+            initial_dict_value: dict[K, V] = observable_or_hook_or_value.distinct_dict_reference
+            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.distinct_dict_hook
+        elif isinstance(observable_or_hook_or_value, HookLike):
+            initial_dict_value: dict[K, V] = observable_or_hook_or_value.value
+            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value
         else:
-            initial_dict_value: dict[K, V] = hook_or_value.copy()
+            initial_dict_value: dict[K, V] = observable_or_hook_or_value.copy()
             hook: Optional[HookLike[dict[K, V]]] = None
 
-        def verification_method(x: dict[str, Any]) -> tuple[bool, str]:
+        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
             if not isinstance(x["value"], dict):
                 return False, "Value is not a dictionary"
             return True, "Verification method passed"
@@ -127,13 +127,27 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
                 "value": initial_dict_value
             },
             {
-                "value": Hook(self, self._get_dict_value, self._set_dict_value)
+                "value": Hook(self, lambda: self._get_component_value("value"), lambda value: self._set_component_values(("value", value), notify_binding_system=False))
             },
             verification_method=verification_method
         )
 
         if hook is not None:
             self.bind_to(hook)
+
+    @property
+    def distinct_dict_reference(self) -> dict[K, V]:
+        """
+        Get the current value of the dictionary.
+        """
+        return self._component_values["value"]
+
+    @property
+    def distinct_dict_hook(self) -> HookLike[dict[K, V]]:
+        """
+        Get the hook for the dictionary.
+        """
+        return self._component_hooks["value"]
 
     @property
     def dict_value(self) -> dict[K, V]:
@@ -143,36 +157,14 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             A copy of the current dictionary value
         """
-        return self._get_dict_value().copy()
+        return self._component_values["value"].copy()
     
     @dict_value.setter
     def dict_value(self, value: dict[K, V]) -> None:
         """
         Set the current value of the dictionary.
         """
-        self.change_dict(value)
-
-    def _get_dict_value(self) -> dict[K, V]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get dictionary for binding system. No copy is made!
-        
-        Returns:
-            The current dictionary value
-        """
-        return self._component_values["value"]
-    
-    def _set_dict_value(self, dict_to_set: dict[K, V]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to set dictionary from binding system.
-        
-        Args:
-            dict_to_set: The new dictionary to set
-        """
-        self.change_dict(dict_to_set)
+        self._set_component_values(("value", value), notify_binding_system=True)
     
     def _get_dict_hook(self) -> HookLike[dict[K, V]]:
         """
@@ -195,10 +187,10 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Args:
             new_dict: The new dictionary to set
         """
-        if new_dict == self._get_dict_value():
+        if new_dict == self._component_values["value"]:
             return
         # Use the protocol method to set the value
-        self.set_observed_values((new_dict,))
+        self._set_component_values(("value", new_dict), notify_binding_system=True)
     
     def set_item(self, key: K, value: V) -> None:
         """
@@ -211,11 +203,11 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
             key: The key to set or update
             value: The value to associate with the key
         """
-        if key in self._get_dict_value() and self._get_dict_value()[key] == value:
+        if key in self.distinct_dict_reference and self.distinct_dict_reference[key] == value:
             return  # No change
-        new_dict = self._get_dict_value().copy()
+        new_dict = self.distinct_dict_reference.copy()
         new_dict[key] = value
-        self.set_observed_values((new_dict,))
+        self._set_component_values(("value", new_dict), notify_binding_system=True)
     
     def get_item(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """
@@ -228,7 +220,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             The value associated with the key, or the default value if key not found
         """
-        return self._get_dict_value().get(key, default)
+        return self._component_values["value"].get(key, default)
     
     def has_key(self, key: K) -> bool:
         """
@@ -240,7 +232,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._get_dict_value()
+        return key in self._component_values["value"]
     
     def remove_item(self, key: K) -> None:
         """
@@ -252,11 +244,11 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Args:
             key: The key to remove
         """
-        if key not in self._get_dict_value():
+        if key not in self._component_values["value"]:
             return  # No change
-        new_dict = self._get_dict_value().copy()
+        new_dict: dict[K, V] = self._component_values["value"].copy()
         del new_dict[key]
-        self.set_observed_values((new_dict,))
+        self._set_component_values(("value", new_dict), notify_binding_system=True)
     
     def clear(self) -> None:
         """
@@ -265,10 +257,10 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         This method removes all key-value pairs from the dictionary, using
         set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if not self._get_dict_value():
+        if not self._component_values["value"]:
             return  # No change
-        new_dict = {}
-        self.set_observed_values((new_dict,))
+        new_dict: dict[K, V] = {}
+        self._set_component_values(("value", new_dict), notify_binding_system=True)
     
     def update(self, other_dict: dict[K, V]) -> None:
         """
@@ -285,25 +277,25 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         # Check if any values would actually change
         has_changes = False
         for key, value in other_dict.items():
-            if key not in self._get_dict_value() or self._get_dict_value()[key] != value:
+            if key not in self._component_values["value"] or self._component_values["value"][key] != value:
                 has_changes = True
                 break
         
         if not has_changes:
             return  # No change
         
-        new_dict = self._get_dict_value().copy()
+        new_dict = self._component_values["value"].copy()
         new_dict.update(other_dict)
-        self.set_observed_values((new_dict,))
+        self._set_component_values(("value", new_dict), notify_binding_system=True)
     
     def keys(self) -> set[K]:
         """
         Get all keys from the dictionary as a set.
-        
+
         Returns:
             A set containing all keys in the dictionary
         """
-        return set(self._get_dict_value())
+        return set(self._component_values["value"].keys())
     
     def values(self) -> list[V]:
         """
@@ -312,7 +304,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             A list containing all values in the dictionary
         """
-        return list(self._get_dict_value().values())
+        return list(self._component_values["value"].values())
     
     def items(self) -> list[tuple[K, V]]:
         """
@@ -321,7 +313,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             A list of tuples, each containing a key-value pair
         """
-        return list(self._get_dict_value().items())
+        return list(self._component_values["value"].items())
     
     def __len__(self) -> int:
         """
@@ -342,7 +334,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._get_dict_value()
+        return key in self._component_values["value"]
     
     def __getitem__(self, key: K) -> V:
         """
@@ -357,9 +349,9 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        if key not in self._get_dict_value():
+        if key not in self._component_values["value"]:
             raise KeyError(f"Key '{key}' not found in dictionary")
-        return self._get_dict_value()[key]
+        return self._component_values["value"][key]
     
     def __setitem__(self, key: K, value: V) -> None:
         """
@@ -372,7 +364,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
             key: The key to set or update
             value: The value to associate with the key
         """
-        self.set_item(key, value)
+        self._set_component_values(("value", {**self._component_values["value"], key: value}), notify_binding_system=True)
     
     def __delitem__(self, key: K) -> None:
         """
@@ -387,15 +379,15 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        self.remove_item(key)
+        self._set_component_values(("value", {k: v for k, v in self._component_values["value"].items() if k != key}), notify_binding_system=True)
     
     def __str__(self) -> str:
-        return f"OD(dict={self._get_dict_value()})"
+        return f"OD(dict={self._component_values['value']})"
     
     def __repr__(self) -> str:
-        return f"ObservableDict({self._get_dict_value()})"
+        return f"ObservableDict({self._component_values['value']})"
 
-    def bind_to(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
         """
         Establish a bidirectional binding with another observable dictionary via. a hook.
         
@@ -410,55 +402,12 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         Raises:
             ValueError: If observable is None
         """
-        if hook is None:
-            raise ValueError("Cannot bind to None observable")
-        if isinstance(hook, CarriesDistinctDictHook):
-            hook = hook._get_dict_hook()
-        self._get_dict_hook().establish_binding(hook, initial_sync_mode)
+        if isinstance(observable_or_hook, CarriesDistinctDictHook):
+            observable_or_hook = observable_or_hook.distinct_dict_hook
+        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def unbind_from(self, hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]]) -> None:
+    def disconnect(self) -> None:
         """
-        Remove the bidirectional binding with another observable dictionary.
-        
-        This method removes the binding between this observable dictionary and another,
-        preventing further automatic synchronization of changes.
-        
-        Args:
-            hook: The hook to unbind from
-            
-        Raises:
-            ValueError: If there is no binding to remove
+        Remove any bindings to other observables.
         """
-        if isinstance(hook, CarriesDistinctDictHook):
-            hook = hook._get_dict_hook()
-        self._get_dict_hook().remove_binding(hook)
-
-    def get_observed_component_values(self) -> tuple[dict[K, V]]:
-        """
-        Get the values of all observables that are bound to this observable.
-        
-        This method is part of the Observable protocol and provides access to
-        the current values of all bound observables.
-        
-        Returns:
-            A tuple containing the current dictionary value
-        """
-        return tuple(self._get_dict_value())
-    
-    def set_observed_values(self, values: tuple[dict[K, V]]) -> None:
-        """
-        Set the values of all observables that are bound to this observable.
-        
-        The order of the values is important and should not be changed - it is characteristic to this observable.
-        
-        This method is part of the Observable protocol and allows external
-        systems to update this observable's value. It handles all internal
-        state changes, binding updates, and listener notifications.
-        
-        Args:
-            values: A tuple containing the new dictionary value to set
-        """
- 
-        self._set_component_values_from_dict(
-            {"value": values[0]}
-        )
+        self._component_hooks["value"].disconnect()

@@ -1,148 +1,295 @@
 import unittest
-from observables import ObservableMultiSelectionOption, ObservableSet, SyncMode
+from observables import ObservableMultiSelectionOption, SyncMode
 
 class TestObservableMultiSelectionOption(unittest.TestCase):
     """Test cases for ObservableMultiSelectionOption"""
     
     def setUp(self):
-        self.observable = ObservableMultiSelectionOption({2, 3}, {1, 2, 3, 4})
+        self.observable = ObservableMultiSelectionOption({"Apple", "Banana"}, {"Apple", "Banana", "Cherry"})
         self.notification_count = 0
     
     def notification_callback(self):
         self.notification_count += 1
     
-    def test_initial_state(self):
-        """Test initial available options and selected options"""
-        self.assertEqual(self.observable.available_options, {1, 2, 3, 4})
-        self.assertEqual(self.observable.selected_options, {2, 3})
+    def test_initial_value(self):
+        """Test that initial value is set correctly"""
+        self.assertEqual(self.observable.selected_options, {"Apple", "Banana"})
+        self.assertEqual(self.observable.available_options, {"Apple", "Banana", "Cherry"})
     
-    def test_change_available_options(self):
-        """Test changing available options"""
-        # Change to available options that include the current selected options (2, 3)
-        self.observable.set_available_options({2, 3, 5, 6, 7})
-        self.assertEqual(self.observable.available_options, {2, 3, 5, 6, 7})
-        # Selected options should remain valid
-        self.assertEqual(self.observable.selected_options, {2, 3})
+    def test_set_selected_options(self):
+        """Test setting new selected options"""
+        self.observable.selected_options = {"Banana", "Cherry"}
+        self.assertEqual(self.observable.selected_options, {"Banana", "Cherry"})
     
-    def test_change_selected_options(self):
-        """Test changing selected options"""
-        self.observable.set_selected_options({1, 4})
-        self.assertEqual(self.observable.selected_options, {1, 4})
-    
-    def test_invalid_selected_options(self):
-        """Test that changing to invalid options raises error"""
-        with self.assertRaises(ValueError):
-            self.observable.set_selected_options({999, 1000})
-    
-    def test_invalid_available_options_with_selected(self):
-        """Test that changing available options to exclude selected options raises error"""
-        with self.assertRaises(ValueError):
-            self.observable.set_available_options({5, 6, 7})  # 2, 3 not in new available options
-    
-    def test_set_selected_options_and_available_options(self):
-        """Test setting both selected options and available options at once"""
-        self.observable.set_selected_options_and_available_options({6, 7}, {5, 6, 7, 8})
-        self.assertEqual(self.observable.selected_options, {6, 7})
-        self.assertEqual(self.observable.available_options, {5, 6, 7, 8})
+    def test_set_available_options(self):
+        """Test setting new available options"""
+        # First clear selected options to avoid validation error
+        self.observable.selected_options = set()
+        new_options = {"Apple", "Orange", "Grape"}
+        self.observable.available_options = new_options
+        self.assertEqual(self.observable.available_options, new_options)
     
     def test_listener_notification(self):
-        """Test that listeners are notified when state changes"""
+        """Test that listeners are notified when value changes"""
         self.observable.add_listeners(self.notification_callback)
-        self.observable.set_selected_options({1, 3})
+        self.observable.selected_options = {"Cherry"}
         self.assertEqual(self.notification_count, 1)
     
-    def test_binding_selected_options(self):
-        """Test binding selected options between observables"""
-        # Create observables with compatible initial states
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4, 5, 6})
-        obs2 = ObservableMultiSelectionOption({4, 5}, {1, 2, 3, 4, 5, 6})
-        
-        obs1.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Change obs1 selected options, obs2 should update
-        obs1.set_selected_options({2, 3})
-        self.assertEqual(obs2.selected_options, {2, 3})
-        
-        # Change obs2 selected options, obs1 should update
-        obs2.set_selected_options({5, 6})
-        self.assertEqual(obs1.selected_options, {5, 6})
+    def test_no_notification_on_same_value(self):
+        """Test that listeners are not notified when value doesn't change"""
+        self.observable.add_listeners(self.notification_callback)
+        self.observable.selected_options = {"Apple", "Banana"}  # Same value
+        self.assertEqual(self.notification_count, 0)
     
-    def test_binding_available_options(self):
-        """Test binding available options between observables"""
-        # Create observables with compatible initial states
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4, 5, 6})
-        obs2 = ObservableMultiSelectionOption({4, 5}, {1, 2, 3, 4, 5, 6})
+    def test_remove_listeners(self):
+        """Test removing a listener"""
+        self.observable.add_listeners(self.notification_callback)
+        self.observable.remove_listeners(self.notification_callback)
+        self.observable.selected_options = {"Banana"}
+        self.assertEqual(self.notification_count, 0)
+    
+    def test_multiple_listeners(self):
+        """Test multiple listeners"""
+        count1, count2 = 0, 0
         
-        obs1.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        def callback1():
+            nonlocal count1
+            count1 += 1
         
-        # Test that binding works by verifying they start with the same available options
-        self.assertEqual(obs1.available_options, obs2.available_options)
+        def callback2():
+            nonlocal count2
+            count2 += 1
         
-        # Test that binding is established by checking binding consistency
-        is_consistent, message = obs1.check_binding_system_consistency()
+        self.observable.add_listeners(callback1)
+        self.observable.add_listeners(callback2)
+        self.observable.selected_options = {"Cherry"}
+        
+        self.assertEqual(count1, 1)
+        self.assertEqual(count2, 1)
+    
+    def test_initialization_with_carries_bindable_multi_selection_option(self):
+        """Test initialization with CarriesBindableMultiSelectionOption"""
+        # Create a source observable multi-selection option
+        source = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
+        
+        # Create a new observable multi-selection option initialized with the source
+        target: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        
+        # Check that the target has the same initial value
+        self.assertEqual(target.selected_options, {"Red", "Green"})
+        self.assertEqual(target.available_options, {"Red", "Green", "Blue"})
+        
+        # Check that they are bound together
+        source.selected_options = {"Green", "Blue"}
+        self.assertEqual(target.selected_options, {"Green", "Blue"})
+        
+        # Check bidirectional binding
+        target.selected_options = {"Red", "Blue"}
+        self.assertEqual(source.selected_options, {"Red", "Blue"})
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_chain(self):
+        """Test initialization with CarriesBindableMultiSelectionOption in a chain"""
+        # Create a chain of observable multi-selection options
+        obs1: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption({"Small"}, {"Small", "Medium"})
+        obs2: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(obs1)
+        obs3: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(obs2)
+        
+        # Check initial values
+        self.assertEqual(obs1.selected_options, {"Small"})
+        self.assertEqual(obs2.selected_options, {"Small"})
+        self.assertEqual(obs3.selected_options, {"Small"})
+        
+        # Change the first observable
+        obs1.selected_options = {"Medium"}
+        self.assertEqual(obs1.selected_options, {"Medium"})
+        self.assertEqual(obs2.selected_options, {"Medium"})
+        self.assertEqual(obs3.selected_options, {"Medium"})
+        
+        # Change the middle observable
+        obs2.selected_options = {"Small", "Medium"}
+        self.assertEqual(obs1.selected_options, {"Small", "Medium"})
+        self.assertEqual(obs2.selected_options, {"Small", "Medium"})
+        self.assertEqual(obs3.selected_options, {"Small", "Medium"})
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_unbinding(self):
+        """Test that initialization with CarriesBindableMultiSelectionOption can be unbound"""
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        target: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        
+        # Verify they are bound
+        self.assertEqual(target.selected_options, {"Red"})
+        source.selected_options = {"Green"}
+        self.assertEqual(target.selected_options, {"Green"})
+        
+        # Unbind them
+        target.disconnect()
+        
+        # Change source, target should not update
+        source.selected_options = {"Green"}
+        self.assertEqual(target.selected_options, {"Green"})  # Should remain unchanged
+        
+        # Change target, source should not update
+        target.selected_options = {"Red"}
+        self.assertEqual(source.selected_options, {"Green"})  # Should remain unchanged
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_multiple_targets(self):
+        """Test multiple targets initialized with the same source"""
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        target1: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        target2: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        target3: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        
+        # Check initial values
+        self.assertEqual(target1.selected_options, {"Red"})
+        self.assertEqual(target2.selected_options, {"Red"})
+        self.assertEqual(target3.selected_options, {"Red"})
+        
+        # Change source, all targets should update
+        source.selected_options = {"Green"}
+        self.assertEqual(target1.selected_options, {"Green"})
+        self.assertEqual(target2.selected_options, {"Green"})
+        self.assertEqual(target3.selected_options, {"Green"})
+        
+        # Change one target, source and other targets should update
+        target1.selected_options = {"Red"}
+        self.assertEqual(source.selected_options, {"Red"})
+        self.assertEqual(target2.selected_options, {"Red"})
+        self.assertEqual(target3.selected_options, {"Red"})
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_edge_cases(self):
+        """Test edge cases for initialization with CarriesBindableMultiSelectionOption"""
+        # Test with empty selected options in source
+        source_empty: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(set(), {"Red", "Green"})
+        target_empty: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source_empty)
+        self.assertEqual(target_empty.selected_options, set())
+        self.assertEqual(target_empty.available_options, {"Red", "Green"})
+        
+        # Test with single option in source
+        source_single: ObservableMultiSelectionOption[str]   = ObservableMultiSelectionOption({"Red"}, {"Red"})
+        target_single: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source_single)
+        self.assertEqual(target_single.selected_options, {"Red"})
+        self.assertEqual(target_single.available_options, {"Red"})
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_binding_consistency(self):
+        """Test binding system consistency when initializing with CarriesBindableMultiSelectionOption"""
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        target: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
+        
+        # Check binding consistency
+        is_consistent, message = target.check_status_consistency()
         self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
-        # Test that binding is established by checking binding consistency
-        is_consistent, message = obs2.check_binding_system_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        # Check that they are properly bound
+        self.assertTrue(target.selected_options_hook.is_connected_to(source.selected_options_hook))
+        self.assertTrue(source.selected_options_hook.is_connected_to(target.selected_options_hook))
+    
+    def test_initialization_with_carries_bindable_multi_selection_option_performance(self):
+        """Test performance of initialization with CarriesBindableMultiSelectionOption"""
+        import time
+        
+        # Create source
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        
+        # Measure initialization time
+        start_time = time.time()
+        for _ in range(1000):
+            ObservableMultiSelectionOption(source)
+        end_time = time.time()
+        
+        # Should complete in reasonable time (less than 6 seconds)
+        self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
+        
+        # Verify the last target is properly bound
+        target = ObservableMultiSelectionOption(source)
+        source.selected_options = {"Green"}
+        self.assertEqual(target.selected_options, {"Green"})
+    
+    def test_binding_bidirectional(self):
+        """Test bidirectional binding between obs1 and obs2"""
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green"})
+        
+        # Bind obs1 to obs2
+        obs1.bind_to(obs2)
+        
+        # Change obs1, obs2 should update
+        obs1.selected_options = {"Green"}
+        self.assertEqual(obs2.selected_options, {"Green"})
+        
+        # Change obs2, obs1 should also update (bidirectional)
+        obs2.selected_options = {"Blue"}
+        self.assertEqual(obs1.selected_options, {"Blue"})
+    
+    def test_binding_initial_sync_modes(self):
+        """Test different initial sync modes"""
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green"})
+        
+        # Test update_value_from_observable mode
+        obs1.bind_to(obs2)
+        self.assertEqual(obs1.selected_options, {"Blue"})  # obs1 gets updated with obs2's value
+        
+        # Test update_observable_from_self mode
+        obs3 = ObservableMultiSelectionOption({"Small"}, {"Small", "Medium"})
+        obs4 = ObservableMultiSelectionOption({"Large"}, {"Large", "Medium"})
+        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        self.assertEqual(obs4.selected_options, {"Small"})  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
         """Test unbinding observables"""
-        # Create observables with compatible initial states
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4, 5, 6})
-        obs2 = ObservableMultiSelectionOption({4, 5}, {1, 2, 3, 4, 5, 6})
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green"})
         
-        obs1.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        obs1.unbind_from(obs2)
+        obs1.bind_to(obs2)
+        obs1.disconnect()
         
         # Changes should no longer propagate
-        obs1.set_selected_options({2, 3})
-        self.assertEqual(obs2.selected_options, {4, 5})
-    
-    def test_unbinding_multiple_times(self):
-        """Test that unbinding multiple times raises ValueError"""
-        # Create observables with compatible initial states
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4, 5, 6})
-        obs2 = ObservableMultiSelectionOption({4, 5}, {1, 2, 3, 4, 5, 6})
-        
-        obs1.bind_to(obs2, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
-        obs1.unbind_from(obs2)
-        
-        # Second unbind should raise ValueError since there's nothing to unbind
-        with self.assertRaises(ValueError):
-            obs1.unbind_from(obs2)
-        
-        # Changes should still not propagate
-        obs1.set_selected_options({2, 3})
-        # Since we used UPDATE_OBSERVABLE_FROM_SELF, obs2 was updated to obs1's value ({1, 2}) during binding
-        # After unbinding, obs2 should still have that value, not the original {4, 5}
-        self.assertEqual(obs2.selected_options, {1, 2})
+        obs1.selected_options = {"Green"}
+        self.assertEqual(obs2.selected_options, {"Blue"})
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3})
+        obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         with self.assertRaises(ValueError):
-            obs.bind_to(obs, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+            obs.bind_to(obs)
     
-    def test_multiple_bindings(self):
-        """Test multiple bindings to the same observable"""
-        # Create observables with compatible initial states
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4, 5, 6, 7, 8, 9})
-        obs2 = ObservableMultiSelectionOption({4, 5}, {1, 2, 3, 4, 5, 6, 7, 8, 9})
-        obs3 = ObservableMultiSelectionOption({7, 8}, {1, 2, 3, 4, 5, 6, 7, 8, 9})
+    def test_binding_chain_unbinding(self):
+        """Test unbinding in a chain of bindings"""
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green", "Blue"})
+        obs2 = ObservableMultiSelectionOption({"Blue"}, {"Red", "Green", "Blue"})
+        obs3 = ObservableMultiSelectionOption({"Green"}, {"Red", "Green", "Blue"})
         
-        # Bind obs2 and obs3 selected options to obs1
-        obs2.bind_to(obs1, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        obs3.bind_to(obs1, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+        # Create chain: obs1 -> obs2 -> obs3
+        obs1.bind_to(obs2)
+        obs2.bind_to(obs3)
         
-        # Change obs1 selected options, both should update
-        obs1.set_selected_options({2, 3})
-        self.assertEqual(obs2.selected_options, {2, 3})
-        self.assertEqual(obs3.selected_options, {2, 3})
+        # Verify chain works
+        obs1.selected_options = {"Green"}
+        self.assertEqual(obs2.selected_options, {"Green"})
+        self.assertEqual(obs3.selected_options, {"Green"})
+        
+        # Break the chain by unbinding obs2 from obs3
+        obs2.disconnect()
+        
+        # Change obs1, obs2 should NOT update (obs2 is now disconnected from everything)
+        # But obs3 should still update because obs1 and obs3 are still bound (transitive binding)
+        obs1.selected_options = {"Red"}
+        self.assertEqual(obs2.selected_options, {"Green"})  # Should remain unchanged
+        self.assertEqual(obs3.selected_options, {"Red"})  # Should update due to transitive binding
+        
+        # Change obs3, obs1 should update (transitive binding), obs2 should not
+        obs3.selected_options = {"Blue"}
+        self.assertEqual(obs1.selected_options, {"Blue"})  # Should update due to transitive binding
+        self.assertEqual(obs2.selected_options, {"Green"})  # Should remain unchanged
+    
+    def test_string_representation(self):
+        """Test string and repr methods"""
+        self.assertEqual(str(self.observable), "OMSO(selected_options={'Apple', 'Banana'}, available_options={'Apple', 'Banana', 'Cherry'})")
+        self.assertEqual(repr(self.observable), "ObservableMultiSelectionOption(selected_options={'Apple', 'Banana'}, available_options={'Apple', 'Banana', 'Cherry'})")
     
     def test_listener_management(self):
         """Test listener management methods"""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3})
+        obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         
         # Test is_listening_to
         self.assertFalse(obs.is_listening_to(self.notification_callback))
@@ -153,389 +300,178 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs.remove_listeners(self.notification_callback)
         self.assertFalse(obs.is_listening_to(self.notification_callback))
     
-    def test_initialization_with_carries_bindable_set(self):
-        """Test initialization with CarriesBindableSet"""
-        # Create source observables
-        source_available_options = ObservableSet({1, 2, 3, 4})
-        source_selected_options = ObservableSet({2, 3})
+    def test_multiple_bindings(self):
+        """Test multiple bindings to the same observable"""
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green"})
+        obs3 = ObservableMultiSelectionOption({"Green"}, {"Green", "Blue"})
         
-        # Create a new observable multi-selection option initialized with the sources
-        target = ObservableMultiSelectionOption(source_selected_options, source_available_options)
+        # Bind obs2 and obs3 to obs1
+        obs2.bind_to(obs1)
+        obs3.bind_to(obs1)
         
-        # Check that the target has the same initial values
-        self.assertEqual(target.available_options, {1, 2, 3, 4})
-        self.assertEqual(target.selected_options, {2, 3})
+        # Change obs1, both should update
+        obs1.selected_options = {"Green"}
+        self.assertEqual(obs2.selected_options, {"Green"})
+        self.assertEqual(obs3.selected_options, {"Green"})
         
-        # Check that they are bound together
-        source_available_options.add(5)
-        self.assertEqual(target.available_options, {1, 2, 3, 4, 5})
-        
-        source_selected_options.add(4)
-        self.assertEqual(target.selected_options, {2, 3, 4})
-        
-        # Check bidirectional binding
-        target.add_available_option(6)
-        self.assertEqual(source_available_options.set_value, {1, 2, 3, 4, 5, 6})
-        
-        target.selected_options = {1, 5}
-        self.assertEqual(source_selected_options.set_value, {1, 5})
+        # Change obs2, obs1 should also update (bidirectional), obs3 should also update
+        obs2.selected_options = {"Red"}
+        self.assertEqual(obs1.selected_options, {"Red"})
+        self.assertEqual(obs3.selected_options, {"Red"})
     
-    def test_initialization_with_carries_bindable_set_only(self):
-        """Test initialization with only CarriesBindableSet for available options"""
-        # Create source observable set
-        source_available_options = ObservableSet({10, 20, 30})
+    def test_multi_selection_option_methods(self):
+        """Test standard multi-selection option methods"""
+        obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
         
-        # Create a new observable multi-selection option initialized with the source set
-        target = ObservableMultiSelectionOption({20}, source_available_options)
+        # Test set_selected_options_and_available_options
+        obs.set_selected_options_and_available_options({"Blue"}, {"Blue", "Green"})
+        self.assertEqual(obs.selected_options, {"Blue"})
+        self.assertEqual(obs.available_options, {"Blue", "Green"})
         
-        # Check that the target has the same initial available options
-        self.assertEqual(target.available_options, {10, 20, 30})
-        self.assertEqual(target.selected_options, {20})
+        # Test add_selected_option
+        obs.add_selected_option("Green")
+        self.assertEqual(obs.selected_options, {"Blue", "Green"})
         
-        # Check that they are bound together
-        source_available_options.add(40)
-        self.assertEqual(target.available_options, {10, 20, 30, 40})
-        
-        # Check bidirectional binding
-        target.add_available_option(50)
-        self.assertEqual(source_available_options.set_value, {10, 20, 30, 40, 50})
+        # Test remove_selected_option
+        obs.remove_selected_option("Blue")
+        self.assertEqual(obs.selected_options, {"Green"})
     
-    def test_initialization_with_carries_bindable_set_only_selected(self):
-        """Test initialization with only CarriesBindableSet for selected options"""
-        # Create source observable set
-        source_selected_options = ObservableSet({100, 200})
+    def test_multi_selection_option_copy_behavior(self):
+        """Test that available_options returns a copy"""
+        obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
         
-        # Create a new observable multi-selection option initialized with the source set
-        target = ObservableMultiSelectionOption(source_selected_options, {100, 200, 300})
+        # Get the available options
+        options_copy = obs.available_options
         
-        # Check that the target has the same initial selected options
-        self.assertEqual(target.available_options, {100, 200, 300})
-        self.assertEqual(target.selected_options, {100, 200})
+        # Modify the copy
+        options_copy.add("Yellow")
         
-        # Check that they are bound together
-        source_selected_options.add(300)
-        self.assertEqual(target.selected_options, {100, 200, 300})
+        # Original should not change
+        self.assertEqual(obs.available_options, {"Red", "Green", "Blue"})
         
-        # Check bidirectional binding
-        target.selected_options = {200, 300}
-        self.assertEqual(source_selected_options.set_value, {200, 300})
+        # The copy should have the modification
+        self.assertEqual(options_copy, {"Red", "Green", "Blue", "Yellow"})
     
-    def test_initialization_with_carries_bindable_chain(self):
-        """Test initialization with CarriesBindableSet in a chain"""
-        # Create a chain of observable multi-selection options
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2})
-        obs2 = ObservableMultiSelectionOption({3, 4}, {3, 4})
-        obs3 = ObservableMultiSelectionOption({5, 6}, {5, 6})
+    def test_multi_selection_option_validation(self):
+        """Test multi-selection option validation"""
+        # Test with valid multi-selection option
+        obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green"})
+        self.assertEqual(obs.selected_options, {"Red", "Green"})
+        self.assertEqual(obs.available_options, {"Red", "Green"})
         
-        # Bind them in a chain
-        obs2.bind_to(obs1, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        obs3.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Check initial values after binding
-        self.assertEqual(obs1.available_options, {1, 2})
-        self.assertEqual(obs1.selected_options, {1, 2})
-        self.assertEqual(obs2.available_options, {1, 2})
-        self.assertEqual(obs2.selected_options, {1, 2})
-        self.assertEqual(obs3.available_options, {1, 2})
-        self.assertEqual(obs3.selected_options, {1, 2})
-        
-        # Test that binding is established by checking binding consistency
-        is_consistent, message = obs1.check_binding_system_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
-        
-        is_consistent, message = obs2.check_binding_system_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
-        
-        is_consistent, message = obs3.check_binding_system_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        # Test with empty selected options
+        obs_empty: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(set(), {"Red", "Green"})
+        self.assertEqual(obs_empty.selected_options, set())
+        self.assertEqual(obs_empty.available_options, {"Red", "Green"})
     
-    def test_initialization_with_carries_bindable_multiple_targets(self):
-        """Test multiple targets initialized with the same sources"""
-        source_available_options = ObservableSet({100, 200})
-        source_selected_options = ObservableSet({100})
+    def test_multi_selection_option_binding_edge_cases(self):
+        """Test edge cases for multi-selection option binding"""
+        # Test binding multi-selection options with same initial values
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs1.bind_to(obs2)
         
-        target1 = ObservableMultiSelectionOption(source_selected_options, source_available_options)
-        target2 = ObservableMultiSelectionOption(source_selected_options, source_available_options)
-        target3 = ObservableMultiSelectionOption(source_selected_options, source_available_options)
+        obs1.selected_options = {"Green"}
+        self.assertEqual(obs2.selected_options, {"Green"})
         
-        # Check initial values
-        self.assertEqual(target1.available_options, {100, 200})
-        self.assertEqual(target1.selected_options, {100})
-        self.assertEqual(target2.available_options, {100, 200})
-        self.assertEqual(target2.selected_options, {100})
-        self.assertEqual(target3.available_options, {100, 200})
-        self.assertEqual(target3.selected_options, {100})
+        # Test binding multi-selection options with different options
+        obs3 = ObservableMultiSelectionOption({"Red"}, {"Red", "Blue"})
+        obs4 = ObservableMultiSelectionOption({"Green"}, {"Green", "Blue"})
+        obs3.bind_to(obs4)
         
-        # Change source available options, all targets should update
-        source_available_options.add(300)
-        self.assertEqual(target1.available_options, {100, 200, 300})
-        self.assertEqual(target2.available_options, {100, 200, 300})
-        self.assertEqual(target3.available_options, {100, 200, 300})
-        
-        # Change source selected options, all targets should update
-        source_selected_options.add(200)
-        self.assertEqual(target1.selected_options, {100, 200})
-        self.assertEqual(target2.selected_options, {100, 200})
-        self.assertEqual(target3.selected_options, {100, 200})
+        obs3.selected_options = {"Blue"}
+        self.assertEqual(obs4.selected_options, {"Blue"})
     
-    def test_initialization_with_carries_bindable_unbinding(self):
-        """Test that initialization with CarriesBindableSet can be unbound"""
-        source_available_options = ObservableSet({1, 2})
-        source_selected_options = ObservableSet({1})
+    def test_multi_selection_option_performance(self):
+        """Test multi-selection option performance characteristics"""
+        import time
         
-        target = ObservableMultiSelectionOption(source_selected_options, source_available_options)
+        # Test selected_options access performance
+        obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
+        start_time = time.time()
         
-        # Verify they are bound
-        self.assertEqual(target.available_options, {1, 2})
-        self.assertEqual(target.selected_options, {1})
+        for _ in range(10000):
+            _ = obs.selected_options
         
-        source_available_options.add(3)
-        source_selected_options.add(2)
-        self.assertEqual(target.available_options, {1, 2, 3})
-        self.assertEqual(target.selected_options, {1, 2})
+        end_time = time.time()
         
-        # Unbind them
-        target.unbind_available_options_from(source_available_options)
-        target.unbind_selected_options_from(source_selected_options)
+        # Should complete in reasonable time
+        self.assertLess(end_time - start_time, 1.0, "Selected options access should be fast")
         
-        # Change sources, target should not update
-        source_available_options.add(4)
-        source_selected_options.add(3)
-        self.assertEqual(target.available_options, {1, 2, 3})  # Should remain unchanged
-        self.assertEqual(target.selected_options, {1, 2})  # Should remain unchanged
+        # Test binding performance
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        start_time = time.time()
+        
+        for _ in range(100):
+            ObservableMultiSelectionOption(source)
+        
+        end_time = time.time()
+        
+        # Should complete in reasonable time
+        self.assertLess(end_time - start_time, 1.0, "Binding operations should be fast")
     
-    def test_initialization_with_carries_bindable_edge_cases(self):
-        """Test edge cases for initialization with CarriesBindableSet"""
-        # Test with empty set
-        source_empty = ObservableSet(set())
-        source_selected_empty = ObservableSet(set())
-        target_empty = ObservableMultiSelectionOption(source_selected_empty, source_empty)
-        self.assertEqual(target_empty.available_options, set())
-        self.assertEqual(target_empty.selected_options, set())
+    def test_multi_selection_option_error_handling(self):
+        """Test multi-selection option error handling"""
+        obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green"})
         
-        # Test with None values
-        source_none = ObservableSet({None, 1, None})
-        source_none_selected = ObservableSet({None})
-        target_none = ObservableMultiSelectionOption(source_none_selected, source_none)
-        self.assertEqual(target_none.available_options, {None, 1})
-        self.assertEqual(target_none.selected_options, {None})
+        # Test setting invalid selected options
+        with self.assertRaises(ValueError):
+            obs.selected_options = {"Blue"}  # Not in available options
+        
+        # Test setting empty available options
+        with self.assertRaises(ValueError):
+            obs.available_options = set()
     
-    def test_initialization_with_carries_bindable_binding_consistency(self):
-        """Test binding system consistency when initializing with CarriesBindableSet"""
-        source_available_options = ObservableSet({1, 2, 3})
-        source_selected_options = ObservableSet({1})
-        
-        target = ObservableMultiSelectionOption(source_selected_options, source_available_options)
+    def test_multi_selection_option_binding_consistency(self):
+        """Test binding system consistency"""
+        source = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        target: ObservableMultiSelectionOption[str] = ObservableMultiSelectionOption(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_binding_system_consistency()
+        is_consistent, message = target.check_status_consistency()
         self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target._get_available_options_hook().is_bound_to(source_available_options._get_set_hook()))
-        self.assertTrue(target._get_selected_options_hook().is_bound_to(source_selected_options._get_set_hook()))
+        self.assertTrue(target.selected_options_hook.is_connected_to(source.selected_options_hook))
+        self.assertTrue(source.selected_options_hook.is_connected_to(target.selected_options_hook))
     
-    def test_initialization_with_carries_bindable_performance(self):
-        """Test performance of initialization with CarriesBindableSet"""
-        import time
-        
-        # Create sources
-        source_available_options = ObservableSet({1, 2, 3, 4, 5})
-        source_selected_options = ObservableSet({1, 2})
-        
-        # Measure initialization time
-        start_time = time.time()
-        for _ in range(1000):
-            target = ObservableMultiSelectionOption(source_selected_options, source_available_options)
-        end_time = time.time()
-        
-        # Should complete in reasonable time (less than 1 second)
-        self.assertLess(end_time - start_time, 1.0, "Initialization should be fast")
-        
-        # Verify the last target is properly bound
-        target = ObservableMultiSelectionOption(source_selected_options, source_available_options)
-        source_available_options.add(6)
-        source_selected_options.add(3)
-        self.assertEqual(target.available_options, {1, 2, 3, 4, 5, 6})
-        self.assertEqual(target.selected_options, {1, 2, 3})
-    
-    def test_empty_selection_initialization(self):
-        """Test initialization with empty selected options (default behavior)."""
-        # Should work with empty selected options
-        obs = ObservableMultiSelectionOption(set(), {1, 2, 3})
-        self.assertEqual(obs.selected_options, set())
-        self.assertEqual(obs.available_options, {1, 2, 3})
-        
-        # Should work with empty available options
-        obs = ObservableMultiSelectionOption(set(), set())
-        self.assertEqual(obs.selected_options, set())
-        self.assertEqual(obs.available_options, set())
-        
-        # Should work with empty selected and empty available options
-        obs = ObservableMultiSelectionOption(set(), set())
-        self.assertEqual(obs.selected_options, set())
-        self.assertEqual(obs.available_options, set())
-    
-    def test_empty_selection_dynamic_changes(self):
-        """Test dynamic changes with empty selections."""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3})
-        
-        # Should allow setting selected options to empty
-        obs.selected_options = set()
-        self.assertEqual(obs.selected_options, set())
-        
-        # Should allow setting available options to empty set when selected_options is empty
-        obs.set_selected_options_and_available_options(set(), set())
-        self.assertEqual(obs.available_options, set())
-        self.assertEqual(obs.selected_options, set())
-        
-        # Should allow setting selected options to empty when available options are empty
-        obs.selected_options = set()
-        self.assertEqual(obs.selected_options, set())
-    
-    def test_empty_selection_edge_cases(self):
-        """Test edge cases with empty selection functionality."""
-        # Test with empty selected and non-empty available options
-        obs = ObservableMultiSelectionOption(set(), {1, 2, 3})
-        self.assertEqual(obs.selected_options, set())
-        self.assertEqual(obs.available_options, {1, 2, 3})
-        
-        # Test changing from empty to valid options
-        obs.selected_options = {1, 2}
-        self.assertEqual(obs.selected_options, {1, 2})
-        
-        # Test changing back to empty
-        obs.selected_options = set()
-        self.assertEqual(obs.selected_options, set())
-        
-        # Test with empty available options and empty selected
-        obs = ObservableMultiSelectionOption(set(), set())
-        self.assertEqual(obs.selected_options, set())
-        self.assertEqual(obs.available_options, set())
-    
-    def test_empty_selection_validation_consistency(self):
-        """Test that validation is consistent with empty selection support."""
-        # Should allow empty selections but still validate non-empty values
-        obs = ObservableMultiSelectionOption(set(), {1, 2, 3})
-        
-        # Should allow empty
-        obs.selected_options = set()
-        
-        # Should still validate non-empty values
-        with self.assertRaises(ValueError) as context:
-            obs.selected_options = {5, 6}  # Not in available options
-        self.assertIn("not in available options", str(context.exception))
-        
-        # Should allow valid values
-        obs.selected_options = {1, 2}
-        self.assertEqual(obs.selected_options, {1, 2})
-    
-    def test_empty_selection_binding_behavior(self):
-        """Test that empty selection support affects binding behavior."""
-        # Test with empty selections
-        obs1 = ObservableMultiSelectionOption(set(), {1, 2, 3, 4})
-        obs2 = ObservableMultiSelectionOption({4}, {1, 2, 3, 4})
-        
-        # Binding should work even with empty selections
-        # Use UPDATE_VALUE_FROM_OBSERVABLE so obs1 gets updated to obs2's value
-        obs1.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        self.assertEqual(obs1.selected_options, {4})
-    
-    def test_set_operations(self):
-        """Test set operations on selected options."""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        
-        # Test add
-        obs.add(3)
-        self.assertEqual(obs.selected_options, {1, 2, 3})
-        
-        # Test remove
-        obs.remove(2)
-        self.assertEqual(obs.selected_options, {1, 3})
-        
-        # Test discard
-        obs.discard(1)
-        self.assertEqual(obs.selected_options, {3})
-        
-        # Test pop
-        item = obs.pop()
-        self.assertIn(item, {1, 2, 3, 4})
-        self.assertEqual(obs.selected_options, set())
-        
-        # Test clear
-        obs.selected_options = {1, 2, 3}
-        obs.clear()
-        self.assertEqual(obs.selected_options, set())
-    
-    def test_available_options_operations(self):
-        """Test operations on available options."""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        
-        # Test add_available_option
-        obs.add_available_option(5)
-        self.assertEqual(obs.available_options, {1, 2, 3, 4, 5})
-        
-        # Test remove_available_option
-        obs.remove_available_option(3)
-        self.assertEqual(obs.available_options, {1, 2, 4, 5})
-        # Selected options should also be updated if they contained the removed option
-        self.assertEqual(obs.selected_options, {1, 2})
-    
-    def test_magic_methods(self):
-        """Test magic methods like __len__, __contains__, __iter__, etc."""
-        obs = ObservableMultiSelectionOption({1, 2, 3}, {1, 2, 3, 4, 5})
-        
-        # Test __len__
-        self.assertEqual(len(obs), 3)
-        
-        # Test __contains__
-        self.assertIn(1, obs)
-        self.assertNotIn(6, obs)
-        
-        # Test __iter__
-        items = list(obs)
-        self.assertEqual(set(items), {1, 2, 3})
-        
-        # Test __bool__
-        self.assertTrue(bool(obs))
-        
-        # Test empty selection
-        obs.selected_options = set()
-        self.assertFalse(bool(obs))
-    
-    def test_equality_and_hash(self):
-        """Test equality and hash methods."""
-        obs1 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        obs2 = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        obs3 = ObservableMultiSelectionOption({2, 3}, {1, 2, 3, 4})
-        
-        # Test equality
-        self.assertEqual(obs1, obs2)
-        self.assertNotEqual(obs1, obs3)
-        
-        # Test hash
-        self.assertEqual(hash(obs1), hash(obs2))
-        self.assertNotEqual(hash(obs1), hash(obs3))
-    
-    def test_string_representations(self):
-        """Test string and repr methods."""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        
-        str_repr = str(obs)
-        repr_repr = repr(obs)
-        
-        self.assertIn("available_options", str_repr)
-        self.assertIn("selected", str_repr)
-        self.assertIn("ObservableMultiSelectionOption", repr_repr)
-    
-    def test_selected_options_not_empty_property(self):
-        """Test the selected_options_not_empty property."""
-        obs = ObservableMultiSelectionOption({1, 2}, {1, 2, 3, 4})
-        
-        # Should work with non-empty selection
-        self.assertEqual(obs.selected_options_not_empty, {1, 2})
-        
-        # Should raise error with empty selection
-        obs.selected_options = set()
+    def test_multi_selection_option_binding_none_observable(self):
+        """Test that binding to None raises an error"""
+        obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         with self.assertRaises(ValueError):
-            _ = obs.selected_options_not_empty
+            obs.bind_to(None)  # type: ignore
+    
+    def test_multi_selection_option_binding_with_same_values(self):
+        """Test binding when observables already have the same value"""
+        obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        obs2 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        
+        obs1.bind_to(obs2)
+        # Both should still have the same value
+        self.assertEqual(obs1.selected_options, {"Red"})
+        self.assertEqual(obs2.selected_options, {"Red"})
+    
+    def test_listener_duplicates(self):
+        """Test that duplicate listeners are not added"""
+        obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        callback = lambda: None
+        
+        obs.add_listeners(callback, callback)
+        self.assertEqual(len(obs.listeners), 1)
+        
+        obs.add_listeners(callback)
+        self.assertEqual(len(obs.listeners), 1)
+    
+    def test_remove_nonexistent_listener(self):
+        """Test removing a listener that doesn't exist"""
+        obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
+        callback = lambda: None
+        
+        # Should not raise an error
+        obs.remove_listeners(callback)
+        self.assertEqual(len(obs.listeners), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()

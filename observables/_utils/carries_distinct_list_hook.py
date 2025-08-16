@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
@@ -29,11 +28,9 @@ class CarriesDistinctListHook(BaseCarriesDistinctHook, Protocol[T]):
         The individual methods remain internal implementation details.
     """
 
-    @abstractmethod
-    def _get_list_hook(self) -> HookLike[list[T]]:
+    @property
+    def distinct_list_hook(self) -> HookLike[list[T]]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the hook for list.
         
         This method provides access to the internal hook that
@@ -49,23 +46,12 @@ class CarriesDistinctListHook(BaseCarriesDistinctHook, Protocol[T]):
         """
         ...
 
-    @abstractmethod
-    def _get_list_value(self) -> list[T]:
+    @property
+    def distinct_list_reference(self) -> list[T]:
         """
-        INTERNAL. Do not use this method directly.
-        
-        Method to get the current value of the list as a copy.
+        Method to get the current value of the list.
         
         Returns:
             The current value of the list as a copy
-        """
-        ...
-
-    @abstractmethod
-    def _set_list_value(self, list_to_set: list[T]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Method to set the current value of the list.
         """
         ...

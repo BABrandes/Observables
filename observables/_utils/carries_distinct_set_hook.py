@@ -1,4 +1,4 @@
-from abc import abstractmethod
+
 from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
@@ -30,11 +30,9 @@ class CarriesDistinctSetHook(BaseCarriesDistinctHook, Protocol[T]):
         The individual methods remain internal implementation details.
     """
 
-    @abstractmethod
-    def _get_set_hook(self) -> HookLike[set[T]]:
+    @property
+    def distinct_set_hook(self) -> HookLike[set[T]]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the hook for set.
         
         This method provides access to the internal hook that
@@ -50,23 +48,12 @@ class CarriesDistinctSetHook(BaseCarriesDistinctHook, Protocol[T]):
         """
         ...
 
-    @abstractmethod
-    def _get_set_value(self) -> set[T]:
+    @property
+    def distinct_set_reference(self) -> set[T]:
         """
-        INTERNAL. Do not use this method directly.
-        
-        Method to get the current value of the set as a copy.
+        Method to get the current value of the set.
         
         Returns:
-            The current value of the set as a copy
-        """
-        ...
-
-    @abstractmethod
-    def _set_set_value(self, set_to_set: set[T]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Method to set the current value of the set.
+            The current value of the set
         """
         ...

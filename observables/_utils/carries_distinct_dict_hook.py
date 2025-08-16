@@ -1,5 +1,4 @@
-from abc import abstractmethod
-from typing import Generic, TypeVar, Protocol, runtime_checkable
+from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
 
@@ -30,11 +29,9 @@ class CarriesDistinctDictHook(BaseCarriesDistinctHook, Protocol[K, V]):
         The individual methods remain internal implementation details.
     """
 
-    @abstractmethod
-    def _get_dict_hook(self) -> HookLike[dict[K, V]]:
+    @property
+    def distinct_dict_hook(self) -> HookLike[dict[K, V]]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the hook for dictionary.
         
         This method provides access to the internal hook that
@@ -50,24 +47,9 @@ class CarriesDistinctDictHook(BaseCarriesDistinctHook, Protocol[K, V]):
         """
         ...
 
-    @abstractmethod
-    def _get_dict_value(self) -> dict[K, V]:
+    @property
+    def distinct_dict_reference(self) -> dict[K, V]:
         """
-        INTERNAL. Do not use this method directly.
-        
-        Method to get dictionary for binding system.
-        
-        Returns:
-            The current dictionary value
+        Get the current value of the dictionary.
         """
         ...
-
-    @abstractmethod
-    def _set_dict_value(self, dict_to_set: dict[K, V]) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Method to set the current value of the dictionary.
-        """
-        ...
-    

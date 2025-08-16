@@ -1,4 +1,4 @@
-from abc import abstractmethod
+
 from typing import TypeVar, runtime_checkable, Protocol
 from .hook import HookLike
 from .base_carries_distinct_hook import BaseCarriesDistinctHook
@@ -30,11 +30,9 @@ class CarriesDistinctSingleValueHook(BaseCarriesDistinctHook, Protocol[T]):
         The individual methods remain internal implementation details.
     """
 
-    @abstractmethod
-    def _get_single_value_hook(self) -> HookLike[T]:
+    @property
+    def distinct_single_value_hook(self) -> HookLike[T]:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the hook for the single value.
         
         Returns:
@@ -42,23 +40,12 @@ class CarriesDistinctSingleValueHook(BaseCarriesDistinctHook, Protocol[T]):
         """
         ...
 
-    @abstractmethod
-    def _get_single_value(self) -> T:
+    @property
+    def distinct_single_value_reference(self) -> T:
         """
-        INTERNAL. Do not use this method directly.
-        
         Method to get the current value of the single value.
         
         Returns:
             The current value of the single value
-        """
-        ...
-
-    @abstractmethod
-    def _set_single_value(self, single_value_to_set: T) -> None:
-        """
-        INTERNAL. Do not use this method directly.
-        
-        Method to set the current value of the single value.
         """
         ...

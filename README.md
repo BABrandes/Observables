@@ -2,7 +2,7 @@
 
 A revolutionary Python library for creating observable objects with **centralized value storage** and **automatic transitive binding**. Unlike traditional reactive libraries that duplicate data across observables, our system stores each value in exactly one central location, creating unprecedented efficiency and reliability.
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://badge.fury.io/py/observables.svg)](https://badge.fury.io/py/observables)
 [![Tests](https://github.com/yourusername/observables/workflows/Tests/badge.svg)](https://github.com/yourusername/observables/actions)

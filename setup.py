@@ -48,15 +48,12 @@ setup(
         "License :: OSI Approved :: Apache 2.0 Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Software Development :: User Interfaces",
         "Topic :: Software Development :: Object Brokering",
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.12",
     install_requires=[],
     extras_require={
         "dev": [

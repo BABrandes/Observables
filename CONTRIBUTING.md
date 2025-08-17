@@ -1,13 +1,19 @@
 # Contributing to Observables
 
-Thank you for your interest in contributing to the Observables library! This document provides guidelines and information for contributors.
+We love your input! We want to make contributing to Observables as easy and transparent as possible, whether it's:
 
-## Getting Started
+- Reporting a bug
+- Discussing the current state of the code
+- Submitting a fix
+- Proposing new features
+- Becoming a maintainer
+
+## Development Setup
 
 ### Prerequisites
-- Python 3.10 or higher
+- Python 3.12 or higher
 - Git
-- pip
+- pip (or conda)
 
 ### Development Setup
 

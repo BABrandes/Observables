@@ -1,10 +1,6 @@
 name: Version Management
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       increment_type:
@@ -16,16 +12,33 @@ on:
         - patch
         - minor
         - major
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - 'observables/_version.py'
+      - 'observables/__init__.py'
+      - 'setup.py'
+      - '.github/workflows/version-bump.yml'
+      - 'scripts/version_manager.py'
+      - 'update_version.py'
 
 jobs:
   version-bump:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore: bump version'))
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Full history for version calculation
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global init.defaultBranch main
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -35,7 +48,17 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install setuptools wheel
         pip install -e .
+    
+    - name: Debug environment
+      run: |
+        echo "Python version: $(python --version)"
+        echo "Current directory: $(pwd)"
+        echo "Files in observables/:"
+        ls -la observables/
+        echo "Current version:"
+        python scripts/version_manager.py get-current
     
     - name: Determine version increment
       id: version
@@ -50,31 +73,44 @@ jobs:
           echo "increment_type=patch" >> $GITHUB_OUTPUT
         fi
         
-        echo "Current version: $(grep '__version__ = ' observables/_version.py | sed 's/.*"\([^"]*\)".*/\1/')"
+        echo "Current version: $(python scripts/version_manager.py get-current)"
         echo "Increment type: ${{ steps.version.outputs.increment_type }}"
     
     - name: Bump version
       run: |
-        python scripts/version_manager.py auto ${{ steps.version.outputs.increment_type }}
+        python scripts/version_manager.py auto ${{ steps.version.outputs.increment_type }} "chore: bump version"
+    
+    - name: Get new version
+      id: new_version
+      run: |
+        echo "new_version=$(python scripts/version_manager.py get-current)" >> $GITHUB_OUTPUT
+    
+    - name: Show changes
+      run: |
+        echo "Files changed:"
+        git status --porcelain
+        echo "Version files content:"
+        cat observables/_version.py
+        cat observables/__init__.py | grep __version__
     
     - name: Create Pull Request
       if: github.event_name == 'push'
       uses: peter-evans/create-pull-request@v5
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
-        commit-message: "chore: bump version to $(grep '__version__ = ' observables/_version.py | sed 's/.*"\([^"]*\)".*/\1/')"
-        title: "chore: bump version to $(grep '__version__ = ' observables/_version.py | sed 's/.*"\([^"]*\)".*/\1/')"
+        commit-message: "chore: bump version to ${{ steps.new_version.outputs.new_version }}"
+        title: "chore: bump version to ${{ steps.new_version.outputs.new_version }}"
         body: |
           This PR was automatically created to bump the version.
           
           **Version increment type:** ${{ steps.version.outputs.increment_type }}
-          **New version:** $(grep '__version__ = ' observables/_version.py | sed 's/.*"\([^"]*\)".*/\1/')
+          **New version:** ${{ steps.new_version.outputs.new_version }}
           
           Changes:
           - Updated version in `observables/_version.py`
           - Updated version in `observables/__init__.py`
           - Updated version in `setup.py`
         
-        branch: version-bump
+        branch: version-bump-${{ steps.new_version.outputs.new_version }}
         delete-branch: true
         base: main

@@ -1,290 +1,91 @@
 import unittest
 import threading
-from typing import List, Any
-from observables import Hook, BaseObservable, HookLike, SyncMode
+from typing import Any, Callable, Optional
+from observables import Hook, BaseObservable, HookLike, InitialSyncMode
+
 
 class MockObservable(BaseObservable):
     """Mock observable for testing purposes."""
     
-    @classmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
-        """Get the mandatory component value keys."""
-        return {"value"}
-    
     def __init__(self, name: str):
         # Initialize component values first
-        self._component_values = {"value": name}
-        
-        # Create hooks
-        hooks: dict[str, HookLike[Any]] = {"value": Hook(self, lambda: name, lambda x: None)}
+        initial_component_values = {"value": name}
         
         # Call parent constructor
         super().__init__(
-            component_values=self._component_values,
-            component_hooks=hooks
+            initial_component_values=initial_component_values
         )
+    
+    def _act_on_invalidation(self, keys: set[str]) -> None:
+        """Act on invalidation - required by BaseObservable."""
+        pass
+
+    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None:
+        for hook in hooks:
+            hook.invalidate()
 
 
 class TestHookCapabilities(unittest.TestCase):
-    """Test hooks with different capabilities (receiving-only, sending-only, both)."""
+    """Test hooks with different capabilities in the new hook-based system."""
 
-    def test_receiving_only_hook(self):
-        """Test a hook that can only receive values (has set_callback but no get_callback)."""
-        received_values: List[str] = []
+    def test_hook_creation_with_invalidate_callback(self):
+        """Test hook creation with invalidate callback."""
+        received_values: list[str] = []
         
-        def set_callback(value: str) -> None:
-            received_values.append(value)
+        def invalidate_callback(hook: HookLike[str]) -> None:
+            received_values.append("invalidated")
         
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create hook with only set_callback (receiving-only)
-        receiving_hook = Hook[str](
-            owner=mock_owner,
-            get_callback=None,
-            set_callback=set_callback
-        )
-        
-        # Verify flags are set correctly
-        self.assertTrue(receiving_hook.can_receive)
-        self.assertFalse(receiving_hook.can_send)
-        
-        # Test that it can receive values
-        receiving_hook._binding_system_callback_set("test_value") # type: ignore
-        self.assertEqual(received_values, ["test_value"])
-        
-        # Test that it cannot provide values (should raise error)
-        with self.assertRaises(ValueError):
-            receiving_hook._binding_system_callback_get() # type: ignore
-
-    def test_sending_only_hook(self):
-        """Test a hook that can only send values (has get_callback but no set_callback)."""
-        def get_callback() -> str:
-            return "constant_value"
-        
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create hook with only get_callback (sending-only)
-        sending_hook = Hook[str](
-            owner=mock_owner,
-            get_callback=get_callback,
-            set_callback=None
-        )
-        
-        # Verify flags are set correctly
-        self.assertFalse(sending_hook.can_receive)
-        self.assertTrue(sending_hook.can_send)
-        
-        # Test that it can provide values
-        value = sending_hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "constant_value")
-        
-        # Test that it cannot receive values (should raise error)
-        with self.assertRaises(ValueError):
-            sending_hook._binding_system_callback_set("test_value") # type: ignore
-
-    def test_bidirectional_hook(self):
-        """Test a hook that can both send and receive values (has both callbacks)."""
-        stored_value = "initial_value"
-        received_values: List[str] = []
-        
-        def get_callback() -> str:
-            return stored_value
-        
-        def set_callback(value: str) -> None:
-            nonlocal stored_value
-            stored_value = value
-            received_values.append(value)
-        
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create hook with both callbacks (bidirectional)
-        bidirectional_hook = Hook[str](
-            owner=mock_owner,
-            get_callback=get_callback,
-            set_callback=set_callback
-        )
-        
-        # Verify flags are set correctly
-        self.assertTrue(bidirectional_hook.can_receive)
-        self.assertTrue(bidirectional_hook.can_send)
-        
-        # Test that it can provide values
-        value = bidirectional_hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "initial_value")
-        
-        # Test that it can receive values
-        bidirectional_hook._binding_system_callback_set("new_value") # type: ignore
-        self.assertEqual(stored_value, "new_value")
-        self.assertEqual(received_values, ["new_value"])
-        
-        # Verify the value was updated
-        value = bidirectional_hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "new_value")
-
-    def test_hook_with_none_callbacks(self):
-        """Test hook creation with None callbacks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create hook with no callbacks
+        # Create hook with invalidate callback
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=None,
-            set_callback=None
+            value="initial_value",
+            invalidate_callback=invalidate_callback
         )
         
-        # Verify flags are set correctly
-        self.assertFalse(hook.can_receive)
-        self.assertFalse(hook.can_send)
-        
-        # Test that both operations fail
-        with self.assertRaises(ValueError):
-            hook._binding_system_callback_get() # type: ignore
-        
-        with self.assertRaises(ValueError):
-            hook._binding_system_callback_set("test_value") # type: ignore
-
-    def test_hook_with_lambda_callbacks(self):
-        """Test hook creation with lambda callbacks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create hook with lambda callbacks
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "lambda_value",
-            set_callback=lambda x: None
-        )
-        
-        # Verify flags are set correctly
+        # Verify the hook is created correctly
+        self.assertEqual(hook.value, "initial_value")
+        self.assertEqual(hook.owner, mock_owner)
         self.assertTrue(hook.can_receive)
-        self.assertTrue(hook.can_send)
-        
-        # Test lambda callbacks work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "lambda_value")
-        
-        # Test set callback (should not raise error)
-        hook._binding_system_callback_set("new_value") # type: ignore   
+        self.assertIsNotNone(hook.hook_nexus)
 
-    def test_hook_with_complex_callbacks(self):
-        """Test hook creation with complex callback functions."""
+    def test_hook_creation_without_invalidate_callback(self):
+        """Test hook creation without invalidate callback."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create a counter for tracking calls
-        call_count = 0
-        stored_value = "initial"
-        
-        def complex_get_callback() -> str:
-            nonlocal call_count
-            call_count += 1
-            return f"{stored_value}_{call_count}"
-        
-        def complex_set_callback(value: str) -> None:
-            nonlocal stored_value, call_count
-            stored_value = value
-            call_count += 10
-        
-        # Create hook with complex callbacks
+        # Create hook without invalidate callback
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=complex_get_callback,
-            set_callback=complex_set_callback
+            value="initial_value",
+            invalidate_callback=None
         )
-        
-        # Test initial state
-        self.assertEqual(call_count, 0)
-        
-        # Test get callback
-        value1 = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value1, "initial_1")
-        self.assertEqual(call_count, 1)
-        
-        # Test set callback
-        hook._binding_system_callback_set("new_value") # type: ignore
-        self.assertEqual(stored_value, "new_value")
-        self.assertEqual(call_count, 11)
-        
-        # Test get callback again
-        value2 = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value2, "new_value_12")
-        self.assertEqual(call_count, 12)
-
-    def test_hook_protocol_compliance(self):
-        """Test that hooks properly implement the HookLike protocol."""
-        def get_callback() -> str:
-            return "test_value"
-        
-        def set_callback(value: str) -> None:
-            pass
-        
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=get_callback,
-            set_callback=set_callback
-        )
-        
-        # Test that all required protocol methods exist and work
-        self.assertTrue(hasattr(hook, 'connect_to'))
-        self.assertTrue(hasattr(hook, 'disconnect'))
-        self.assertTrue(hasattr(hook, 'invalidate'))
-        self.assertTrue(hasattr(hook, 'check_binding_system'))
-        self.assertTrue(hasattr(hook, 'value'))
-        self.assertTrue(hasattr(hook, 'hook_group'))
-        self.assertTrue(hasattr(hook, 'owner'))
-        self.assertTrue(hasattr(hook, 'can_receive'))
-        self.assertTrue(hasattr(hook, 'can_send'))
+            
+        # Verify the hook is created correctly
+        self.assertEqual(hook.value, "initial_value")
+        self.assertEqual(hook.owner, mock_owner)
+        self.assertFalse(hook.can_receive)
+        self.assertIsNotNone(hook.hook_nexus)
 
     def test_hook_value_property(self):
         """Test the value property of hooks."""
-        stored_value = "test_value"
-        
-        def get_callback() -> str:
-            return stored_value
-        
-        def set_callback(value: str) -> None:
-            nonlocal stored_value
-            stored_value = value
-        
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create a hook that can send values
+        # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=get_callback,
-            set_callback=set_callback
+            value="test_value",
+            invalidate_callback=lambda _: None
         )
         
         # Test the value property
         self.assertEqual(hook.value, "test_value")
         
-        # Update the value
-        hook._binding_system_callback_set("new_value") # type: ignore
-        self.assertEqual(hook.value, "new_value")
-
-    def test_hook_value_property_with_no_sending_hooks(self):
-        """Test the value property when no hooks can send values."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook that can only receive values
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=None,
-            set_callback=lambda x: None
-        )
-        
-        # Test that value property raises error when no hooks can send
-        with self.assertRaises(ValueError):
-            _ = hook.value
+        # The value comes from the hook nexus, so it should be consistent
+        self.assertEqual(hook.hook_nexus.value, "test_value")
 
     def test_hook_owner_property(self):
         """Test the owner property of hooks."""
@@ -294,8 +95,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test the owner property
@@ -304,26 +105,26 @@ class TestHookCapabilities(unittest.TestCase):
         # Test that owner is the same instance
         self.assertIs(hook.owner, mock_owner)
 
-    def test_hook_hook_group_property(self):
-        """Test the hook_group property of hooks."""
+    def test_hook_hook_nexus_property(self):
+        """Test the hook_nexus property of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
-        # Test the hook_group property
-        self.assertIsNotNone(hook.hook_group)
-        self.assertIn(hook, hook.hook_group.hooks)
+        # Test the hook_nexus property
+        self.assertIsNotNone(hook.hook_nexus)
+        self.assertIn(hook, hook.hook_nexus.hooks)
         
-        # Test that hook_group is consistent
-        hook_group1 = hook.hook_group
-        hook_group2 = hook.hook_group
-        self.assertIs(hook_group1, hook_group2)
+        # Test that hook_nexus is consistent
+        hook_nexus1 = hook.hook_nexus
+        hook_nexus2 = hook.hook_nexus
+        self.assertIs(hook_nexus1, hook_nexus2)
 
     def test_hook_lock_property(self):
         """Test the lock property of hooks."""
@@ -333,15 +134,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test the lock property
         self.assertIsNotNone(hook.lock)
         
         # Test that lock is a threading lock type
-        # The exact type might vary depending on the Python implementation
         self.assertTrue(hasattr(hook.lock, 'acquire'))
         self.assertTrue(hasattr(hook.lock, 'release'))
         
@@ -350,256 +150,321 @@ class TestHookCapabilities(unittest.TestCase):
             # This should not raise an error
             pass
 
-    def test_hook_state_flags(self):
-        """Test the state flag properties of hooks."""
+    def test_hook_can_receive_property(self):
+        """Test the can_receive property of hooks."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create hook with invalidate callback
+        hook_with_callback = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Create hook without invalidate callback
+        hook_without_callback = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=None
+        )
+        
+        # Test can_receive property
+        self.assertTrue(hook_with_callback.can_receive)
+        self.assertFalse(hook_without_callback.can_receive)
+
+    def test_hook_in_submission_property(self):
+        """Test the in_submission property of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test initial state
-        self.assertFalse(hook.is_being_invalidated)
+        self.assertFalse(hook.in_submission)
         
         # Test setting state flag
-        hook.is_being_invalidated = True
-        
-        self.assertTrue(hook.is_being_invalidated)
+        hook.in_submission = True
+        self.assertTrue(hook.in_submission)
         
         # Reset
-        hook.is_being_invalidated = False
-        
-        self.assertFalse(hook.is_being_invalidated)
+        hook.in_submission = False
+        self.assertFalse(hook.in_submission)
 
-    def test_hook_state_flags_persistence(self):
-        """Test that state flags persist correctly."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
-        )
-        
-        # Set flag multiple times
-        for i in range(5):
-            hook.is_being_invalidated = (i % 2 == 0)
-            
-            self.assertEqual(hook.is_being_invalidated, i % 2 == 0)
-
-    def test_hook_disconnect(self):
-        """Test the disconnect method of hooks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-    
-        # Create a hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
-        )
-    
-        # Get the original hook group
-        original_group = hook.hook_group
-        
-        # Create another hook to connect with
-        hook2 = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",  # Same value as first hook
-            set_callback=lambda x: None
-        )
-        
-        # Connect them so they're in the same group
-        hook.connect_to(hook2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Now disconnect the first hook
-        hook.disconnect()
-        
-        # Verify the hook is now in a new, separate hook group
-        self.assertNotEqual(hook.hook_group, original_group)
-        self.assertIn(hook, hook.hook_group.hooks)
-        self.assertEqual(len(hook.hook_group.hooks), 1)
-
-    def test_hook_disconnect_multiple_times(self):
-        """Test calling disconnect multiple times."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-    
-        # Create a hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
-        )
-    
-        # Create another hook to connect with
-        hook2 = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",  # Same value as first hook
-            set_callback=lambda x: None
-        )
-        
-        # Connect them so they're in the same group
-        hook.connect_to(hook2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
-        
-        # Disconnect multiple times - should fail after first disconnect
-        with self.assertRaises(ValueError) as cm:
-            for _ in range(5):
-                original_group = hook.hook_group
-                hook.disconnect()
-                
-                # Should always create a new group
-                self.assertNotEqual(hook.hook_group, original_group)
-                self.assertIn(hook, hook.hook_group.hooks)
-                self.assertEqual(len(hook.hook_group.hooks), 1)
-        
-        # Verify the error message
-        self.assertIn("Hook is already disconnected", str(cm.exception))
-
-    def test_hook_invalidate(self):
-        """Test the invalidate method of hooks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
-        )
-        
-        # Test invalidation
-        # Since the hook is alone in its group and can send values,
-        # invalidation should succeed but won't affect other hooks
-        success, message = hook.invalidate()
-        self.assertTrue(success, f"Invalidation failed: {message}")
-
-    def test_hook_invalidate_receiving_only(self):
-        """Test invalidating a receiving-only hook."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a receiving-only hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=None,
-            set_callback=lambda x: None
-        )
-        
-        # Test invalidation should fail because it can't send values
-        with self.assertRaises(ValueError) as cm:
-            hook.invalidate()
-        
-        self.assertIn("cannot send values", str(cm.exception))
-
-    def test_hook_check_binding_system(self):
-        """Test the check_binding_system method of hooks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
-        )
-        
-        # Test binding system check
-        # This should work for a single hook in its own group
-        success, message = hook.check_binding_system()
-        self.assertTrue(success, f"Binding system check failed: {message}")
-
-    def test_hook_check_binding_system_with_multiple_hooks(self):
-        """Test check_binding_system with multiple hooks in a group."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create multiple hooks
-        hook1 = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value1",
-            set_callback=lambda x: None
-        )
-        
-        hook2 = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: "value2",
-            set_callback=lambda x: None
-        )
-        
-        # Manually add hook2 to hook1's group (this is a test scenario)
-        # In real usage, this would happen through the binding system
-        hook1.hook_group.add_hook(hook2)
-        
-        # Now check binding system - should fail because values are different
-        success, message = hook1.check_binding_system()
-        self.assertFalse(success)
-        self.assertIn("not synced", message)
-
-    def test_hook_is_connected_to(self):
-        """Test the is_connected_to method of hooks."""
+    def test_hook_connect_to(self):
+        """Test the connect_to method of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
         # Create two hooks
         hook1 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value1",
-            set_callback=lambda x: None
+            value="value1",
+            invalidate_callback=lambda _: None
         )
         
         hook2 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value2",
-            set_callback=lambda x: None
+            value="value2",
+            invalidate_callback=lambda _: None
         )
         
-        # Initially, hooks are not connected
-        self.assertFalse(hook1.is_connected_to(hook2))
-        self.assertFalse(hook2.is_connected_to(hook1))
+        # Initially, hooks are in separate hook nexuses
+        self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
         
-        # Manually add hook2 to hook1's group
-        hook1.hook_group.add_hook(hook2)
+        # Connect hook1 to hook2
+        hook1.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
         
-        # Now hook1 should see hook2 as connected
-        self.assertTrue(hook1.is_connected_to(hook2))
-        
-        # But hook2 is still in its own group, so it won't see hook1 as connected
-        # This is expected behavior - connections are not automatically bidirectional
-        self.assertFalse(hook2.is_connected_to(hook1))
+        # Now they should be in the same hook nexus
+        self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
+        self.assertIn(hook1, hook2.hook_nexus.hooks)
+        self.assertIn(hook2, hook1.hook_nexus.hooks)
 
-    def test_hook_replace_hook_group(self):
-        """Test the _binding_system_replace_hook_group method."""
+    def test_hook_connect_to_invalid_sync_mode(self):
+        """Test connect_to with invalid sync mode."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create two hooks
+        hook1 = Hook[str](
+            owner=mock_owner,
+            value="value1",
+            invalidate_callback=lambda _: None
+        )
+        
+        hook2 = Hook[str](
+            owner=mock_owner,
+            value="value2",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Test with invalid sync mode
+        with self.assertRaises(ValueError) as cm:
+            hook1.connect_to(hook2, "invalid_mode")  # type: ignore
+        
+        self.assertIn("Invalid sync mode", str(cm.exception))
+
+    def test_hook_detach(self):
+        """Test the detach method of hooks."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+    
+        # Create a hook
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Get the original hook nexus
+        original_nexus = hook.hook_nexus
+        
+        # Create another hook to connect with
+        hook2 = Hook[str](
+            owner=mock_owner,
+            value="value",  # Same value as first hook
+            invalidate_callback=lambda _: None
+        )
+        
+        # Connect them so they're in the same hook nexus
+        hook.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
+        
+        # Now disconnect the first hook
+        hook.detach()
+        
+        # Verify the hook is now in a new, separate hook nexus
+        self.assertNotEqual(hook.hook_nexus, original_nexus)
+        self.assertIn(hook, hook.hook_nexus.hooks)
+        self.assertEqual(len(hook.hook_nexus.hooks), 1)
+
+    def test_hook_detach_multiple_times(self):
+        """Test calling detach multiple times."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+    
+        # Create a hook
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Create another hook to connect with
+        hook2 = Hook[str](
+            owner=mock_owner,
+            value="value",  # Same value as first hook
+            invalidate_callback=lambda _: None
+        )
+        
+        # Connect them so they're in the same group
+        hook.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
+        
+        # Detach multiple times - should fail after first detach
+        with self.assertRaises(ValueError) as cm:
+            for _ in range(5):
+                original_nexus = hook.hook_nexus
+                hook.detach()
+                
+                # Should always create a new hook nexus
+                self.assertNotEqual(hook.hook_nexus, original_nexus)
+                self.assertIn(hook, hook.hook_nexus.hooks)
+                self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        
+        # Verify the error message
+        self.assertIn("Hook is already disconnected", str(cm.exception))
+
+    def test_hook_submit_value(self):
+        """Test the submit_value method of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="initial_value",
+            invalidate_callback=lambda _: None
         )
         
-        # Get the original hook group
-        original_group = hook.hook_group
+        # Test submitting a new value
+        success, message = hook.submit_value("new_value")
+        self.assertTrue(success, f"Submit failed: {message}")
         
-        # Create a new hook group
-        from observables._utils.hook_group import HookGroup
-        new_group = HookGroup[str](hook)
+        # The value should be updated in the hook nexus
+        self.assertEqual(hook.hook_nexus.value, "new_value")
+
+    def test_hook_submit_value_without_callback(self):
+        """Test submit_value on a hook without invalidate callback."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
         
-        # Replace the hook group
-        hook._binding_system_replace_hook_group(new_group) # type: ignore
+        # Create a hook without invalidate callback
+        hook = Hook[str](
+            owner=mock_owner,
+            value="initial_value",
+            invalidate_callback=None
+        )
         
-        # Verify the hook is now in the new group
-        self.assertEqual(hook.hook_group, new_group)
-        self.assertNotEqual(hook.hook_group, original_group)
-        self.assertIn(hook, new_group.hooks)
+        # Test submitting a value - should still work as it goes through the hook nexus
+        success, message = hook.submit_value("new_value")
+        self.assertTrue(success, f"Submit failed: {message}")
+
+    def test_hook_is_attached_to(self):
+        """Test the is_attached_to method of hooks."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create two hooks
+        hook1 = Hook[str](
+            owner=mock_owner,
+            value="value1",
+            invalidate_callback=lambda _: None
+        )
+        
+        hook2 = Hook[str](
+            owner=mock_owner,
+            value="value2",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Initially, hooks are not attached
+        self.assertFalse(hook1.is_attached_to(hook2))
+        self.assertFalse(hook2.is_attached_to(hook1))
+        
+        # Connect them
+        hook1.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
+        
+        # Now they should be attached
+        self.assertTrue(hook1.is_attached_to(hook2))
+        self.assertTrue(hook2.is_attached_to(hook1))
+
+    def test_hook_invalidate(self):
+        """Test the invalidate method of hooks."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create a hook with invalidate callback
+        received_values: list[str] = []
+        
+        def invalidate_callback(hook: HookLike[str]) -> None:
+            received_values.append("invalidated")
+        
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=invalidate_callback
+        )
+        
+        # Test invalidation
+        hook.invalidate()
+        self.assertEqual(received_values, ["invalidated"])
+
+    def test_hook_invalidate_without_callback(self):
+        """Test invalidating a hook without invalidate callback."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create a hook without invalidate callback
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=None
+        )
+        
+        # Test invalidation should fail
+        with self.assertRaises(ValueError) as cm:
+            hook.invalidate()
+        
+        self.assertIn("Invalidate callback is None", str(cm.exception))
+
+    def test_hook_is_valid_value(self):
+        """Test the is_valid_value method of hooks."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create a hook
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Test validation - should delegate to owner
+        success, message = hook.is_valid_value("new_value")
+        # The actual result depends on the owner's validation logic
+        self.assertIsInstance(success, bool)
+        self.assertIsInstance(message, str)
+
+    def test_hook_replace_hook_nexus(self):
+        """Test the _replace_hook_nexus method."""
+        # Create mock observable for owner
+        mock_owner = MockObservable("test_owner")
+        
+        # Create a hook
+        hook = Hook[str](
+            owner=mock_owner,
+            value="value",
+            invalidate_callback=lambda _: None
+        )
+        
+        # Get the original hook nexus
+        original_nexus = hook.hook_nexus
+        
+        # Create a new hook nexus
+        from observables._utils.hook_nexus import HookNexus
+        new_nexus = HookNexus("new_value", hook)
+        
+        # Replace the hook nexus
+        hook._replace_hook_group(new_nexus) #type: ignore
+        
+        # Verify the hook is now in the new hook nexus
+        self.assertEqual(hook.hook_nexus, new_nexus)
+        self.assertNotEqual(hook.hook_nexus, original_nexus)
+        self.assertIn(hook, new_nexus.hooks)
 
     def test_hook_thread_safety_basic(self):
         """Test basic thread safety of hooks."""
@@ -608,20 +473,11 @@ class TestHookCapabilities(unittest.TestCase):
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create a hook with a mutable value
-        shared_list = ["initial"]
-        
-        def get_callback() -> List[str]:
-            return shared_list.copy()
-        
-        def set_callback(value: List[str]) -> None:
-            shared_list.clear()
-            shared_list.extend(value)
-        
-        hook = Hook[List[str]](
+        # Create a hook
+        hook = Hook[str](
             owner=mock_owner,
-            get_callback=get_callback,
-            set_callback=set_callback
+            value="initial",
+            invalidate_callback=lambda _: None
         )
         
         # Test concurrent access
@@ -636,7 +492,7 @@ class TestHookCapabilities(unittest.TestCase):
         def writer():
             for i in range(100):
                 try:
-                    hook._binding_system_callback_set([f"value_{i}"]) # type: ignore
+                    hook.submit_value(f"value_{i}")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -666,20 +522,19 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test concurrent property access
         def property_reader():
             for _ in range(200):
                 try:
-                    _ = hook.can_send
                     _ = hook.can_receive
                     _ = hook.owner
-                    _ = hook.hook_group
+                    _ = hook.hook_nexus
                     _ = hook.lock
-                    _ = hook.is_being_invalidated
+                    _ = hook.in_submission
                     time.sleep(0.0005)
                 except Exception:
                     pass
@@ -687,7 +542,7 @@ class TestHookCapabilities(unittest.TestCase):
         def property_writer():
             for i in range(100):
                 try:
-                    hook.is_being_invalidated = (i % 2 == 0)
+                    hook.in_submission = (i % 2 == 0)
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -717,16 +572,15 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test concurrent method calls
         def method_caller():
             for _ in range(150):
                 try:
-                    hook._binding_system_callback_get() # type: ignore
-                    hook._binding_system_callback_set("test") # type: ignore
+                    hook.submit_value("test")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -734,7 +588,7 @@ class TestHookCapabilities(unittest.TestCase):
         def state_changer():
             for i in range(100):
                 try:
-                    hook.is_being_invalidated = (i % 2 == 0)
+                    hook.in_submission = (i % 2 == 0)
                     time.sleep(0.0015)
                 except Exception:
                     pass
@@ -754,8 +608,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Verify no exceptions occurred
         self.assertTrue(True, "Method thread safety test completed without errors")
 
-    def test_hook_thread_safety_concurrent_hook_group_operations(self):
-        """Test thread safety of hook group operations under concurrent access."""
+    def test_hook_thread_safety_concurrent_hook_nexus_operations(self):
+        """Test thread safety of hook nexus operations under concurrent access."""
         import time
         
         # Create mock observable for owner
@@ -764,25 +618,25 @@ class TestHookCapabilities(unittest.TestCase):
         # Create multiple hooks
         hook1 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value1",
-            set_callback=lambda x: None
+            value="value1",
+            invalidate_callback=lambda _: None
         )
         
         hook2 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value2",
-            set_callback=lambda x: None
+            value="value2",
+            invalidate_callback=lambda _: None
         )
         
-        # Test concurrent hook group operations
-        def group_operator():
+        # Test concurrent hook nexus operations
+        def nexus_operator():
             for _ in range(100):
                 try:
-                    # Add hook2 to hook1's group
-                    hook1.hook_group.add_hook(hook2)
+                    # Add hook2 to hook1's hook nexus
+                    hook1.hook_nexus.add_hook(hook2)
                     time.sleep(0.002)
-                    # Remove hook2 from hook1's group
-                    hook1.hook_group.remove_hook(hook2)
+                    # Remove hook2 from hook1's hook nexus
+                    hook1.hook_nexus.remove_hook(hook2)
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -790,15 +644,15 @@ class TestHookCapabilities(unittest.TestCase):
         def hook_accessor():
             for _ in range(200):
                 try:
-                    _ = hook1.hook_group.hooks
-                    _ = len(hook1.hook_group.hooks)
-                    _ = hook1.is_connected_to(hook2)
+                    _ = hook1.hook_nexus.hooks
+                    _ = len(hook1.hook_nexus.hooks)
+                    _ = hook1.is_attached_to(hook2)
                     time.sleep(0.001)
                 except Exception:
                     pass
         
         # Create threads
-        operator_thread = threading.Thread(target=group_operator)
+        operator_thread = threading.Thread(target=nexus_operator)
         accessor_thread = threading.Thread(target=hook_accessor)
         
         # Start threads
@@ -810,10 +664,10 @@ class TestHookCapabilities(unittest.TestCase):
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Hook group thread safety test completed without errors")
+        self.assertTrue(True, "Hook nexus thread safety test completed without errors")
 
-    def test_hook_thread_safety_concurrent_disconnect_operations(self):
-        """Test thread safety of disconnect operations under concurrent access."""
+    def test_hook_thread_safety_concurrent_detach_operations(self):
+        """Test thread safety of detach operations under concurrent access."""
         import time
         
         # Create mock observable for owner
@@ -822,15 +676,22 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
-        # Test concurrent disconnect operations
-        def disconnect_caller():
+        # Test concurrent detach operations
+        def detach_caller():
             for _ in range(50):
                 try:
-                    hook.disconnect()
+                    # Create another hook to connect with first
+                    hook2 = Hook[str](
+                        owner=mock_owner,
+                        value="value",
+                        invalidate_callback=lambda _: None
+                    )
+                    hook.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
+                    hook.detach()
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -838,29 +699,29 @@ class TestHookCapabilities(unittest.TestCase):
         def property_accessor():
             for _ in range(200):
                 try:
-                    _ = hook.hook_group
-                    _ = len(hook.hook_group.hooks)
+                    _ = hook.hook_nexus
+                    _ = len(hook.hook_nexus.hooks)
                     time.sleep(0.001)
                 except Exception:
                     pass
         
         # Create threads
-        disconnect_thread = threading.Thread(target=disconnect_caller)
+        detach_thread = threading.Thread(target=detach_caller)
         accessor_thread = threading.Thread(target=property_accessor)
         
         # Start threads
-        disconnect_thread.start()
+        detach_thread.start()
         accessor_thread.start()
         
         # Wait for completion
-        disconnect_thread.join()
+        detach_thread.join()
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Disconnect thread safety test completed without errors")
+        self.assertTrue(True, "Detach thread safety test completed without errors")
 
-    def test_hook_thread_safety_concurrent_invalidate_operations(self):
-        """Test thread safety of invalidate operations under concurrent access."""
+    def test_hook_thread_safety_concurrent_submit_operations(self):
+        """Test thread safety of submit operations under concurrent access."""
         import time
         
         # Create mock observable for owner
@@ -869,15 +730,15 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
-        # Test concurrent invalidate operations
-        def invalidate_caller():
+        # Test concurrent submit operations
+        def submit_caller():
             for _ in range(100):
                 try:
-                    hook.invalidate()
+                    hook.submit_value("test")
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -885,90 +746,26 @@ class TestHookCapabilities(unittest.TestCase):
         def state_accessor():
             for _ in range(200):
                 try:
-                    _ = hook.is_being_invalidated
-                    _ = hook.can_send
+                    _ = hook.in_submission
                     _ = hook.can_receive
                     time.sleep(0.001)
                 except Exception:
                     pass
         
         # Create threads
-        invalidate_thread = threading.Thread(target=invalidate_caller)
+        submit_thread = threading.Thread(target=submit_caller)
         accessor_thread = threading.Thread(target=state_accessor)
         
         # Start threads
-        invalidate_thread.start()
+        submit_thread.start()
         accessor_thread.start()
         
         # Wait for completion
-        invalidate_thread.join()
+        submit_thread.join()
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Invalidate thread safety test completed without errors")
-
-    def test_hook_thread_safety_concurrent_callback_execution(self):
-        """Test thread safety of callback execution under concurrent access."""
-        import time
-        
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook with thread-safe callbacks
-        import threading
-        callback_lock = threading.Lock()
-        callback_count = 0
-        
-        def thread_safe_get_callback() -> str:
-            nonlocal callback_count
-            with callback_lock:
-                callback_count += 1
-                return f"value_{callback_count}"
-        
-        def thread_safe_set_callback(value: str) -> None:
-            nonlocal callback_count
-            with callback_lock:
-                callback_count += 1
-        
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=thread_safe_get_callback,
-            set_callback=thread_safe_set_callback
-        )
-        
-        # Test concurrent callback execution
-        def callback_caller():
-            for _ in range(100):
-                try:
-                    hook._binding_system_callback_get() # type: ignore
-                    hook._binding_system_callback_set("test") # type: ignore
-                    time.sleep(0.001)
-                except Exception:
-                    pass
-        
-        def callback_caller2():
-            for _ in range(100):
-                try:
-                    hook._binding_system_callback_get() # type: ignore
-                    hook._binding_system_callback_set("test2") # type: ignore
-                    time.sleep(0.001)
-                except Exception:
-                    pass
-        
-        # Create threads
-        caller1_thread = threading.Thread(target=callback_caller)
-        caller2_thread = threading.Thread(target=callback_caller2)
-        
-        # Start threads
-        caller1_thread.start()
-        caller2_thread.start()
-        
-        # Wait for completion
-        caller1_thread.join()
-        caller2_thread.join()
-        
-        # Verify no exceptions occurred
-        self.assertTrue(True, "Callback execution thread safety test completed without errors")
+        self.assertTrue(True, "Submit thread safety test completed without errors")
 
     def test_hook_thread_safety_concurrent_connect_operations(self):
         """Test thread safety of connect operations under concurrent access."""
@@ -980,21 +777,21 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hooks
         hook1 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value1",
-            set_callback=lambda x: None
+            value="value1",
+            invalidate_callback=lambda _: None
         )
         
         hook2 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value2",
-            set_callback=lambda x: None
+            value="value2",
+            invalidate_callback=lambda _: None
         )
         
         # Test concurrent connect operations
         def connect_caller():
             for _ in range(50):
                 try:
-                    hook1.connect_to(hook2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+                    hook1.connect_to(hook2, InitialSyncMode.SELF_IS_UPDATED)
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -1002,8 +799,8 @@ class TestHookCapabilities(unittest.TestCase):
         def connection_checker():
             for _ in range(200):
                 try:
-                    _ = hook1.is_connected_to(hook2)
-                    _ = hook2.is_connected_to(hook1)
+                    _ = hook1.is_attached_to(hook2)
+                    _ = hook2.is_attached_to(hook1)
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -1033,8 +830,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test many concurrent operations
@@ -1043,24 +840,23 @@ class TestHookCapabilities(unittest.TestCase):
                 try:
                     # Mix of operations
                     if i % 5 == 0:
-                        hook._binding_system_callback_get() # type: ignore
+                        hook.submit_value(f"value_{worker_id}_{i}")
                     elif i % 5 == 1:
-                        hook._binding_system_callback_set(f"value_{worker_id}_{i}") # type: ignore
+                        hook.in_submission = (i % 2 == 0)
                     elif i % 5 == 2:
-                        hook.is_being_invalidated = (i % 2 == 0)
-                    elif i % 5 == 3:
-                        _ = hook.can_send
                         _ = hook.can_receive
+                    elif i % 5 == 3:
+                        _ = hook.hook_nexus
+                        _ = len(hook.hook_nexus.hooks)
                     else:
-                        _ = hook.hook_group
-                        _ = len(hook.hook_group.hooks)
+                        _ = hook.value
                     
                     time.sleep(0.001)
                 except Exception:
                     pass
         
         # Create multiple worker threads
-        threads = []
+        threads: list[threading.Thread] = []
         for worker_id in range(5):
             thread = threading.Thread(target=stress_worker, args=(worker_id,))
             threads.append(thread)
@@ -1083,8 +879,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test lock contention
@@ -1094,8 +890,7 @@ class TestHookCapabilities(unittest.TestCase):
                     with hook.lock:
                         # Hold the lock for a bit to create contention
                         time.sleep(0.001)
-                        _ = hook._binding_system_callback_get() # type: ignore
-                        hook._binding_system_callback_set("contended") # type: ignore
+                        hook.submit_value("contended")
                 except Exception:
                     pass
         
@@ -1103,7 +898,7 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(100):
                 try:
                     with hook.lock:
-                        _ = hook.can_send
+                        _ = hook.can_receive
                         _ = hook.can_receive
                 except Exception:
                     pass
@@ -1133,8 +928,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test race conditions
@@ -1142,9 +937,9 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(100):
                 try:
                     # Rapidly change state
-                    hook.is_being_invalidated = True
-                    hook.is_being_invalidated = False
-                    hook.is_being_invalidated = True
+                    hook.in_submission = True
+                    hook.in_submission = False
+                    hook.in_submission = True
                     time.sleep(0.0005)
                 except Exception:
                     pass
@@ -1153,8 +948,7 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(200):
                 try:
                     # Rapidly check state
-                    _ = hook.is_being_invalidated
-                    _ = hook.can_send
+                    _ = hook.in_submission
                     _ = hook.can_receive
                     time.sleep(0.0005)
                 except Exception:
@@ -1181,27 +975,19 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         
         # Create a hook with callbacks that raise exceptions
-        def failing_get_callback() -> str:
-            raise RuntimeError("Get callback failed")
-        
-        def failing_set_callback(value: str) -> None:
-            raise RuntimeError("Set callback failed")
+        def failing_invalidate_callback(hook: HookLike[str]) -> None:
+            raise RuntimeError("Invalidate callback failed")
         
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=failing_get_callback,
-            set_callback=failing_set_callback
+            value="value",
+            invalidate_callback=failing_invalidate_callback
         )
         
-        # Test that get callback raises the expected error
+        # Test that invalidate callback raises the expected error
         with self.assertRaises(RuntimeError) as cm:
-            hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(str(cm.exception), "Get callback failed")
-        
-        # Test that set callback raises the expected error
-        with self.assertRaises(RuntimeError) as cm:
-            hook._binding_system_callback_set("test") # type: ignore
-        self.assertEqual(str(cm.exception), "Set callback failed")
+            hook.invalidate()
+        self.assertEqual(str(cm.exception), "Invalidate callback failed")
 
     def test_hook_with_different_types(self):
         """Test hooks with different data types."""
@@ -1209,32 +995,32 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         int_hook = Hook[int](
             owner=mock_owner,
-            get_callback=lambda: 42,
-            set_callback=lambda x: None
+            value=42,
+            invalidate_callback=lambda _: None
         )
         self.assertEqual(int_hook.value, 42)
         
         # Test with float
         float_hook = Hook[float](
             owner=mock_owner,
-            get_callback=lambda: 3.14,
-            set_callback=lambda x: None
+            value=3.14,
+            invalidate_callback=lambda _: None
         )
         self.assertEqual(float_hook.value, 3.14)
         
         # Test with bool
         bool_hook = Hook[bool](
             owner=mock_owner,
-            get_callback=lambda: True,
-            set_callback=lambda x: None
+            value=True,
+            invalidate_callback=lambda _: None
         )
         self.assertEqual(bool_hook.value, True)
         
         # Test with list
-        list_hook = Hook[List[str]](
+        list_hook = Hook[list[str]](
             owner=mock_owner,
-            get_callback=lambda: ["a", "b", "c"],
-            set_callback=lambda x: None
+            value=["a", "b", "c"],
+            invalidate_callback=lambda _: None
         )
         self.assertEqual(list_hook.value, ["a", "b", "c"])
 
@@ -1246,14 +1032,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create two identical hooks
         hook1 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         hook2 = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Hooks should not be equal (they're different instances)
@@ -1275,8 +1061,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=lambda: "value",
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=lambda _: None
         )
         
         # Test string representation
@@ -1286,8 +1072,6 @@ class TestHookCapabilities(unittest.TestCase):
         # Should contain useful information
         self.assertIn("Hook", hook_str)
         self.assertIn("Hook", hook_repr)
-        # Note: Default string representation doesn't include type information
-        # This is expected behavior for Python objects
 
     def test_hook_with_none_owner(self):
         """Test hook creation with None owner."""
@@ -1296,8 +1080,8 @@ class TestHookCapabilities(unittest.TestCase):
         try:
             hook = Hook[str](
                 owner=None,  # type: ignore
-                get_callback=lambda: "value",
-                set_callback=lambda x: None
+                value="value",
+                invalidate_callback=lambda _: None
             )
             # If no exception is raised, that's the current behavior
             self.assertIsNone(hook.owner)
@@ -1311,37 +1095,27 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         
         # Create a list to track side effects
-        side_effects: List[str] = []
+        side_effects: list[str] = []
         
-        def get_callback_with_side_effect() -> str:
-            side_effects.append("get_called")
-            return "value"
-        
-        def set_callback_with_side_effect(value: str) -> None:
-            side_effects.append(f"set_called_with_{value}")
+        def invalidate_callback_with_side_effect(hook: HookLike[str]) -> None:
+            side_effects.append("invalidate_called")
         
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=get_callback_with_side_effect,
-            set_callback=set_callback_with_side_effect
+            value="value",
+            invalidate_callback=invalidate_callback_with_side_effect
         )
         
         # Test initial state
         self.assertEqual(side_effects, [])
         
-        # Call get callback
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "value")
-        self.assertEqual(side_effects, ["get_called"])
+        # Call invalidate callback
+        hook.invalidate()
+        self.assertEqual(side_effects, ["invalidate_called"])
         
-        # Call set callback
-        hook._binding_system_callback_set("new_value") # type: ignore
-        self.assertEqual(side_effects, ["get_called", "set_called_with_new_value"])
-        
-        # Call get callback again
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "value")
-        self.assertEqual(side_effects, ["get_called", "set_called_with_new_value", "get_called"])
+        # Call invalidate callback again
+        hook.invalidate()
+        self.assertEqual(side_effects, ["invalidate_called", "invalidate_called"])
 
     def test_hook_with_callable_objects(self):
         """Test hooks with callable objects (not just functions)."""
@@ -1350,70 +1124,54 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Create a callable class
         class CallableClass:
-            def __init__(self, value: str):
-                self.value = value
+            def __init__(self):
                 self.call_count = 0
             
-            def __call__(self) -> str:
+            def __call__(self, hook: HookLike[str]) -> None:
                 self.call_count += 1
-                return f"{self.value}_{self.call_count}"
         
         # Create a callable object
-        callable_obj = CallableClass("test")
+        callable_obj = CallableClass()
         
         # Create hook with callable object
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=callable_obj,
-            set_callback=lambda x: None
+            value="value",
+            invalidate_callback=callable_obj
         )
         
         # Test that it works
-        value1 = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value1, "test_1")
+        hook.invalidate()
         self.assertEqual(callable_obj.call_count, 1)
         
-        value2 = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value2, "test_2")
+        hook.invalidate()
         self.assertEqual(callable_obj.call_count, 2)
 
-    def test_hook_with_partial_functions(self):
-        """Test hooks with functools.partial functions."""
-        from functools import partial
-        
+    def test_hook_with_lambda_callbacks(self):
+        """Test hooks with lambda callbacks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create a function that takes multiple arguments
-        def multi_arg_func(prefix: str, suffix: str, value: str) -> str:
-            return f"{prefix}_{value}_{suffix}"
+        # Create a counter for tracking calls
+        call_count = 0
         
-        # Create partial functions
-        partial_get = partial(multi_arg_func, "start", "end")
-        partial_set = partial(lambda x, value: None, "dummy")
+        def lambda_invalidate_callback(hook: HookLike[str]) -> None:
+            nonlocal call_count
+            call_count += 1
         
-        # Create hook with partial functions
+        # Create hook with lambda callback
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=partial_get,
-            set_callback=partial_set
+            value="value",
+            invalidate_callback=lambda_invalidate_callback
         )
         
-        # Test that partial functions work
-        # The original partial function expects an argument, so let's test a simpler one
-        simple_partial_get = partial(lambda: "simple_value")
+        # Test that lambda callback works
+        hook.invalidate()
+        self.assertEqual(call_count, 1)
         
-        simple_hook = Hook[str](
-            owner=mock_owner,
-            get_callback=simple_partial_get,
-            set_callback=lambda x: None
-        )
-        
-        simple_value = simple_hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(simple_value, "simple_value")
-        
-        # Test set callback (should not raise error)
-        hook._binding_system_callback_set("new_value") # type: ignore
+        hook.invalidate()
+        self.assertEqual(call_count, 2)
 
     def test_hook_with_method_objects(self):
         """Test hooks with bound method objects."""
@@ -1422,192 +1180,29 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Create a class with methods
         class MethodClass:
-            def __init__(self, value: str):
-                self.value = value
+            def __init__(self):
+                self.call_count = 0
             
-            def get_method(self) -> str:
-                return self.value
-            
-            def set_method(self, value: str) -> None:
-                self.value = value
+            def invalidate_method(self, hook: HookLike[str]) -> None:
+                self.call_count += 1
         
-        # Create instance and get bound methods
-        method_obj = MethodClass("initial")
-        get_method = method_obj.get_method
-        set_method = method_obj.set_method
+        # Create instance and get bound method
+        method_obj = MethodClass()
+        invalidate_method = method_obj.invalidate_method
         
-        # Create hook with bound methods
+        # Create hook with bound method
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=get_method,
-            set_callback=set_method
+            value="value",
+            invalidate_callback=invalidate_method
         )
         
-        # Test that bound methods work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "initial")
+        # Test that bound method works
+        hook.invalidate()
+        self.assertEqual(method_obj.call_count, 1)
         
-        hook._binding_system_callback_set("new_value") # type: ignore
-        self.assertEqual(method_obj.value, "new_value")
-        
-        # Verify the value was updated
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "new_value")
-
-    def test_hook_with_async_callbacks(self):
-        """Test hooks with async callbacks (should work for sync operations)."""
-        import asyncio
-        
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create async callbacks
-        async def async_get_callback() -> str:
-            await asyncio.sleep(0)  # Simulate async operation
-            return "async_value"
-        
-        async def async_set_callback(value: str) -> None:
-            await asyncio.sleep(0)  # Simulate async operation
-            # Store in a way we can test
-            async_set_callback.last_value = value
-        
-        # Store the last value for testing
-        async_set_callback.last_value = None
-        
-        # Create hook with async callbacks
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=async_get_callback,
-            set_callback=async_set_callback
-        )
-        
-        # Test that async callbacks work (they're just callable objects)
-        # Note: In real usage, you'd need to handle the coroutine objects
-        self.assertTrue(hook.can_send)
-        self.assertTrue(hook.can_receive)
-        
-        # The callbacks are callable, so they can be called
-        # (though they return coroutines, not values)
-
-    def test_hook_with_generator_callbacks(self):
-        """Test hooks with generator callbacks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create generator callbacks
-        def generator_get_callback():
-            yield "first_value"
-            yield "second_value"
-            yield "third_value"
-        
-        def generator_set_callback(value):
-            yield f"received_{value}"
-        
-        # Create hook with generator callbacks
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=generator_get_callback,
-            set_callback=generator_set_callback
-        )
-        
-        # Test that generator callbacks are recognized as callable
-        self.assertTrue(hook.can_send)
-        self.assertTrue(hook.can_receive)
-        
-        # Note: In real usage, calling these would return generator objects,
-        # not the actual values
-
-    def test_hook_with_context_managers(self):
-        """Test hooks with context manager callbacks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a context manager class
-        class ContextManager:
-            def __init__(self, value: str):
-                self.value = value
-            
-            def __enter__(self):
-                return self.value
-            
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                pass
-        
-        # Create context manager instances
-        get_context = ContextManager("context_value")
-        set_context = ContextManager("set_context")
-        
-        # Create hook with context managers
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=get_context.__enter__,
-            set_callback=lambda x: None
-        )
-        
-        # Test that context manager methods work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "context_value")
-
-    def test_hook_with_decorated_functions(self):
-        """Test hooks with decorated functions."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a decorator
-        def my_decorator(func):
-            def wrapper(*args, **kwargs):
-                return f"decorated_{func(*args, **kwargs)}"
-            return wrapper
-        
-        # Create decorated functions
-        @my_decorator
-        def decorated_get() -> str:
-            return "original_value"
-        
-        @my_decorator
-        def decorated_set(value: str) -> str:
-            return f"set_{value}"
-        
-        # Create hook with decorated functions
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=decorated_get,
-            set_callback=lambda x: None
-        )
-        
-        # Test that decorated functions work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "decorated_original_value")
-
-    def test_hook_with_closure_functions(self):
-        """Test hooks with closure functions."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a closure
-        def create_closure(prefix: str):
-            def closure_func(value: str = "default") -> str:
-                return f"{prefix}_{value}"
-            return closure_func
-        
-        # Create closure functions
-        get_closure = create_closure("prefix")
-        set_closure = create_closure("set")
-        
-        # Create hook with closure functions
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=get_closure,
-            set_callback=lambda x: None
-        )
-        
-        # Test that closure functions work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "prefix_default")
-        
-        # Test with argument
-        value = get_closure("custom")
-        self.assertEqual(value, "prefix_custom")
+        hook.invalidate()
+        self.assertEqual(method_obj.call_count, 2)
 
     def test_hook_with_class_methods(self):
         """Test hooks with class methods and static methods."""
@@ -1616,139 +1211,92 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Create a class with class and static methods
         class TestClass:
-            class_value = "class_value"
+            class_call_count = 0
+            static_call_count = 0
             
             @classmethod
-            def class_get(cls) -> str:
-                return cls.class_value
-            
-            @classmethod
-            def class_set(cls, value: str) -> None:
-                cls.class_value = value
+            def class_invalidate(cls, hook: HookLike[str]) -> None:
+                cls.class_call_count += 1
             
             @staticmethod
-            def static_get() -> str:
-                return "static_value"
-            
-            @staticmethod
-            def static_set(value: str) -> None:
-                pass
+            def static_invalidate(hook: HookLike[str]) -> None:
+                TestClass.static_call_count += 1
         
-        # Create hook with class methods
+        # Create hook with class method
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=TestClass.class_get,
-            set_callback=TestClass.class_set
+            value="value",
+            invalidate_callback=TestClass.class_invalidate
         )
         
-        # Test that class methods work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "class_value")
+        # Test that class method works
+        hook.invalidate()
+        self.assertEqual(TestClass.class_call_count, 1)
         
-        hook._binding_system_callback_set("new_class_value") # type: ignore
-        self.assertEqual(TestClass.class_value, "new_class_value")
+        hook.invalidate()
+        self.assertEqual(TestClass.class_call_count, 2)
         
-        # Test with static methods
+        # Test with static method
         static_hook = Hook[str](
             owner=mock_owner,
-            get_callback=TestClass.static_get,
-            set_callback=TestClass.static_set
+            value="value",
+            invalidate_callback=TestClass.static_invalidate
         )
         
-        value = static_hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "static_value")
+        static_hook.invalidate()
+        self.assertEqual(TestClass.static_call_count, 1)
 
-    def test_hook_with_property_callbacks(self):
-        """Test hooks with property callbacks."""
+    def test_hook_with_decorated_functions(self):
+        """Test hooks with decorated functions."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create a class with properties
-        class PropertyClass:
-            def __init__(self):
-                self._value = "initial"
-            
-            @property
-            def value_prop(self) -> str:
-                return self._value
-            
-            @value_prop.setter
-            def value_prop(self, value: str):
-                self._value = value
+        # Create a decorator
+        def my_decorator(func: Callable[[HookLike[str]], None]) -> Callable[[HookLike[str]], None]:
+            def wrapper(*args: Any, **kwargs: Any) -> None:
+                return func(*args, **kwargs)
+            return wrapper
         
-        # Create instance
-        prop_obj = PropertyClass()
+        # Create decorated function
+        @my_decorator
+        def decorated_invalidate(hook: HookLike[str]) -> None:
+            pass
         
-        # Create hook with property methods
-        # Get the getter and setter methods from the property descriptor
-        getter = type(prop_obj).value_prop.fget
-        setter = type(prop_obj).value_prop.fset
-        
+        # Create hook with decorated function
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=getter.__get__(prop_obj),  # Bind the method to the instance
-            set_callback=setter.__get__(prop_obj)   # Bind the method to the instance
+            value="value",
+            invalidate_callback=decorated_invalidate
         )
         
-        # Test that property methods work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "initial")
-        
-        hook._binding_system_callback_set("new_prop_value") # type: ignore
-        self.assertEqual(prop_obj.value_prop, "new_prop_value")
+        # Test that decorated function works
+        hook.invalidate()  # Should not raise error
 
-    def test_hook_with_lambda_complexity(self):
-        """Test hooks with complex lambda expressions."""
+    def test_hook_with_closure_functions(self):
+        """Test hooks with closure functions."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
-        # Create complex lambda callbacks
-        complex_get = lambda: (lambda x: x * 2)(21)  # Returns 42
-        complex_set = lambda x: (lambda y: y.upper() if isinstance(y, str) else str(y))(x)
+        # Create a closure
+        def create_closure():
+            call_count = 0
+            def closure_func(hook: HookLike[str]) -> None:
+                nonlocal call_count
+                call_count += 1
+            return closure_func
         
-        # Create hook with complex lambdas
+        # Create closure function
+        invalidate_closure = create_closure()
+        
+        # Create hook with closure function
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=complex_get,
-            set_callback=complex_set
+            value="value",
+            invalidate_callback=invalidate_closure
         )
         
-        # Test that complex lambdas work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, 42)
-        
-        # Test set callback
-        hook._binding_system_callback_set("test") # type: ignore    
-        # The set callback doesn't store anything, but it should execute without error
-
-    def test_hook_with_recursive_callbacks(self):
-        """Test hooks with recursive callbacks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create recursive callbacks
-        def recursive_get(n: int = 3) -> str:
-            if n <= 0:
-                return "base"
-            return f"recursive_{recursive_get(n - 1)}"
-        
-        def recursive_set(value: str, depth: int = 0) -> None:
-            if depth < 3:
-                recursive_set(f"nested_{value}", depth + 1)
-        
-        # Create hook with recursive callbacks
-        hook = Hook[str](
-            owner=mock_owner,
-            get_callback=lambda: recursive_get(),
-            set_callback=lambda x: recursive_set(x)
-        )
-        
-        # Test that recursive callbacks work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "recursive_recursive_recursive_base")
-        
-        # Test set callback (should not raise error)
-        hook._binding_system_callback_set("test") # type: ignore
+        # Test that closure function works
+        hook.invalidate()  # Should not raise error
 
     def test_hook_with_exception_handling_callbacks(self):
         """Test hooks with callbacks that handle exceptions."""
@@ -1756,42 +1304,24 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         
         # Create callbacks with exception handling
-        def safe_get_callback() -> str:
+        def safe_invalidate_callback(hook: Optional[HookLike[str]]) -> None:
             try:
                 # Simulate a potential error
-                result = "safe_value"
-                if result is None:
-                    raise ValueError("Unexpected None")
-                return result
-            except Exception as e:
-                return f"error_{type(e).__name__}"
-        
-        def safe_set_callback(value: str) -> None:
-            try:
-                if value is None:
-                    raise ValueError("Cannot set None value")
-                # Process the value
-                processed = value.upper()
-            except Exception as e:
+                if hook is None:
+                    raise ValueError("Unexpected None hook")
+                # Process the hook
+            except Exception:
                 # Log or handle the error
                 pass
         
-        # Create hook with safe callbacks
         hook = Hook[str](
             owner=mock_owner,
-            get_callback=safe_get_callback,
-            set_callback=safe_set_callback
+            value="value",
+            invalidate_callback=safe_invalidate_callback
         )
         
-        # Test that safe callbacks work
-        value = hook._binding_system_callback_get() # type: ignore
-        self.assertEqual(value, "safe_value")
-        
-        # Test set callback with valid value
-        hook._binding_system_callback_set("test") # type: ignore
-        
-        # Test set callback with None (should not raise error due to exception handling)
-        hook._binding_system_callback_set(None)  # type: ignore
+        # Test that safe callback works
+        hook.invalidate()  # Should not raise error
 
 
 if __name__ == '__main__':

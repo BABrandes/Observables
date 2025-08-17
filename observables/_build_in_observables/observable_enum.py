@@ -1,15 +1,17 @@
-from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Mapping
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable
 from enum import Enum
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.hook import Hook, HookLike
-from .._utils.sync_mode import SyncMode
+from .._utils.hook import HookLike
+from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
+from .._utils.hook_nexus import HookNexus
+from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 
 E = TypeVar("E", bound=Enum)
 
 @runtime_checkable
-class ObservableEnumLike(CarriesDistinctSingleValueHook[Optional[E]], CarriesDistinctSetHook[E], Protocol[E]):
+class ObservableEnumLike(CarriesDistinctSingleValueHook[Optional[E]], CarriesDistinctSetHook[E], CarriesCollectiveHooks, Protocol[E]):
     """
     Protocol for observable enum objects.
     """
@@ -48,19 +50,19 @@ class ObservableEnumLike(CarriesDistinctSingleValueHook[Optional[E]], CarriesDis
         """
         ...
 
-    def bind_enum_value_to(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[E]]|HookLike[Optional[E]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_enum_value_to(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[E]]|HookLike[Optional[E]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding for the enum value with another observable.
         """
         ...
 
-    def bind_enum_options_to(self, observable_or_hook: CarriesDistinctSetHook[E]|HookLike[set[E]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_enum_options_to(self, observable_or_hook: CarriesDistinctSetHook[E]|HookLike[set[E]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding for the enum options with another observable.
         """
         ...
 
-    def bind_to(self, observable: "ObservableEnumLike[E]", initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable: "ObservableEnumLike[E]", initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding with another observable enum.
         """
@@ -149,13 +151,6 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
     - Memory usage scales linearly with the number of bindings and listeners
     """
 
-    @classmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
-        """
-        Get the mandatory component value keys.
-        """
-        return {"enum_value", "enum_options"}
-
     @overload
     def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, allow_none: bool = True) -> None:
         """Initialize with a direct enum value."""
@@ -243,10 +238,17 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         if initial_enum_value is not None and initial_enum_value not in initial_enum_options:
             raise ValueError(f"Enum value {initial_enum_value} not in options {initial_enum_options}")
 
-        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
+        def is_valid_value(dict_of_values: dict[str, Any]) -> tuple[bool, str]:
 
-            enum_value = x["enum_value"]
-            enum_options = x["enum_options"]
+            if "enum_value" in dict_of_values:
+                enum_value: Optional[E] = dict_of_values["enum_value"] # type: ignore
+            else:
+                enum_value: Optional[E] = self._component_hooks["enum_value"].value
+            
+            if "enum_options" in dict_of_values:
+                enum_options: set[E] = dict_of_values["enum_options"]
+            else:
+                enum_options: set[E] = self._component_hooks["enum_options"].value
 
             if enum_value is None:
                 if not allow_none:
@@ -256,8 +258,6 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
                     return False, "An empty set of options is not allowed, if allow_none is False"
                 if enum_value is not None:
                     return False, f"Enum value {enum_value} is not None, but options are empty"
-            if not isinstance(enum_options, set):
-                return False, "Enum options is not a set"
             if enum_value is not None and enum_value not in enum_options:
                 return False, f"Enum value {enum_value} not in options {enum_options}"
 
@@ -268,18 +268,18 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
                 "enum_value": initial_enum_value,
                 "enum_options": initial_enum_options
             },
-            {
-                "enum_value": Hook(self, lambda: self._component_values["enum_value"], lambda value: self._set_component_values(("enum_value", value), notify_binding_system=False)),
-                "enum_options": Hook(self, lambda: self._component_values["enum_options"], lambda value: self._set_component_values(("enum_options", value), notify_binding_system=False))
-            },
-            verification_method=verification_method
+            verification_method=is_valid_value
         )
 
         # Establish bindings if carriers were provided
         if bindable_enum_carrier is not None:
-            self.bind_enum_value_to(bindable_enum_carrier, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+            self.bind_enum_value_to(bindable_enum_carrier, InitialSyncMode.SELF_IS_UPDATED)
         if bindable_set_carrier is not None:
-            self.bind_enum_options_to(bindable_set_carrier, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+            self.bind_enum_options_to(bindable_set_carrier, InitialSyncMode.SELF_IS_UPDATED)
+
+    @property
+    def collective_hooks(self) -> set[HookLike[Any]]:
+        return {self._component_hooks["enum_value"], self._component_hooks["enum_options"]}
 
     def set_enum_options(self, value: set[E]) -> None:
         """
@@ -304,7 +304,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         if self._component_values["enum_value"] is not None and self._component_values["enum_value"] not in value:
             raise ValueError(f"Current enum value {self._component_values['enum_value']} not in new options {value}")
             
-        self._set_component_values(("enum_options", value), notify_binding_system=True)
+        self._set_component_values({"enum_options": value}, notify_binding_system=True)
     
     def set_enum_value(self, value: Optional[E]) -> None:
         """
@@ -329,7 +329,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         if value is not None and value not in self._component_values["enum_options"]:
             raise ValueError(f"Enum value {value} not in available options {self._component_values['enum_options']}")
             
-        self._set_component_values(("enum_value", value), notify_binding_system=True)
+        self._set_component_values({"enum_value": value}, notify_binding_system=True)
 
     @property
     def enum_options(self) -> set[E]:
@@ -339,7 +339,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Returns:
             A copy of the available enum options set to prevent external modification
         """
-        return self._component_values["enum_options"].copy()
+        return self._component_hooks["enum_options"].value.copy()
     
     @enum_options.setter
     def enum_options(self, value: set[E]) -> None:
@@ -362,7 +362,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Returns:
             The currently selected enum value
         """
-        return self._component_values["enum_value"]
+        return self._component_hooks["enum_value"].value
     
     @enum_value.setter
     def enum_value(self, value: Optional[E]) -> None:
@@ -389,7 +389,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
             ValueError: If the enum value is None
         """
 
-        enum_value = self._component_values["enum_value"]
+        enum_value = self._component_hooks["enum_value"].value
 
         if enum_value is None:
             raise ValueError("Enum value is None")
@@ -401,7 +401,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         """
         Get the reference for the enum value.
         """
-        return self._component_values["enum_value"]
+        return self._component_hooks["enum_value"].value
 
     @property
     def distinct_single_value_hook(self) -> HookLike[Optional[E]]:
@@ -422,7 +422,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         """
         Get the current value of the enum options set.
         """
-        return self._component_values["enum_options"]
+        return self._component_hooks["enum_options"].value
 
     @property
     def distinct_enum_options_hook(self) -> HookLike[set[E]]:
@@ -436,7 +436,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         """
         Get the reference for the enum options.
         """
-        return self._component_values["enum_options"]
+        return self._component_hooks["enum_options"].value
 
     def set_enum_value_and_options(self, enum_value: Optional[E], enum_options: set[E]) -> None:
         """
@@ -453,9 +453,9 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Raises:
             ValueError: If the enum value is not in the options set
         """
-        self._set_component_values(("enum_value", enum_value), ("enum_options", enum_options), notify_binding_system=True)
+        self._set_component_values({"enum_value": enum_value, "enum_options": enum_options}, notify_binding_system=True)
 
-    def bind_enum_value_to(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[E]]|HookLike[Optional[E]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_enum_value_to(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[E]]|HookLike[Optional[E]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding for the enum value with another observable.
         
@@ -474,7 +474,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
             observable_or_hook = observable_or_hook.distinct_single_value_hook
         self._component_hooks["enum_value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def bind_enum_options_to(self, observable_or_hook: CarriesDistinctSetHook[E]|HookLike[set[E]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_enum_options_to(self, observable_or_hook: CarriesDistinctSetHook[E]|HookLike[set[E]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding for the enum options with another observable.
         
@@ -493,15 +493,17 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
             observable_or_hook = observable_or_hook.distinct_set_hook
         self._component_hooks["enum_options"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def bind_to(self, observable: ObservableEnumLike[E], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable: ObservableEnumLike[E], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding with another observable enum.
         """
         # Validate that observable is not None
         if observable is None: # type: ignore
             raise ValueError("Cannot bind to None observable")
-        self.bind_enum_value_to(observable.distinct_single_value_hook, initial_sync_mode)
-        self.bind_enum_options_to(observable.distinct_set_hook, initial_sync_mode)
+        HookNexus.connect_hook_pairs(
+            (self._component_hooks["enum_value"], observable.distinct_single_value_hook),
+            (self._component_hooks["enum_options"], observable.distinct_set_hook)
+        )
 
     def disconnect(self) -> None:
         """
@@ -510,8 +512,8 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         This method removes all bidirectional bindings, preventing further
         automatic synchronization with other observables.
         """
-        self._component_hooks["enum_value"].disconnect()
-        self._component_hooks["enum_options"].disconnect()
+        self._component_hooks["enum_value"].detach()
+        self._component_hooks["enum_options"].detach()
 
     def add_enum_option(self, option: E) -> None:
         """
@@ -526,7 +528,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         if option not in self._component_values["enum_options"]:
             new_options = self._component_values["enum_options"].copy()
             new_options.add(option)
-            self._set_component_values(("enum_options", new_options), notify_binding_system=True)
+            self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
 
     def remove_enum_option(self, option: E) -> None:
         """
@@ -548,17 +550,17 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         if option in self._component_values["enum_options"]:
             new_options = self._component_values["enum_options"].copy()
             new_options.remove(option)
-            self._set_component_values(("enum_options", new_options), notify_binding_system=True)
+            self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
 
     def __str__(self) -> str:
         """String representation of the observable enum."""
         # Sort options for consistent string representation
-        sorted_options = sorted(self._component_values['enum_options'], key=lambda x: x.value if x is not None else '')
-        return f"OE(enum_value={self._component_values['enum_value']}, enum_options={{{', '.join(str(opt) for opt in sorted_options)}}})"
+        sorted_options = sorted(self._component_hooks['enum_options'].value, key=lambda x: x.value if x is not None else '')
+        return f"OE(enum_value={self._component_hooks['enum_value'].value}, enum_options={{{', '.join(str(opt) for opt in sorted_options)}}})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable enum."""
-        return f"ObservableEnum(enum_value={self._component_values['enum_value']}, enum_options={self._component_values['enum_options']})"
+        return f"ObservableEnum(enum_value={self._component_hooks['enum_value'].value}, enum_options={self._component_hooks['enum_options'].value})"
     
     def __eq__(self, other: Any) -> bool:
         """
@@ -571,10 +573,10 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableEnum):
-            return (self._component_values["enum_value"] == other._component_values["enum_value"] and 
-                   self._component_values["enum_options"] == other._component_values["enum_options"])
+            return (self._component_hooks["enum_value"].value == other._component_hooks["enum_value"].value and 
+                   self._component_hooks["enum_options"].value == other._component_hooks["enum_options"].value)
         elif isinstance(other, Enum):
-            return self._component_values["enum_value"] == other
+            return self._component_hooks["enum_value"].value == other
         return False
     
     def __ne__(self, other: Any) -> bool:
@@ -596,7 +598,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Returns:
             Hash value of the stored enum value and options
         """
-        return hash((self._component_values["enum_value"], frozenset(self._component_values["enum_options"])))
+        return hash((self._component_hooks["enum_value"].value, frozenset(self._component_hooks["enum_options"].value)))
     
     def __bool__(self) -> bool:
         """
@@ -605,7 +607,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Returns:
             Boolean representation of the stored enum value
         """
-        return bool(self._component_values["enum_value"])
+        return bool(self._component_hooks["enum_value"].value)
     
     @property
     def is_none_enum_value_allowed(self) -> bool:
@@ -627,7 +629,7 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
         Raises:
             ValueError: If trying to set allow_none to False if enum value is None
         """
-        if self._component_values["enum_value"] is None and not allow_none:
+        if self._component_hooks["enum_value"].value is None and not allow_none:
             raise ValueError("Cannot set allow_none to False if enum value is None")
 
         self._allow_none = allow_none

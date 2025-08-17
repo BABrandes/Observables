@@ -1,6 +1,6 @@
 import unittest
 from observables import ObservableList
-from observables._utils.sync_mode import SyncMode
+from observables._utils.initial_sync_mode import InitialSyncMode
 
 class TestObservableList(unittest.TestCase):
     """Test cases for ObservableList (concrete implementation)"""
@@ -169,13 +169,12 @@ class TestObservableList(unittest.TestCase):
         source = ObservableList([100])
         target = ObservableList(source)
         
-        # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        # Note: check_status_consistency() method no longer exists in new architecture
+        # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_list_hook.is_connected_to(source.distinct_list_hook))
-        self.assertTrue(source.distinct_list_hook.is_connected_to(target.distinct_list_hook))
+        self.assertTrue(target.distinct_list_hook.is_attached_to(source.distinct_list_hook))
+        self.assertTrue(source.distinct_list_hook.is_attached_to(target.distinct_list_hook))
     
     def test_initialization_with_carries_bindable_list_performance(self):
         """Test performance of initialization with CarriesBindableList"""
@@ -226,7 +225,7 @@ class TestObservableList(unittest.TestCase):
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.list_value, [300])  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -490,13 +489,12 @@ class TestObservableList(unittest.TestCase):
         source = ObservableList([100])
         target = ObservableList(source)
         
-        # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        # Note: check_status_consistency() method no longer exists in new architecture
+        # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_list_hook.is_connected_to(source.distinct_list_hook))
-        self.assertTrue(source.distinct_list_hook.is_connected_to(target.distinct_list_hook))
+        self.assertTrue(target.distinct_list_hook.is_attached_to(source.distinct_list_hook))
+        self.assertTrue(source.distinct_list_hook.is_attached_to(target.distinct_list_hook))
     
     def test_list_binding_none_observable(self):
         """Test that binding to None raises an error"""

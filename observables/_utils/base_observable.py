@@ -1,11 +1,11 @@
 import threading
-from abc import abstractmethod
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Mapping, Optional
 from .base_listening import BaseListening
-from .hook import HookLike
-from collections.abc import Mapping
+from .hook import Hook, HookLike
+from .carries_collective_hooks import CarriesCollectiveHooks
+from .hook_nexus import HookNexus
 
-class BaseObservable(BaseListening):
+class BaseObservable(BaseListening, CarriesCollectiveHooks):
     """
     Base class defining the interface for all observable objects in the library.
 
@@ -70,52 +70,65 @@ class BaseObservable(BaseListening):
 
     def __init__(
             self,
-            component_values: dict[str, Any],
-            component_hooks: dict[str, HookLike[Any]],
-            verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = None,
-            component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = {}):
+            initial_component_values: dict[str, Any],
+            verification_method: Optional[Callable[[dict[str, Any]], tuple[bool, str]]] = None):
         """
         Initialize the BaseObservable.
 
         Args:
-            component_values: A dictionary of component values.
             component_hooks: A dictionary of component hooks.
-            component_copy_methods: A dictionary of component copy methods.
-
-        If the component_copy_methods is not provided, the method will try to use the copy method of the value if it is available.
-        If the component_copy_methods is None, the value will not be copied. This is dangerous and should not be used.
+            verification_method: A method to verify the component values.
         """
 
         super().__init__()
 
-        if component_values.keys() != component_hooks.keys():
-            raise ValueError("The keys of the component_values and component_hooks must be the same")
+        self._component_hooks: dict[str, HookLike[Any]] = {}
+        for key, value in initial_component_values.items():
+            self._component_hooks[key] = Hook(self, value, lambda _, k=key: self._invalidate({k}))
 
-        self._component_hooks: dict[str, HookLike[Any]] = component_hooks.copy()
-        self._verification_method: Optional[Callable[[Mapping[str, Any]], tuple[bool, str]]] = verification_method
-        self._component_copy_methods: dict[str, Optional[Callable[[Any], Any]]] = component_copy_methods.copy()
+        self._verification_method: Optional[Callable[[dict[str, Any]], tuple[bool, str]]] = verification_method
         # Thread safety: Lock for protecting component values and hooks
         self._lock = threading.RLock()
-        
-        # Initialize component values first
-        self._component_values: dict[str, Any] = {}
-        for key, value in component_values.items():
-            self._component_values[key] = value
 
-    @classmethod
-    @abstractmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
+    def _invalidate(self, keys: set[str]) -> None:
         """
-        Get the mandatory component value keys.
-        """
-        ...
+        Invalidate the the values of the component hooks of the given keys.
 
-    def _set_component_values(self, *tuple_of_values: tuple[str, Any], notify_binding_system: bool, notify_listeners: bool = True) -> None:
+        Args:
+            keys: The keys of the component hooks to invalidate.
+        """
+        try:
+            self._act_on_invalidation(keys)
+        except Exception as e:
+            raise ValueError(f"Error in act_on_invalidation: {e}")
+        self._notify_listeners()
+
+    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None:
+        """
+        Invalidate the hooks.
+        """
+        keys: set[str] = set()
+        for hook in hooks:
+            key = self._get_key_for(hook)
+            keys.add(key)
+        self._invalidate(keys)
+
+    def _act_on_invalidation(self, keys: set[str]) -> None:
+        """
+        Act on the invalidation of a component hook. This method is called when a hook is invalidated.
+        This method should be overridden by the subclass to act on the invalidation of the component hooks.
+
+        Args:
+            keys: The keys of the component hooks to invalidate.
+        """
+        pass
+
+    def _set_component_values(self, dict_of_values: dict[str, Any], notify_binding_system: bool, notify_listeners: bool = True) -> None:
         """
         Set the values of the component values.
 
         Args:
-            *tuple_of_values: A tuple of (key, value) pairs to set
+            dict_of_values: A dictionary of (key, value) pairs to set
             notify_binding_system: Whether to notify the binding system. If False, the binding system will not be notified and the values will not be invalidated (Use for updates from the binding system)
             notify_listeners: Whether to notify the listeners. If False, the listeners will not be notified and the values will not be updated.
 
@@ -123,63 +136,108 @@ class BaseObservable(BaseListening):
             ValueError: If the verification method fails
         """
         with self._lock:
+            if len(self._component_hooks) == 0:
+                error_msg = "No component hooks provided"
+                raise ValueError(error_msg)
             
-            updated_component_values: dict[str, Any] = self._component_values.copy()
-            for key, value in tuple_of_values:
-                if key not in self._component_values:
-                    raise ValueError(f"Key {key} not found in component_values")
-                updated_component_values[key] = value
+            future_component_values: dict[str, Any] = {key: hook.value for key, hook in self._component_hooks.items()}
+            
+            for key, value in dict_of_values.items():
+                if key not in self._component_hooks:
+                    error_msg = f"Key {key} not found in component_values"
+                    raise ValueError(error_msg)
+                future_component_values[key] = value
+            
             if self._verification_method is not None:
-                success, message = self._verification_method(updated_component_values)
+                success, message = self._verification_method(future_component_values)
                 if not success:
-                    raise ValueError(f"Verification method failed: {message}")
-            
-            self._component_values = updated_component_values
-            
+                    error_msg = f"Verification method failed: {message}"
+                    raise ValueError(error_msg)
+
             if notify_binding_system:
-                for key, value in tuple_of_values:
-                    self._component_hooks[key].invalidate()
+                if len(dict_of_values) == 1:
+                    for key, value in dict_of_values.items():
+                        hook = self._component_hooks[key]
+                        hook.submit_value(value)
+                else:
+                    nexus_and_values: Mapping[HookNexus[Any], Any] = {}
+                    for key, value in dict_of_values.items():
+                        nexus = self._component_hooks[key].hook_nexus
+                        nexus_and_values[nexus] = value
+                    HookNexus.submit_multiple_values(nexus_and_values)
 
             if notify_listeners:
                 self._notify_listeners()
 
+    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> str:
+        """
+        Get the key for a hook.
+        """
+        if isinstance(hook_or_nexus, HookNexus):
+            for key, h in self._component_hooks.items():
+                if h.hook_nexus is hook_or_nexus:
+                    return key
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks")
+        else:
+            for key, h in self._component_hooks.items():
+                if h is hook_or_nexus:
+                    return key
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks")
+
     @property
-    def observed_component_values(self) -> tuple[Any, ...]:
+    def hooks(self) -> set[HookLike[Any]]:
         """
-        Get the values of all observables that are bound to this observable.
-
-        The main purpose of this method is for serialization of the observable.
+        Get the hooks of the observable.
         """
-        with self._lock:
-            return tuple(self._component_values.values())
-
-    def check_status_consistency(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the status of the observable.
-        
-        This method performs comprehensive checks on all bindings to ensure they are in a consistent state .
-        
-        Returns:
-            Tuple of (is_consistent, message) where is_consistent is a boolean
-            indicating if the system is consistent, and message provides details
-            about any inconsistencies found.
-        """
-        with self._lock:
-            if self._verification_method is not None:
-                success, message = self._verification_method(self._component_values)
-                if not success:
-                    return False, f"Verification method failed: {message}"
-
-            for hook in self._component_hooks.values():
-                binding_state_consistent, binding_state_consistent_message = hook.check_binding_system()
-                if not binding_state_consistent:
-                    return False, binding_state_consistent_message
-
-        return True, "Status of the observable is consistent"
+        return set(self._component_hooks.values())
     
-    def _get_component_value(self, key: str) -> Any:
+    def _is_valid_value(self, hook: HookLike[Any], value: Any) -> tuple[bool, str]:
         """
-        Get the value of a component.
+        Check if the value is valid.
+        """
+        if self._verification_method is None:
+            return True, "No verification method provided. Default is True"
+        else:
+            return self._verification_method({self._get_key_for(hook): value})
+        
+    def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+        """
+        Check if the values are valid.
+        """
+        if self._verification_method is None:
+            return True, "No verification method provided. Default is True"
+        else:
+            dict_of_values: dict[str, Any] = self._component_values
+            for nexus, value in values.items():
+                dict_of_values[self._get_key_for(nexus)] = value
+            return self._verification_method(dict_of_values)
+        
+    def _component_value(self, key: str) -> Any:
+        """
+        Get the value of a component hook.
         """
         with self._lock:
-            return self._component_values[key]
+            return self._component_hooks[key].value
+
+    @property
+    def _component_values(self) -> dict[str, Any]:
+        """
+        Get the values of all component hooks as a dictionary copy.
+        """
+        with self._lock:
+            return {key: hook.value for key, hook in self._component_hooks.items()}
+        
+    def _verify_state(self) -> tuple[bool, str]:
+        """
+        Verify the state of the observable.
+        """
+        if self._verification_method is None:
+            return True, "No verification method provided. Default is True"
+        return self._verification_method(self._component_values)
+    
+    @property
+    def collective_hooks(self) -> set[HookLike[Any]]:
+        """
+        Get the collective hooks for the observable.
+        """
+        return set(self._component_hooks.values())

@@ -1,31 +1,42 @@
 """
-Observables Library - A Python library for reactive programming and bidirectional bindings.
+Observables Library - A Python library for reactive programming and centralized value management.
 
 This library provides a comprehensive set of observable data structures that support
-bidirectional bindings, automatic synchronization, and reactive programming patterns.
-It's designed to make it easy to create reactive applications where data changes
-automatically propagate through a network of interconnected objects.
+bidirectional bindings through a unique central value storage system. Unlike traditional
+reactive libraries that duplicate data across observables, this system stores values
+in centralized HookNexus objects that observables reference, ensuring perfect
+synchronization without data duplication.
 
 Core Features:
-- Bidirectional bindings between observables with automatic synchronization
-- Component-based architecture for flexible observable composition
-- Automatic change propagation and synchronization
+- Centralized value storage with shared references (no data duplication)
+- Bidirectional bindings through hook group merging
+- Automatic change propagation through centralized value updates
 - Listener notification system for change events
 - Type-safe generic implementations with full type hints
 - Custom validation support with verification methods
-- Performance-optimized change detection and binding management
-- Memory-efficient binding cleanup and listener management
+- Memory-efficient single source of truth architecture
+- Thread-safe binding management with RLock protection
 
 Architecture:
-The library uses a component-based architecture where observables are composed of:
-- Component values: The actual data being observed
-- Binding handlers: Manage bidirectional connections between observables
-- Verification methods: Validate data changes before applying them
-- Copy methods: Control how data is duplicated during binding operations
+The library uses a revolutionary hook-based architecture where:
+- HookNexus: Central storage for actual data values
+- Hooks: References/views to central values
+- Observables: User-facing interfaces that access values through hooks
+- Binding: Merging hook groups so multiple observables reference the same central value
+
+Key Innovation - Central Value Storage:
+Instead of copying values between observables, the system:
+1. Stores each value in exactly one HookNexus
+2. Creates hooks that reference these central values
+3. Binds observables by merging their hook groups
+4. Ensures all bound observables view the same central data
+
+This eliminates synchronization issues, reduces memory usage, and provides
+atomic updates across all bound observables.
 
 Protocols and Interfaces:
 The library provides several protocols that can be used for type hints and interface definitions:
-- BaseCarriesDistinctHook: Base protocol for all observable types
+- CarriesDistinctHook: Base protocol for all observable types
 - CarriesDistinctSingleValueHook: Protocol for single value observables
 - CarriesDistinctListHook: Protocol for list observables
 - CarriesDistinctSetHook: Protocol for set observables
@@ -45,7 +56,7 @@ Available Observable Types:
 Example Usage:
     >>> from observables import ObservableSingleValue, ObservableList
     
-    >>> # Create reactive values
+    >>> # Create reactive values (each has its own central HookNexus)
     >>> name = ObservableSingleValue("John")
     >>> age = ObservableSingleValue(25)
     
@@ -53,27 +64,27 @@ Example Usage:
     >>> name.add_listeners(lambda: print("Name changed!"))
     >>> age.add_listeners(lambda: print("Age changed!"))
     
-    >>> # Create bidirectional bindings
+    >>> # Create bidirectional binding (merges hook groups, no value copying)
     >>> name_copy = ObservableSingleValue(name)
-    >>> name_copy.set_value("Jane")  # Updates both observables
+    >>> name_copy.single_value = "Jane"  # Updates central value, both observables see it
     Name changed!
     
-    >>> # Reactive lists
+    >>> # Reactive lists (same central value principle)
     >>> todo_list = ObservableList(["Buy groceries", "Walk dog"])
     >>> todo_copy = ObservableList(todo_list)
-    >>> todo_copy.append("Read book")  # Updates both lists
+    >>> todo_copy.append("Read book")  # Updates central list, both observables see it
     
-    >>> print(name.value, age.value, todo_list.value)
+    >>> print(name.single_value, age.single_value, todo_list.list_value)
     Jane 25 ['Buy groceries', 'Walk dog', 'Read book']
 
     >>> # Using protocols for type hints
     >>> from observables import CarriesDistinctSingleValueHook, CarriesDistinctListHook
     
     >>> def process_observable(obs: CarriesDistinctSingleValueHook[str]) -> str:
-    ...     return obs._get_single_value().upper()
+    ...     return obs.distinct_single_value_reference.upper()
     
     >>> def process_list_observable(obs: CarriesDistinctListHook[str]) -> list[str]:
-    ...     return [item.upper() for item in obs._get_list_value()]
+    ...     return [item.upper() for item in obs.distinct_list_reference]
 
 For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
@@ -88,14 +99,15 @@ from ._build_in_observables.observable_tuple import ObservableTuple, ObservableT
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._utils.base_observable import BaseObservable
-from ._utils.sync_mode import SyncMode
+from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
-from ._utils.base_carries_distinct_hook import BaseCarriesDistinctHook
+from ._utils.carries_distinct_hook import CarriesDistinctHook
 from ._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
 from ._utils.carries_distinct_list_hook import CarriesDistinctListHook
 from ._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from ._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from ._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
+from ._utils.carries_collective_hooks import CarriesCollectiveHooks
 
 __all__ = [
     'ObservableDict',
@@ -117,13 +129,14 @@ __all__ = [
     'BaseObservable',
     'Hook',
     'HookLike',
-    'BaseCarriesDistinctHook',
+    'CarriesDistinctHook',
     'CarriesDistinctDictHook',
     'CarriesDistinctListHook',
     'CarriesDistinctSetHook',
     'CarriesDistinctSingleValueHook',
     'CarriesDistinctTupleHook',
-    'SyncMode',
+    'CarriesCollectiveHooks',
+    'InitialSyncMode',
 ]
 
 # Package metadata
@@ -137,7 +150,7 @@ __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'
 
 # Package description
-__description__ = 'A Python library for reactive programming and bidirectional bindings'
+__description__ = 'A Python library for reactive programming and centralized value management'
 __keywords__ = ['observable', 'reactive', 'binding', 'data-binding', 'reactive-programming']
 __url__ = 'https://github.com/yourusername/observables'
 __project_urls__ = {

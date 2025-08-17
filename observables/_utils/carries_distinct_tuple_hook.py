@@ -1,12 +1,12 @@
 
 from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
-from .base_carries_distinct_hook import BaseCarriesDistinctHook
+from .carries_distinct_hook import CarriesDistinctHook
 
 T = TypeVar("T")
 
 @runtime_checkable
-class CarriesDistinctTupleHook(BaseCarriesDistinctHook, Protocol[T]):
+class CarriesDistinctTupleHook(CarriesDistinctHook, Protocol[T]):
     """
     Protocol for observables that carry a tuple and can participate in bindings via. a hook.
     

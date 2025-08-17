@@ -1,18 +1,18 @@
 from typing import TypeVar, Protocol, runtime_checkable
 from .hook import HookLike
-from .base_carries_distinct_hook import BaseCarriesDistinctHook
+from .carries_distinct_hook import CarriesDistinctHook
 
 K = TypeVar("K")
 V = TypeVar("V")
 
 @runtime_checkable
-class CarriesDistinctDictHook(BaseCarriesDistinctHook, Protocol[K, V]):
+class CarriesDistinctDictHook(CarriesDistinctHook, Protocol[K, V]):
     """
     Protocol for observables that carry a dictionary and can participate in bindings via. a hook.
     
     This protocol defines the interface that must be implemented by any
     observable class that wants to support bidirectional bindings for dictionaries via. a hook.
-    It extends the base BaseCarriesDistinctHook protocol with specific methods for
+    It extends the base CarriesDistinctHook protocol with specific methods for
     dictionary management.
     
     Classes implementing this protocol must provide:

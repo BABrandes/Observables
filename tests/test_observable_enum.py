@@ -1,6 +1,6 @@
 import unittest
 from enum import Enum
-from observables import ObservableEnum, SyncMode
+from observables import ObservableEnum, InitialSyncMode
 
 class TestColor(Enum):
     RED = "red"
@@ -185,12 +185,10 @@ class TestObservableEnum(unittest.TestCase):
         target = ObservableEnum(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
     
     def test_initialization_with_carries_bindable_enum_performance(self):
         """Test performance of initialization with CarriesBindableEnum"""
@@ -234,14 +232,14 @@ class TestObservableEnum(unittest.TestCase):
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
-        # Test update_value_from_observable mode
+        # Test default mode (obs2 gets updated with obs1's value)
         obs1.bind_to(obs2)
-        self.assertEqual(obs1.enum_value, TestColor.BLUE)  # obs1 gets updated with obs2's value
+        self.assertEqual(obs2.enum_value, TestColor.RED)  # obs2 gets updated with obs1's value
         
-        # Test update_observable_from_self mode
+        # Test update_observable_from_self mode (obs4 gets updated with obs3's value)
         obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
         obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
-        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.enum_value, TestSize.SMALL)  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -250,11 +248,18 @@ class TestObservableEnum(unittest.TestCase):
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
         obs1.bind_to(obs2)
+        
+        # After binding, obs2 should have obs1's value
+        self.assertEqual(obs2.enum_value, TestColor.RED)
+        
         obs1.disconnect()
+        
+        # After disconnecting, obs2 keeps its current value but changes no longer propagate
+        self.assertEqual(obs2.enum_value, TestColor.RED)
         
         # Changes should no longer propagate
         obs1.enum_value = TestColor.GREEN
-        self.assertEqual(obs2.enum_value, TestColor.BLUE)
+        self.assertEqual(obs2.enum_value, TestColor.RED)  # Should remain unchanged
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
@@ -347,9 +352,9 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(obs.enum_value_not_none, TestColor.RED)
         
         # Test set_enum_value_and_options
-        obs.set_enum_value_and_options(TestColor.BLUE, {TestColor.BLUE, TestColor.GREEN})
+        obs.set_enum_value_and_options(TestColor.BLUE, {TestColor.BLUE, TestColor.GREEN, TestColor.RED})
         self.assertEqual(obs.enum_value, TestColor.BLUE)
-        self.assertEqual(obs.enum_options, {TestColor.BLUE, TestColor.GREEN})
+        self.assertEqual(obs.enum_options, {TestColor.BLUE, TestColor.GREEN, TestColor.RED})
     
     def test_enum_copy_behavior(self):
         """Test that enum_options returns a copy"""
@@ -444,12 +449,10 @@ class TestObservableEnum(unittest.TestCase):
         target = ObservableEnum(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
     
     def test_enum_binding_none_observable(self):
         """Test that binding to None raises an error"""

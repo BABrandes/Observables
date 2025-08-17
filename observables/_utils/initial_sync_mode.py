@@ -1,6 +1,6 @@
 from enum import Enum
 
-class SyncMode(Enum):
+class InitialSyncMode(Enum):
     """
     Synchronization modes for establishing bidirectional bindings between observables.
     
@@ -9,8 +9,8 @@ class SyncMode(Enum):
     observable's value is used as the source of truth during binding establishment.
     
     Attributes:
-        UPDATE_SELF_FROM_OBSERVABLE: Use the target observable's value for initial sync
-        UPDATE_OBSERVABLE_FROM_SELF: Use this observable's value for initial sync
+        SELF_IS_UPDATED: The self observable is updated from the other observable
+        SELF_UPDATES: The self observable updates the other observable
     
     Example:
         >>> from observables import ObservableSingleValue, SyncMode
@@ -27,5 +27,5 @@ class SyncMode(Enum):
         >>> # This would set source to 20 (target's value)
         >>> # source.bind_to_observable(target, SyncMode.UPDATE_VALUE_FROM_OBSERVABLE)
     """
-    UPDATE_SELF_FROM_OBSERVABLE = "update_self_from_observable"
-    UPDATE_OBSERVABLE_FROM_SELF = "update_observable_from_self"
+    SELF_IS_UPDATED = "self_is_updated"
+    SELF_UPDATES = "self_updates"

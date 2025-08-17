@@ -1,10 +1,10 @@
 import threading
 from typing import Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol
-from .sync_mode import SyncMode
-from .hook_group import HookGroup
+from .initial_sync_mode import InitialSyncMode
+from .hook_nexus import HookNexus
 
 if TYPE_CHECKING:
-    from .base_observable import BaseObservable
+    from .carries_hooks import CarriesHooks
 
 T = TypeVar("T")
 
@@ -23,14 +23,14 @@ class HookLike(Protocol[T]):
         ...
     
     @property
-    def owner(self) -> "BaseObservable":
+    def owner(self) -> "CarriesHooks":
         """
         Get the owner of this hook.
         """
         ...
     
     @property
-    def hook_group(self) -> "HookGroup[T]":
+    def hook_nexus(self) -> "HookNexus[T]":
         """
         Get the hook group that this hook belongs to.
         """
@@ -51,71 +51,58 @@ class HookLike(Protocol[T]):
         Check if this hook can receive values.
         """
         ...
-    
-    @property
-    def can_send(self) -> bool:
-        """
-        Check if this hook can send values.
-        """
-        ...
 
     @property
-    def is_being_invalidated(self) -> bool:
+    def in_submission(self) -> bool:
         """
-        Check if this hook is currently being invalidated.
-        """
-        ...
-
-    @is_being_invalidated.setter
-    def is_being_invalidated(self, value: bool) -> None:
-        """
-        Set if this hook is currently being invalidated.
+        Check if this hook is currently being submitted.
         """
         ...
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "SyncMode") -> None:
+    @in_submission.setter
+    def in_submission(self, value: bool) -> None:
+        """
+        Set if this hook is currently being submitted.
+        """
+        ...
+
+    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> None:
         """
         Connect this hook to another hook.
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect this hook from the binding system.
-        """
-        ...
-
-    def invalidate(self) -> tuple[bool, str]:
-        """
-        Invalidate this hook.
+        Detach this hook from the hook group.
         """
         ...
 
-    def check_binding_system(self) -> tuple[bool, str]:
+    def submit_value(self, value: T) -> tuple[bool, str]:
         """
-        Check the consistency of the binding system.
+        Submit a single value to this hook.
         """
         ...
 
-    def is_connected_to(self, hook: "HookLike[T]") -> bool:
+    def is_attached_to(self, hook: "HookLike[T]") -> bool:
         """
         Check if this hook is connected to another hook.
         """
         ...
 
-    def _binding_system_callback_get(self) -> T:
+    def is_valid_value(self, value: T) -> tuple[bool, str]:
         """
-        Get the value from the callback.
-        """
-        ...
-
-    def _binding_system_callback_set(self, value: T) -> None:
-        """
-        Set the value via the callback.
+        Check if the value is valid.
         """
         ...
 
-    def _binding_system_replace_hook_group(self, hook_group: "HookGroup[T]") -> None:
+    def invalidate(self) -> None:
+        """
+        Invalidates the value.
+        """
+        ...
+
+    def _replace_hook_group(self, hook_group: "HookNexus[T]") -> None:
         """
         Replace the hook group that this hook belongs to.
         """
@@ -135,31 +122,29 @@ class Hook(HookLike[T], Generic[T]):
 
     def __init__(
             self,
-            owner: "BaseObservable",
-            get_callback: Optional[Callable[[], T]] = None,
-            set_callback: Optional[Callable[[T], None]] = None,
+            owner: "CarriesHooks",
+            value: T,
+            invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = None,
             ) -> None:
 
-        self._owner = owner
-        self._hook_group: "HookGroup[T]" = HookGroup(self)
-        self._callback_get_value: Optional[Callable[[], T]] = get_callback
-        self._callback_set_value: Optional[Callable[[T], None]] = set_callback
-        self._is_being_invalidated = False
-        self._is_currently_notifying = False
+        self._owner: "CarriesHooks" = owner
+        self._hook_group: "HookNexus[T]" = HookNexus(value, self)
+        self._invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = invalidate_callback
+        self._in_submission = False
         self._lock = threading.RLock()
 
     @property
     def value(self) -> T:
         """Get the value behind this hook."""
-        return self.hook_group.value
+        return self.hook_nexus.value
 
     @property
-    def owner(self) -> "BaseObservable":
+    def owner(self) -> "CarriesHooks":
         """Get the owner of this hook."""
         return self._owner
     
     @property
-    def hook_group(self) -> "HookGroup[T]":
+    def hook_nexus(self) -> "HookNexus[T]":
         """Get the hook group that this hook belongs to."""
         return self._hook_group
     
@@ -171,45 +156,40 @@ class Hook(HookLike[T], Generic[T]):
     @property
     def can_receive(self) -> bool:
         """Check if this hook can receive values."""
-        return True if self._callback_set_value is not None else False
-    
-    @property
-    def can_send(self) -> bool:
-        """Check if this hook can send values."""
-        return True if self._callback_get_value is not None else False
-    
-    @property
-    def is_being_invalidated(self) -> bool:
-        """Check if this hook is currently being invalidated."""
-        return self._is_being_invalidated
-    
-    @is_being_invalidated.setter
-    def is_being_invalidated(self, value: bool) -> None:
-        """Set if this hook is currently being invalidated."""
-        self._is_being_invalidated = value
+        return True if self._invalidate_callback is not None else False
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "SyncMode") -> None:
+    @property
+    def in_submission(self) -> bool:
+        """Check if this hook is currently being submitted."""
+        return self._in_submission
+    
+    @in_submission.setter
+    def in_submission(self, value: bool) -> None:
+        """Set if this hook is currently being submitted."""
+        self._in_submission = value
+
+    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> None:
         """
         Connect this hook to another hook.
         """
         
-        if sync_mode == SyncMode.UPDATE_SELF_FROM_OBSERVABLE:
-            HookGroup[T].connect_hooks(hook, self)
-        elif sync_mode == SyncMode.UPDATE_OBSERVABLE_FROM_SELF:
-            HookGroup[T].connect_hooks(self, hook)
+        if sync_mode == InitialSyncMode.SELF_IS_UPDATED:
+            HookNexus[T].connect_hooks(hook, self)
+        elif sync_mode == InitialSyncMode.SELF_UPDATES:
+            HookNexus[T].connect_hooks(self, hook)
         else:
             raise ValueError(f"Invalid sync mode: {sync_mode}")
     
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect this hook from the binding system.
+        Detach this hook from the hook group.
         """
         # Check if already disconnected
         if len(self._hook_group.hooks) <= 1:
             raise ValueError("Hook is already disconnected")
         
         # Create a new isolated group for this hook
-        new_group = HookGroup(self)
+        new_group = HookNexus(self.value, self)
         
         # Remove this hook from the current group
         self._hook_group.remove_hook(self)
@@ -220,41 +200,36 @@ class Hook(HookLike[T], Generic[T]):
         # The remaining hooks in the old group will continue to be bound together
         # This effectively breaks the connection between this hook and all others
     
-    def invalidate(self) -> tuple[bool, str]:
+    def submit_value(self, value: T) -> tuple[bool, str]:
         """
-        Invalidate this hook.
+        Submit a value to this hook.
         """
-        return self._hook_group.invalidate(self)
-
-    def check_binding_system(self) -> tuple[bool, str]:
-        """
-        Check the consistency of the binding system.
-        """
-        return self._hook_group.check_all_hooks_synced(self._hook_group)
+        self.in_submission = True
+        success, msg = self._hook_group.submit_single_value(value, {self})
+        self.in_submission = False
+        return success, msg
     
-    def is_connected_to(self, hook: "HookLike[T]") -> bool:
+    def is_attached_to(self, hook: "HookLike[T]") -> bool:
         """
-        Check if this hook is connected to another hook.
+        Check if this hook is attached to another hook.
         """
         return hook in self._hook_group._hooks # type: ignore
     
-    def _binding_system_callback_get(self) -> T:
+    def invalidate(self) -> None:
         """
-        Get the value from the callback.
+        Invalidates the value.
         """
-        if self._callback_get_value is None:
-            raise ValueError("Callback get value is None")
-        return self._callback_get_value()
-    
-    def _binding_system_callback_set(self, value: T) -> None:
-        """
-        Set the value via the callback.
-        """
-        if self._callback_set_value is None:
-            raise ValueError("Callback set value is None")
-        self._callback_set_value(value)
+        if self._invalidate_callback is None:
+            raise ValueError("Invalidate callback is None")
+        self._invalidate_callback(self)
 
-    def _binding_system_replace_hook_group(self, hook_group: "HookGroup[T]") -> None:
+    def is_valid_value(self, value: T) -> tuple[bool, str]:
+        """
+        Check if the value is valid.
+        """
+        return self.owner._is_valid_value(self, value) # type: ignore
+    
+    def _replace_hook_group(self, hook_group: "HookNexus[T]") -> None:
         """
         Replace the hook group that this hook belongs to.
         """

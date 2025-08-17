@@ -1,12 +1,12 @@
 
 from typing import TypeVar, runtime_checkable, Protocol
 from .hook import HookLike
-from .base_carries_distinct_hook import BaseCarriesDistinctHook
+from .carries_distinct_hook import CarriesDistinctHook
 
 T = TypeVar("T")
 
 @runtime_checkable
-class CarriesDistinctSingleValueHook(BaseCarriesDistinctHook, Protocol[T]):
+class CarriesDistinctSingleValueHook(CarriesDistinctHook, Protocol[T]):
     """
     Protocol for observables that carry a single value and can participate in bindings via. a hook.
     

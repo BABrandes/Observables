@@ -1,7 +1,7 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Mapping
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
 from typing import Optional
 from .._utils.hook import Hook, HookLike
-from .._utils.sync_mode import SyncMode
+from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
 from .._utils.base_observable import BaseObservable
 
@@ -27,7 +27,7 @@ class ObservableTupleLike(CarriesDistinctTupleHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding with another observable tuple.
         """
@@ -71,13 +71,6 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         value: Initial tuple, another ObservableTuple to bind to, or None for empty tuple
     """
 
-    @classmethod
-    def _mandatory_component_value_keys(cls) -> set[str]:
-        """
-        Get the mandatory component value keys.
-        """
-        return {"value"}
-
     @overload
     def __init__(self, tuple_value: tuple[T, ...]) -> None:
         """Initialize with a direct tuple value."""
@@ -117,24 +110,18 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             initial_value: tuple[T, ...] = observable_or_hook_or_value
             hook: Optional[Hook[tuple[T, ...]]] = None
 
-        def verification_method(x: Mapping[str, Any]) -> tuple[bool, str]:
-            if not isinstance(x["value"], tuple):
-                return False, "Value is not a tuple"
-            return True, "Verification method passed"
-            
         super().__init__(
-            {
-                "value": initial_value
-            },
-            {
-                "value": Hook(self, lambda: self._component_values["value"], lambda value: self._set_component_values(("value", value), notify_binding_system=False))
-            },
-            verification_method=verification_method
+            {"value": initial_value},
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple")
         )
 
         if hook is not None:
             self.bind_to(hook)
 
+    @property
+    def collective_hooks(self) -> set[HookLike[Any]]:
+        return set()
+    
     @property
     def tuple_value(self) -> tuple[T, ...]:
         """
@@ -143,22 +130,22 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             A copy of the current tuple to prevent external modification
         """
-        return self._component_values["value"]
+        return self._component_hooks["value"].value
     
     @tuple_value.setter
     def tuple_value(self, value: tuple[T, ...]) -> None:
         """
         Set the current tuple value.
         """
-        if value != self._component_values["value"]:
-            self._set_component_values(("value", value), notify_binding_system=True)
+        if value != self._component_hooks["value"].value:
+            self._set_component_values({"value": value}, notify_binding_system=True)
     
     @property
     def distinct_tuple_reference(self) -> tuple[T, ...]:
         """
         Get the current value of the tuple.
         """
-        return self._component_values["value"]
+        return self._component_hooks["value"].value
     
     @property
     def distinct_tuple_hook(self) -> HookLike[tuple[T, ...]]:
@@ -167,7 +154,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         """
         return self._component_hooks["value"]
 
-    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: SyncMode = SyncMode.UPDATE_SELF_FROM_OBSERVABLE) -> None:
+    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
         """
         Establish a bidirectional binding with another observable tuple.
         
@@ -193,15 +180,15 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         This method removes the binding between this observable tuple and another,
         preventing further automatic synchronization of changes.
         """
-        self._component_hooks["value"].disconnect()
+        self._component_hooks["value"].detach()
     
     def __str__(self) -> str:
         """String representation of the observable tuple."""
-        return f"OT(tuple={self._component_values['value']})"
+        return f"OT(tuple={self._component_hooks['value'].value})"
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable tuple."""
-        return f"ObservableTuple({self._component_values['value']})"
+        return f"ObservableTuple({self._component_hooks['value'].value})"
     
     def __len__(self) -> int:
         """
@@ -210,7 +197,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             The number of items in the tuple
         """
-        return len(self._component_values["value"])
+        return len(self._component_hooks["value"].value)
     
     def __getitem__(self, index: int) -> T:
         """
@@ -225,7 +212,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Raises:
             IndexError: If the index is out of range
         """
-        return self._component_values["value"][index]
+        return self._component_hooks["value"].value[index]
     
     def __contains__(self, item: T) -> bool:
         """
@@ -237,7 +224,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             True if the item is in the tuple, False otherwise
         """
-        return item in self._component_values["value"]
+        return item in self._component_hooks["value"].value
     
     def __iter__(self):
         """
@@ -246,7 +233,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             An iterator that yields each item in the tuple
         """
-        return iter(self._component_values["value"])
+        return iter(self._component_hooks["value"].value)
     
     def __eq__(self, other: Any) -> bool:
         """
@@ -259,8 +246,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             True if the tuples contain the same items in the same order, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] == other._component_values["value"]
-        return self._component_values["value"] == other
+            return self._component_hooks["value"].value == other._component_hooks["value"].value
+        return self._component_hooks["value"].value == other
     
     def __ne__(self, other: Any) -> bool:
         """
@@ -285,8 +272,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             True if this tuple is lexicographically less than the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] < other._component_values["value"]
-        return self._component_values["value"] < other
+            return self._component_hooks["value"].value < other._component_hooks["value"].value
+        return self._component_hooks["value"].value < other
     
     def __le__(self, other: Any) -> bool:
         """
@@ -299,8 +286,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             True if this tuple is lexicographically less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] <= other._component_values["value"]
-        return self._component_values["value"] <= other
+            return self._component_hooks["value"].value <= other._component_hooks["value"].value
+        return self._component_hooks["value"].value <= other
     
     def __gt__(self, other: Any) -> bool:
         """
@@ -313,8 +300,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             True if this tuple is lexicographically greater than the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] > other._component_values["value"]
-        return self._component_values["value"] > other
+            return self._component_hooks["value"].value > other._component_hooks["value"].value
+        return self._component_hooks["value"].value > other
     
     def __ge__(self, other: Any) -> bool:
         """
@@ -327,8 +314,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             True if this tuple is lexicographically greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] >= other._component_values["value"]
-        return self._component_values["value"] >= other
+            return self._component_hooks["value"].value >= other._component_hooks["value"].value
+        return self._component_hooks["value"].value >= other
     
     def __add__(self, other: Any) -> tuple[T, ...]:
         """
@@ -341,8 +328,8 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
             A new tuple containing all items from both tuples
         """
         if isinstance(other, ObservableTuple):
-            return self._component_values["value"] + other._component_values["value"]
-        return self._component_values["value"] + other
+            return self._component_hooks["value"].value + other._component_hooks["value"].value
+        return self._component_hooks["value"].value + other
     
     def __mul__(self, other: int) -> tuple[T, ...]:
         """
@@ -354,7 +341,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             A new tuple with the original items repeated
         """
-        return self._component_values["value"] * other
+        return self._component_hooks["value"].value * other
     
     def __rmul__(self, other: int) -> tuple[T, ...]:
         """
@@ -366,7 +353,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             A new tuple with the original items repeated
         """
-        return other * self._component_values["value"]
+        return other * self._component_hooks["value"].value
     
     def __hash__(self) -> int:
         """
@@ -375,4 +362,4 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Returns:
             Hash value of the tuple
         """
-        return hash(self._component_values["value"])
+        return hash(self._component_hooks["value"].value)

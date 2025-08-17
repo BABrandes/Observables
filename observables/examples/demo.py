@@ -1,297 +1,362 @@
 #!/usr/bin/env python3
 """
-Demo script showcasing the observables library features.
+Demo script showcasing the observables library's revolutionary centralized architecture.
 """
 
 import time
-from typing import Callable
 
 from observables import (
     ObservableSingleValue,
     ObservableList,
-    ObservableDict,
-    ObservableSet,
-    ObservableSelectionOption,
-    SyncMode,
+    InitialSyncMode,
 )
 
 
 def print_separator(title: str) -> None:
     """Print a formatted separator with title."""
-    print(f"\n{'='*60}")
+    print(f"\n{'='*70}")
     print(f" {title}")
-    print(f"{'='*60}")
+    print(f"{'='*70}")
 
 
-def demo_basic_usage() -> None:
-    """Demonstrate basic observable usage."""
-    print_separator("Basic Usage")
+def demo_centralized_architecture() -> None:
+    """Demonstrate the revolutionary centralized value storage system."""
+    print_separator("🚀 Centralized Architecture - Single Source of Truth")
     
-    # Create observable values
+    print("Traditional reactive libraries duplicate data across observables.")
+    print("Our system stores each value in exactly ONE central HookNexus!")
+    print()
+    
+    # Create observable values (each has its own central HookNexus)
     name = ObservableSingleValue("John")
     age = ObservableSingleValue(25)
     scores = ObservableList([85, 90, 78])
-    user_data = ObservableDict({"city": "New York", "country": "USA"})
     
-    # Add listeners
+    print("Initial observables created:")
+    print(f"  Name: {name.single_value} (stored in HookNexus: {id(name._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  Age: {age.single_value} (stored in HookNexus: {id(age._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  Scores: {scores.list_value} (stored in HookNexus: {id(scores._component_hooks['value'].hook_nexus)})") # type: ignore
+    
+    # Add listeners to see changes
     def on_name_change():
-        print(f"  Name changed to: {name.value}")
+        print(f"  📢 Name changed to: {name.single_value}")
     
     def on_age_change():
-        print(f"  Age changed to: {age.value}")
+        print(f"  📢 Age changed to: {age.single_value}")
     
     def on_scores_change():
-        print(f"  Scores changed to: {scores.list_value}")
-    
-    def on_user_data_change():
-        print(f"  User data changed to: {user_data.value}")
+        print(f"  📢 Scores changed to: {scores.list_value}")
     
     name.add_listeners(on_name_change)
     age.add_listeners(on_age_change)
     scores.add_listeners(on_scores_change)
-    user_data.add_listeners(on_user_data_change)
+    
+    print("\n🔧 Making changes (each triggers its own HookNexus):")
+    name.single_value = "Jane"
+    age.single_value = 26
+    scores.append(95)
+    
+    print(f"\n💾 Memory efficiency: Each value stored exactly once!")
+    print(f"   No data duplication between observables!")
+
+
+def demo_transitive_binding() -> None:
+    """Demonstrate the powerful transitive binding behavior."""
+    print_separator("🔄 Transitive Binding - Automatic Network Formation")
+    
+    print("When you bind A→B and B→C, A automatically connects to C!")
+    print("This creates a robust, predictable data flow network.")
+    print()
+    
+    # Create three observables
+    a = ObservableSingleValue(1)
+    b = ObservableSingleValue(2)
+    c = ObservableSingleValue(3)
     
     print("Initial values:")
-    print(f"  Name: {name.value}")
-    print(f"  Age: {age.value}")
-    print(f"  Scores: {scores.list_value}")
-    print(f"  User data: {user_data.value}")
+    print(f"  A: {a.single_value}, B: {b.single_value}, C: {c.single_value}")
     
-    print("\nMaking changes:")
-    name.set_value("Jane")
-    age.set_value(26)
-    scores.append(95)
-    user_data["city"] = "Los Angeles"
-
-
-def demo_bidirectional_bindings() -> None:
-    """Demonstrate bidirectional bindings."""
-    print_separator("Bidirectional Bindings")
-    
-    # Create two observables
-    price_usd = ObservableSingleValue(100.0)
-    price_eur = ObservableSingleValue(85.0)
-    
-    # Add listeners to see changes
-    def on_usd_change():
-        print(f"  USD price changed to: ${price_usd.value}")
-    
-    def on_eur_change():
-        print(f"  EUR price changed to: €{price_eur.value}")
-    
-    price_usd.add_listeners(on_usd_change)
-    price_eur.add_listeners(on_eur_change)
-    
-    print("Initial prices:")
-    print(f"  USD: ${price_usd.value}")
-    print(f"  EUR: €{price_eur.value}")
-    
-    # Bind them together (EUR will update when USD changes)
-    print("\nBinding USD to EUR...")
-    price_usd.bind_to_observable(
-        price_eur, 
-        initial_sync_mode=SyncMode.UPDATE_SELF_FROM_OBSERVABLE
-    )
-    
-    print("\nNow changing USD price:")
-    price_usd.set_value(110.0)
-    
-    print("\nNow changing EUR price:")
-    price_eur.set_value(95.0)
-
-
-def demo_observable_collections() -> None:
-    """Demonstrate observable collections."""
-    print_separator("Observable Collections")
-    
-    # Observable List
-    print("Observable List:")
-    todo_list = ObservableList(["Buy groceries", "Walk dog"])
-    todo_list.add_listeners(lambda: print(f"  Todo list updated: {todo_list.list_value}"))
-    
-    print(f"  Initial: {todo_list.list_value}")
-    todo_list.append("Read book")
-    todo_list[0] = "Buy organic groceries"
-    todo_list.remove("Walk dog")
-    
-    # Observable Dictionary
-    print("\nObservable Dictionary:")
-    config = ObservableDict({"theme": "dark", "language": "en"})
-    config.add_listeners(lambda: print(f"  Config updated: {config.value}"))
-    
-    print(f"  Initial: {config.value}")
-    config["theme"] = "light"
-    config.update({"language": "de", "timezone": "UTC"})
-    config.remove_item("timezone")
-    
-    # Observable Set
-    print("\nObservable Set:")
-    tags = ObservableSet({"python", "library"})
-    tags.add_listeners(lambda: print(f"  Tags updated: {tags.value}"))
-    
-    print(f"  Initial: {tags.value}")
-    tags.add("observable")
-    tags.add("reactive")
-    tags.remove("library")
-
-
-def demo_selection_options() -> None:
-    """Demonstrate selection options."""
-    print_separator("Selection Options")
-    
-    # Create a selection with available options
-    country_selector = ObservableSelectionOption(
-        options=["USA", "Canada", "UK", "Germany"],
-        selected_option="USA"
-    )
-    
-    country_selector.add_listeners(
-        lambda: print(f"  Selection changed to: {country_selector.selected_option}")
-    )
-    
-    print(f"Available options: {country_selector.options}")
-    print(f"Selected option: {country_selector.selected_option}")
-    
-    print("\nChanging selection:")
-    country_selector.selected_option = "Canada"
-    country_selector.selected_option = "UK"
-    
-    print("\nAdding new options:")
-    country_selector.options = ["USA", "Canada", "UK", "Germany", "France", "Spain"]
-    
-    print("\nChanging to new option:")
-    country_selector.selected_option = "France"
-
-
-def demo_binding_chains() -> None:
-    """Demonstrate binding chains."""
-    print_separator("Binding Chains")
-    
-    # Create a chain of observables
-    a = ObservableSingleValue(1)
-    b = ObservableSingleValue(1)
-    c = ObservableSingleValue(1)
-    
-    # Add listeners
+    # Add listeners to see the transitive behavior
     def on_a_change():
-        print(f"  A changed to: {a.value}")
+        print(f"  📢 A changed to: {a.single_value}")
     
     def on_b_change():
-        print(f"  B changed to: {b.value}")
+        print(f"  📢 B changed to: {b.single_value}")
     
     def on_c_change():
-        print(f"  C changed to: {c.value}")
+        print(f"  📢 C changed to: {c.single_value}")
     
     a.add_listeners(on_a_change)
     b.add_listeners(on_b_change)
     c.add_listeners(on_c_change)
     
-    print("Initial values:")
-    print(f"  A: {a.value}, B: {b.value}, C: {c.value}")
+    print(f"\n🔗 Initial HookNexus IDs:")
+    print(f"  A's HookNexus: {id(a._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  B's HookNexus: {id(b._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  C's HookNexus: {id(c._component_hooks['value'].hook_nexus)}") # type: ignore
     
-    # Bind them in a chain
-    print("\nBinding A → B → C...")
-    a.bind_to_observable(b)
-    b.bind_to_observable(c)
+    # Bind them in a chain - this creates transitive behavior!
+    print("\n🔗 Binding A → B → C...")
+    a.bind_to(b, InitialSyncMode.SELF_IS_UPDATED)
+    b.bind_to(c, InitialSyncMode.SELF_IS_UPDATED)
     
-    print("\nChanging A (should propagate through chain):")
-    a.set_value(10)
+    print(f"\n🔗 After binding - HookNexus IDs:")
+    print(f"  A's HookNexus: {id(a._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  B's HookNexus: {id(b._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  C's HookNexus: {id(c._component_hooks['value'].hook_nexus)}") # type: ignore
     
-    print(f"\nFinal values:")
-    print(f"  A: {a.value}, B: {b.value}, C: {c.value}")
+    print("\n🎯 Now changing A (should propagate through entire chain):")
+    a.single_value = 10
+    
+    print(f"\n📊 Final values (all synchronized through single HookNexus):")
+    print(f"  A: {a.single_value}, B: {b.single_value}, C: {c.single_value}")
+    
+    print("\n🔍 Key insight: A, B, and C now share the SAME HookNexus!")
+    print("   This means they all reference the same central value.")
 
 
-def demo_validation() -> None:
-    """Demonstrate custom validation."""
-    print_separator("Custom Validation")
+def demo_hook_group_merging() -> None:
+    """Demonstrate how hook groups merge to create shared state."""
+    print_separator("🔀 Hook Group Merging - Dynamic Centralization")
     
-    def validate_age(age: int) -> bool:
-        return 0 <= age <= 150
+    print("When observables bind, their HookNexus instances merge!")
+    print("This creates a dynamic, centralized system that adapts to your needs.")
+    print()
     
-    def validate_positive_number(value: float) -> bool:
-        return value > 0
+    # Create observables
+    price_usd = ObservableSingleValue(100.0)
+    price_eur = ObservableSingleValue(85.0)
+    price_gbp = ObservableSingleValue(75.0)
     
-    # Create observables with validators
-    age = ObservableSingleValue(25, validator=validate_age)
-    price = ObservableSingleValue(10.99, validator=validate_positive_number)
+    print("Initial state:")
+    print(f"  USD: ${price_usd.single_value} (HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  EUR: €{price_eur.single_value} (HookNexus: {id(price_eur._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  GBP: £{price_gbp.single_value} (HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)})") # type: ignore
     
-    print(f"Initial age: {age.value}")
-    print(f"Initial price: ${price.value}")
+    # Add listeners
+    def on_usd_change():
+        print(f"  📢 USD price changed to: ${price_usd.single_value}")
     
-    print("\nTrying to set invalid values:")
-    try:
-        age.set_value(200)  # Should fail
-    except ValueError as e:
-        print(f"  Age validation failed: {e}")
+    def on_eur_change():
+        print(f"  📢 EUR price changed to: €{price_eur.single_value}")
     
-    try:
-        price.set_value(-5.0)  # Should fail
-    except ValueError as e:
-        print(f"  Price validation failed: {e}")
+    def on_gbp_change():
+        print(f"  📢 GBP price changed to: £{price_gbp.single_value}")
     
-    print(f"\nFinal values:")
-    print(f"  Age: {age.value}")
-    print(f"  Price: ${price.value}")
+    price_usd.add_listeners(on_usd_change)
+    price_eur.add_listeners(on_eur_change)
+    price_gbp.add_listeners(on_gbp_change)
+    
+    # Bind USD to EUR (merges their HookNexus instances)
+    print("\n🔗 Binding USD ↔ EUR...")
+    price_usd.bind_to(price_eur, InitialSyncMode.SELF_IS_UPDATED)
+    
+    print(f"\n🔀 After USD↔EUR binding:")
+    print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  EUR HookNexus: {id(price_eur._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  GBP HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)}") # type: ignore
+    
+    # Now bind EUR to GBP (this will merge all three!)
+    print("\n🔗 Binding EUR ↔ GBP...")
+    price_eur.bind_to(price_gbp, InitialSyncMode.SELF_IS_UPDATED)
+    
+    print(f"\n🔀 After EUR↔GBP binding (all three now share HookNexus):")
+    print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  EUR HookNexus: {id(price_eur._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  GBP HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)}") # type: ignore
+    
+    print("\n🎯 Changing USD price (propagates to all three):")
+    price_usd.single_value = 110.0
+    
+    print(f"\n📊 Final synchronized values:")
+    print(f"  USD: ${price_usd.single_value}")
+    print(f"  EUR: €{price_eur.single_value}")
+    print(f"  GBP: £{price_gbp.single_value}")
+    
+    print("\n💡 Memory efficiency: All three prices stored in ONE HookNexus!")
 
 
-def demo_performance() -> None:
-    """Demonstrate performance characteristics."""
-    print_separator("Performance Demo")
+def demo_memory_efficiency() -> None:
+    """Demonstrate the memory-saving benefits of centralized storage."""
+    print_separator("💾 Memory Efficiency - Zero Data Duplication")
+    
+    print("Traditional approach: Each observable stores its own copy of data")
+    print("Our approach: Single central storage, observables just reference it!")
+    print()
+    
+    # Create a large dataset
+    large_dataset = list(range(1000))
+    
+    print(f"📊 Creating large dataset: {len(large_dataset)} items")
+    print(f"   Traditional approach would store this data multiple times")
+    print(f"   Our approach stores it ONCE in a central HookNexus")
+    
+    # Create multiple observables that will share the same data
+    obs1 = ObservableList(large_dataset)
+    obs2 = ObservableList(large_dataset)
+    obs3 = ObservableList(large_dataset)
+    
+    print(f"\n🔗 Initial state (each has separate HookNexus):")
+    print(f"  Obs1 HookNexus: {id(obs1._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  Obs2 HookNexus: {id(obs2._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  Obs3 HookNexus: {id(obs3._component_hooks['value'].hook_nexus)}") # type: ignore
+    
+    # Bind them together
+    print("\n🔗 Binding all three together...")
+    obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+    obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+    
+    print(f"\n🔀 After binding (all share same HookNexus):")
+    print(f"  Obs1 HookNexus: {id(obs1._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  Obs2 HookNexus: {id(obs2._component_hooks['value'].hook_nexus)}") # type: ignore
+    print(f"  Obs3 HookNexus: {id(obs3._component_hooks['value'].hook_nexus)}") # type: ignore
+    
+    print("\n🎯 Modifying the data (propagates to all three):")
+    obs1.append(9999)
+    obs1[0] = -1
+    
+    print(f"\n📊 Final synchronized values:")
+    print(f"  Obs1: {obs1.list_value[:5]}... (length: {len(obs1.list_value)})")
+    print(f"  Obs2: {obs2.list_value[:5]}... (length: {len(obs2.list_value)})")
+    print(f"  Obs3: {obs3.list_value[:5]}... (length: {len(obs3.list_value)})")
+    
+    print("\n💡 Memory savings:")
+    print(f"   Traditional: 3 × {len(large_dataset)} = {3 * len(large_dataset)} items stored")
+    print(f"   Our system: 1 × {len(large_dataset)} = {len(large_dataset)} items stored")
+    print(f"   Savings: {2 * len(large_dataset)} items = {2 * len(large_dataset) * 8} bytes (64-bit)")
+
+
+def demo_complex_networks() -> None:
+    """Demonstrate complex binding networks with automatic transitive behavior."""
+    print_separator("🌐 Complex Networks - Automatic Transitive Binding")
+    
+    print("Create complex networks of observables that automatically")
+    print("form transitive connections through HookNexus merging!")
+    print()
+    
+    # Create a network of observables
+    network = {
+        'node_a': ObservableSingleValue(10),
+        'node_b': ObservableSingleValue(20),
+        'node_c': ObservableSingleValue(30),
+        'node_d': ObservableSingleValue(40),
+        'node_e': ObservableSingleValue(50)
+    }
+    
+    print("Initial network nodes:")
+    for name, obs in network.items():
+        print(f"  {name}: {obs.single_value} (HookNexus: {id(obs._component_hooks['value'].hook_nexus)})") # type: ignore
+    
+    # Create a complex binding pattern
+    print("\n🔗 Creating complex binding pattern:")
+    print("  A ↔ B ↔ C")
+    print("  B ↔ D")
+    print("  C ↔ E")
+    
+    # Bind them
+    network['node_a'].bind_to(network['node_b'], InitialSyncMode.SELF_IS_UPDATED)
+    network['node_b'].bind_to(network['node_c'], InitialSyncMode.SELF_IS_UPDATED)
+    network['node_b'].bind_to(network['node_d'], InitialSyncMode.SELF_IS_UPDATED)
+    network['node_c'].bind_to(network['node_e'], InitialSyncMode.SELF_IS_UPDATED)
+    
+    print(f"\n🔀 After binding - HookNexus IDs:")
+    for name, obs in network.items():
+        print(f"  {name}: HookNexus {id(obs._component_hooks['value'].hook_nexus)}") # type: ignore
+    
+    print("\n🎯 Changing node A (should propagate through entire network):")
+    network['node_a'].single_value = 100
+    
+    print(f"\n📊 Final synchronized values:")
+    for name, obs in network.items():
+        print(f"  {name}: {obs.single_value}")
+    
+    print("\n💡 Transitive behavior: A change in any node propagates to ALL nodes!")
+    print("   This happens automatically through HookNexus merging.")
+
+
+def demo_performance_benefits() -> None:
+    """Demonstrate performance benefits of the centralized system."""
+    print_separator("⚡ Performance Benefits - Centralized Operations")
+    
+    print("Centralized storage enables efficient operations:")
+    print("- Single validation per change")
+    print("- Atomic updates across all bound observables")
+    print("- No data copying during binding")
+    print()
     
     # Create many observables
-    print("Creating 1000 observables...")
+    print("📊 Creating 1000 observables...")
     start_time = time.time()
     
-    observables = []
+    observables: list[ObservableSingleValue[int]] = []
     for i in range(1000):
         obs = ObservableSingleValue(i)
         observables.append(obs)
     
     creation_time = time.time() - start_time
-    print(f"  Creation time: {creation_time:.4f} seconds")
+    print(f"  ✅ Creation time: {creation_time:.4f} seconds")
     
     # Test binding performance
-    print("\nTesting binding performance...")
+    print("\n🔗 Testing binding performance...")
     start_time = time.time()
     
+    # Create a chain binding
     for i in range(0, 999, 2):
-        observables[i].bind_to_observable(observables[i + 1])
+        observables[i].bind_to(observables[i + 1], InitialSyncMode.SELF_IS_UPDATED)
     
     binding_time = time.time() - start_time
-    print(f"  Binding time: {binding_time:.4f} seconds")
+    print(f"  ✅ Binding time: {binding_time:.4f} seconds")
+    print(f"  📊 Created {len(observables) // 2} bindings")
     
-    # Test change propagation
-    print("\nTesting change propagation...")
+    # Test change propagation performance
+    print("\n🎯 Testing change propagation performance...")
     start_time = time.time()
     
-    observables[0].set_value(9999)
+    # Change the first observable - should propagate through entire chain
+    observables[0].single_value = 9999
     
     propagation_time = time.time() - start_time
-    print(f"  Propagation time: {propagation_time:.4f} seconds")
+    print(f"  ✅ Propagation time: {propagation_time:.6f} seconds")
+    print(f"  📊 Propagated to {len(observables)} observables")
     
-    print(f"\nTotal observables: {len(observables)}")
-    print(f"Total bindings: {len(observables) // 2}")
+    print(f"\n📈 Performance summary:")
+    print(f"  Total observables: {len(observables)}")
+    print(f"  Total bindings: {len(observables) // 2}")
+    print(f"  Change propagation: {len(observables)} observables in {propagation_time:.6f}s")
+    print(f"  Efficiency: {len(observables) / propagation_time:.0f} observables/second")
 
 
 def main() -> None:
-    """Run all demos."""
-    print("Observables Library Demo")
-    print("=" * 60)
+    """Run all demos showcasing the new architecture."""
+    print("🚀 Observables Library Demo - Revolutionary Centralized Architecture")
+    print("=" * 70)
+    print("This demo showcases:")
+    print("• 🎯 Single Source of Truth - No data duplication")
+    print("• 🔄 Transitive Binding - Automatic network formation")
+    print("• 🔀 Hook Group Merging - Dynamic centralization")
+    print("• 💾 Memory Efficiency - Zero data copying")
+    print("• 🌐 Complex Networks - Automatic transitive behavior")
+    print("• ⚡ Performance Benefits - Centralized operations")
     
     try:
-        demo_basic_usage()
-        demo_bidirectional_bindings()
-        demo_observable_collections()
-        demo_selection_options()
-        demo_binding_chains()
-        demo_validation()
-        demo_performance()
+        demo_centralized_architecture()
+        demo_transitive_binding()
+        demo_hook_group_merging()
+        demo_memory_efficiency()
+        demo_complex_networks()
+        demo_performance_benefits()
         
-        print_separator("Demo Complete")
-        print("All demos completed successfully!")
+        print_separator("🎉 Demo Complete")
+        print("✅ All demos completed successfully!")
+        print("\n💡 Key takeaways:")
+        print("   • Values are stored ONCE in central HookNexus instances")
+        print("   • Binding merges HookNexus instances, creating shared state")
+        print("   • Transitive behavior happens automatically")
+        print("   • Memory usage scales with unique values, not observables")
+        print("   • Performance scales with centralized operations")
         
     except Exception as e:
-        print(f"\nDemo failed with error: {e}")
+        print(f"\n❌ Demo failed with error: {e}")
         import traceback
         traceback.print_exc()
 

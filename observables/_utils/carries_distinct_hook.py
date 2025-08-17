@@ -1,8 +1,10 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
+from .carries_hooks import CarriesHooks
 
-class BaseCarriesDistinctHook(Protocol):
+@runtime_checkable
+class CarriesDistinctHook(CarriesHooks, Protocol):
     """
-    Base protocol for objects that can participate in bidirectional bindings.
+    Protocol for objects that can participate in bidirectional bindings.
     
     Classes implementing this protocol can:
     - Participate in bidirectional bindings with other observables

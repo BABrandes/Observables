@@ -1,5 +1,5 @@
 import unittest
-from observables import ObservableDict, SyncMode
+from observables import ObservableDict, InitialSyncMode
 
 class TestObservableDict(unittest.TestCase):
     """Test cases for ObservableDict"""
@@ -169,12 +169,10 @@ class TestObservableDict(unittest.TestCase):
         target = ObservableDict(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_dict_hook.is_connected_to(source.distinct_dict_hook))
-        self.assertTrue(source.distinct_dict_hook.is_connected_to(target.distinct_dict_hook))
+        self.assertTrue(target.distinct_dict_hook.is_attached_to(source.distinct_dict_hook))
+        self.assertTrue(source.distinct_dict_hook.is_attached_to(target.distinct_dict_hook))
     
     def test_initialization_with_carries_bindable_dict_performance(self):
         """Test performance of initialization with CarriesBindableDict"""
@@ -225,7 +223,7 @@ class TestObservableDict(unittest.TestCase):
         # Test update_observable_from_self mode
         obs3 = ObservableDict({"key3": 300})
         obs4 = ObservableDict({"key4": 400})
-        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.dict_value, {"key3": 300})  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -423,12 +421,10 @@ class TestObservableDict(unittest.TestCase):
         target = ObservableDict(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_dict_hook.is_connected_to(source.distinct_dict_hook))
-        self.assertTrue(source.distinct_dict_hook.is_connected_to(target.distinct_dict_hook))
+        self.assertTrue(target.distinct_dict_hook.is_attached_to(source.distinct_dict_hook))
+        self.assertTrue(source.distinct_dict_hook.is_attached_to(target.distinct_dict_hook))
     
     def test_dict_binding_none_observable(self):
         """Test that binding to None raises an error"""

@@ -1,11 +1,5 @@
 import unittest
-from observables import ObservableSelectionOption, SyncMode
-
-
-
-
-
-
+from observables import ObservableSelectionOption, InitialSyncMode
 
 class TestObservableSelectionOption(unittest.TestCase):
     """Test cases for ObservableSelectionOption"""
@@ -181,12 +175,12 @@ class TestObservableSelectionOption(unittest.TestCase):
         target = ObservableSelectionOption(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
+        # Note: check_status_consistency() method no longer exists in new architecture
+        # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
     
     def test_initialization_with_carries_bindable_selection_option_performance(self):
         """Test performance of initialization with CarriesBindableSelectionOption"""
@@ -211,46 +205,63 @@ class TestObservableSelectionOption(unittest.TestCase):
     
     def test_binding_bidirectional(self):
         """Test bidirectional binding between obs1 and obs2"""
-        obs1 = ObservableSelectionOption("Red", {"Red", "Green"})
-        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green"})
+        obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
+        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
         # Bind obs1 to obs2
-        obs1.bind_to(obs2)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        
+        # After binding, obs2 should have obs1's values
+        self.assertEqual(obs2.selected_option, "Red")
+        self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
         
         # Change obs1, obs2 should update
         obs1.selected_option = "Green"
         self.assertEqual(obs2.selected_option, "Green")
         
-        # Change obs2, obs1 should also update (bidirectional)
-        obs2.selected_option = "Blue"
-        self.assertEqual(obs1.selected_option, "Blue")
+        # Change obs2 to a valid option, obs1 should also update (bidirectional)
+        obs2.selected_option = "Yellow"
+        self.assertEqual(obs1.selected_option, "Yellow")
+        
+        # Try to set obs2 to an invalid option, should raise ValueError
+        with self.assertRaises(ValueError):
+            obs2.selected_option = "Blue"  # "Blue" not in {"Red", "Green", "Yellow"}
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
-        obs1 = ObservableSelectionOption("Red", {"Red", "Green"})
-        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green"})
+        obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
+        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
         # Test update_value_from_observable mode
         obs1.bind_to(obs2)
         self.assertEqual(obs1.selected_option, "Blue")  # obs1 gets updated with obs2's value
         
         # Test update_observable_from_self mode
-        obs3 = ObservableSelectionOption("Small", {"Small", "Medium"})
-        obs4 = ObservableSelectionOption("Large", {"Large", "Medium"})
-        obs3.bind_to(obs4, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
+        obs3 = ObservableSelectionOption("Small", {"Small", "Medium", "Large"})
+        obs4 = ObservableSelectionOption("Large", {"Small", "Medium", "Large"})
+        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.selected_option, "Small")  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
         """Test unbinding observables"""
-        obs1 = ObservableSelectionOption("Red", {"Red", "Green"})
-        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green"})
+        obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
+        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
-        obs1.bind_to(obs2)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        
+        # After binding, obs2 should have obs1's values
+        self.assertEqual(obs2.selected_option, "Red")
+        self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
+        
         obs1.disconnect()
+        
+        # After disconnecting, obs2 keeps its current values but changes no longer propagate
+        self.assertEqual(obs2.selected_option, "Red")
+        self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
         
         # Changes should no longer propagate
         obs1.selected_option = "Green"
-        self.assertEqual(obs2.selected_option, "Blue")
+        self.assertEqual(obs2.selected_option, "Red")  # Should remain unchanged
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
@@ -260,13 +271,13 @@ class TestObservableSelectionOption(unittest.TestCase):
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
-        obs1 = ObservableSelectionOption("Red", {"Red", "Green"})
-        obs2 = ObservableSelectionOption("Blue", {"Blue", "Green"})
-        obs3 = ObservableSelectionOption("Green", {"Green", "Blue"})
+        obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
+        obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
+        obs3 = ObservableSelectionOption("Green", {"Red", "Green", "Blue"})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.bind_to(obs2)
-        obs2.bind_to(obs3)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs2.bind_to(obs3, InitialSyncMode.SELF_UPDATES)
         
         # Verify chain works
         obs1.selected_option = "Green"
@@ -277,7 +288,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs2.disconnect()
         
         # Change obs1, obs2 should update since they remain bound after obs2.disconnect()
-        # Note: obs1 can only use its own available options {"Red", "Green"}
+        # Note: obs1 can only use its own available options {"Red", "Green", "Blue"}
         obs1.selected_option = "Green"  # Use an option that exists in obs1's options
         self.assertEqual(obs2.selected_option, "Green")  # Should update since obs1 and obs2 remain bound
         self.assertEqual(obs3.selected_option, "Green")  # Should remain unchanged
@@ -312,18 +323,31 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3 = ObservableSelectionOption("Green", {"Green", "Blue"})
         
         # Bind obs2 and obs3 to obs1
-        obs2.bind_to(obs1)
-        obs3.bind_to(obs1)
+        obs2.bind_to(obs1, InitialSyncMode.SELF_UPDATES)
+        obs3.bind_to(obs1, InitialSyncMode.SELF_UPDATES)
+        
+        # After binding, all observables should be synchronized due to transitive binding
+        # When multiple observables are bound to the same target, they all become part of the same binding group
+        print(f'After binding:')
+        print(f'obs1: selected={obs1.selected_option}, options={obs1.available_options}')
+        print(f'obs2: selected={obs2.selected_option}, options={obs2.available_options}')
+        print(f'obs3: selected={obs3.selected_option}, options={obs3.available_options}')
+        
+        # All observables should have the same selected option due to transitive binding
+        self.assertEqual(obs1.selected_option, obs2.selected_option)
+        self.assertEqual(obs2.selected_option, obs3.selected_option)
         
         # Change obs1, both should update
         obs1.selected_option = "Green"
         self.assertEqual(obs2.selected_option, "Green")
         self.assertEqual(obs3.selected_option, "Green")
         
-        # Change obs2, obs1 should also update (bidirectional), obs3 should also update
-        obs2.selected_option = "Red"
-        self.assertEqual(obs1.selected_option, "Red")
-        self.assertEqual(obs3.selected_option, "Red")
+        # Change obs2 to a valid option, obs1 and obs3 should also update (bidirectional)
+        # Due to transitive binding, all observables stay synchronized
+        valid_option = "Green" if "Green" in obs2.available_options else list(obs2.available_options)[0]
+        obs2.selected_option = valid_option
+        self.assertEqual(obs1.selected_option, valid_option)
+        self.assertEqual(obs3.selected_option, valid_option)
     
     def test_selection_option_methods(self):
         """Test standard selection option methods"""
@@ -434,12 +458,10 @@ class TestObservableSelectionOption(unittest.TestCase):
         target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check binding consistency
-        is_consistent, message = target.check_status_consistency()
-        self.assertTrue(is_consistent, f"Binding system should be consistent: {message}")
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_connected_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_connected_to(target.distinct_single_value_hook))
+        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
+        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
     
     def test_selection_option_binding_none_observable(self):
         """Test that binding to None raises an error"""

@@ -131,10 +131,9 @@ class HookGroup(Generic[T]):
             raise ValueError("Cannot connect None hooks")
 
         # Ensure that the value in both hook groups is the same
-        if from_hook.value != to_hook.value:
-            success, msg = to_hook.hook_group.invalidate(from_hook.value)
-            if not success:
-                raise ValueError(msg)
+        success, msg = to_hook.hook_group.invalidate(from_hook.value)
+        if not success:
+            raise ValueError(msg)
             
         # Then merge the hook groups
         merged_hook_group: HookGroup[T] = HookGroup[T].merge_hook_groups(from_hook.hook_group, to_hook.hook_group)
@@ -159,11 +158,14 @@ class HookGroup(Generic[T]):
         
         """
 
-        value: Optional[T] = None
-        for hook in hook_group._hooks:
-            if value is None:
-                value = hook._binding_system_callback_get() # type: ignore
-            elif hook._binding_system_callback_get() != value: # type: ignore
-                return False, "Hooks are not synced"
+        if len(hook_group._hooks) == 0:
+            raise ValueError("Hook group is empty")
+        elif len(hook_group._hooks) == 1:
+            return True, "All hooks are synced"
+        else:
+            value: T = hook_group.value
+            for hook in hook_group._hooks:
+                if hook._binding_system_callback_get() != value: # type: ignore
+                    return False, "Hooks are not synced"
 
         return True, "All hooks are synced"

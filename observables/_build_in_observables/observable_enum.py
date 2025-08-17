@@ -68,9 +68,9 @@ class ObservableEnumLike(CarriesDistinctSingleValueHook[Optional[E]], CarriesDis
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         """
         ...
 
@@ -505,9 +505,9 @@ class ObservableEnum(BaseObservable, ObservableEnumLike[E], Generic[E]):
             (self._component_hooks["enum_options"], observable.distinct_set_hook)
         )
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         
         This method removes all bidirectional bindings, preventing further
         automatic synchronization with other observables.

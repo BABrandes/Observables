@@ -86,9 +86,9 @@ class ObservableMultiSelectionOptionLike(CarriesCollectiveHooks, Protocol[T]):
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         """
         ...
 
@@ -486,9 +486,9 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
             (self._component_hooks["selected_options"], observable.selected_options_hook)
         )
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         
         This method removes all bidirectional bindings, preventing further
         automatic synchronization with other observables.

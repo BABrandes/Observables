@@ -33,7 +33,7 @@ class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove the bidirectional binding with another observable dictionary.
         """
@@ -393,7 +393,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
             observable_or_hook = observable_or_hook.distinct_dict_hook
         self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove any bindings to other observables.
         """

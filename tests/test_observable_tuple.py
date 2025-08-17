@@ -113,7 +113,7 @@ class TestObservableTuple(unittest.TestCase):
         self.assertEqual(target.tuple_value, (200, 300))
         
         # Unbind them
-        target.disconnect()
+        target.detach()
         
         # Change source, target should not update
         source.tuple_value = (400, 500)
@@ -234,7 +234,7 @@ class TestObservableTuple(unittest.TestCase):
         obs2 = ObservableTuple((20,))
         
         obs1.bind_to(obs2)
-        obs1.disconnect()
+        obs1.detach()
         
         # Changes should no longer propagate
         obs1.tuple_value = (50, 60)
@@ -262,14 +262,14 @@ class TestObservableTuple(unittest.TestCase):
         self.assertEqual(obs3.tuple_value, (100, 200))  # obs3 also gets updated since all three are bound
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.detach()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.tuple_value = (300, 400)
         self.assertEqual(obs2.tuple_value, (100, 200))  # obs2 is isolated
         self.assertEqual(obs3.tuple_value, (300, 400))  # obs3 gets updated since obs1 and obs3 remain bound
         
-        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect()
+        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.detach()
         obs3.tuple_value = (500, 600)
         self.assertEqual(obs1.tuple_value, (500, 600))  # obs1 gets updated since obs1 and obs3 remain bound
         self.assertEqual(obs2.tuple_value, (100, 200))  # obs2 is isolated
@@ -553,9 +553,9 @@ class TestObservableIntegration(unittest.TestCase):
         self.assertEqual(obs_c.single_value, 100)
         
         # Remove binding between B and C
-        obs_b.disconnect()
+        obs_b.detach()
         
-        # Change A, B should NOT update (obs_b is now disconnected from everything)
+        # Change A, B should NOT update (obs_b is now detached from everything)
         # But obs_c should update because obs_a and obs_c are still bound (transitive binding)
         obs_a.single_value = 200
         self.assertEqual(obs_b.single_value, 100)  # Should remain unchanged

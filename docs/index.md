@@ -64,7 +64,7 @@ print(obs2.single_value)  # 500 (through direct binding)
 print(obs3.single_value)  # 500 (through transitive binding!)
 
 # Break the middle connection
-obs2.disconnect()
+obs2.detach()
 
 # obs1 and obs3 remain connected (transitive binding preserved)
 obs1.single_value = 1000
@@ -91,9 +91,9 @@ print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")
 print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
 # Output: Same ID - shared storage!
 
-# When obs2 disconnects, it gets its own HookNexus again
-obs2.disconnect()
-print(f"After obs2 disconnect:")
+# When obs2 detachs, it gets its own HookNexus again
+obs2.detach()
+print(f"After obs2 detach:")
 print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")
 print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
 # Output: Different IDs again - separate storage
@@ -196,7 +196,7 @@ obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
 print(obs2.single_value)  # 100
 ```
 
-#### **`disconnect()`**
+#### **`detach()`**
 Disconnects this observable from all bindings, creating its own isolated HookNexus.
 
 **Example:**
@@ -206,7 +206,7 @@ obs2 = ObservableSingleValue(200)
 obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
 
 # Disconnect obs1
-obs1.disconnect()
+obs1.detach()
 
 # Changes no longer propagate
 obs1.single_value = 300
@@ -275,7 +275,7 @@ view3 = ObservableList(large_dataset)  # References same data
 ### **3. Break Bindings When No Longer Needed**
 ```python
 # When an observable is no longer needed in the network
-obs1.disconnect()
+obs1.detach()
 
 # This creates a new HookNexus for obs1
 # Other observables remain connected through their shared HookNexus

@@ -85,7 +85,7 @@ class HookGroup[T]:
 #### Group Operations
 
 1. **Merge**: Combine two groups when hooks are bound
-2. **Split**: Separate groups when hooks are disconnected
+2. **Split**: Separate groups when hooks are detached
 3. **Synchronize**: Ensure all hooks in a group have the same value
 4. **Validate**: Check that all hooks can maintain consistency
 
@@ -142,19 +142,19 @@ The system automatically handles transitive binding:
 
 ### Disconnection Process
 
-When a hook disconnects:
+When a hook detachs:
 
-1. **Validation**: Check if the hook is already disconnected
+1. **Validation**: Check if the hook is already detached
 2. **Group Removal**: Remove the hook from its current group
-3. **Isolation**: Create a new isolated group containing only the disconnected hook
+3. **Isolation**: Create a new isolated group containing only the detached hook
 4. **Group Cleanup**: Remaining hooks in the original group stay bound together
 
 ```python
-def disconnect(self) -> None:
+def detach(self) -> None:
     """Disconnect this hook from the binding system."""
-    # Check if already disconnected
+    # Check if already detached
     if len(self._hook_group._hooks) <= 1:
-        raise ValueError("Hook is already disconnected")
+        raise ValueError("Hook is already detached")
     
     # Remove from current group
     self._hook_group.remove_hook(self)
@@ -215,15 +215,15 @@ def check_all_hooks_synced(hook_group: "HookGroup[T]") -> tuple[bool, str]:
 
 ### No Granular Control
 
-The system does not support selective disconnection of specific pairs within a merged group:
+The system does not support selective detachion of specific pairs within a merged group:
 
 ```python
 # This is NOT supported:
 # obs1 ↔ obs2 ↔ obs3
-# obs1.disconnect_from(obs2)  # Only disconnect obs1 from obs2
+# obs1.detach_from(obs2)  # Only detach obs1 from obs2
 
-# Instead, you must disconnect the entire hook:
-# obs1.disconnect()  # obs1 becomes isolated, obs2 ↔ obs3 remains
+# Instead, you must detach the entire hook:
+# obs1.detach()  # obs1 becomes isolated, obs2 ↔ obs3 remains
 ```
 
 ### Available Options Don't Merge
@@ -246,7 +246,7 @@ The hook system is designed to be thread-safe:
 
 - **Lock-based synchronization** on critical operations
 - **Atomic group operations** to prevent race conditions
-- **Safe concurrent binding** and disconnection
+- **Safe concurrent binding** and detachion
 - **Protected value access** during synchronization
 
 ```python

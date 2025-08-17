@@ -155,7 +155,7 @@ print(obs2.single_value)  # 500
 print(obs3.single_value)  # 500 (transitive binding!)
 
 # Break the middle connection
-obs2.disconnect()
+obs2.detach()
 
 # obs1 and obs3 remain connected (transitive binding preserved)
 obs1.single_value = 1000
@@ -262,7 +262,7 @@ Binds this observable to another observable, merging their HookNexus instances.
 - `SELF_IS_UPDATED`: This observable gets the target's value
 - `SELF_UPDATES`: Target gets this observable's value
 
-#### **`disconnect()`**
+#### **`detach()`**
 Disconnects this observable from all bindings, creating its own isolated HookNexus.
 
 ### **Hook Properties**
@@ -306,7 +306,7 @@ view3 = ObservableList(large_dataset)  # References same data
 ### **3. Break Bindings When No Longer Needed**
 ```python
 # When an observable is no longer needed in the network
-obs1.disconnect()
+obs1.detach()
 
 # This creates a new HookNexus for obs1
 # Other observables remain connected through their shared HookNexus

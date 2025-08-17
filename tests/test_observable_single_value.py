@@ -110,7 +110,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-        obs1.disconnect()
+        obs1.detach()
         
         # Changes should no longer propagate
         obs1.single_value = 50
@@ -122,11 +122,11 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
-        obs1.disconnect()
+        obs1.detach()
         
         # Second unbind should raise ValueError since there's nothing to unbind
         with self.assertRaises(ValueError):
-            obs1.disconnect()
+            obs1.detach()
         
         # Changes should still not propagate
         obs1.single_value = 50
@@ -160,11 +160,11 @@ class TestObservableSingleValue(unittest.TestCase):
         self.assertEqual(obs3.single_value, 100)
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.detach()
         
-        # After disconnect, obs2 should be isolated from both obs1 and obs3
+        # After detach, obs2 should be isolated from both obs1 and obs3
         # However, obs1 and obs3 remain bound together in the same hook group
-        # Change obs1, obs2 should NOT update since it's disconnected
+        # Change obs1, obs2 should NOT update since it's detached
         obs1.single_value = 200
         self.assertEqual(obs2.single_value, 100)  # Should remain unchanged
         self.assertEqual(obs3.single_value, 200)  # Should update since obs1 and obs3 are still bound
@@ -309,7 +309,7 @@ class TestObservableSingleValue(unittest.TestCase):
         self.assertEqual(target.single_value, 200)
         
         # Unbind them
-        target.disconnect()
+        target.detach()
         
         # Change source, target should not update
         source.single_value = 300

@@ -122,7 +122,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         self.assertEqual(target.selected_options, {"Green"})
         
         # Unbind them
-        target.disconnect()
+        target.detach()
         
         # Change source, target should not update
         source.selected_options = {"Green"}
@@ -256,7 +256,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         self.assertEqual(obs2.selected_options, {"Red"})
         self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
         
-        obs1.disconnect()
+        obs1.detach()
         
         # After disconnecting, obs2 keeps its current values but changes no longer propagate
         self.assertEqual(obs2.selected_options, {"Red"})
@@ -288,9 +288,9 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         self.assertEqual(obs3.selected_options, {"Green"})
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.detach()
         
-        # Change obs1, obs2 should NOT update (obs2 is now disconnected from everything)
+        # Change obs1, obs2 should NOT update (obs2 is now detached from everything)
         # But obs3 should still update because obs1 and obs3 are still bound (transitive binding)
         obs1.selected_options = {"Red"}
         self.assertEqual(obs2.selected_options, {"Green"})  # Should remain unchanged

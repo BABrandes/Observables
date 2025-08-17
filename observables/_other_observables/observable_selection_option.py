@@ -152,9 +152,9 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         """
         ...
 
@@ -975,7 +975,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             available options), the binding operation will fail and the original
             state will be preserved.
             
-            To remove the binding, use disconnect().
+            To remove the binding, use detach().
         """
         if isinstance(observable_or_hook, CarriesDistinctSingleValueHook):
             observable_or_hook = observable_or_hook.distinct_single_value_hook
@@ -1083,9 +1083,9 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
                 (observable.distinct_set_hook, self._component_hooks["available_options"])
             )
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
-        Disconnect from all bindings.
+        Detach from all bindings.
         
         This method removes all bidirectional bindings, preventing further
         automatic synchronization with other observables.

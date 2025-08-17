@@ -112,7 +112,7 @@ class TestObservableDict(unittest.TestCase):
         self.assertEqual(target.dict_value, {"key1": 100, "key2": 200})
         
         # Unbind them
-        target.disconnect()
+        target.detach()
         
         # Change source, target should not update
         source.set_item("key3", 300)
@@ -232,7 +232,7 @@ class TestObservableDict(unittest.TestCase):
         obs2 = ObservableDict({"key2": 20})
         
         obs1.bind_to(obs2)
-        obs1.disconnect()
+        obs1.detach()
         
         # Changes should no longer propagate
         obs1.set_item("key3", 50)
@@ -260,14 +260,14 @@ class TestObservableDict(unittest.TestCase):
         self.assertEqual(obs3.dict_value, {"key3": 30, "key4": 100})  # obs3 also gets updated since all three are bound
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.detach()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.set_item("key5", 200)
         self.assertEqual(obs2.dict_value, {"key3": 30, "key4": 100})  # obs2 is isolated
         self.assertEqual(obs3.dict_value, {"key3": 30, "key4": 100, "key5": 200})  # obs3 gets updated since obs1 and obs3 remain bound
         
-        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect()
+        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.detach()
         obs3.set_item("key6", 300)
         self.assertEqual(obs1.dict_value, {"key3": 30, "key4": 100, "key5": 200, "key6": 300})  # obs1 gets updated
         self.assertEqual(obs2.dict_value, {"key3": 30, "key4": 100})  # obs2 is isolated

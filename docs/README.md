@@ -47,7 +47,7 @@ The system uses a sophisticated **hook "bus" system** that acts as a central com
 ### Key Principles
 1. **All-or-Nothing Within Groups**: Hooks in the same group are all synchronized together
 2. **Transitive Propagation**: Changes automatically propagate through the entire binding chain
-3. **No Granular Disconnection**: You cannot selectively disconnect specific pairs within a merged group
+3. **No Granular Disconnection**: You cannot selectively detach specific pairs within a merged group
 4. **Automatic Group Management**: The system automatically manages hook groups and their connections
 
 ## 🚀 Quick Start
@@ -104,7 +104,7 @@ obs1.single_value = 100
 ### Disconnection
 ```python
 # Continuing from above...
-obs2.disconnect()
+obs2.detach()
 
 # Now:
 # - obs1 and obs3 remain bound together (transitive binding)
@@ -137,10 +137,10 @@ obs2.disconnect()
 ## ⚠️ Important Notes
 
 1. **Transitive Binding**: Remember that binding is transitive - if A↔B and B↔C, then A↔C
-2. **No Granular Control**: You cannot selectively disconnect specific pairs within a merged group
+2. **No Granular Control**: You cannot selectively detach specific pairs within a merged group
 3. **Available Options Don't Merge**: The system only synchronizes selected values, not available options
 4. **Hook Group Management**: The system automatically manages hook groups - don't try to manipulate them directly
-5. **Disconnection Isolation**: When you disconnect a hook, it becomes completely isolated
+5. **Disconnection Isolation**: When you detach a hook, it becomes completely isolated
 
 ## 🔧 Getting Help
 

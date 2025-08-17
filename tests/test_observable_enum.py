@@ -131,7 +131,7 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(target.enum_value, TestColor.GREEN)
         
         # Unbind them
-        target.disconnect()
+        target.detach()
         
         # Change source, target should not update
         source.enum_value = TestColor.RED
@@ -252,7 +252,7 @@ class TestObservableEnum(unittest.TestCase):
         # After binding, obs2 should have obs1's value
         self.assertEqual(obs2.enum_value, TestColor.RED)
         
-        obs1.disconnect()
+        obs1.detach()
         
         # After disconnecting, obs2 keeps its current value but changes no longer propagate
         self.assertEqual(obs2.enum_value, TestColor.RED)
@@ -283,7 +283,7 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(obs3.enum_value, TestColor.GREEN)
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.detach()
         
         # After obs2 disconnects, obs1 and obs3 should remain bound (transitive binding)
         # Change obs1, obs3 should update but obs2 should not

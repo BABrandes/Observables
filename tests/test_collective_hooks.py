@@ -84,7 +84,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertEqual(self.selector2.selected_option, "Blue")
         
         # Remove binding
-        self.selector1.disconnect()
+        self.selector1.detach()
         
         # Verify binding is removed
         self.selector1.selected_option = "Green"
@@ -316,7 +316,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertEqual(self.selector2.selected_option, "TestValue")
         
         # Break the binding by disconnecting selector1
-        self.selector1.disconnect()
+        self.selector1.detach()
         
         # Verify binding is broken
         self.selector1.set_selected_option_and_available_options("NewValue", {"NewValue", "Red", "Green", "Blue"})
@@ -422,14 +422,14 @@ class TestCollectiveHooks(unittest.TestCase):
         selector.bind_available_options_to(options, InitialSyncMode.SELF_IS_UPDATED)
         
         # Disconnect all
-        selector.disconnect()
+        selector.detach()
         # Don't disconnect value and options multiple times - they might already be disconnected
         try:
-            value.disconnect()
+            value.detach()
         except ValueError:
             pass  # Already disconnected
         try:
-            options.disconnect()
+            options.detach()
         except ValueError:
             pass  # Already disconnected
         

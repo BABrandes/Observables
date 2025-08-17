@@ -32,7 +32,7 @@ class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove the bidirectional binding with another observable set.
         """
@@ -170,7 +170,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
             observable_or_hook = observable_or_hook.distinct_set_hook
         self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove the bidirectional binding with another observable set.
         

@@ -32,7 +32,7 @@ class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
         """
         ...
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove the bidirectional binding with another observable single value.
         """
@@ -386,7 +386,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             observable_or_hook = observable_or_hook.distinct_single_value_hook
         self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
 
-    def disconnect(self) -> None:
+    def detach(self) -> None:
         """
         Remove the bidirectional binding with another observable.
         

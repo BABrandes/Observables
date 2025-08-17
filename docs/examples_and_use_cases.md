@@ -584,7 +584,7 @@ def test_transitive_binding():
 ### 2. Testing Disconnection
 
 ```python
-def test_disconnection_behavior():
+def test_detachion_behavior():
     obs1 = ObservableSingleValue(10)
     obs2 = ObservableSingleValue(20)
     obs3 = ObservableSingleValue(30)
@@ -594,7 +594,7 @@ def test_disconnection_behavior():
     obs2.bind_to(obs3)
     
     # Disconnect middle
-    obs2.disconnect()
+    obs2.detach()
     
     # Test isolation
     obs1.single_value = 100

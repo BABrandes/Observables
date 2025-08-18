@@ -116,7 +116,7 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def dict_value_hook(self) -> HookLike[dict[K, V]]:

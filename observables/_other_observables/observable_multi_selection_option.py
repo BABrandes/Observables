@@ -208,12 +208,12 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
 
         # Establish bindings if hooks were provided
         if observable is not None:
-            self.attach(observable.selected_options_hook, "selected_options", InitialSyncMode.SELF_IS_UPDATED)
-            self.attach(observable.available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
+            self.attach(observable.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
         if available_options_hook is not None:
-            self.attach(available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.attach(selected_options_hook, "selected_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def _collective_hooks(self) -> set[HookLike[Any]]:

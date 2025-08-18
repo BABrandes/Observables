@@ -97,8 +97,8 @@ def demo_transitive_binding() -> None:
     
     # Bind them in a chain - this creates transitive behavior!
     print("\n🔗 Binding A → B → C...")
-    a.bind_to(b, InitialSyncMode.SELF_IS_UPDATED)
-    b.bind_to(c, InitialSyncMode.SELF_IS_UPDATED)
+    a.attach(b.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+    b.attach(c.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     print(f"\n🔗 After binding - HookNexus IDs:")
     print(f"  A's HookNexus: {id(a._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -149,7 +149,7 @@ def demo_hook_group_merging() -> None:
     
     # Bind USD to EUR (merges their HookNexus instances)
     print("\n🔗 Binding USD ↔ EUR...")
-    price_usd.bind_to(price_eur, InitialSyncMode.SELF_IS_UPDATED)
+    price_usd.attach(price_eur.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     print(f"\n🔀 After USD↔EUR binding:")
     print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -158,7 +158,7 @@ def demo_hook_group_merging() -> None:
     
     # Now bind EUR to GBP (this will merge all three!)
     print("\n🔗 Binding EUR ↔ GBP...")
-    price_eur.bind_to(price_gbp, InitialSyncMode.SELF_IS_UPDATED)
+    price_eur.attach(price_gbp.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     print(f"\n🔀 After EUR↔GBP binding (all three now share HookNexus):")
     print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -203,8 +203,8 @@ def demo_memory_efficiency() -> None:
     
     # Bind them together
     print("\n🔗 Binding all three together...")
-    obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-    obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+    obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+    obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     print(f"\n🔀 After binding (all share same HookNexus):")
     print(f"  Obs1 HookNexus: {id(obs1._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -254,10 +254,10 @@ def demo_complex_networks() -> None:
     print("  C ↔ E")
     
     # Bind them
-    network['node_a'].bind_to(network['node_b'], InitialSyncMode.SELF_IS_UPDATED)
-    network['node_b'].bind_to(network['node_c'], InitialSyncMode.SELF_IS_UPDATED)
-    network['node_b'].bind_to(network['node_d'], InitialSyncMode.SELF_IS_UPDATED)
-    network['node_c'].bind_to(network['node_e'], InitialSyncMode.SELF_IS_UPDATED)
+    network['node_a'].attach(network['node_b'].single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+    network['node_b'].attach(network['node_c'].single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+    network['node_b'].attach(network['node_d'].single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+    network['node_c'].attach(network['node_e'].single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     print(f"\n🔀 After binding - HookNexus IDs:")
     for name, obs in network.items():
@@ -302,7 +302,7 @@ def demo_performance_benefits() -> None:
     
     # Create a chain binding
     for i in range(0, 999, 2):
-        observables[i].bind_to(observables[i + 1], InitialSyncMode.SELF_IS_UPDATED)
+        observables[i].attach(observables[i + 1].single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     binding_time = time.time() - start_time
     print(f"  ✅ Binding time: {binding_time:.4f} seconds")

@@ -9,11 +9,11 @@ class InitialSyncMode(Enum):
     observable's value is used as the source of truth during binding establishment.
     
     Attributes:
-        SELF_IS_UPDATED: The self observable is updated from the other observable
-        SELF_UPDATES: The self observable updates the other observable
+        PUSH_TO_TARGET: The caller pushes its value to the target observable
+        PULL_FROM_TARGET: The caller pulls value from the target observable
     
     Example:
-        >>> from observables import ObservableSingleValue, SyncMode
+        >>> from observables import ObservableSingleValue, InitialSyncMode
         
         >>> # Create observables with different values
         >>> source = ObservableSingleValue(10)
@@ -21,11 +21,12 @@ class InitialSyncMode(Enum):
         
         >>> # Bind with different sync modes
         >>> # This will set target to 10 (source's value)
-        >>> source.bind_to_observable(target, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)
-        >>> print(target.value)  # Output: 10
+        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        >>> print(target.single_value)  # Output: 10
         
         >>> # This would set source to 20 (target's value)
-        >>> # source.bind_to_observable(target, SyncMode.UPDATE_VALUE_FROM_OBSERVABLE)
+        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+        >>> print(source.single_value)  # Output: 20
     """
-    SELF_IS_UPDATED = "self_is_updated"
-    SELF_UPDATES = "self_updates"
+    PUSH_TO_TARGET = "push_to_target"
+    PULL_FROM_TARGET = "pull_from_target"

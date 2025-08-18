@@ -116,7 +116,7 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def tuple_value(self) -> tuple[T, ...]:
@@ -142,40 +142,6 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         Get the hook for the tuple value.
         """
         return self._component_hooks["value"]
-
-    def bind_to(self, observable_or_hook: ObservableTupleLike[T] | HookLike[tuple[T, ...]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable tuple.
-        
-        This method creates a bidirectional binding between this observable tuple and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-        
-        Args:
-            observable_or_hook: The observable tuple or hook to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-        if observable_or_hook is None:
-            raise ValueError("Cannot bind to None")
-        
-        if isinstance(observable_or_hook, ObservableTupleLike):
-            hook = observable_or_hook.tuple_value_hook
-        else:
-            hook = observable_or_hook
-            
-        self._component_hooks["value"].connect_to(hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable tuple.
-        
-        This method removes the binding between this observable tuple and another,
-        preventing further automatic synchronization of changes.
-        """
-        self._component_hooks["value"].detach()
 
     def __str__(self) -> str:
         """String representation of the observable tuple."""

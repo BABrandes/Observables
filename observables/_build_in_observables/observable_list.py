@@ -116,7 +116,7 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def list_value(self) -> list[T]:
@@ -139,9 +139,9 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
     @property
     def list_value_hook(self) -> HookLike[list[T]]:
         """
-        Get the current value of the list.
+        Get the hook for the list value.
         """
-        return self._component_hooks["value"].value
+        return self._component_hooks["value"]
     
     # Standard list methods
     def append(self, item: T) -> None:

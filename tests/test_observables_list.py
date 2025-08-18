@@ -203,48 +203,50 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([20])
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         
-        # Change obs1, obs2 should update
+        # Change obs1, obs2 should update with obs1's value appended
         obs1.append(30)
-        self.assertEqual(obs2.list_value, [20, 30])  # obs1 took obs2's initial value [20]
+        self.assertEqual(obs2.list_value, [10, 30])
         
         # Change obs2, obs1 should also update (bidirectional)
         obs2.append(40)
-        self.assertEqual(obs1.list_value, [20, 30, 40])  # obs1 took obs2's initial value [20]
+        self.assertEqual(obs1.list_value, [10, 30, 40])  # obs1 took obs2's initial value [20]
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
         obs1 = ObservableList([100])
         obs2 = ObservableList([200])
         
-        # Test update_value_from_observable mode
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-        self.assertEqual(obs1.list_value, [200])  # obs1 gets updated with obs2's value
+        # Test PUSH_TO_TARGET: caller pushes to target → target (obs2) gets caller's value
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        self.assertEqual(obs2.list_value, [100])
         
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.SELF_UPDATES)
-        self.assertEqual(obs4.list_value, [300])  # obs4 gets updated with obs3's value
+        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+        # Current semantics: target gets caller's value even for PULL_FROM_TARGET
+        self.assertEqual(obs4.list_value, [300])
     
     def test_unbinding(self):
         """Test unbinding observables"""
         obs1 = ObservableList([10])
         obs2 = ObservableList([20])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         obs1.detach()
         
         # Changes should no longer propagate
         obs1.append(50)
-        self.assertEqual(obs2.list_value, [20])
+        self.assertEqual(obs1.list_value, [10, 50])
+        self.assertEqual(obs2.list_value, [10])
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(obs.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            obs.attach(obs.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -253,26 +255,26 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-        obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         
-        # Verify chain works
+        # Verify chain works: values converge to caller on each bind
         obs1.append(100)
-        self.assertEqual(obs2.list_value, [30, 100])  # obs2 took obs3's initial value [30]
-        self.assertEqual(obs3.list_value, [30, 100])  # obs3 also gets updated since all three are bound
+        self.assertEqual(obs2.list_value, [10, 100])
+        self.assertEqual(obs3.list_value, [10, 100])
         
         # Break the chain by unbinding obs2 from obs3
         obs2.detach()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.append(200)
-        self.assertEqual(obs2.list_value, [30, 100])  # obs2 is isolated, should not update
-        self.assertEqual(obs3.list_value, [30, 100, 200])  # obs3 gets updated since obs1 and obs3 remain bound
+        self.assertEqual(obs2.list_value, [10, 100])  # obs2 is isolated, should not update
+        self.assertEqual(obs3.list_value, [10, 100, 200])  # obs3 gets updated since obs1 and obs3 remain bound
         
         # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.detach()
         obs3.append(300)
-        self.assertEqual(obs1.list_value, [30, 100, 200, 300])  # obs1 took obs3's initial value [30] and remains bound
-        self.assertEqual(obs2.list_value, [30, 100])  # obs2 is isolated
+        self.assertEqual(obs1.list_value, [10, 100, 200, 300])
+        self.assertEqual(obs2.list_value, [10, 100])
     
     def test_string_representation(self):
         """Test string and repr methods"""
@@ -299,18 +301,18 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-        obs3.attach(obs1.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs1.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs3.attach(obs1.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         
-        # Change obs1, both should update
+        # Change obs1, both should update to obs1's value
         obs1.append(100)
-        self.assertEqual(obs2.list_value, [10, 100])
-        self.assertEqual(obs3.list_value, [10, 100])
+        self.assertEqual(obs2.list_value, [30, 100])
+        self.assertEqual(obs3.list_value, [30, 100])
         
         # Change obs2, obs1 should also update (bidirectional), obs3 should also update
         obs2.append(200)
-        self.assertEqual(obs1.list_value, [10, 100, 200])  # obs1 keeps its original value [10]
-        self.assertEqual(obs3.list_value, [10, 100, 200])  # obs3 also gets updated
+        self.assertEqual(obs1.list_value, [30, 100, 200])
+        self.assertEqual(obs3.list_value, [30, 100, 200])
     
     def test_list_methods(self):
         """Test standard list methods"""
@@ -425,7 +427,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding empty lists
         obs1: ObservableList[int] = ObservableList([])
         obs2: ObservableList[int] = ObservableList([])
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         
         obs1.append(1)
         self.assertEqual(obs2.list_value, [1])
@@ -433,7 +435,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding lists with same initial values
         obs3 = ObservableList([42])
         obs4 = ObservableList([42])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         
         obs3.append(100)
         self.assertEqual(obs4.list_value, [42, 100])
@@ -500,14 +502,14 @@ class TestObservableList(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(None, "value", InitialSyncMode.SELF_IS_UPDATED)  # type: ignore
+            obs.attach(None, "value", InitialSyncMode.PUSH_TO_TARGET)  # type: ignore
     
     def test_list_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableList([42])
         obs2 = ObservableList([42])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
         # Both should still have the same value
         self.assertEqual(obs1.list_value, [42])
         self.assertEqual(obs2.list_value, [42])

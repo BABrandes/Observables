@@ -114,7 +114,7 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
     
     @property
     def set_value(self) -> set[T]:

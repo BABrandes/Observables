@@ -53,8 +53,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
 
 # 🎉 obs1 is automatically connected to obs3!
 # This happens through HookNexus merging, not manual configuration
@@ -84,7 +84,7 @@ print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
 # Output: Different IDs - separate storage
 
 # Bind them together (merges their HookNexus instances)
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
 
 print(f"After binding - HookNexus IDs:")
 print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")

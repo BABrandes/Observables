@@ -173,10 +173,10 @@ class Hook(HookLike[T], Generic[T]):
         Connect this hook to another hook.
         """
         
-        if sync_mode == InitialSyncMode.SELF_IS_UPDATED:
-            HookNexus[T].connect_hooks(hook, self)
-        elif sync_mode == InitialSyncMode.SELF_UPDATES:
-            HookNexus[T].connect_hooks(self, hook)
+        if sync_mode == InitialSyncMode.PUSH_TO_TARGET:
+            HookNexus[T].connect_hooks(self, hook, sync_mode)
+        elif sync_mode == InitialSyncMode.PULL_FROM_TARGET:
+            HookNexus[T].connect_hooks(self, hook, sync_mode)
         else:
             raise ValueError(f"Invalid sync mode: {sync_mode}")
     

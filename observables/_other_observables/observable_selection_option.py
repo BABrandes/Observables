@@ -488,13 +488,13 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         )
 
         if selected_option_hook is not None:
-            self.attach(selected_option_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
         if available_options_hook is not None:
-            self.attach(available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
 
         if observable is not None:
-            self.attach(observable.get_hook("selected_option"), "selected_option", InitialSyncMode.SELF_IS_UPDATED)
-            self.attach(observable.get_hook("available_options"), "available_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.get_hook("selected_option"), "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+            self.attach(observable.get_hook("available_options"), "available_options", InitialSyncMode.PULL_FROM_TARGET)
 
     ############################################################
     # Properties (Getters and Setters)

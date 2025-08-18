@@ -94,6 +94,9 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         if isinstance(observable_or_hook_or_value, HookLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
             hook: Optional[HookLike[T]] = observable_or_hook_or_value
+        elif isinstance(observable_or_hook_or_value, ObservableSingleValue):
+            initial_value: T = observable_or_hook_or_value.single_value # type: ignore
+            hook: Optional[HookLike[T]] = observable_or_hook_or_value.single_value_hook # type: ignore
         else:
             initial_value: T = observable_or_hook_or_value
             hook: Optional[HookLike[T]] = None
@@ -104,15 +107,12 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         )
         
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def single_value(self) -> T:
         """
-        Get the current value.
-        
-        Returns:
-            The current value stored in this observable.
+        Get the current value of the single value.
         """
         return self._component_hooks["value"].value
     
@@ -140,21 +140,18 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         return f"OSV(value={self._component_hooks['value'].value})"
     
     def __repr__(self) -> str:
-        return f"OSV(value={self._component_hooks['value'].value})"
+        """Return a string representation of the observable."""
+        return f"ObservableSingleValue({self._component_hooks['value'].value!r})"
     
-    def __eq__(self, other: Any) -> bool:
-        """
-        Compare equality with another value or observable.
-        
-        Args:
-            other: Value or ObservableSingleValue to compare with
-            
-        Returns:
-            True if values are equal, False otherwise
-        """
+    def __hash__(self) -> int:
+        """Make the observable hashable for use in sets and as dictionary keys."""
+        return hash(id(self))
+    
+    def __eq__(self, other: object) -> bool:
+        """Check if this observable equals another object."""
         if isinstance(other, ObservableSingleValue):
-            return self._component_hooks["value"].value == other._component_hooks["value"].value
-        return self._component_hooks["value"].value == other
+            return id(self) == id(other) # type: ignore
+        return False
     
     def __ne__(self, other: Any) -> bool:
         """

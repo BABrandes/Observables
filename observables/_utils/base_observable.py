@@ -6,7 +6,7 @@ from .carries_collective_hooks import CarriesCollectiveHooks
 from .hook_nexus import HookNexus
 from .initial_sync_mode import InitialSyncMode
 
-HK = TypeVar("HK", contravariant=True)
+HK = TypeVar("HK")
 
 class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
     """
@@ -275,7 +275,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             raise ValueError(f"Key {key} not found in component_hooks")
         return self._component_hooks[key]
     
-    def attach(self, hook: HookLike[Any], to_key: HK, initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
+    def attach(self, hook: HookLike[Any], to_key: HK, initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> None:
         """
         Attach a hook to the observable.
         """
@@ -283,8 +283,21 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             raise ValueError(f"Key {to_key} is not a string")
         if to_key not in self._component_hooks:
             raise ValueError(f"Key {to_key} not found in component_hooks")
-        self._component_hooks[to_key] = hook
-        hook.connect_to(self._component_hooks[to_key], initial_sync_mode)
+        self._component_hooks[to_key].connect_to(hook, initial_sync_mode)
+
+    def attach_multiple(self, hooks: Mapping[HK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> None:
+        """
+        Attach multiple hooks to the observable.
+        """
+
+        hook_pairs: list[tuple[HookLike[Any], HookLike[Any]]] = []
+        for key, hook in hooks.items():
+            if not isinstance(key, str):
+                raise ValueError(f"Key {key} is not a string")
+            if key not in self._component_hooks:
+                raise ValueError(f"Key {key} not found in component_hooks")
+            hook_pairs.append((hook, self._component_hooks[key]))
+        HookNexus[Any].connect_hook_pairs(*hook_pairs)
     
     def detach(self, key: Optional[HK]=None) -> None:
         """
@@ -292,10 +305,24 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
         """
         if key is None:
             for hook in self._component_hooks.values():
-                hook.detach()
+                try:
+                    hook.detach()
+                except ValueError as e:
+                    if "already disconnected" in str(e):
+                        # Hook is already disconnected, ignore
+                        pass
+                    else:
+                        raise
         else:
             if not isinstance(key, str):
                 raise ValueError(f"Key {key} is not a string")
             if key not in self._component_hooks:
                 raise ValueError(f"Key {key} not found in component_hooks")
-            self._component_hooks[key].detach()
+            try:
+                self._component_hooks[key].detach()
+            except ValueError as e:
+                if "already disconnected" in str(e):
+                    # Hook is already disconnected, ignore
+                    pass
+                else:
+                    raise

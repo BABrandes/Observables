@@ -139,26 +139,31 @@ class ObservableEnum(BaseObservable[Literal["enum_value", "enum_options"]], Obse
     """
 
     @overload
-    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, allow_none: bool = True) -> None:
+    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, *, allow_none: bool = True) -> None:
         """Initialize with a direct enum value."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: Optional[set[E]] = None, allow_none: bool = True) -> None:
+    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: Optional[set[E]] = None, *, allow_none: bool = True) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, enum_value: Optional[E], enum_options: HookLike[set[E]], allow_none: bool = True) -> None:
+    def __init__(self, enum_value: Optional[E], enum_options: HookLike[set[E]], *, allow_none: bool = True) -> None:
         """Initialize with a set of enum options."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: HookLike[set[E]], allow_none: bool = True) -> None:
+    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: HookLike[set[E]], *, allow_none: bool = True) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, enum_value: Optional[E] | HookLike[Optional[E]], enum_options: Optional[set[E]] | HookLike[set[E]] = None, allow_none: bool = True) -> None: # type: ignore
+    @overload
+    def __init__(self, observable: ObservableEnumLike[E], enum_options: Optional[set[E]] = None, *, allow_none: bool = True) -> None:
+        """Initialize from another ObservableEnumLike object."""
+        ...
+
+    def __init__(self, enum_value: Optional[E] | HookLike[Optional[E]] | ObservableEnumLike[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, *, allow_none: bool = True) -> None: # type: ignore
         """
         Initialize the ObservableEnum.
         
@@ -171,6 +176,13 @@ class ObservableEnum(BaseObservable[Literal["enum_value", "enum_options"]], Obse
         """
 
         self._allow_none = allow_none
+        
+        # Flag to track if we've already set enum_options from the hook
+        skip_enum_options_processing = False
+        
+        # Initialize variables
+        initial_enum_options: set[E] = set()
+        bindable_set_carrier: Optional[HookLike[set[E]]] = None
 
         if enum_value is None:
             if not allow_none:
@@ -178,24 +190,53 @@ class ObservableEnum(BaseObservable[Literal["enum_value", "enum_options"]], Obse
             initial_enum_value: Optional[E] = None # type: ignore
             bindable_enum_carrier: Optional[HookLike[Optional[E]]] = None
         elif isinstance(enum_value, HookLike):
-            initial_enum_value: Optional[E] = enum_value.value # type: ignore
-            bindable_enum_carrier: Optional[HookLike[Optional[E]]] = enum_value
+            # Check if this hook is from an ObservableEnum-like object
+            if hasattr(enum_value, 'owner') and hasattr(enum_value.owner, 'enum_options'):
+                # This is a hook from an ObservableEnum, extract both value and options
+                initial_enum_value = enum_value.value
+                initial_enum_options = enum_value.owner.enum_options # type: ignore
+                bindable_enum_carrier = enum_value
+                # Skip the enum_options processing below
+                skip_enum_options_processing = True
+            else:
+                # This is just a value hook
+                initial_enum_value: Optional[E] = enum_value.value # type: ignore
+                bindable_enum_carrier: Optional[HookLike[Optional[E]]] = None
         else:
             initial_enum_value: Optional[E] = enum_value # type: ignore
             bindable_enum_carrier: Optional[HookLike[Optional[E]]] = None
 
-
-        if isinstance(enum_options, HookLike):
-            initial_enum_options: set[E] = enum_options.value
-            bindable_set_carrier: Optional[HookLike[set[E]]] = None
-        elif enum_options == set() and not allow_none:
-            raise ValueError("An empty set of options is not allowed, if allow_none is False")
-        elif enum_options == set() and allow_none:
-            initial_enum_options: set[E] = set()
-            bindable_set_carrier: Optional[HookLike[set[E]]] = None
-        else:
-            initial_enum_options: set[E] = enum_options.copy() # type: ignore
-            bindable_set_carrier: Optional[HookLike[set[E]]] = None
+        # Only process enum_options if we haven't already set them from the hook
+        if not skip_enum_options_processing:
+            if isinstance(enum_options, HookLike):
+                initial_enum_options: set[E] = enum_options.value
+                bindable_set_carrier: Optional[HookLike[set[E]]] = None
+            elif enum_options is None:
+                if enum_value is None:
+                    raise ValueError("enum_value is None, but enum_options is None")
+                # When no enum_options provided, create it from the enum class
+                # Get the actual enum class from the value, not the protocol class
+                if hasattr(enum_value, '__class__') and hasattr(enum_value.__class__, '__members__'):
+                    initial_enum_options: set[E] = set(enum_value.__class__.__members__.values()) # type: ignore
+                else:
+                    # Fallback: create an empty set
+                    initial_enum_options: set[E] = set()
+                bindable_set_carrier: Optional[HookLike[set[E]]] = None
+            elif isinstance(enum_options, ObservableEnumLike):
+                initial_enum_options: set[E] = enum_options.enum_options # type: ignore
+                bindable_set_carrier: Optional[HookLike[set[E]]] = enum_options.enum_options_hook # type: ignore
+            elif isinstance(enum_options, HookLike):
+                initial_enum_options: set[E] = set()
+                bindable_set_carrier: Optional[HookLike[set[E]]] = None
+            elif enum_options == set() and not allow_none:
+                raise ValueError("An empty set of options is not allowed, if allow_none is False")
+            elif enum_options == set() and allow_none:
+                initial_enum_options: set[E] = set()
+                bindable_set_carrier: Optional[HookLike[set[E]]] = None
+            else:
+                initial_enum_options: set[E] = enum_options.copy() # type: ignore
+                bindable_set_carrier: Optional[HookLike[set[E]]] = None
+        # End of conditional enum_options processing
 
         # Validate that the initial enum value is in the options set
         # Skip validation for None when allow_none=True
@@ -237,9 +278,9 @@ class ObservableEnum(BaseObservable[Literal["enum_value", "enum_options"]], Obse
 
         # Establish bindings if carriers were provided
         if bindable_enum_carrier is not None:
-            self.attach(bindable_enum_carrier, "enum_value", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(bindable_enum_carrier, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
         if bindable_set_carrier is not None:
-            self.attach(bindable_set_carrier, "enum_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(bindable_set_carrier, "enum_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def enum_options(self) -> set[E]:

@@ -1,5 +1,7 @@
 from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any
 
+from .initial_sync_mode import InitialSyncMode
+
 if TYPE_CHECKING:
     from .hook import HookLike
     
@@ -16,6 +18,7 @@ class HookNexus(Generic[T]):
     def __init__(self, value: T, *hooks: "HookLike[T]"):
         self._hooks: set["HookLike[T]"] = set(hooks)
         self._value: T = value
+        self._previous_value: T = value
 
     def add_hook(self, hook: "HookLike[T]"):
         self._hooks.add(hook)
@@ -33,6 +36,11 @@ class HookNexus(Generic[T]):
         Get the value of the hook group.
         """
         return self._value
+    
+    @property
+    def previous_value(self) -> T:
+        return self._previous_value
+
     
     @staticmethod
     def submit_multiple_values(nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
@@ -97,6 +105,7 @@ class HookNexus(Generic[T]):
                 
         # Step 5: Update the HookNexus value after successful invalidation
         for nexus, value in nexus_and_values.items():
+            nexus._previous_value = nexus._value
             nexus._value = value
 
         # Step 6: If all values are valid, invalidate the hooks
@@ -135,6 +144,7 @@ class HookNexus(Generic[T]):
                 return False, msg
         
         # Step 2: Update the HookNexus value after successful invalidation
+        self._previous_value = self._value
         self._value = value
 
         # Step 3: Invalidate the hooks
@@ -144,7 +154,7 @@ class HookNexus(Generic[T]):
         return True, "Submission successful"
 
     @staticmethod
-    def merge_hook_groups(*hook_groups: "HookNexus[T]") -> "HookNexus[T]":
+    def _merge_nexus(*nexus: "HookNexus[T]") -> "HookNexus[T]":
         """
         Merge multiple hook groups into a single hook group.
 
@@ -162,14 +172,14 @@ class HookNexus(Generic[T]):
             ValueError: If the hook groups are not disjoint
         """
         
-        if len(hook_groups) == 0:
+        if len(nexus) == 0:
             raise ValueError("No hook groups provided")
         
         # Get the first hook group's value as the reference
-        reference_value = hook_groups[0]._value
+        reference_value = nexus[0]._value
         
         hook_type: Optional[type["HookLike[T]"]] = None
-        for hook_group in hook_groups:
+        for hook_group in nexus:
             for hook in hook_group._hooks:
                 if hook_type is None:
                     hook_type = type(hook)
@@ -177,23 +187,23 @@ class HookNexus(Generic[T]):
                     raise ValueError("The hooks in the hook groups must have the same type of T")
 
         # Check if any groups have overlapping hooks (not disjoint)
-        for i, group1 in enumerate(hook_groups):
-            for group2 in hook_groups[i+1:]:
+        for i, group1 in enumerate(nexus):
+            for group2 in nexus[i+1:]:
                 if group1._hooks & group2._hooks:  # Check for intersection
                     raise ValueError("The hook groups must be disjoint")
         
         # Create new merged group with the reference value
-        merged_group = HookNexus(reference_value)
+        merged_group: HookNexus[T] = HookNexus[T](reference_value)
         
         # Add all hooks to the merged group
-        for hook_group in hook_groups:
+        for hook_group in nexus:
             for hook in hook_group._hooks:
                 merged_group.add_hook(hook)
         
         return merged_group
     
     @staticmethod
-    def connect_hook_pairs(*hook_pairs: tuple["HookLike[Any]", "HookLike[Any]"]):
+    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"]):
         """
         Connect a list of hook pairs together.
         """
@@ -206,39 +216,40 @@ class HookNexus(Generic[T]):
             raise ValueError(msg)
         
         for hook_pair in hook_pairs:
-            merged_hook_group = HookNexus[T].merge_hook_groups(hook_pair[0].hook_nexus, hook_pair[1].hook_nexus)
-            for hook in merged_hook_group._hooks:
-                hook._replace_hook_group(merged_hook_group) # type: ignore
+            merged_nexus = HookNexus[T]._merge_nexus(hook_pair[0].hook_nexus, hook_pair[1].hook_nexus)
+            for hook in merged_nexus._hooks:
+                hook._replace_hook_group(merged_nexus) # type: ignore
     
     @staticmethod
-    def connect_hooks(from_hook: "HookLike[T]", to_hook: "HookLike[T]"):
+    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET):
         """
         Connect two hooks together.
 
         Args:
-            from_hook: The hook to take the value from upon initialization
-            to_hook: The hook to set the value to upon initialization
+            source_hook: The hook to take the value from upon initialization
+            target_hook: The hook to set the value to upon initialization
+            initial_sync_mode: Determines which value becomes the source of truth
 
         Raises:
             ValueError: If the hooks are not of the same type
         """
 
         # Validate that both hooks are not None
-        if from_hook is None or to_hook is None: # type: ignore
+        if source_hook is None or target_hook is None: # type: ignore
             raise ValueError("Cannot connect None hooks")
         
-
-        
         # Ensure that the value in both hook groups is the same
-        from_hook.in_submission = True
-        success, msg = to_hook.hook_nexus.submit_single_value(from_hook.value, {from_hook}, {to_hook})
-        from_hook.in_submission = False
+        # The source_hook's value becomes the source of truth
+        source_hook.in_submission = True
+        success, msg = target_hook.hook_nexus.submit_single_value(source_hook.value, {source_hook}, {target_hook})
+        source_hook.in_submission = False
         if not success:
             raise ValueError(msg)
             
         # Then merge the hook groups
-        merged_hook_group: HookNexus[T] = HookNexus[T].merge_hook_groups(from_hook.hook_nexus, to_hook.hook_nexus)
+        # Use the synchronized value for the merged group
+        merged_nexus: HookNexus[T] = HookNexus[T]._merge_nexus(source_hook.hook_nexus, target_hook.hook_nexus)
         
         # Replace all hooks' hook groups with the merged one
-        for hook in merged_hook_group._hooks:
-            hook._replace_hook_group(merged_hook_group) # type: ignore
+        for hook in merged_nexus._hooks:
+            hook._replace_hook_group(merged_nexus) # type: ignore

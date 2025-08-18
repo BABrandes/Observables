@@ -203,7 +203,7 @@ class TestObservableTuple(unittest.TestCase):
         obs2 = ObservableTuple((20,))
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.tuple_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, obs2 should update
         obs1.tuple_value = (30, 40)
@@ -219,13 +219,13 @@ class TestObservableTuple(unittest.TestCase):
         obs2 = ObservableTuple((200,))
         
         # Test update_value_from_observable mode
-        obs1.attach(obs2.tuple_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs1.tuple_value, (200,))  # obs1 gets updated with obs2's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableTuple((300,))
         obs4 = ObservableTuple((400,))
-        obs3.attach(obs4.tuple_value_hook, "value", InitialSyncMode.SELF_UPDATES)
+        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.tuple_value, (300,))  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -233,7 +233,7 @@ class TestObservableTuple(unittest.TestCase):
         obs1 = ObservableTuple((10,))
         obs2 = ObservableTuple((20,))
         
-        obs1.attach(obs2.tuple_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
         obs1.detach()
         
         # Changes should no longer propagate

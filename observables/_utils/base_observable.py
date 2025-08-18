@@ -161,7 +161,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
                 if len(dict_of_values) == 1:
                     for key, value in dict_of_values.items():
                         hook = self._component_hooks[key]
-                        hook.submit_value(value)
+                        hook.value = value
                 else:
                     nexus_and_values: Mapping[HookNexus[Any], Any] = {}
                     for key, value in dict_of_values.items():

@@ -21,6 +21,20 @@ class HookLike(Protocol[T]):
         Get the value behind this hook.
         """
         ...
+
+    @value.setter
+    def value(self, value: T) -> None:
+        """
+        Set the value behind this hook.
+        """
+        ...
+
+    @property
+    def previous_value(self) -> T:
+        """
+        Get the previous value behind this hook.
+        """
+        ...
     
     @property
     def owner(self) -> "CarriesHooks[Any]":
@@ -78,12 +92,6 @@ class HookLike(Protocol[T]):
         """
         ...
 
-    def submit_value(self, value: T) -> tuple[bool, str]:
-        """
-        Submit a single value to this hook.
-        """
-        ...
-
     def is_attached_to(self, hook: "HookLike[T]") -> bool:
         """
         Check if this hook is connected to another hook.
@@ -137,6 +145,16 @@ class Hook(HookLike[T], Generic[T]):
     def value(self) -> T:
         """Get the value behind this hook."""
         return self.hook_nexus.value
+    
+    @value.setter
+    def value(self, value: T) -> None:
+        """Set the value behind this hook."""
+        self._hook_group.submit_single_value(value, {self})
+
+    @property
+    def previous_value(self) -> T:
+        """Get the previous value behind this hook."""
+        return self.hook_nexus.previous_value
 
     @property
     def owner(self) -> "CarriesHooks[Any]":

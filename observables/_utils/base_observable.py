@@ -1,11 +1,14 @@
 import threading
-from typing import Any, Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional, TypeVar
 from .base_listening import BaseListening
 from .hook import Hook, HookLike
 from .carries_collective_hooks import CarriesCollectiveHooks
 from .hook_nexus import HookNexus
+from .initial_sync_mode import InitialSyncMode
 
-class BaseObservable(BaseListening, CarriesCollectiveHooks):
+HK = TypeVar("HK", contravariant=True)
+
+class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
     """
     Base class defining the interface for all observable objects in the library.
 
@@ -241,3 +244,38 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks):
         Get the collective hooks for the observable.
         """
         return set(self._component_hooks.values())
+    
+    def get_hook(self, key: HK) -> HookLike[Any]:
+        """
+        Get a hook by key.
+        """
+        if not isinstance(key, str):
+            raise ValueError(f"Key {key} is not a string")
+        if key not in self._component_hooks:
+            raise ValueError(f"Key {key} not found in component_hooks")
+        return self._component_hooks[key]
+    
+    def attach(self, hook: HookLike[Any], to_key: HK, initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
+        """
+        Attach a hook to the observable.
+        """
+        if not isinstance(to_key, str):
+            raise ValueError(f"Key {to_key} is not a string")
+        if to_key not in self._component_hooks:
+            raise ValueError(f"Key {to_key} not found in component_hooks")
+        self._component_hooks[to_key] = hook
+        hook.connect_to(self._component_hooks[to_key], initial_sync_mode)
+    
+    def detach(self, key: Optional[HK]=None) -> None:
+        """
+        Detach a hook from the observable.
+        """
+        if key is None:
+            for hook in self._component_hooks.values():
+                hook.detach()
+        else:
+            if not isinstance(key, str):
+                raise ValueError(f"Key {key} is not a string")
+            if key not in self._component_hooks:
+                raise ValueError(f"Key {key} not found in component_hooks")
+            self._component_hooks[key].detach()

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
 from .._utils.hook import Hook, HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
@@ -7,7 +7,7 @@ from .._utils.base_observable import BaseObservable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
+class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T, Any], Protocol[T]):
     """
     Protocol for observable single value objects.
     """
@@ -26,19 +26,7 @@ class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable single value.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable single value.
-        """
-        ...
-
-class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     
@@ -80,11 +68,11 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         ...
     
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
+    def __init__(self, observable_or_hook: CarriesDistinctSingleValueHook[T, Any]|Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | CarriesDistinctSingleValueHook[T] | Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | CarriesDistinctSingleValueHook[T, Any] | Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None: # type: ignore
         """
         Initialize the ObservableSingleValue.
         
@@ -112,7 +100,7 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         )
         
         if hook is not None:
-            self.bind_to(hook)
+            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -243,15 +231,6 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
             return self._component_hooks["value"].value >= other._component_hooks["value"].value
         return self._component_hooks["value"].value >= other
     
-    def __hash__(self) -> int:
-        """
-        Get the hash value based on the current value.
-        
-        Returns:
-            Hash value of the current value
-        """
-        return hash(self._component_hooks["value"].value)
-    
     def __bool__(self) -> bool:
         """
         Convert the value to a boolean.
@@ -362,36 +341,3 @@ class ObservableSingleValue(BaseObservable, ObservableSingleValueLike[T], Generi
         """
         import math
         return math.trunc(self._component_hooks["value"].value) # type: ignore
-    
-    def bind_to(self, observable_or_hook: CarriesDistinctSingleValueHook[T]|HookLike[T], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Create a bidirectional binding with another observable.
-        
-        This method establishes a bidirectional binding between this observable and
-        another observable. When either observable's value changes, the other will
-        automatically update to maintain synchronization.
-        
-        Args:
-            observable: The observable to bind to
-            initial_sync_mode: Determines which value is used for initial synchronization
-            
-        Raises:
-            ValueError: If the observable is None
-        """
-        # Validate that observable_or_hook is not None
-        if observable_or_hook is None: # type: ignore
-            raise ValueError("Cannot bind to None observable")
-            
-        if isinstance(observable_or_hook, CarriesDistinctSingleValueHook):
-            observable_or_hook = observable_or_hook.distinct_single_value_hook
-        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable.
-        
-        This method removes the bidirectional binding between this observable and
-        another observable. After unbinding, changes in one observable will no longer
-        affect the other.
-        """
-        self._component_hooks["value"].detach()

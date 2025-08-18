@@ -4,26 +4,15 @@ from typing import Any, Callable, Optional
 from observables import Hook, BaseObservable, HookLike, InitialSyncMode
 
 
-class MockObservable(BaseObservable):
+class MockObservable(BaseObservable[str]):
     """Mock observable for testing purposes."""
     
     def __init__(self, name: str):
-        # Initialize component values first
-        initial_component_values = {"value": name}
-        
-        # Call parent constructor
-        super().__init__(
-            initial_component_values=initial_component_values
-        )
+        super().__init__(initial_component_values={"value": name})
     
     def _act_on_invalidation(self, keys: set[str]) -> None:
         """Act on invalidation - required by BaseObservable."""
         pass
-
-    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None:
-        for hook in hooks:
-            hook.invalidate()
-
 
 class TestHookCapabilities(unittest.TestCase):
     """Test hooks with different capabilities in the new hook-based system."""

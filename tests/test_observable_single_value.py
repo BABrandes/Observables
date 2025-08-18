@@ -79,7 +79,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         # Bind obs1 to obs2
-        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, obs2 should update
         obs1.single_value = 30
@@ -95,13 +95,13 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(200)
         
         # Test update_value_from_observable mode
-        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs1.single_value, 200)  # obs1 gets updated with obs2's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSingleValue(300)
         obs4 = ObservableSingleValue(400)
-        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs4.distinct_single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.single_value, 300)  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -109,7 +109,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10)
         obs2 = ObservableSingleValue(20)
         
-        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -121,7 +121,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10)
         obs2 = ObservableSingleValue(20)
         
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
         obs1.detach()
         
         # Second unbind should raise ValueError since there's nothing to unbind
@@ -139,7 +139,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs = ObservableSingleValue(10)
         # The new implementation may not prevent self-binding, so we'll test the current behavior
         try:
-            obs.bind_to(obs, InitialSyncMode.SELF_IS_UPDATED)
+            obs.attach(obs.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
             # If it doesn't raise an error, that's the current behavior
         except Exception as e:
             self.assertIsInstance(e, ValueError)
@@ -151,8 +151,8 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3 = ObservableSingleValue(30)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-        obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs3.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify chain works
         obs1.single_value = 100
@@ -195,12 +195,12 @@ class TestObservableSingleValue(unittest.TestCase):
     def test_multiple_bindings(self):
         """Test multiple bindings to the same observable"""
         obs1 = ObservableSingleValue(10)
-        obs2 = ObservableSingleValue(20)
+        obs2 = ObservableSingleValue(20)    
         obs3 = ObservableSingleValue(30)
         
         # Bind obs2 and obs3 to obs1
-        obs2.bind_to(obs1, InitialSyncMode.SELF_IS_UPDATED)
-        obs3.bind_to(obs1, InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs1.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs1.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, both should update
         obs1.single_value = 100
@@ -439,7 +439,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(42)
         obs2 = ObservableSingleValue(42)
         
-        obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         # Both should still have the same value
         self.assertEqual(obs1.single_value, 42)
         self.assertEqual(obs2.single_value, 42)

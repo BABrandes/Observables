@@ -1,12 +1,14 @@
-from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, Mapping
+from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, Mapping, TypeVar
 from .carries_hooks import CarriesHooks
 
 if TYPE_CHECKING:
     from .hook_nexus import HookNexus
     from .hook import HookLike
 
+HK = TypeVar("HK", contravariant=True)
+
 @runtime_checkable
-class CarriesCollectiveHooks(CarriesHooks, Protocol):
+class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
     """
     Protocol for observables that carry a set of hooks that can be used to synchronize their values.
     """ 

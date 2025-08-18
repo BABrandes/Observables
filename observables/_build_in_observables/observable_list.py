@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal
 from typing import Optional, TypeVar, runtime_checkable, Protocol
 from .._utils.hook import Hook, HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -8,7 +8,7 @@ from .._utils.base_observable import BaseObservable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableListLike(CarriesDistinctListHook[T], Protocol[T]):
+class ObservableListLike(CarriesDistinctListHook[T, Any], Protocol[T]):
     """
     Protocol for observable list objects.
     """
@@ -27,19 +27,7 @@ class ObservableListLike(CarriesDistinctListHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctListHook[T]|Hook[list[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable list.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable list.
-        """
-        ...
-
-class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -77,7 +65,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctListHook[T]|Hook[list[T]]) -> None:
+    def __init__(self, observable_or_hook: CarriesDistinctListHook[T, Any]|Hook[list[T]]) -> None:
         """Initialize with another observable list, establishing a bidirectional binding."""
         ...
 
@@ -86,7 +74,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: list[T] | CarriesDistinctListHook[T] | Hook[list[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: list[T] | CarriesDistinctListHook[T, Any] | Hook[list[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableList.
         
@@ -116,7 +104,7 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         )
 
         if hook is not None:
-            self.bind_to(hook)
+            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -153,31 +141,6 @@ class ObservableList(BaseObservable, ObservableListLike[T], Generic[T]):
         Get the hook for the list.
         """
         return self._component_hooks["value"]
-
-    def bind_to(self, observable_or_hook: CarriesDistinctListHook[T]|HookLike[list[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable list.
-        
-        This method creates a bidirectional binding between this observable list and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-        
-        Args:
-            hook: The hook to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctListHook):
-            observable_or_hook = observable_or_hook.distinct_list_hook
-        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove any bindings to other observables.
-        """
-        self._component_hooks["value"].detach()
     
     # Standard list methods
     def append(self, item: T) -> None:

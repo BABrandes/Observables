@@ -1,15 +1,14 @@
-from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from .._utils.hook_nexus import HookNexus
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableMultiSelectionOptionLike(CarriesCollectiveHooks, Protocol[T]):
+class ObservableMultiSelectionOptionLike(CarriesCollectiveHooks[Any], Protocol[T]):
     """
     Protocol for observable multi-selection option objects.
     """
@@ -74,31 +73,7 @@ class ObservableMultiSelectionOptionLike(CarriesCollectiveHooks, Protocol[T]):
         """
         ...
 
-    def bind_selected_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Bind the selected options to an observable.
-        """
-        ...
-    
-    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Bind the available options to an observable.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Detach from all bindings.
-        """
-        ...
-
-    def bind_to(self, observable: "ObservableMultiSelectionOptionLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable.
-        """
-        ...
-
-class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"]], ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -142,17 +117,17 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
     """
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]]|CarriesDistinctSetHook[T], available_options: HookLike[set[T]]|CarriesDistinctSetHook[T]) -> None:
+    def __init__(self, selected_options: HookLike[set[T]]|CarriesDistinctSetHook[T, Any], available_options: HookLike[set[T]]|CarriesDistinctSetHook[T, Any]) -> None:
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: HookLike[set[T]]|CarriesDistinctSetHook[T]) -> None:
+    def __init__(self, selected_options: set[T], available_options: HookLike[set[T]]|CarriesDistinctSetHook[T, Any]) -> None:
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]]|CarriesDistinctSetHook[T], available_options: set[T]) -> None:
+    def __init__(self, selected_options: HookLike[set[T]]|CarriesDistinctSetHook[T, Any], available_options: set[T]) -> None:
         """Initialize with direct available options and observable selected options."""
         ...
     
@@ -166,7 +141,7 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
         """Initialize from another ObservableMultiSelectionOptionLike object."""
         ...
 
-    def __init__(self, selected_options: set[T] | HookLike[set[T]]|CarriesDistinctSetHook[T] | "ObservableMultiSelectionOptionLike[T]", available_options: set[T] | HookLike[set[T]]|CarriesDistinctSetHook[T] | None = None) -> None: # type: ignore
+    def __init__(self, selected_options: set[T] | HookLike[set[T]]|CarriesDistinctSetHook[T, Any] | "ObservableMultiSelectionOptionLike[T, Any]", available_options: set[T] | HookLike[set[T]]|CarriesDistinctSetHook[T, Any] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableMultiSelectionOption.
         
@@ -240,11 +215,12 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
 
         # Establish bindings if hooks were provided
         if observable is not None:
-            self.bind_to(observable)
+            self.attach(observable.selected_options_hook, "selected_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         if available_options_hook is not None:
-            self.bind_available_options_to(available_options_hook)
+            self.attach(available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.bind_selected_options_to(selected_options_hook)
+            self.attach(selected_options_hook, "selected_options", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -410,91 +386,6 @@ class ObservableMultiSelectionOption(BaseObservable, ObservableMultiSelectionOpt
         if selected_options and not selected_options.issubset(available_options):
             invalid_options = selected_options - available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {available_options}")
-    
-    def bind_selected_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding for the selected options with another observable.
-        
-        This method creates a bidirectional binding between this observable's selected options
-        and another observable, ensuring that changes to either are automatically propagated.
-        
-        Args:
-            observable_or_hook: The hook to bind the selected options to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If the hook is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctSetHook):
-            observable_or_hook = observable_or_hook.distinct_set_hook
-        self._component_hooks["selected_options"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:        
-        """
-        Establish a bidirectional binding for the available options set with another observable.
-        
-        This method creates a bidirectional binding between this observable's available options set
-        and another observable, ensuring that changes to either are automatically propagated.
-        
-        Args:
-            observable_or_hook: The hook to bind the available options to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If the hook is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctSetHook):
-            observable_or_hook = observable_or_hook.distinct_set_hook
-        self._component_hooks["available_options"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def bind_to(self, observable: "ObservableMultiSelectionOptionLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding for the selected options with another instance of this class.
-        
-        This method creates a bidirectional binding between this observable's selected options
-        and another instance of this class, ensuring that changes to either are automatically propagated.
-
-        Args:
-            observable: The observable to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If the observable is None
-        """
-        
-        # Validate that observable is not None
-        if observable is None: # type: ignore
-            raise ValueError("Cannot bind to None observable")
-        
-        # First, synchronize the values atomically to maintain consistency
-        if initial_sync_mode == InitialSyncMode.SELF_IS_UPDATED:
-            # Update both values at once to maintain consistency
-            self.set_selected_options_and_available_options(
-                observable.selected_options, 
-                observable.available_options
-            )
-        elif initial_sync_mode == InitialSyncMode.SELF_UPDATES:
-            # Update the other observable's values at once
-            observable.set_selected_options_and_available_options(
-                self.selected_options, 
-                self.available_options
-            )
-        
-        # Then, establish the bindings
-        HookNexus.connect_hook_pairs(
-            (self._component_hooks["available_options"], observable.available_options_hook),
-            (self._component_hooks["selected_options"], observable.selected_options_hook)
-        )
-
-    def detach(self) -> None:
-        """
-        Detach from all bindings.
-        
-        This method removes all bidirectional bindings, preventing further
-        automatic synchronization with other observables.
-        """
-        self._component_hooks["selected_options"].detach()
-        self._component_hooks["available_options"].detach()
 
     def __str__(self) -> str:
         # Sort options for consistent string representation

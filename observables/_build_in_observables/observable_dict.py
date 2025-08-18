@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Any
+from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Any, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
@@ -8,7 +8,7 @@ K = TypeVar("K")
 V = TypeVar("V")
 
 @runtime_checkable
-class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
+class ObservableDictLike(CarriesDistinctDictHook[K, V, Any], Protocol[K, V]):
     """
     Protocol for observable dictionary objects.
     """
@@ -27,19 +27,7 @@ class ObservableDictLike(CarriesDistinctDictHook[K, V], Protocol[K, V]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable dictionary.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable dictionary.
-        """
-        ...
-
-class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -72,7 +60,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
     """
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
+    def __init__(self, observable_or_hook: CarriesDistinctDictHook[K, V, Any]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
@@ -116,7 +104,7 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
         )
 
         if hook is not None:
-            self.bind_to(hook)
+            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -373,28 +361,3 @@ class ObservableDict(BaseObservable, ObservableDictLike[K, V], Generic[K, V]):
     
     def __repr__(self) -> str:
         return f"ObservableDict({self._component_hooks['value'].value})"
-
-    def bind_to(self, observable_or_hook: CarriesDistinctDictHook[K, V]|HookLike[dict[K, V]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable dictionary via. a hook.
-        
-        This method creates a bidirectional binding between this observable dictionary and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-        
-        Args:
-            hook: The hook to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctDictHook):
-            observable_or_hook = observable_or_hook.distinct_dict_hook
-        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove any bindings to other observables.
-        """
-        self._component_hooks["value"].detach()

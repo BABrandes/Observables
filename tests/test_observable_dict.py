@@ -201,7 +201,7 @@ class TestObservableDict(unittest.TestCase):
         obs2 = ObservableDict({"key2": 20})
         
         # Bind obs1 to obs2
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, obs2 should update
         obs1.set_item("key3", 30)
@@ -217,13 +217,13 @@ class TestObservableDict(unittest.TestCase):
         obs2 = ObservableDict({"key2": 200})
         
         # Test update_value_from_observable mode
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs1.dict_value, {"key2": 200})  # obs1 takes obs2's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableDict({"key3": 300})
         obs4 = ObservableDict({"key4": 400})
-        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs4.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs4.dict_value, {"key3": 300})  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -231,7 +231,7 @@ class TestObservableDict(unittest.TestCase):
         obs1 = ObservableDict({"key1": 10})
         obs2 = ObservableDict({"key2": 20})
         
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -242,7 +242,7 @@ class TestObservableDict(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableDict({"key1": 10})
         with self.assertRaises(ValueError):
-            obs.bind_to(obs)
+            obs.attach(obs.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -251,8 +251,8 @@ class TestObservableDict(unittest.TestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.bind_to(obs2)
-        obs2.bind_to(obs3)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs3.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify chain works
         obs1.set_item("key4", 100)
@@ -297,8 +297,8 @@ class TestObservableDict(unittest.TestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.bind_to(obs1)
-        obs3.bind_to(obs1)
+        obs2.attach(obs1.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs1.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, both should update
         obs1.set_item("key4", 100)
@@ -365,7 +365,7 @@ class TestObservableDict(unittest.TestCase):
         # Test binding empty dicts
         obs1: ObservableDict[str, str] = ObservableDict({})
         obs2: ObservableDict[str, str] = ObservableDict({})
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         obs1.set_item("key1", "value1")
         self.assertEqual(obs2.dict_value, {"key1": "value1"})
@@ -373,7 +373,7 @@ class TestObservableDict(unittest.TestCase):
         # Test binding dicts with same initial values
         obs3 = ObservableDict({"key1": "value1"})
         obs4 = ObservableDict({"key1": "value1"})
-        obs3.bind_to(obs4)
+        obs3.attach(obs4.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         obs3.set_item("key2", "value2")
         self.assertEqual(obs4.dict_value, {"key1": "value1", "key2": "value2"})
@@ -430,14 +430,14 @@ class TestObservableDict(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableDict({"key1": "value1"})
         with self.assertRaises(ValueError):
-            obs.bind_to(None)  # type: ignore
+            obs.attach(None, "value", InitialSyncMode.SELF_IS_UPDATED)  # type: ignore
     
     def test_dict_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableDict({"key1": "value1"})
         obs2 = ObservableDict({"key1": "value1"})
         
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_dict_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         # Both should still have the same value
         self.assertEqual(obs1.dict_value, {"key1": "value1"})
         self.assertEqual(obs2.dict_value, {"key1": "value1"})

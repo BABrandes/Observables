@@ -86,19 +86,18 @@ See Also:
 - SyncMode: For binding synchronization modes
 """
 
-from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any
+from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
-from .._utils.hook_nexus import HookNexus
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]], CarriesDistinctSetHook[T], CarriesCollectiveHooks, Protocol[T]):
+class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T], Any], CarriesDistinctSetHook[T, Any], CarriesCollectiveHooks[Any], Protocol[T]):
 
     @property
     def selected_option(self) -> Optional[T]:
@@ -111,6 +110,13 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
     def selected_option(self, selected_option: Optional[T]) -> None:
         """
         Set the selected option.
+        """
+        ...
+
+    @property
+    def selected_option_hook(self) -> HookLike[Optional[T]]:
+        """
+        Get the hook for the selected option.
         """
         ...
 
@@ -128,37 +134,20 @@ class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T]],
         """
         ...
 
+    @property
+    def available_options_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the available options.
+        """
+        ...
+
     def set_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         """
         Set the selected option and available options.
         """
         ...
 
-    def bind_selected_option_to(self, observable_or_hook: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Bind the selected option to an observable.
-        """
-        ...
-        
-    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Bind the options to an observable.
-        """
-        ...
-
-    def bind_to(self, observable: "ObservableSelectionOptionLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Bind to an observable.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Detach from all bindings.
-        """
-        ...
-
-class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T], Generic[T]):
+class ObservableSelectionOption(BaseObservable[Literal["selected_option", "available_options"]], ObservableSelectionOptionLike[T], Generic[T]):
     """
     An observable selection option that manages both available options and a selected value.
     
@@ -275,7 +264,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
     """
 
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]], options: CarriesDistinctSetHook[T]|HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T], Any]|HookLike[Optional[T]], options: CarriesDistinctSetHook[T, Any]|HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and observable selected option.
         
@@ -300,7 +289,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], options: CarriesDistinctSetHook[T]|HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: Optional[T], options: CarriesDistinctSetHook[T, Any]|HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and direct selected option.
         
@@ -322,7 +311,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         ...
 
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T]]|HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T], Any]|HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
         """
         Initialize with direct options and observable selected option.
         
@@ -387,7 +376,7 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         """
         ...
 
-    def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T]] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | CarriesDistinctSetHook[T] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T], Any] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | CarriesDistinctSetHook[T, Any] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
         """
         Initialize the ObservableSelectionOption.
         
@@ -506,14 +495,14 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             verification_method=lambda x: is_valid_value(x)
         )
 
-        if observable is not None:
-            self.bind_to(observable)
-        
-        if available_options_hook is not None:
-            self.bind_available_options_to(available_options_hook)
-            
         if selected_option_hook is not None:
-            self.bind_selected_option_to(selected_option_hook)
+            self.attach(selected_option_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        if available_options_hook is not None:
+            self.attach(available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+
+        if observable is not None:
+            self.attach(observable.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
 
     ############################################################
     # Properties (Getters and Setters)
@@ -731,6 +720,14 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
         self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
 
     @property
+    def selected_option_hook(self) -> HookLike[Optional[T]]:
+        return self._component_hooks["selected_option"]
+    
+    @property
+    def available_options_hook(self) -> HookLike[set[T]]:
+        return self._component_hooks["available_options"]
+
+    @property
     def distinct_selected_option_hook(self) -> HookLike[Optional[T]]:
         """
         Get the hook for the selected option.
@@ -917,181 +914,6 @@ class ObservableSelectionOption(BaseObservable, ObservableSelectionOptionLike[T]
             The binding handler for the options set
         """
         return self._component_hooks["available_options"]
-
-    def bind_selected_option_to(self, observable_or_hook: HookLike[Optional[T]] | CarriesDistinctSingleValueHook[Optional[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding for the selected option with another observable.
-        
-        This method creates a bidirectional binding between this observable's selected option
-        and another observable, ensuring that changes to either are automatically propagated.
-        The binding maintains consistency between the two observables and handles validation
-        automatically.
-        
-        Binding Behavior:
-        - Changes to this observable's selected option automatically update the bound observable
-        - Changes to the bound observable automatically update this observable's selected option
-        - Validation ensures that only valid options are propagated
-        - The binding is maintained until explicitly removed
-        
-        Initial Synchronization:
-        The initial_sync_mode parameter determines how values are synchronized when the
-        binding is first established:
-        - UPDATE_SELF_FROM_OBSERVABLE: This observable's value is updated from the bound observable
-        - UPDATE_OBSERVABLE_FROM_SELF: The bound observable's value is updated from this observable
-        - BIDIRECTIONAL: Both observables are synchronized to a common value
-        
-        Args:
-            observable_or_hook: The observable to bind the selected option to. Can be:
-                - A Hook instance for custom binding behavior
-                - An ObservableSingleValue instance (implements CarriesDistinctSingleValueHook)
-            initial_sync_mode: How to synchronize values initially. Determines which
-                             observable's value takes precedence during initial binding.
-        
-        Raises:
-            ValueError: If the hook is None
-            ValueError: If the bound observable's value is not valid for this observable's options
-        
-        Example:
-            >>> selector1 = ObservableSelectionOption("A", {"A", "B", "C"})
-            >>> selector2 = ObservableSelectionOption("X", {"X", "Y", "Z"})
-            
-            # Bind selector1's selected option to selector2
-            >>> selector1.bind_selected_option_to(selector2)
-            
-            # Changes propagate in both directions
-            >>> selector1.selected_option = "B"
-            >>> print(selector2.selected_option)  # "B"
-            
-            >>> selector2.selected_option = "Y"
-            >>> print(selector1.selected_option)  # "Y"
-            
-            # Note: The binding will fail if the new value is not in the options set
-            >>> selector1.selected_option = "Z"  # "Z" not in {"A", "B", "C"}
-            ValueError: Selected option Z not in options {'A', 'B', 'C'}
-        
-        Note:
-            The binding is bidirectional, so changes flow in both directions.
-            If a change would create an invalid state (e.g., selected option not in
-            available options), the binding operation will fail and the original
-            state will be preserved.
-            
-            To remove the binding, use detach().
-        """
-        if isinstance(observable_or_hook, CarriesDistinctSingleValueHook):
-            observable_or_hook = observable_or_hook.distinct_single_value_hook
-        self._component_hooks["selected_option"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def bind_available_options_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:        
-        """
-        Establish a bidirectional binding for the options set with another observable.
-        
-        Args:
-            observable_or_hook: The observable to bind the options to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If the observable is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctSetHook):
-            observable_or_hook = observable_or_hook.distinct_set_hook
-        self._component_hooks["available_options"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def bind_to(self, observable: ObservableSelectionOptionLike[T], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable.
-        
-        This method creates bidirectional bindings between this observable and another
-        observable, ensuring that changes to either are automatically propagated.
-
-        Binding Behavior:
-        - Changes to this observable automatically update the bound observable
-        - Changes to the bound observable automatically update this observable
-        - Validation ensures that only valid states are propagated
-        - Bindings are maintained until explicitly removed
-        
-        Initial Synchronization:
-        The initial_sync_mode parameter determines how values are synchronized when
-        the binding is first established:
-        - UPDATE_SELF_FROM_OBSERVABLE: This observable's values are updated from the bound observable
-        - UPDATE_OBSERVABLE_FROM_SELF: The bound observable's values are updated from this observable
-        - BIDIRECTIONAL: Both observables are synchronized to common values
-        
-        Args:
-            observable: The observable to bind to. Can be:
-                - An ObservableSelectionOption instance (binds both options and selection)
-            initial_sync_mode: How to synchronize values initially. Determines which
-                             observable's values take precedence during initial binding.
-        
-        Raises:
-            ValueError: If the observable is None
-            ValueError: If binding would create an invalid state
-        
-        Example:
-            # Binding between two ObservableSelectionOption instances
-            >>> selector1 = ObservableSelectionOption("A", {"A", "B", "C"})
-            >>> selector2 = ObservableSelectionOption("X", {"X", "Y", "Z"})
-            >>> selector1.bind_to(selector2)
-            
-            # Both options and selection are now synchronized
-            >>> selector1.selected_option = "B"
-            >>> print(selector2.selected_option)  # "B"
-            >>> print(selector2.available_options)  # {"A", "B", "C"}
-        
-        Note:
-            When binding to another ObservableSelectionOption, the binding is comprehensive
-            and affects both the options set and selected option. This creates a strong
-            coupling between the two instances.
-            
-            The binding system automatically handles validation and prevents invalid states
-            from being propagated. If a binding operation would create an invalid state,
-            it will fail and the original state will be preserved.
-            
-            To remove bindings, use the appropriate disconnect method:
-            - disconnect_from() for ObservableSelectionOption bindings
-            - disconnect() for all bindings
-        """
-
-        # Validate that observable is not None
-        if observable is None: # type: ignore
-            raise ValueError("Cannot bind to None observable")
-
-        # First, synchronize the values atomically to maintain consistency
-        if initial_sync_mode == InitialSyncMode.SELF_IS_UPDATED:
-            # Update both values at once to maintain consistency
-            self.set_selected_option_and_available_options(
-                observable.selected_option, 
-                observable.available_options
-            )
-        elif initial_sync_mode == InitialSyncMode.SELF_UPDATES:
-            # Update the other observable's values at once
-            observable.set_selected_option_and_available_options(
-                self.selected_option, 
-                self.available_options
-            )
-
-        # Then, establish the bindings with the specified initial sync mode
-        # to ensure proper synchronization behavior
-
-        if initial_sync_mode == InitialSyncMode.SELF_UPDATES:
-            HookNexus.connect_hook_pairs(
-                (self._component_hooks["selected_option"], observable.distinct_single_value_hook),
-                (self._component_hooks["available_options"], observable.distinct_set_hook)
-            )
-        elif initial_sync_mode == InitialSyncMode.SELF_IS_UPDATED:
-            HookNexus.connect_hook_pairs(
-                (observable.distinct_single_value_hook, self._component_hooks["selected_option"]),
-                (observable.distinct_set_hook, self._component_hooks["available_options"])
-            )
-
-    def detach(self) -> None:
-        """
-        Detach from all bindings.
-        
-        This method removes all bidirectional bindings, preventing further
-        automatic synchronization with other observables.
-        """
-        self._component_hooks["selected_option"].detach()
-        self._component_hooks["available_options"].detach()
     
     ############################################################
     # Other internal methods

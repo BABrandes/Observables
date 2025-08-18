@@ -1,5 +1,5 @@
 import threading
-from typing import Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol
+from typing import Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
 from .initial_sync_mode import InitialSyncMode
 from .hook_nexus import HookNexus
 
@@ -23,7 +23,7 @@ class HookLike(Protocol[T]):
         ...
     
     @property
-    def owner(self) -> "CarriesHooks":
+    def owner(self) -> "CarriesHooks[Any]":
         """
         Get the owner of this hook.
         """
@@ -74,7 +74,7 @@ class HookLike(Protocol[T]):
 
     def detach(self) -> None:
         """
-        Detach this hook from the hook group.
+        Detach this hook from the hook nexus.
         """
         ...
 
@@ -122,12 +122,12 @@ class Hook(HookLike[T], Generic[T]):
 
     def __init__(
             self,
-            owner: "CarriesHooks",
+            owner: "CarriesHooks[Any]",
             value: T,
             invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = None,
             ) -> None:
 
-        self._owner: "CarriesHooks" = owner
+        self._owner: "CarriesHooks[Any]" = owner
         self._hook_group: "HookNexus[T]" = HookNexus(value, self)
         self._invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = invalidate_callback
         self._in_submission = False
@@ -139,7 +139,7 @@ class Hook(HookLike[T], Generic[T]):
         return self.hook_nexus.value
 
     @property
-    def owner(self) -> "CarriesHooks":
+    def owner(self) -> "CarriesHooks[Any]":
         """Get the owner of this hook."""
         return self._owner
     

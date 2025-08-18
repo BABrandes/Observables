@@ -48,19 +48,20 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_complex_binding_network(self):
         """Test a complex binding network with multiple observable types."""
         # Bind selector1 to selector2
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Bind value1 to selector1's selected_option
-        self.selector1.bind_selected_option_to(self.value1, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+        self.selector1.attach(self.value1.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
         
         # Bind set1 to selector1's available_options
-        self.selector1.bind_available_options_to(self.set1, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.set1.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Bind value2 to selector2's selected_option
-        self.selector2.bind_selected_option_to(self.value2, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+        self.selector2.attach(self.value2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
         
         # Bind set2 to selector2's available_options
-        self.selector2.bind_available_options_to(self.set2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(self.set2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Now change selector1 and verify all propagate
         self.selector1.selected_option = "Green"
@@ -77,7 +78,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_removal_and_rebinding(self):
         """Test removing bindings and rebinding differently."""
         # Initial binding: selector1 -> selector2
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify initial binding works
         self.selector1.selected_option = "Blue"
@@ -91,7 +93,8 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertEqual(self.selector2.selected_option, "Blue")  # Should not change
         
         # Rebind with different sync mode
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_UPDATES)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_UPDATES)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_UPDATES)
         
         # Verify new binding works - first update available options
         self.selector2.available_options = {"Red", "Green", "Blue", "Purple"}
@@ -130,9 +133,10 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_transitive_binding_behavior(self):
         """Test transitive binding behavior with multiple observables."""
         # Create a chain: selector1 -> selector2 -> value1 -> set1
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
-        self.selector2.bind_selected_option_to(self.value1, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
-        self.selector1.bind_available_options_to(self.set1, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(self.value1.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.set1.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change the source (selector1) - first update available options
         self.selector1.available_options = {"Purple", "Pink", "Cyan", "Red", "Green", "Blue"}
@@ -155,7 +159,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_bidirectional_binding_with_collective_hooks(self):
         """Test bidirectional binding with collective hooks."""
         # Bind two selectors bidirectionally
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change selector1 - first update available options to include the new value
         self.selector1.available_options = {"Orange", "Red", "Yellow", "Green", "Blue"}
@@ -181,13 +186,13 @@ class TestCollectiveHooks(unittest.TestCase):
         
         # Bind both selectors to the same value
         # InitialSyncMode only affects initial binding - ongoing sync is bidirectional
-        self.selector1.bind_selected_option_to(self.value1, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
-        self.selector2.bind_selected_option_to(self.value1, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+        self.selector1.attach(self.value1.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(self.value1.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change the target value
         self.value1.single_value = "NewValue"
         
-        # Verify both selectors get updated
+        # Verify both selectors get updated 
         self.assertEqual(self.selector1.selected_option, "NewValue")
         self.assertEqual(self.selector2.selected_option, "NewValue")
         
@@ -213,8 +218,8 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.set_selected_option_and_available_options("Red", {"Red", "Green", "Blue", "Yellow"})
         
         # Bind both selectors' available_options to the shared set
-        self.selector1.bind_available_options_to(shared_set, InitialSyncMode.SELF_IS_UPDATED)
-        self.selector2.bind_available_options_to(shared_set, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(shared_set.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(shared_set.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change the shared set
         shared_set.set_value = {"Purple", "Pink", "Cyan"}
@@ -237,7 +242,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.set_selected_option_and_available_options("Red", {"Red", "Green", "Blue"})
         
         # Bind selector2's available_options directly to selector1's available_options
-        self.selector2.bind_available_options_to(self.selector1, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(self.selector1.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change selector1's available options - use atomic update to avoid validation issues
         self.selector1.set_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -258,7 +263,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.set_selected_option_and_available_options("Red", {"Red", "Green", "Blue"})
         
         # Bind selector2 directly to selector1
-        self.selector2.bind_to(self.selector1, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector2.attach(self.selector1.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change selector1's available options - use atomic update to avoid validation issues
         self.selector1.set_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -279,7 +284,7 @@ class TestCollectiveHooks(unittest.TestCase):
         strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False)
         
         # Bind it to a regular selector
-        self.selector1.bind_to(strict_selector, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(strict_selector.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
         
         # Try to set an invalid value in the source
         with self.assertRaises(ValueError):
@@ -292,7 +297,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_atomic_updates_with_collective_hooks(self):
         """Test atomic updates with collective hooks."""
         # Bind selector1 to selector2
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Use atomic update to change both values at once
         self.selector1.set_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -308,7 +314,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_chain_break_and_rebuild(self):
         """Test breaking and rebuilding binding chains."""
         # Create a simple binding: selector1 -> selector2
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify binding works
         self.selector1.available_options = {"TestValue", "Red", "Green", "Blue"}
@@ -323,7 +330,8 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertEqual(self.selector2.selected_option, "TestValue")  # Should not change
         
         # Rebuild the binding
-        self.selector1.bind_to(self.selector2, InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        self.selector1.attach(self.selector2.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify binding works again
         self.selector1.set_selected_option_and_available_options("RebuiltValue", {"RebuiltValue", "Red", "Green", "Blue"})
@@ -335,7 +343,8 @@ class TestCollectiveHooks(unittest.TestCase):
         none_selector: ObservableSelectionOption[str] = ObservableSelectionOption(None, set(), allow_none=True)
         
         # Bind it to another selector
-        none_selector.bind_to(self.selector1, InitialSyncMode.SELF_IS_UPDATED)
+        none_selector.attach(self.selector1.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        none_selector.attach(self.selector1.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Set empty options and None selection
         none_selector.set_selected_option_and_available_options(None, set())
@@ -359,8 +368,8 @@ class TestCollectiveHooks(unittest.TestCase):
         
         for i in range(0, len(observables) - 2, 3):
             # Bind selector to value and options
-            observables[i].bind_selected_option_to(observables[i + 1], InitialSyncMode.SELF_IS_UPDATED) # type: ignore
-            observables[i].bind_available_options_to(observables[i + 2], InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+            observables[i].attach(observables[i + 1].distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+            observables[i].attach(observables[i + 2].distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED) # type: ignore
         
         # Change a value and measure propagation time - first update available options
         observables[0].available_options = {"NewValue", "Color0", "Option0"} # type: ignore
@@ -379,8 +388,8 @@ class TestCollectiveHooks(unittest.TestCase):
         selector_c = ObservableSelectionOption("C", {"C", "A"})
         
         # Create a triangle binding - but avoid circular binding by using different sync modes
-        selector_a.bind_to(selector_b, InitialSyncMode.SELF_IS_UPDATED)
-        selector_b.bind_to(selector_c, InitialSyncMode.SELF_IS_UPDATED)
+        selector_a.attach(selector_b.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        selector_b.attach(selector_c.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
         # Don't create the circular binding - just test that the existing bindings work
         
         # Change one value
@@ -400,8 +409,8 @@ class TestCollectiveHooks(unittest.TestCase):
         value_b = ObservableSingleValue("ValueB")
         
         # Bind with different sync modes
-        selector_a.bind_to(selector_b, InitialSyncMode.SELF_IS_UPDATED)
-        value_a.bind_to(value_b, InitialSyncMode.SELF_UPDATES)
+        selector_a.attach(selector_b.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+        value_a.attach(value_b.distinct_single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
         
         # Change values and verify behavior
         selector_a.selected_option = "B"
@@ -418,8 +427,8 @@ class TestCollectiveHooks(unittest.TestCase):
         options: ObservableSet[str] = ObservableSet({"Test", "Other"})
         
         # Bind them together
-        selector.bind_selected_option_to(value, InitialSyncMode.SELF_IS_UPDATED) # type: ignore
-        selector.bind_available_options_to(options, InitialSyncMode.SELF_IS_UPDATED)
+        selector.attach(value.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED) # type: ignore
+        selector.attach(options.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         
         # Disconnect all
         selector.detach()

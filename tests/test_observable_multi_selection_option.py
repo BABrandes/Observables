@@ -210,7 +210,8 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green", "Red"})
         
         # Bind obs1 to obs2
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.SELF_UPDATES)
         
         # After binding, obs2 should have obs1's values
         self.assertEqual(obs2.selected_options, {"Red"})
@@ -234,14 +235,16 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green", "Red"})
         
         # Test update_observable_from_self mode (obs2 gets updated with obs1's value)
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs2.selected_options, {"Red"})  # obs2 gets updated with obs1's value
         self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})  # obs2 gets obs1's available options
         
         # Test update_self_from_observable mode (obs1 gets updated with obs2's value)
         obs3 = ObservableMultiSelectionOption({"Small"}, {"Small", "Medium", "Large"})
         obs4 = ObservableMultiSelectionOption({"Large"}, {"Small", "Medium", "Large"})
-        obs3.bind_to(obs4, InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs4.selected_options_hook, "selected_options", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs4.available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs3.selected_options, {"Large"})  # obs3 gets updated with obs4's value
         self.assertEqual(obs3.available_options, {"Small", "Medium", "Large"})  # obs3 keeps its own available options
     
@@ -250,7 +253,8 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green", "Yellow"})
         obs2 = ObservableMultiSelectionOption({"Blue"}, {"Blue", "Green", "Red"})
         
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.SELF_UPDATES)
         
         # After binding, obs2 should have obs1's values
         self.assertEqual(obs2.selected_options, {"Red"})
@@ -270,7 +274,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         with self.assertRaises(ValueError):
-            obs.bind_to(obs, InitialSyncMode.SELF_UPDATES)
+            obs.attach(obs.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -279,8 +283,8 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs3 = ObservableMultiSelectionOption({"Green"}, {"Red", "Green", "Blue"})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
-        obs2.bind_to(obs3, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
+        obs2.attach(obs3.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
         
         # Verify chain works
         obs1.selected_options = {"Green"}
@@ -326,8 +330,8 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs3 = ObservableMultiSelectionOption({"Green"}, {"Green", "Blue", "Red"})
         
         # Bind obs2 and obs3 to obs1
-        obs2.bind_to(obs1, InitialSyncMode.SELF_UPDATES)
-        obs3.bind_to(obs1, InitialSyncMode.SELF_UPDATES)
+        obs2.attach(obs1.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs1.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
         
         # Change obs1, both should update
         obs1.selected_options = {"Green"}
@@ -389,7 +393,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         # Test binding multi-selection options with same initial values
         obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         obs2 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
         
         obs1.selected_options = {"Green"}
         self.assertEqual(obs2.selected_options, {"Green"})
@@ -397,7 +401,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         # Test binding multi-selection options with different options
         obs3 = ObservableMultiSelectionOption({"Red"}, {"Red", "Blue", "Yellow"})
         obs4 = ObservableMultiSelectionOption({"Green"}, {"Green", "Blue", "Red"})
-        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs4.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
         
         obs3.selected_options = {"Blue"}
         self.assertEqual(obs4.selected_options, {"Blue"})
@@ -459,14 +463,14 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         with self.assertRaises(ValueError):
-            obs.bind_to(None)  # type: ignore
+            obs.attach(None, "selected_options", InitialSyncMode.SELF_UPDATES)  # type: ignore
     
     def test_multi_selection_option_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         obs2 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         
-        obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.selected_options_hook, "selected_options", InitialSyncMode.SELF_UPDATES)
         # Both should still have the same value
         self.assertEqual(obs1.selected_options, {"Red"})
         self.assertEqual(obs2.selected_options, {"Red"})

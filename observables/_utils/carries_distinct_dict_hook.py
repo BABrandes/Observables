@@ -4,9 +4,10 @@ from .carries_distinct_hook import CarriesDistinctHook
 
 K = TypeVar("K")
 V = TypeVar("V")
+HK = TypeVar("HK", contravariant=True)
 
 @runtime_checkable
-class CarriesDistinctDictHook(CarriesDistinctHook, Protocol[K, V]):
+class CarriesDistinctDictHook(CarriesDistinctHook[HK], Protocol[K, V, HK]):
     """
     Protocol for observables that carry a dictionary and can participate in bindings via. a hook.
     

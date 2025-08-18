@@ -28,7 +28,7 @@ def main():
     try:
         # Discover and run all tests
         loader = unittest.TestLoader()
-        start_dir = Path(__file__).parent
+        start_dir: str = str(Path(__file__).parent)
         suite = loader.discover(start_dir, pattern='test_*.py')
         
         # Run the tests

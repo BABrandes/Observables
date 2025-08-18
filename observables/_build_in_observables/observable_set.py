@@ -1,4 +1,4 @@
-from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal
 from .._utils.hook import Hook, HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
@@ -7,7 +7,7 @@ from .._utils.base_observable import BaseObservable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
+class ObservableSetLike(CarriesDistinctSetHook[T, Any], Protocol[T]):
     """
     Protocol for observable set objects.
     """
@@ -26,19 +26,7 @@ class ObservableSetLike(CarriesDistinctSetHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable set.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable set.
-        """
-        ...
-
-class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -76,7 +64,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctSetHook[T]|Hook[set[T]]) -> None:
+    def __init__(self, observable_or_hook: CarriesDistinctSetHook[T, Any]|Hook[set[T]]) -> None:
         """Initialize with another observable set, establishing a bidirectional binding."""
         ...
 
@@ -85,7 +73,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: set[T] | CarriesDistinctSetHook[T] | Hook[set[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: set[T] | CarriesDistinctSetHook[T, Any] | Hook[set[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
@@ -114,7 +102,7 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         )
 
         if hook is not None:
-            self.bind_to(hook)
+            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
     
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -150,34 +138,6 @@ class ObservableSet(BaseObservable, ObservableSetLike[T], Generic[T]):
         Get the hook for the set.
         """
         return self._component_hooks["value"]
-    
-    def bind_to(self, observable_or_hook: CarriesDistinctSetHook[T]|HookLike[set[T]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable set.
-        
-        This method creates a bidirectional binding between this observable set and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-        
-        Args:
-            observable: The observable set to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctSetHook):
-            observable_or_hook = observable_or_hook.distinct_set_hook
-        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable set.
-        
-        This method removes the binding between this observable set and another,
-        preventing further automatic synchronization of changes.
-        """
-        self._component_hooks["value"].detach()
     
     # Standard set methods
     def add(self, item: T) -> None:

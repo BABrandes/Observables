@@ -4,9 +4,10 @@ from .hook import HookLike
 from .carries_distinct_hook import CarriesDistinctHook
 
 T = TypeVar("T")
-
+HK = TypeVar("HK", contravariant=True)
+    
 @runtime_checkable
-class CarriesDistinctSetHook(CarriesDistinctHook, Protocol[T]):
+class CarriesDistinctSetHook(CarriesDistinctHook[HK], Protocol[T, HK]):
     """
     Protocol for observables that carry a set and can participate in bindings via. a hook.
     

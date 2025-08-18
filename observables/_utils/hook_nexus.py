@@ -56,20 +56,20 @@ class HookNexus(Generic[T]):
             all_nexus_and_values[nexus] = value
 
         # Step 2: Collect all owners
-        owners: set[CarriesHooks] = set()
+        owners: set[CarriesHooks[Any]] = set()
         for nexus in all_nexus_and_values:
             for hook in nexus.hooks:
                 owners.add(hook.owner)
 
         # Step 3: Check for each owner if the values would be valid as a collective
-        def nexus_intersection(carries_collective_hooks: CarriesCollectiveHooks) -> set["HookNexus[Any]"]:
+        def nexus_intersection(carries_collective_hooks: CarriesCollectiveHooks[Any]) -> set["HookNexus[Any]"]:
             intersection: set["HookNexus[Any]"] = set()
             for nexus in all_nexus_and_values:
                 for collective_hook in carries_collective_hooks.collective_hooks:
                     if collective_hook.hook_nexus is nexus or collective_hook is nexus:
                         intersection.add(nexus)
             return intersection
-        remaining_owners: set[CarriesHooks] = owners.copy()
+        remaining_owners: set[CarriesHooks[Any]] = owners.copy()
         for owner in owners:
             # Check if the hook is affected by the submission (if there is an overlap of at least 2 hooks)
             if isinstance(owner, CarriesCollectiveHooks):

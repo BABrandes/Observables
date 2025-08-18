@@ -201,7 +201,7 @@ class TestObservableSet(unittest.TestCase):
         obs2 = ObservableSet({20})
         
         # Bind obs1 to obs2
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, obs2 should update
         obs1.add(30)
@@ -217,13 +217,13 @@ class TestObservableSet(unittest.TestCase):
         obs2 = ObservableSet({200})
         
         # Test update_value_from_observable mode
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs1.set_value, {200})  # obs1 takes obs2's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSet({300})
         obs4 = ObservableSet({400})
-        obs3.bind_to(obs4, InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs4.distinct_set_hook, "value", InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.set_value, {300})  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -231,7 +231,7 @@ class TestObservableSet(unittest.TestCase):
         obs1 = ObservableSet({10})
         obs2 = ObservableSet({20})
         
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -242,7 +242,7 @@ class TestObservableSet(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableSet({10})
         with self.assertRaises(ValueError):
-            obs.bind_to(obs)
+            obs.attach(obs.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -251,8 +251,8 @@ class TestObservableSet(unittest.TestCase):
         obs3 = ObservableSet({30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.bind_to(obs2)
-        obs2.bind_to(obs3)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs3.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify chain works
         obs1.add(100)
@@ -297,8 +297,8 @@ class TestObservableSet(unittest.TestCase):
         obs3 = ObservableSet({30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.bind_to(obs1)
-        obs3.bind_to(obs1)
+        obs2.attach(obs1.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs1.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, both should update
         obs1.add(100)
@@ -365,7 +365,7 @@ class TestObservableSet(unittest.TestCase):
         # Test binding empty sets
         obs1: ObservableSet[int] = ObservableSet(set())
         obs2: ObservableSet[int] = ObservableSet(set())
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         obs1.add(1)
         self.assertEqual(obs2.set_value, {1})
@@ -373,7 +373,7 @@ class TestObservableSet(unittest.TestCase):
         # Test binding sets with same initial values
         obs3 = ObservableSet({42})
         obs4 = ObservableSet({42})
-        obs3.bind_to(obs4)
+        obs3.attach(obs4.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         obs3.add(100)
         self.assertEqual(obs4.set_value, {42, 100})
@@ -434,14 +434,14 @@ class TestObservableSet(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableSet({10})
         with self.assertRaises(ValueError):
-            obs.bind_to(None)  # type: ignore
+            obs.attach(None, "value", InitialSyncMode.SELF_IS_UPDATED)  # type: ignore
     
     def test_set_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSet({42})
         obs2 = ObservableSet({42})
         
-        obs1.bind_to(obs2)
+        obs1.attach(obs2.distinct_set_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         # Both should still have the same value
         self.assertEqual(obs1.set_value, {42})
         self.assertEqual(obs2.set_value, {42})

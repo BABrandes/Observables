@@ -3,9 +3,10 @@ from .hook import HookLike
 from .carries_distinct_hook import CarriesDistinctHook
 
 T = TypeVar("T")
+HK = TypeVar("HK", contravariant=True)
 
 @runtime_checkable
-class CarriesDistinctListHook(CarriesDistinctHook, Protocol[T]):
+class CarriesDistinctListHook(CarriesDistinctHook[HK], Protocol[T, HK]):
     """
     Protocol for observables that carry a list and can participate in bindings via. a hook.
     

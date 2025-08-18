@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal
 from typing import Optional
 from .._utils.hook import Hook, HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -8,7 +8,7 @@ from .._utils.base_observable import BaseObservable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesDistinctTupleHook[T], Protocol[T]):
+class ObservableTupleLike(CarriesDistinctTupleHook[T, Any], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -27,19 +27,7 @@ class ObservableTupleLike(CarriesDistinctTupleHook[T], Protocol[T]):
         """
         ...
 
-    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable tuple.
-        """
-        ...
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable tuple.
-        """
-        ...
-
-class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -77,7 +65,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctTupleHook[T]|Hook[tuple[T, ...]]) -> None:
+    def __init__(self, observable_or_hook: CarriesDistinctTupleHook[T, Any]|Hook[tuple[T, ...]]) -> None:
         """Initialize with another observable tuple, establishing a bidirectional binding."""
         ...
 
@@ -86,7 +74,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | CarriesDistinctTupleHook[T] | Hook[tuple[T, ...]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | CarriesDistinctTupleHook[T, Any] | Hook[tuple[T, ...]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableTuple.
         
@@ -116,7 +104,7 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         )
 
         if hook is not None:
-            self.bind_to(hook)
+            self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
     def collective_hooks(self) -> set[HookLike[Any]]:
@@ -153,34 +141,6 @@ class ObservableTuple(BaseObservable, ObservableTupleLike[T], Generic[T]):
         Get the hook for the tuple.
         """
         return self._component_hooks["value"]
-
-    def bind_to(self, observable_or_hook: CarriesDistinctTupleHook[T]|HookLike[tuple[T, ...]], initial_sync_mode: InitialSyncMode = InitialSyncMode.SELF_IS_UPDATED) -> None:
-        """
-        Establish a bidirectional binding with another observable tuple.
-        
-        This method creates a bidirectional binding between this observable tuple and another,
-        ensuring that changes to either observable are automatically propagated to the other.
-        The binding can be configured with different initial synchronization modes.
-        
-        Args:
-            observable: The observable tuple to bind to
-            initial_sync_mode: How to synchronize values initially
-            
-        Raises:
-            ValueError: If observable is None
-        """
-        if isinstance(observable_or_hook, CarriesDistinctTupleHook):
-            observable_or_hook = observable_or_hook.distinct_tuple_hook
-        self._component_hooks["value"].connect_to(observable_or_hook, initial_sync_mode)
-
-    def detach(self) -> None:
-        """
-        Remove the bidirectional binding with another observable tuple.
-        
-        This method removes the binding between this observable tuple and another,
-        preventing further automatic synchronization of changes.
-        """
-        self._component_hooks["value"].detach()
     
     def __str__(self) -> str:
         """String representation of the observable tuple."""

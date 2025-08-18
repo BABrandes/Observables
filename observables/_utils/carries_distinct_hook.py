@@ -1,8 +1,10 @@
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, TypeVar
 from .carries_hooks import CarriesHooks
 
+HK = TypeVar("HK", contravariant=True)
+
 @runtime_checkable
-class CarriesDistinctHook(CarriesHooks, Protocol):
+class CarriesDistinctHook(CarriesHooks[HK], Protocol[HK]):
     """
     Protocol for objects that can participate in bidirectional bindings.
     

@@ -89,15 +89,13 @@ See Also:
 from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
-from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSelectionOptionLike(CarriesDistinctSingleValueHook[Optional[T], Any], CarriesDistinctSetHook[T, Any], CarriesCollectiveHooks[Any], Protocol[T]):
+class ObservableSelectionOptionLike(CarriesCollectiveHooks[Any], Protocol[T]):
 
     @property
     def selected_option(self) -> Optional[T]:
@@ -264,7 +262,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
     """
 
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T], Any]|HookLike[Optional[T]], options: CarriesDistinctSetHook[T, Any]|HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: HookLike[Optional[T]], options: HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and observable selected option.
         
@@ -289,7 +287,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], options: CarriesDistinctSetHook[T, Any]|HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: Optional[T], options: HookLike[set[T]], *, allow_none: bool = True) -> None:
         """
         Initialize with observable options and direct selected option.
         
@@ -311,7 +309,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
 
     @overload
-    def __init__(self, selected_option: CarriesDistinctSingleValueHook[Optional[T], Any]|HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
         """
         Initialize with direct options and observable selected option.
         
@@ -376,7 +374,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         """
         ...
 
-    def __init__(self, selected_option: Optional[T] | CarriesDistinctSingleValueHook[Optional[T], Any] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | CarriesDistinctSetHook[T, Any] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
         """
         Initialize the ObservableSelectionOption.
         
@@ -438,20 +436,14 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
             observable: Optional[ObservableSelectionOptionLike[T]] = None
             if options is None:
                 raise ValueError("options parameter is required when selected_option is not an ObservableSelectionOptionLike")
-            if isinstance(options, CarriesDistinctSetHook):
-                available_options: set[T] = options.distinct_set_reference
-                available_options_hook: Optional[HookLike[set[T]]] = options.distinct_set_hook # type: ignore
-            elif isinstance(options, HookLike):
-                available_options: set[T] = options.value
+            if isinstance(options, HookLike):
+                available_options: set[T] = options.value # type: ignore
                 available_options_hook: Optional[HookLike[set[T]]] = options
             else:
                 available_options: set[T] = options.copy()
                 available_options_hook: Optional[HookLike[set[T]]] = None
 
-            if isinstance(selected_option, CarriesDistinctSingleValueHook):
-                initial_selected_option: Optional[T] = selected_option.distinct_single_value_reference # type: ignore
-                selected_option_hook: Optional[HookLike[Optional[T]]] = selected_option.distinct_single_value_hook # type: ignore
-            elif isinstance(selected_option, HookLike):
+            if isinstance(selected_option, HookLike):
                 initial_selected_option: Optional[T] = selected_option.value # type: ignore
                 selected_option_hook: Optional[HookLike[Optional[T]]] = selected_option
             else:
@@ -501,15 +493,15 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
             self.attach(available_options_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
 
         if observable is not None:
-            self.attach(observable.distinct_single_value_hook, "selected_option", InitialSyncMode.SELF_IS_UPDATED)
-            self.attach(observable.distinct_set_hook, "available_options", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.get_hook("selected_option"), "selected_option", InitialSyncMode.SELF_IS_UPDATED)
+            self.attach(observable.get_hook("available_options"), "available_options", InitialSyncMode.SELF_IS_UPDATED)
 
     ############################################################
     # Properties (Getters and Setters)
     ############################################################
 
     @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
+    def _collective_hooks(self) -> set[HookLike[Any]]:
         return {self._component_hooks["selected_option"], self._component_hooks["available_options"]}
     
     @property
@@ -725,50 +717,6 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
     
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
-        return self._component_hooks["available_options"]
-
-    @property
-    def distinct_selected_option_hook(self) -> HookLike[Optional[T]]:
-        """
-        Get the hook for the selected option.
-        """
-        return self._component_hooks["selected_option"]
-    
-    @property
-    def distinct_single_value_hook(self) -> HookLike[Optional[T]]:
-        """
-        Get the hook for the selected option (alias for distinct_selected_option_hook).
-        This property is required by the CarriesDistinctSingleValueHook protocol.
-        """
-        return self._component_hooks["selected_option"]
-    
-    @property
-    def distinct_single_value_reference(self) -> Optional[T]:
-        """
-        Get the reference for the selected option.
-        """
-        return self._component_hooks["selected_option"].value
-    
-    @property
-    def distinct_set_reference(self) -> set[T]:
-        """
-        Get the reference for the available options.
-        """
-        return self._component_hooks["available_options"].value
-
-    @property
-    def distinct_available_options_hook(self) -> HookLike[set[T]]:
-        """
-        Get the hook for the available options.
-        """
-        return self._component_hooks["available_options"]
-    
-    @property
-    def distinct_set_hook(self) -> HookLike[set[T]]:
-        """
-        Get the hook for the available options (alias for distinct_available_options_hook).
-        This property is required by the CarriesDistinctSetHook protocol.
-        """
         return self._component_hooks["available_options"]
 
     ############################################################

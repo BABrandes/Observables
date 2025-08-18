@@ -79,7 +79,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, obs2 should update
         obs1.single_value = 30
@@ -95,13 +95,13 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(200)
         
         # Test update_value_from_observable mode
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         self.assertEqual(obs1.single_value, 200)  # obs1 gets updated with obs2's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSingleValue(300)
         obs4 = ObservableSingleValue(400)
-        obs3.attach(obs4.distinct_single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
+        obs3.attach(obs4.single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
         self.assertEqual(obs4.single_value, 300)  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -109,7 +109,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10)
         obs2 = ObservableSingleValue(20)
         
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -121,7 +121,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10)
         obs2 = ObservableSingleValue(20)
         
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_UPDATES)
         obs1.detach()
         
         # Second unbind should raise ValueError since there's nothing to unbind
@@ -139,7 +139,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs = ObservableSingleValue(10)
         # The new implementation may not prevent self-binding, so we'll test the current behavior
         try:
-            obs.attach(obs.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+            obs.attach(obs.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
             # If it doesn't raise an error, that's the current behavior
         except Exception as e:
             self.assertIsInstance(e, ValueError)
@@ -151,8 +151,8 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3 = ObservableSingleValue(30)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-        obs2.attach(obs3.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs3.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Verify chain works
         obs1.single_value = 100
@@ -199,8 +199,8 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3 = ObservableSingleValue(30)
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-        obs3.attach(obs1.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs2.attach(obs1.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs3.attach(obs1.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         
         # Change obs1, both should update
         obs1.single_value = 100
@@ -218,7 +218,7 @@ class TestObservableSingleValue(unittest.TestCase):
         source = ObservableSingleValue(100)
         
         # Create a new observable initialized with the source
-        target: ObservableSingleValue[int] = ObservableSingleValue[int](source)
+        target: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
         
         # Check that the target has the same initial value
         self.assertEqual(target.single_value, 100)
@@ -241,7 +241,7 @@ class TestObservableSingleValue(unittest.TestCase):
         source = ObservableSingleValue(50, validator=validate_positive)
         
         # Create a target observable initialized with the source and validator
-        target = ObservableSingleValue(source, validator=validate_positive)
+        target = ObservableSingleValue(source.single_value_hook, validator=validate_positive)
         
         # Check that the target has the same initial value
         self.assertEqual(target.single_value, 50)
@@ -261,25 +261,25 @@ class TestObservableSingleValue(unittest.TestCase):
         """Test initialization with CarriesBindableSingleValue of different types"""
         # Test with string type
         source_str = ObservableSingleValue("hello")
-        target_str = ObservableSingleValue(source_str)
+        target_str = ObservableSingleValue(source_str.single_value_hook)
         self.assertEqual(target_str.single_value, "hello")
         
         # Test with float type
         source_float = ObservableSingleValue(3.14)
-        target_float = ObservableSingleValue(source_float)
+        target_float = ObservableSingleValue(source_float.single_value_hook)
         self.assertEqual(target_float.single_value, 3.14)
         
         # Test with list type
         source_list = ObservableSingleValue([1, 2, 3])
-        target_list = ObservableSingleValue(source_list)
+        target_list = ObservableSingleValue(source_list.single_value_hook)
         self.assertEqual(target_list.single_value, [1, 2, 3])
     
     def test_initialization_with_carries_bindable_single_value_chain(self):
         """Test initialization with CarriesBindableSingleValue in a chain"""
         # Create a chain of observables
         obs1: ObservableSingleValue[int] = ObservableSingleValue(10)
-        obs2: ObservableSingleValue[int] = ObservableSingleValue[int](obs1)
-        obs3: ObservableSingleValue[int] = ObservableSingleValue[int](obs2)
+        obs2: ObservableSingleValue[int] = ObservableSingleValue[int](obs1.single_value_hook)
+        obs3: ObservableSingleValue[int] = ObservableSingleValue[int](obs2.single_value_hook)
         
         # Check initial values
         self.assertEqual(obs1.single_value, 10)
@@ -301,7 +301,7 @@ class TestObservableSingleValue(unittest.TestCase):
     def test_initialization_with_carries_bindable_single_value_unbinding(self):
         """Test that initialization with CarriesBindableSingleValue can be unbound"""
         source: ObservableSingleValue[int] = ObservableSingleValue(100)
-        target: ObservableSingleValue[int] = ObservableSingleValue[int](source)
+        target: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
         
         # Verify they are bound
         self.assertEqual(target.single_value, 100)
@@ -322,9 +322,9 @@ class TestObservableSingleValue(unittest.TestCase):
     def test_initialization_with_carries_bindable_single_value_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source: ObservableSingleValue[int] = ObservableSingleValue(100)
-        target1: ObservableSingleValue[int] = ObservableSingleValue[int](source)
-        target2: ObservableSingleValue[int] = ObservableSingleValue[int](source)
-        target3: ObservableSingleValue[int] = ObservableSingleValue[int](source)
+        target1: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
+        target2: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
+        target3: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
         
         # Check initial values
         self.assertEqual(target1.single_value, 100)
@@ -347,7 +347,7 @@ class TestObservableSingleValue(unittest.TestCase):
         """Test edge cases for initialization with CarriesBindableSingleValue"""
         # Test with None value in source
         source_none = ObservableSingleValue(None)
-        target_none = ObservableSingleValue(source_none)
+        target_none = ObservableSingleValue(source_none.single_value_hook)
         self.assertIsNone(target_none.single_value)
         
         # Test with zero value
@@ -387,7 +387,7 @@ class TestObservableSingleValue(unittest.TestCase):
     def test_initialization_with_carries_bindable_single_value_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableSingleValue"""
         source: ObservableSingleValue[int] = ObservableSingleValue(100)
-        target: ObservableSingleValue[int] = ObservableSingleValue[int](source)
+        target: ObservableSingleValue[int] = ObservableSingleValue[int](source.single_value_hook)
         
         # Check binding consistency - the new system may not have this method
         # We'll test the basic binding functionality instead
@@ -439,7 +439,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(42)
         obs2 = ObservableSingleValue(42)
         
-        obs1.attach(obs2.distinct_single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.SELF_IS_UPDATED)
         # Both should still have the same value
         self.assertEqual(obs1.single_value, 42)
         self.assertEqual(obs2.single_value, 42)

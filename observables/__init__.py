@@ -101,12 +101,6 @@ from ._other_observables.observable_multi_selection_option import ObservableMult
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
-from ._utils.carries_distinct_hook import CarriesDistinctHook
-from ._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
-from ._utils.carries_distinct_list_hook import CarriesDistinctListHook
-from ._utils.carries_distinct_set_hook import CarriesDistinctSetHook
-from ._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
-from ._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
 from ._utils.carries_collective_hooks import CarriesCollectiveHooks
 
 __all__ = [
@@ -129,12 +123,6 @@ __all__ = [
     'BaseObservable',
     'Hook',
     'HookLike',
-    'CarriesDistinctHook',
-    'CarriesDistinctDictHook',
-    'CarriesDistinctListHook',
-    'CarriesDistinctSetHook',
-    'CarriesDistinctSingleValueHook',
-    'CarriesDistinctTupleHook',
     'CarriesCollectiveHooks',
     'InitialSyncMode',
 ]

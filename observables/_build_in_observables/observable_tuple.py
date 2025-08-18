@@ -1,14 +1,14 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal
 from typing import Optional
-from .._utils.hook import Hook, HookLike
+from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_tuple_hook import CarriesDistinctTupleHook
+from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesDistinctTupleHook[T, Any], Protocol[T]):
+class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -24,6 +24,13 @@ class ObservableTupleLike(CarriesDistinctTupleHook[T, Any], Protocol[T]):
     def tuple_value(self, value: tuple[T, ...]) -> None:
         """
         Set the tuple value.
+        """
+        ...
+
+    @property
+    def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:
+        """
+        Get the hook for the tuple.
         """
         ...
 
@@ -65,8 +72,13 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctTupleHook[T, Any]|Hook[tuple[T, ...]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[tuple[T, ...]]) -> None:
         """Initialize with another observable tuple, establishing a bidirectional binding."""
+        ...
+
+    @overload
+    def __init__(self, observable: ObservableTupleLike[T]) -> None:
+        """Initialize from another ObservableTupleLike object."""
         ...
 
     @overload
@@ -74,7 +86,7 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | CarriesDistinctTupleHook[T, Any] | Hook[tuple[T, ...]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | HookLike[tuple[T, ...]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableTuple.
         
@@ -87,16 +99,16 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
 
         if observable_or_hook_or_value is None:
             initial_value: tuple[T, ...] = ()
-            hook: Optional[Hook[tuple[T, ...]]] = None
-        elif isinstance(observable_or_hook_or_value, CarriesDistinctTupleHook):
-            initial_value: tuple[T, ...] = observable_or_hook_or_value.distinct_tuple_reference
-            hook: Optional[Hook[tuple[T, ...]]] = observable_or_hook_or_value.distinct_tuple_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, Hook):
+            hook: Optional[HookLike[tuple[T, ...]]] = None
+        elif isinstance(observable_or_hook_or_value, ObservableTupleLike):
+            initial_value: tuple[T, ...] = observable_or_hook_or_value.tuple_value # type: ignore
+            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.tuple_value_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: tuple[T, ...] = observable_or_hook_or_value.value
-            hook: Optional[Hook[tuple[T, ...]]] = observable_or_hook_or_value
+            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value
         else:
             initial_value: tuple[T, ...] = observable_or_hook_or_value
-            hook: Optional[Hook[tuple[T, ...]]] = None
+            hook: Optional[HookLike[tuple[T, ...]]] = None
 
         super().__init__(
             {"value": initial_value},
@@ -106,10 +118,6 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
-    @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
-        return set()
-    
     @property
     def tuple_value(self) -> tuple[T, ...]:
         """
@@ -129,19 +137,12 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
             self._set_component_values({"value": value}, notify_binding_system=True)
     
     @property
-    def distinct_tuple_reference(self) -> tuple[T, ...]:
+    def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:
         """
         Get the current value of the tuple.
         """
         return self._component_hooks["value"].value
-    
-    @property
-    def distinct_tuple_hook(self) -> HookLike[tuple[T, ...]]:
-        """
-        Get the hook for the tuple.
-        """
-        return self._component_hooks["value"]
-    
+
     def __str__(self) -> str:
         """String representation of the observable tuple."""
         return f"OT(tuple={self._component_hooks['value'].value})"

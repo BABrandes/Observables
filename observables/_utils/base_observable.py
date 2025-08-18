@@ -186,13 +186,6 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
                 if h is hook_or_nexus:
                     return key
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks")
-
-    @property
-    def hooks(self) -> set[HookLike[Any]]:
-        """
-        Get the hooks of the observable.
-        """
-        return set(self._component_hooks.values())
     
     def _is_valid_value(self, hook: HookLike[Any], value: Any) -> tuple[bool, str]:
         """
@@ -238,12 +231,39 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             return True, "No verification method provided. Default is True"
         return self._verification_method(self._component_values)
     
+
     @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
+    def _collective_hooks(self) -> set[HookLike[Any]]:
         """
         Get the collective hooks for the observable.
         """
         return set(self._component_hooks.values())
+    
+    #########################################################
+    # Public API
+    #########################################################
+
+    @property
+    def hooks(self) -> set[HookLike[Any]]:
+        """
+        Get the hooks of the observable.
+        """
+        return set(self._component_hooks.values())
+    
+    def get_value(self, key: HK) -> Any:
+        """
+        Get the value of a component hook.
+
+        If copying is available, the copy is returned.
+        """
+        if not isinstance(key, str):
+            raise ValueError(f"Key {key} is not a string")
+        if key not in self._component_hooks:
+            raise ValueError(f"Key {key} not found in component_hooks")
+        value = self._component_hooks[key].value
+        if hasattr(value, "copy"):
+            return value.copy()
+        return value
     
     def get_hook(self, key: HK) -> HookLike[Any]:
         """

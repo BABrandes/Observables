@@ -1,13 +1,13 @@
 from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal
-from .._utils.hook import Hook, HookLike
+from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_set_hook import CarriesDistinctSetHook
+from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSetLike(CarriesDistinctSetHook[T, Any], Protocol[T]):
+class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
     """
     Protocol for observable set objects.
     """
@@ -23,6 +23,13 @@ class ObservableSetLike(CarriesDistinctSetHook[T, Any], Protocol[T]):
     def set_value(self, value: set[T]) -> None:
         """
         Set the set value.
+        """
+        ...
+
+    @property
+    def set_value_hook(self) -> HookLike[set[T]]:
+        """
+        Get the hook for the set.
         """
         ...
 
@@ -64,8 +71,13 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctSetHook[T, Any]|Hook[set[T]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[set[T]]) -> None:
         """Initialize with another observable set, establishing a bidirectional binding."""
+        ...
+
+    @overload
+    def __init__(self, observable: ObservableSetLike[T]) -> None:
+        """Initialize from another ObservableSetLike object."""
         ...
 
     @overload
@@ -73,7 +85,7 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: set[T] | CarriesDistinctSetHook[T, Any] | Hook[set[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: set[T] | HookLike[set[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
@@ -85,16 +97,16 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         """
         if observable_or_hook_or_value is None:
             initial_value: set[T] = set()
-            hook: Optional[Hook[set[T]]] = None
-        elif isinstance(observable_or_hook_or_value, CarriesDistinctSetHook):
-            initial_value: set[T] = observable_or_hook_or_value.distinct_set_reference
-            hook: Optional[Hook[set[T]]] = observable_or_hook_or_value.distinct_set_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, Hook):
+            hook: Optional[HookLike[set[T]]] = None 
+        elif isinstance(observable_or_hook_or_value, ObservableSetLike):
+            initial_value: set[T] = observable_or_hook_or_value.set_value # type: ignore
+            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.set_value_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: set[T] = observable_or_hook_or_value.value
-            hook: Optional[Hook[set[T]]] = observable_or_hook_or_value
+            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value
         else:
-            initial_value: set[T] = observable_or_hook_or_value.copy()
-            hook: Optional[Hook[set[T]]] = None
+            initial_value: set[T] = observable_or_hook_or_value.copy() # type: ignore
+            hook: Optional[HookLike[set[T]]] = None
         
         super().__init__(
             {"value": initial_value},
@@ -103,10 +115,6 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
-    
-    @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
-        return set()
     
     @property
     def set_value(self) -> set[T]:
@@ -124,16 +132,9 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         Set the current value of the set.
         """
         self._set_component_values({"value": value}, notify_binding_system=True)
-    
+
     @property
-    def distinct_set_reference(self) -> set[T]:
-        """
-        Get the current value of the set.
-        """
-        return self._component_hooks["value"].value
-        
-    @property
-    def distinct_set_hook(self) -> HookLike[set[T]]:
+    def set_value_hook(self) -> HookLike[set[T]]:
         """
         Get the hook for the set.
         """
@@ -144,7 +145,7 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         """
         Add an element to the set.
         
-        This method adds an item to the set if it's not already present,
+        This method adds an item to the set if it's not a already present,
         using set_observed_values to ensure all changes go through the centralized protocol method.
         
         Args:

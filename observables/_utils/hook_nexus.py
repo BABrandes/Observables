@@ -65,7 +65,7 @@ class HookNexus(Generic[T]):
         def nexus_intersection(carries_collective_hooks: CarriesCollectiveHooks[Any]) -> set["HookNexus[Any]"]:
             intersection: set["HookNexus[Any]"] = set()
             for nexus in all_nexus_and_values:
-                for collective_hook in carries_collective_hooks.collective_hooks:
+                for collective_hook in carries_collective_hooks._collective_hooks: # type: ignore
                     if collective_hook.hook_nexus is nexus or collective_hook is nexus:
                         intersection.add(nexus)
             return intersection
@@ -102,7 +102,7 @@ class HookNexus(Generic[T]):
         # Step 6: If all values are valid, invalidate the hooks
         for owner in owners:
             if isinstance(owner, CarriesCollectiveHooks):
-                hooks_to_invalidate = owner.collective_hooks.intersection(nexus_and_values.keys())
+                hooks_to_invalidate = owner._collective_hooks.intersection(nexus_and_values.keys()) # type: ignore
                 owner._invalidate_hooks(hooks_to_invalidate) # type: ignore
                 
         return True, "Invalidation successful"

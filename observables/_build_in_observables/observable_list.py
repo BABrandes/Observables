@@ -1,14 +1,14 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal
 from typing import Optional, TypeVar, runtime_checkable, Protocol
-from .._utils.hook import Hook, HookLike
+from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_list_hook import CarriesDistinctListHook
+from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableListLike(CarriesDistinctListHook[T, Any], Protocol[T]):
+class ObservableListLike(CarriesHooks[Any], Protocol[T]):
     """
     Protocol for observable list objects.
     """
@@ -24,6 +24,13 @@ class ObservableListLike(CarriesDistinctListHook[T, Any], Protocol[T]):
     def list_value(self, value: list[T]) -> None:
         """
         Set the list value.
+        """
+        ...
+    
+    @property
+    def list_value_hook(self) -> HookLike[list[T]]:
+        """
+        Get the hook for the list.
         """
         ...
 
@@ -65,8 +72,13 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         ...
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctListHook[T, Any]|Hook[list[T]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[list[T]]) -> None:
         """Initialize with another observable list, establishing a bidirectional binding."""
+        ...
+
+    @overload
+    def __init__(self, observable: ObservableListLike[T]) -> None:
+        """Initialize from another ObservableListLike object."""
         ...
 
     @overload
@@ -74,7 +86,7 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: list[T] | CarriesDistinctListHook[T, Any] | Hook[list[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: list[T] | HookLike[list[T]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableList.
         
@@ -87,16 +99,16 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
 
         if observable_or_hook_or_value is None:
             initial_value: list[T] = []
-            hook: Optional[Hook[list[T]]] = None
-        elif isinstance(observable_or_hook_or_value, CarriesDistinctListHook):
-            initial_value: list[T] = observable_or_hook_or_value.distinct_list_reference
-            hook: Optional[Hook[list[T]]] = observable_or_hook_or_value.distinct_list_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, Hook):
+            hook: Optional[HookLike[list[T]]] = None
+        elif isinstance(observable_or_hook_or_value, ObservableListLike):
+            initial_value: list[T] = observable_or_hook_or_value.list_value # type: ignore
+            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.list_value_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: list[T] = observable_or_hook_or_value.value
-            hook: Optional[Hook[list[T]]] = observable_or_hook_or_value
+            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value
         else:
             initial_value: list[T] = observable_or_hook_or_value.copy()
-            hook: Optional[Hook[list[T]]] = None
+            hook: Optional[HookLike[list[T]]] = None
 
         super().__init__(
             {"value": initial_value},
@@ -106,10 +118,6 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
-    @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
-        return set()
-    
     @property
     def list_value(self) -> list[T]:
         """
@@ -129,18 +137,11 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
             self._set_component_values({"value": value}, notify_binding_system=True)
 
     @property
-    def distinct_list_reference(self) -> list[T]:
+    def list_value_hook(self) -> HookLike[list[T]]:
         """
         Get the current value of the list.
         """
         return self._component_hooks["value"].value
-    
-    @property
-    def distinct_list_hook(self) -> HookLike[list[T]]:
-        """
-        Get the hook for the list.
-        """
-        return self._component_hooks["value"]
     
     # Standard list methods
     def append(self, item: T) -> None:

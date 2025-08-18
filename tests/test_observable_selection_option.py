@@ -179,8 +179,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
+        self.assertTrue(target.selected_option_hook.is_attached_to(source.selected_option_hook))
+        self.assertTrue(source.selected_option_hook.is_attached_to(target.selected_option_hook))
     
     def test_initialization_with_carries_bindable_selection_option_performance(self):
         """Test performance of initialization with CarriesBindableSelectionOption"""
@@ -464,8 +464,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.distinct_single_value_hook.is_attached_to(source.distinct_single_value_hook))
-        self.assertTrue(source.distinct_single_value_hook.is_attached_to(target.distinct_single_value_hook))
+        self.assertTrue(target.selected_option_hook.is_attached_to(source.selected_option_hook))
+        self.assertTrue(source.selected_option_hook.is_attached_to(target.selected_option_hook))
     
     def test_selection_option_binding_none_observable(self):
         """Test that binding to None raises an error"""

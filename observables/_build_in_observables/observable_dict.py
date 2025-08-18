@@ -1,14 +1,14 @@
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Any, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_dict_hook import CarriesDistinctDictHook
 from .._utils.base_observable import BaseObservable
+from .._utils.carries_hooks import CarriesHooks
 
 K = TypeVar("K")
 V = TypeVar("V")
 
 @runtime_checkable
-class ObservableDictLike(CarriesDistinctDictHook[K, V, Any], Protocol[K, V]):
+class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
     """
     Protocol for observable dictionary objects.
     """
@@ -24,6 +24,13 @@ class ObservableDictLike(CarriesDistinctDictHook[K, V, Any], Protocol[K, V]):
     def dict_value(self, value: dict[K, V]) -> None:
         """
         Set the dictionary value.
+        """
+        ...
+
+    @property
+    def dict_value_hook(self) -> HookLike[dict[K, V]]:
+        """
+        Get the hook for the dictionary.
         """
         ...
 
@@ -60,7 +67,7 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
     """
 
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctDictHook[K, V, Any]|HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
+    def __init__(self, observable_or_hook: HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
@@ -68,13 +75,18 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
     def __init__(self, dict_value: dict[K, V]) -> None:
         """Initialize with another observable dictionary, establishing a bidirectional binding."""
         ...
+
+    @overload
+    def __init__(self, observable: ObservableDictLike[K, V]) -> None:
+        """Initialize from another ObservableDictLike object."""
+        ...
     
     @overload
     def __init__(self, dict_value: None) -> None:
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, observable_or_hook_or_value: dict[K, V] | CarriesDistinctDictHook[K, V] | HookLike[dict[K, V]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookLike[dict[K, V]] | None = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -88,9 +100,9 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         if observable_or_hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
             hook: Optional[HookLike[dict[K, V]]] = None
-        elif isinstance(observable_or_hook_or_value, CarriesDistinctDictHook):
-            initial_dict_value: dict[K, V] = observable_or_hook_or_value.distinct_dict_reference
-            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.distinct_dict_hook
+        elif isinstance(observable_or_hook_or_value, ObservableDictLike):
+            initial_dict_value: dict[K, V] = observable_or_hook_or_value.dict_value # type: ignore
+            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.dict_value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_dict_value: dict[K, V] = observable_or_hook_or_value.value
             hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value
@@ -107,18 +119,7 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
             self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
     @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
-        return set()
-
-    @property
-    def distinct_dict_reference(self) -> dict[K, V]:
-        """
-        Get the current value of the dictionary.
-        """
-        return self._component_hooks["value"].value
-
-    @property
-    def distinct_dict_hook(self) -> HookLike[dict[K, V]]:
+    def dict_value_hook(self) -> HookLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
@@ -140,17 +141,6 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         Set the current value of the dictionary.
         """
         self._set_component_values({"value": value}, notify_binding_system=True)
-    
-    def _get_dict_hook(self) -> HookLike[dict[K, V]]:
-        """
-        INTERNAL. Do not use this method directly.
-
-        Method to get hook for binding system.
-        
-        Returns:
-            The hook for the dictionary
-        """
-        return self._component_hooks["value"]
     
     def change_dict(self, new_dict: dict[K, V]) -> None:
         """
@@ -178,9 +168,9 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
             key: The key to set or update
             value: The value to associate with the key
         """
-        if key in self.distinct_dict_reference and self.distinct_dict_reference[key] == value:
+        if key in self.dict_value and self.dict_value[key] == value:
             return  # No change
-        new_dict = self.distinct_dict_reference.copy()
+        new_dict = self.dict_value.copy()
         new_dict[key] = value
         self._set_component_values({"value": new_dict}, notify_binding_system=True)
     

@@ -14,7 +14,7 @@ class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
     """ 
 
     @property
-    def collective_hooks(self) -> set["HookLike[Any]"]:
+    def _collective_hooks(self) -> set["HookLike[Any]"]:
         ...
 
     def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:

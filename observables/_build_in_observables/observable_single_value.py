@@ -1,13 +1,13 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
-from .._utils.hook import Hook, HookLike
+from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_distinct_single_value_hook import CarriesDistinctSingleValueHook
+from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T, Any], Protocol[T]):
+class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
     """
     Protocol for observable single value objects.
     """
@@ -25,6 +25,13 @@ class ObservableSingleValueLike(CarriesDistinctSingleValueHook[T, Any], Protocol
         Set the single value.
         """
         ...
+
+    @property
+    def single_value_hook(self) -> HookLike[T]:
+        """
+        Get the hook for the single value.
+        """
+        ... 
 
 class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleValueLike[T], Generic[T]):
     """
@@ -68,11 +75,11 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         ...
     
     @overload
-    def __init__(self, observable_or_hook: CarriesDistinctSingleValueHook[T, Any]|Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
+    def __init__(self, observable_or_hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | CarriesDistinctSingleValueHook[T, Any] | Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None: # type: ignore
         """
         Initialize the ObservableSingleValue.
         
@@ -84,15 +91,12 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
             ValueError: If the initial value fails validation
         """
 
-        if isinstance(observable_or_hook_or_value, CarriesDistinctSingleValueHook):
-            initial_value: T = observable_or_hook_or_value.distinct_single_value_reference # type: ignore
-            hook: Optional[Hook[T]] = observable_or_hook_or_value.distinct_single_value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, Hook):
+        if isinstance(observable_or_hook_or_value, HookLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[Hook[T]] = observable_or_hook_or_value
+            hook: Optional[HookLike[T]] = observable_or_hook_or_value
         else:
             initial_value: T = observable_or_hook_or_value
-            hook: Optional[Hook[T]] = None
+            hook: Optional[HookLike[T]] = None
 
         super().__init__(
             {"value": initial_value},
@@ -102,10 +106,6 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.SELF_IS_UPDATED)
 
-    @property
-    def collective_hooks(self) -> set[HookLike[Any]]:
-        return set()
-    
     @property
     def single_value(self) -> T:
         """
@@ -130,16 +130,9 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         self._set_component_values({"value": value}, notify_binding_system=True)
     
     @property
-    def distinct_single_value_reference(self) -> T:
+    def single_value_hook(self) -> HookLike[T]:
         """
         Get the current value of the single value.
-        """
-        return self._component_hooks["value"].value
-    
-    @property
-    def distinct_single_value_hook(self) -> HookLike[T]:
-        """
-        Get the hook for the single value.
         """
         return self._component_hooks["value"]
     

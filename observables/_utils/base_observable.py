@@ -208,7 +208,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
                 dict_of_values[self._get_key_for(nexus)] = value
             return self._verification_method(dict_of_values)
         
-    def _component_value(self, key: str) -> Any:
+    def _get_component_value(self, key: str) -> Any:
         """
         Get the value of a component hook.
         """

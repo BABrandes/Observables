@@ -73,8 +73,8 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
 
     def __init__(
             self,
-            initial_component_values: dict[str, Any],
-            verification_method: Optional[Callable[[dict[str, Any]], tuple[bool, str]]] = None):
+            initial_component_values: dict[HK, Any],
+            verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = None):
         """
         Initialize the BaseObservable.
 
@@ -85,15 +85,15 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
 
         super().__init__()
 
-        self._component_hooks: dict[str, HookLike[Any]] = {}
+        self._component_hooks: dict[HK, HookLike[Any]] = {}
         for key, value in initial_component_values.items():
             self._component_hooks[key] = Hook(self, value, lambda _, k=key: self._invalidate({k}))
 
-        self._verification_method: Optional[Callable[[dict[str, Any]], tuple[bool, str]]] = verification_method
+        self._verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = verification_method
         # Thread safety: Lock for protecting component values and hooks
         self._lock = threading.RLock()
 
-    def _invalidate(self, keys: set[str]) -> None:
+    def _invalidate(self, keys: set[HK]) -> None:
         """
         Invalidate the the values of the component hooks of the given keys.
 
@@ -106,17 +106,17 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             raise ValueError(f"Error in act_on_invalidation: {e}")
         self._notify_listeners()
 
-    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None:
+    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None: # type: ignore
         """
         Invalidate the hooks.
         """
-        keys: set[str] = set()
+        keys: set[HK] = set()
         for hook in hooks:
             key = self._get_key_for(hook)
             keys.add(key)
         self._invalidate(keys)
 
-    def _act_on_invalidation(self, keys: set[str]) -> None:
+    def _act_on_invalidation(self, keys: set[HK]) -> None:
         """
         Act on the invalidation of a component hook. This method is called when a hook is invalidated.
         This method should be overridden by the subclass to act on the invalidation of the component hooks.
@@ -126,7 +126,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
         """
         pass
 
-    def _set_component_values(self, dict_of_values: dict[str, Any], notify_binding_system: bool, notify_listeners: bool = True) -> None:
+    def _set_component_values(self, dict_of_values: dict[HK, Any], notify_binding_system: bool, notify_listeners: bool = True) -> None:
         """
         Set the values of the component values.
 
@@ -143,7 +143,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
                 error_msg = "No component hooks provided"
                 raise ValueError(error_msg)
             
-            future_component_values: dict[str, Any] = {key: hook.value for key, hook in self._component_hooks.items()}
+            future_component_values: dict[HK, Any] = {key: hook.value for key, hook in self._component_hooks.items()}
             
             for key, value in dict_of_values.items():
                 if key not in self._component_hooks:
@@ -172,7 +172,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             if notify_listeners:
                 self._notify_listeners()
 
-    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> str:
+    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK:
         """
         Get the key for a hook.
         """
@@ -196,19 +196,19 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
         else:
             return self._verification_method({self._get_key_for(hook): value})
         
-    def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+    def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]: # type: ignore
         """
         Check if the values are valid.
         """
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
         else:
-            dict_of_values: dict[str, Any] = self._component_values
+            dict_of_values: dict[HK, Any] = self._component_values
             for nexus, value in values.items():
                 dict_of_values[self._get_key_for(nexus)] = value
             return self._verification_method(dict_of_values)
         
-    def _get_component_value_reference(self, key: str) -> Any:
+    def _get_component_value_reference(self, key: HK) -> Any:
         """
         Internal method to get the value of a component hook as a reference.
 
@@ -224,7 +224,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             return self._component_hooks[key].value
 
     @property
-    def _component_values(self) -> dict[str, Any]:
+    def _component_values(self) -> dict[HK, Any]:
         """
         Get the values of all component hooks as a dictionary copy.
         """

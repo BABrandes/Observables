@@ -2,6 +2,7 @@ import threading
 from typing import Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
 from .initial_sync_mode import InitialSyncMode
 from .hook_nexus import HookNexus
+from .base_listening import BaseListeningLike, BaseListening
 
 if TYPE_CHECKING:
     from .carries_hooks import CarriesHooks
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 @runtime_checkable
-class HookLike(Protocol[T]):
+class HookLike(BaseListeningLike, Protocol[T]):
     """
     Protocol for hook objects.
     """
@@ -116,7 +117,7 @@ class HookLike(Protocol[T]):
         """
         ...
 
-class Hook(HookLike[T], Generic[T]):
+class Hook(HookLike[T], BaseListening, Generic[T]):
     """
     A simple hook that provides value access and basic capabilities.
     
@@ -240,6 +241,7 @@ class Hook(HookLike[T], Generic[T]):
         if self._invalidate_callback is None:
             raise ValueError("Invalidate callback is None")
         self._invalidate_callback(self)
+        self._notify_listeners()
 
     def is_valid_value(self, value: T) -> tuple[bool, str]:
         """

@@ -37,7 +37,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Verify the hook is created correctly
         self.assertEqual(hook.value, "initial_value")
         self.assertEqual(hook.owner, mock_owner)
-        self.assertTrue(hook.can_receive)
+        self.assertTrue(hook.can_be_invalidated)
         self.assertIsNotNone(hook.hook_nexus)
 
     def test_hook_creation_without_invalidate_callback(self):
@@ -55,7 +55,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Verify the hook is created correctly
         self.assertEqual(hook.value, "initial_value")
         self.assertEqual(hook.owner, mock_owner)
-        self.assertFalse(hook.can_receive)
+        self.assertFalse(hook.can_be_invalidated)
         self.assertIsNotNone(hook.hook_nexus)
 
     def test_hook_value_property(self):
@@ -159,8 +159,8 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test can_receive property
-        self.assertTrue(hook_with_callback.can_receive)
-        self.assertFalse(hook_without_callback.can_receive)
+        self.assertTrue(hook_with_callback.can_be_invalidated)
+        self.assertFalse(hook_without_callback.can_be_invalidated)
 
     def test_hook_in_submission_property(self):
         """Test the in_submission property of hooks."""
@@ -388,8 +388,8 @@ class TestHookCapabilities(unittest.TestCase):
             invalidate_callback=invalidate_callback
         )
         
-        # Test invalidation
-        hook.invalidate()
+        # Test invalidation by calling callback directly (as HookNexus would do)
+        hook.invalidation_callback(hook)
         self.assertEqual(received_values, ["invalidated"])
 
     def test_hook_invalidate_without_callback(self):
@@ -404,9 +404,9 @@ class TestHookCapabilities(unittest.TestCase):
             invalidate_callback=None
         )
         
-        # Test invalidation should fail
+        # Test invalidate callback access should fail
         with self.assertRaises(ValueError) as cm:
-            hook.invalidate()
+            _ = hook.invalidation_callback
         
         self.assertIn("Invalidate callback is None", str(cm.exception))
 
@@ -519,7 +519,7 @@ class TestHookCapabilities(unittest.TestCase):
         def property_reader():
             for _ in range(200):
                 try:
-                    _ = hook.can_receive
+                    _ = hook.can_be_invalidated
                     _ = hook.owner
                     _ = hook.hook_nexus
                     _ = hook.lock
@@ -736,7 +736,7 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(200):
                 try:
                     _ = hook.in_submission
-                    _ = hook.can_receive
+                    _ = hook.can_be_invalidated
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -833,7 +833,7 @@ class TestHookCapabilities(unittest.TestCase):
                     elif i % 5 == 1:
                         hook.in_submission = (i % 2 == 0)
                     elif i % 5 == 2:
-                        _ = hook.can_receive
+                        _ = hook.can_be_invalidated
                     elif i % 5 == 3:
                         _ = hook.hook_nexus
                         _ = len(hook.hook_nexus.hooks)
@@ -887,8 +887,8 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(100):
                 try:
                     with hook.lock:
-                        _ = hook.can_receive
-                        _ = hook.can_receive
+                        _ = hook.can_be_invalidated
+                        _ = hook.can_be_invalidated
                 except Exception:
                     pass
         
@@ -938,7 +938,7 @@ class TestHookCapabilities(unittest.TestCase):
                 try:
                     # Rapidly check state
                     _ = hook.in_submission
-                    _ = hook.can_receive
+                    _ = hook.can_be_invalidated
                     time.sleep(0.0005)
                 except Exception:
                     pass
@@ -975,7 +975,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test that invalidate callback raises the expected error
         with self.assertRaises(RuntimeError) as cm:
-            hook.invalidate()
+            hook.invalidation_callback(hook)
         self.assertEqual(str(cm.exception), "Invalidate callback failed")
 
     def test_hook_with_different_types(self):
@@ -1098,12 +1098,12 @@ class TestHookCapabilities(unittest.TestCase):
         # Test initial state
         self.assertEqual(side_effects, [])
         
-        # Call invalidate callback
-        hook.invalidate()
+        # Call invalidate callback directly
+        hook.invalidation_callback(hook)
         self.assertEqual(side_effects, ["invalidate_called"])
         
         # Call invalidate callback again
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(side_effects, ["invalidate_called", "invalidate_called"])
 
     def test_hook_with_callable_objects(self):
@@ -1130,10 +1130,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that it works
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(callable_obj.call_count, 1)
         
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(callable_obj.call_count, 2)
 
     def test_hook_with_lambda_callbacks(self):
@@ -1156,10 +1156,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that lambda callback works
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(call_count, 1)
         
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(call_count, 2)
 
     def test_hook_with_method_objects(self):
@@ -1187,10 +1187,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that bound method works
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(method_obj.call_count, 1)
         
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(method_obj.call_count, 2)
 
     def test_hook_with_class_methods(self):
@@ -1219,10 +1219,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that class method works
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(TestClass.class_call_count, 1)
         
-        hook.invalidate()
+        hook.invalidation_callback(hook)
         self.assertEqual(TestClass.class_call_count, 2)
         
         # Test with static method
@@ -1232,7 +1232,7 @@ class TestHookCapabilities(unittest.TestCase):
             invalidate_callback=TestClass.static_invalidate
         )
         
-        static_hook.invalidate()
+        static_hook.invalidation_callback(static_hook)
         self.assertEqual(TestClass.static_call_count, 1)
 
     def test_hook_with_decorated_functions(self):
@@ -1259,7 +1259,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that decorated function works
-        hook.invalidate()  # Should not raise error
+        hook.invalidation_callback(hook)  # Should not raise error
 
     def test_hook_with_closure_functions(self):
         """Test hooks with closure functions."""
@@ -1285,7 +1285,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that closure function works
-        hook.invalidate()  # Should not raise error
+        hook.invalidation_callback(hook)  # Should not raise error
 
     def test_hook_with_exception_handling_callbacks(self):
         """Test hooks with callbacks that handle exceptions."""
@@ -1310,7 +1310,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that safe callback works
-        hook.invalidate()  # Should not raise error
+        hook.invalidation_callback(hook)  # Should not raise error
 
 
 if __name__ == '__main__':

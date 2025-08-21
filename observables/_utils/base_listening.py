@@ -195,9 +195,15 @@ class BaseListening(BaseListeningLike):
             ...             self._value = new_value
             ...             self._notify_listeners()  # Notify all listeners
         """
-        # Notify regular listeners
-        for callback in self._listeners:
-            callback()
+        # Create a copy of listeners to avoid modification during iteration
+        listeners_copy = list(self._listeners)
+        for callback in listeners_copy:
+            try:
+                callback()
+            except Exception as e:
+                # Log error but continue with other listeners
+                print(f"Error in listener callback: {e}")
+                continue
     
     def is_listening_to(self, callback: Callable[[], None]) -> bool:
         """

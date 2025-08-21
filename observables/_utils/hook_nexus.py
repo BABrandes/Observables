@@ -113,6 +113,8 @@ class HookNexus(Generic[T]):
             if isinstance(owner, CarriesCollectiveHooks):
                 hooks_to_invalidate = owner._collective_hooks.intersection(nexus_and_values.keys()) # type: ignore
                 owner._invalidate_hooks(hooks_to_invalidate) # type: ignore
+                for hook in hooks_to_invalidate:
+                    hook._notify_listeners() # type: ignore
                 
         return True, "Invalidation successful"
     
@@ -149,7 +151,9 @@ class HookNexus(Generic[T]):
 
         # Step 3: Invalidate the hooks
         for hook in hooks_to_invalidate:
-            hook.invalidate()
+            if hook.can_be_invalidated:
+                hook.invalidation_callback(hook) # type: ignore
+                hook._notify_listeners() # type: ignore
         
         return True, "Submission successful"
 

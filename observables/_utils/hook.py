@@ -51,6 +51,13 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
+    @property
+    def invalidation_callback(self) -> Callable[["HookLike[T]"], None]:
+        """
+        The callback to be called when the value is invalidated.
+        """
+        ...
+
 
     @property
     def lock(self) -> threading.RLock:
@@ -61,9 +68,9 @@ class HookLike(BaseListeningLike, Protocol[T]):
     
     # State flags
     @property
-    def can_receive(self) -> bool:
+    def can_be_invalidated(self) -> bool:
         """
-        Check if this hook can receive values.
+        Check if this hook can be invalidated.
         """
         ...
 
@@ -105,12 +112,6 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def invalidate(self) -> None:
-        """
-        Invalidates the value.
-        """
-        ...
-
     def _replace_hook_group(self, hook_group: "HookNexus[T]") -> None:
         """
         Replace the hook group that this hook belongs to.
@@ -136,6 +137,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = None,
             ) -> None:
 
+        super().__init__()  # Initialize BaseListening
         self._owner: "CarriesHooks[Any]" = owner
         self._hook_group: "HookNexus[T]" = HookNexus(value, self)
         self._invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = invalidate_callback
@@ -150,7 +152,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     @value.setter
     def value(self, value: T) -> None:
         """Set the value behind this hook."""
-        self._hook_group.submit_single_value(value, {self})
+        self._hook_group.submit_single_value(value, {self})  # Ignore self to prevent double notifications
 
     @property
     def previous_value(self) -> T:
@@ -168,13 +170,23 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         return self._hook_group
     
     @property
+    def invalidation_callback(self) -> Callable[["HookLike[T]"], None]:
+        """
+        The callback to be called when the value is invalidated.
+        """
+
+        if self._invalidate_callback is None:
+            raise ValueError("Invalidate callback is None")
+        return self._invalidate_callback
+    
+    @property
     def lock(self) -> threading.RLock:
         """Get the lock for thread safety."""
         return self._lock
     
     @property
-    def can_receive(self) -> bool:
-        """Check if this hook can receive values."""
+    def can_be_invalidated(self) -> bool:
+        """Check if this hook can be invalidated."""
         return True if self._invalidate_callback is not None else False
 
     @property
@@ -234,15 +246,6 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """
         return hook in self._hook_group._hooks # type: ignore
     
-    def invalidate(self) -> None:
-        """
-        Invalidates the value.
-        """
-        if self._invalidate_callback is None:
-            raise ValueError("Invalidate callback is None")
-        self._invalidate_callback(self)
-        self._notify_listeners()
-
     def is_valid_value(self, value: T) -> tuple[bool, str]:
         """
         Check if the value is valid.

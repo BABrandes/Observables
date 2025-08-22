@@ -19,6 +19,45 @@ A revolutionary Python library for creating observable objects with **centralize
 
 ## 🌟 **Key Revolutionary Features**
 
+### **🔄 True Bidirectional Binding**
+Unlike traditional reactive libraries with one-way data flow, Observables provides **guaranteed bidirectional binding** through shared storage:
+
+```python
+# Create two observables
+temp_celsius = ObservableSingleValue(25.0)
+temp_fahrenheit = ObservableSingleValue(77.0)
+
+# Bind them bidirectionally
+temp_celsius.attach(temp_fahrenheit.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+
+# 🔄 Changes propagate in BOTH directions
+temp_celsius.single_value = 30.0
+print(temp_fahrenheit.single_value)  # 30.0 (celsius → fahrenheit)
+
+temp_fahrenheit.single_value = 100.0
+print(temp_celsius.single_value)     # 100.0 (fahrenheit → celsius)
+```
+
+### **🛡️ Rigorous State Validation**
+Invalid states are **never allowed**, even temporarily:
+
+```python
+# Selection options with validation
+color_selector = ObservableSelectionOption("red", {"red", "green", "blue"})
+
+# ✅ Valid selection
+color_selector.selected_option = "green"  # Works
+
+# ❌ Invalid selection - automatically rejected
+try:
+    color_selector.selected_option = "purple"  # Not in available options
+except ValueError as e:
+    print(f"Validation enforced: {e}")
+
+# State remains valid after rejection
+print(color_selector.selected_option)  # Still "green"
+```
+
 ### **🔄 Automatic Transitive Binding**
 Create complex networks automatically - no manual management required!
 
@@ -29,8 +68,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
 
 # 🎉 obs1 is automatically connected to obs3!
 # This happens through HookNexus merging, not manual configuration
@@ -337,6 +376,18 @@ name_display.bind_to(name, InitialSyncMode.SELF_IS_UPDATED)
 name.single_value = "Jane"  # Updates both name and name_display
 scores.append(95)           # Triggers listener notification
 ```
+
+## 📖 **Documentation**
+
+### **Getting Started**
+- **[Quick Start Guide](docs/quickstart.md)** - Get up and running in 5 minutes
+- **[Tutorial](docs/tutorial.md)** - Step-by-step guide to mastering bidirectional binding and state validation
+- **[API Reference](docs/api_reference.md)** - Complete API documentation with examples
+
+### **Core Concepts**
+- **[Bidirectional Binding and State Validation](docs/bidirectional_binding_and_validation.md)** - Deep dive into true bidirectional binding and rigorous state validation
+- **[Hook System Technical Documentation](docs/hook_system.md)** - Technical details about the hook architecture and binding mechanics
+- **[Examples and Use Cases](docs/examples_and_use_cases.md)** - Comprehensive examples and real-world scenarios
 
 ## 🔗 **Learn More**
 

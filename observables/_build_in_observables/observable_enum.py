@@ -286,31 +286,31 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
     """
 
     @overload
-    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct enum value."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: Optional[set[E]] = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, enum_value: Optional[E], enum_options: HookLike[set[E]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: Optional[E], enum_options: HookLike[set[E]], *, logger: Optional[Logger] = None) -> None:
         """Initialize with a set of enum options."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: HookLike[set[E]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: HookLike[Optional[E]], enum_options: HookLike[set[E]], *, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableOptionalEnumLike[E], enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableOptionalEnumLike[E], enum_options: None = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableEnumLike object."""
         ...
 
-    def __init__(self, enum_value: Optional[E] | HookLike[Optional[E]] | ObservableOptionalEnumLike[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, enum_value: Optional[E] | HookLike[Optional[E]] | ObservableOptionalEnumLike[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableEnum.
         
@@ -568,31 +568,31 @@ class ObservableEnum(ObservableEnumBase[E], ObservableEnumLike[E], Generic[E]):
     """
 
     @overload
-    def __init__(self, enum_value: E, enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: E, enum_options: Optional[set[E]] = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct enum value."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[E], enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: HookLike[E], enum_options: Optional[set[E]] = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, enum_value: E, enum_options: HookLike[set[E]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: E, enum_options: HookLike[set[E]], *, logger: Optional[Logger] = None) -> None:
         """Initialize with a set of enum options."""
         ...
 
     @overload
-    def __init__(self, enum_value: HookLike[E], enum_options: HookLike[set[E]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: HookLike[E], enum_options: HookLike[set[E]], *, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable enum, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableEnumLike[E], enum_options: Optional[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableEnumLike[E], enum_options: None = None, *, logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableEnumLike object."""
         ...
 
-    def __init__(self, enum_value: E | HookLike[E] | ObservableEnumLike[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, enum_value: E | HookLike[E] | ObservableEnumLike[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableEnum.
         

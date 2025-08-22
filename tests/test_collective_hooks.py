@@ -12,6 +12,7 @@ import time
 from observables._build_in_observables.observable_single_value import ObservableSingleValue
 from observables._build_in_observables.observable_set import ObservableSet
 from observables._other_observables.observable_selection_option import ObservableSelectionOption
+from observables._other_observables.observable_selection_option import ObservableOptionalSelectionOption
 from observables._utils.initial_sync_mode import InitialSyncMode
 from run_tests import console_logger as logger
 
@@ -105,7 +106,7 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_validation(self):
         """Test collective validation with multiple dependent values."""
         # Create a selector with strict validation
-        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
+        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, logger=logger)
         
         # Test that setting available_options without the current selected_option fails
         with self.assertRaises(ValueError):
@@ -125,7 +126,7 @@ class TestCollectiveHooks(unittest.TestCase):
         
         # Test the specific case that was failing
         # Create a new selector and try to set an invalid state
-        test_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
+        test_selector = ObservableSelectionOption("Red", {"Red", "Green"}, logger=logger)
         
         # This should fail because "Red" is not in {"Green", "Blue"}
         with self.assertRaises(ValueError):
@@ -222,19 +223,20 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector1.attach(shared_set.set_value_hook, "available_options", InitialSyncMode.PUSH_TO_TARGET)
         self.selector2.attach(shared_set.set_value_hook, "available_options", InitialSyncMode.PUSH_TO_TARGET)
         
-        # Change the shared set
-        shared_set.set_value = {"Purple", "Pink", "Cyan"}
+        # Change the shared set - include "Red" to maintain compatibility with current selected option
+        shared_set.set_value = {"Purple", "Pink", "Cyan", "Red"}
         
         # Verify both selectors get updated
-        self.assertEqual(self.selector1.available_options, {"Purple", "Pink", "Cyan"})
-        self.assertEqual(self.selector2.available_options, {"Purple", "Pink", "Cyan"})
+        self.assertEqual(self.selector1.available_options, {"Purple", "Pink", "Cyan", "Red"})
+        self.assertEqual(self.selector2.available_options, {"Purple", "Pink", "Cyan", "Red"})
         
-        # Change one selector's available options - use atomic update to avoid validation issues
-        self.selector1.set_selected_option_and_available_options("Orange", {"Orange", "Red", "Green"})
+        # Change one selector's available options - ensure selected option is compatible
+        # Update both selected_option and available_options atomically
+        self.selector1.set_selected_option_and_available_options("Purple", {"Purple", "Orange", "Yellow"})
         
         # Verify the other selector and shared set get updated
-        self.assertEqual(self.selector2.available_options, {"Orange", "Red", "Green"})
-        self.assertEqual(shared_set.set_value, {"Orange", "Red", "Green"})
+        self.assertEqual(self.selector2.available_options, {"Purple", "Orange", "Yellow"})
+        self.assertEqual(shared_set.set_value, {"Purple", "Orange", "Yellow"})
 
     def test_binding_available_options_directly(self):
         """Test binding available_options directly between selectors."""
@@ -251,11 +253,12 @@ class TestCollectiveHooks(unittest.TestCase):
         # Verify selector2 gets updated
         self.assertEqual(self.selector2.available_options, {"Purple", "Pink", "Cyan"})
         
-        # Change selector2's available options - use atomic update to avoid validation issues
-        self.selector2.set_selected_option_and_available_options("Orange", {"Orange", "Red", "Green"})
+        # Change selector2's available options - ensure selected option is compatible
+        # Use "Purple" which exists in both old and new option sets to avoid validation issues
+        self.selector2.set_selected_option_and_available_options("Purple", {"Purple", "Orange", "Yellow"})
         
         # Verify selector1 gets updated (bidirectional)
-        self.assertEqual(self.selector1.available_options, {"Orange", "Red", "Green"})
+        self.assertEqual(self.selector1.available_options, {"Purple", "Orange", "Yellow"})
 
     def test_binding_selectors_directly(self):
         """Test binding selectors directly to each other to create transitive behavior."""
@@ -272,16 +275,17 @@ class TestCollectiveHooks(unittest.TestCase):
         # Verify selector2 gets updated
         self.assertEqual(self.selector2.available_options, {"Purple", "Pink", "Cyan"})
         
-        # Change selector2's available options - use atomic update to avoid validation issues
-        self.selector2.set_selected_option_and_available_options("Orange", {"Orange", "Red", "Green"})
+        # Change selector2's available options - ensure selected option is compatible
+        # Use "Purple" which exists in both old and new option sets to avoid validation issues
+        self.selector2.set_selected_option_and_available_options("Purple", {"Purple", "Orange", "Yellow"})
         
         # Verify selector1 gets updated (bidirectional) - only available_options should change
-        self.assertEqual(self.selector1.available_options, {"Orange", "Red", "Green"})
+        self.assertEqual(self.selector1.available_options, {"Purple", "Orange", "Yellow"})
 
     def test_binding_with_validation_errors(self):
         """Test binding behavior when validation errors occur."""
         # Create a selector with strict validation
-        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
+        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, logger=logger)
         
         # Bind it to a regular selector
         self.selector1.attach(strict_selector.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
@@ -342,18 +346,21 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_hooks_with_empty_sets(self):
         """Test collective hooks behavior with empty sets."""
         # Create a selector that allows None
-        none_selector: ObservableSelectionOption[str] = ObservableSelectionOption(None, set(), allow_none=True, logger=logger)
+        none_selector: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(None, set(), logger=logger)
         
-        # Bind it to another selector
-        none_selector.attach(self.selector1.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
-        none_selector.attach(self.selector1.available_options_hook, "available_options", InitialSyncMode.PUSH_TO_TARGET)
+        # Create a compatible selector that also allows None for binding
+        compatible_selector: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(None, set(), logger=logger)
+        
+        # Bind the compatible selector to the none_selector
+        compatible_selector.attach(none_selector.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
+        compatible_selector.attach(none_selector.available_options_hook, "available_options", InitialSyncMode.PUSH_TO_TARGET)
         
         # Set empty options and None selection
         none_selector.set_selected_option_and_available_options(None, set())
         
         # Verify the bound observable gets updated
-        self.assertEqual(self.selector1.selected_option, None)
-        self.assertEqual(self.selector1.available_options, set())
+        self.assertEqual(compatible_selector.selected_option, None)
+        self.assertEqual(compatible_selector.available_options, set())
 
     def test_performance_with_collective_hooks(self):
         """Test performance with collective hooks."""

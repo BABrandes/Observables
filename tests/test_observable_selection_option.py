@@ -1,5 +1,5 @@
 import unittest
-from observables import ObservableSelectionOption, InitialSyncMode
+from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, InitialSyncMode
 
 class TestObservableSelectionOption(unittest.TestCase):
     """Test cases for ObservableSelectionOption"""
@@ -158,8 +158,8 @@ class TestObservableSelectionOption(unittest.TestCase):
     def test_initialization_with_carries_bindable_selection_option_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableSelectionOption"""
         # Test with None value in source
-        source_none = ObservableSelectionOption(None, {"Red", "Green"})
-        target_none = ObservableSelectionOption(source_none)
+        source_none: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(None, {"Red", "Green"})
+        target_none: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(source_none)
         self.assertIsNone(target_none.selected_option)
         self.assertEqual(target_none.available_options, {"Red", "Green"})
         
@@ -396,7 +396,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.assertEqual(obs.available_options, {"Red", "Green"})
         
         # Test with None value
-        obs_none = ObservableSelectionOption(None, {"Red", "Green"})
+        obs_none = ObservableOptionalSelectionOption(None, {"Red", "Green"})
         self.assertIsNone(obs_none.selected_option)
         self.assertEqual(obs_none.available_options, {"Red", "Green"})
     

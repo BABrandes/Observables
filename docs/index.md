@@ -375,12 +375,38 @@ name.single_value = "Jane"  # Updates both name and name_display
 scores.append(95)           # Triggers listener notification
 ```
 
+## 📖 **Documentation**
+
+### **Getting Started**
+- **[Quick Start Guide](quickstart.md)** - Get up and running in 5 minutes
+- **[Tutorial](tutorial.md)** - Step-by-step guide to mastering bidirectional binding and state validation
+- **[API Reference](api_reference.md)** - Complete API documentation with examples
+
+### **Core Concepts**
+- **[Bidirectional Binding and State Validation](bidirectional_binding_and_validation.md)** - Deep dive into true bidirectional binding and rigorous state validation
+- **[Hook System Technical Documentation](hook_system.md)** - Technical details about the hook architecture and binding mechanics
+- **[Examples and Use Cases](examples_and_use_cases.md)** - Comprehensive examples and real-world scenarios
+
 ## 🔗 **Learn More**
 
 - **Demo Script**: Run `python observables/examples/demo.py` to see the system in action
 - **Test Suite**: Explore `tests/` to understand the system's capabilities
 - **Source Code**: Dive into the implementation in `observables/`
 
+## 🌟 **What Sets Us Apart**
+
+### **Guaranteed Bidirectional Binding**
+Unlike other reactive libraries that implement one-way data flow, Observables provides **true bidirectional binding**. When observables are connected, they share the same underlying storage (HookNexus), ensuring changes propagate in **both directions automatically**.
+
+### **Rigorous State Validation**
+The system **never allows invalid states**, even temporarily. All changes are validated atomically, and invalid operations are rejected with clear error messages. This prevents data corruption and ensures system integrity.
+
+### **Automatic Network Formation**
+When you bind A→B and B→C, A automatically connects to C through **transitive binding**. The system handles complex relationship networks automatically without manual management.
+
+### **Zero Data Duplication**
+Values are stored exactly once in central HookNexus instances. Multiple observables reference the same data, eliminating synchronization issues and reducing memory usage.
+
 ---
 
-**Welcome to the future of reactive programming - where values are stored once, synchronized perfectly, and networks form automatically! 🚀**
+**Welcome to the future of reactive programming - where values are stored once, synchronized perfectly, networks form automatically, and valid states are rigorously enforced! 🚀**

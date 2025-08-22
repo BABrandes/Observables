@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -116,31 +117,31 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
     """
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]], available_options: HookLike[set[T]]) -> None:
+    def __init__(self, selected_options: HookLike[set[T]], available_options: HookLike[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: HookLike[set[T]]|HookLike[set[T]]) -> None:
+    def __init__(self, selected_options: set[T], available_options: HookLike[set[T]]|HookLike[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]], available_options: set[T]) -> None:
+    def __init__(self, selected_options: HookLike[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and observable selected options."""
         ...
     
     @overload
-    def __init__(self, selected_options: set[T], available_options: set[T]) -> None:
+    def __init__(self, selected_options: set[T], available_options: set[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, observable: "ObservableMultiSelectionOptionLike[T]") -> None:
+    def __init__(self, observable: "ObservableMultiSelectionOptionLike[T]", logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableMultiSelectionOptionLike object."""
         ...
 
-    def __init__(self, selected_options: set[T] | HookLike[set[T]]|"ObservableMultiSelectionOptionLike[T, Any]", available_options: set[T] | HookLike[set[T]] | None = None) -> None: # type: ignore
+    def __init__(self, selected_options: set[T] | HookLike[set[T]]|"ObservableMultiSelectionOptionLike[T, Any]", available_options: set[T] | HookLike[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableMultiSelectionOption.
         
@@ -184,7 +185,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             invalid_options = initial_selected_options - initial_available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {initial_available_options}")
         
-        def is_valid_value(dict_of_values: dict[str, Any]) -> tuple[bool, str]:
+        def is_valid_value(dict_of_values: dict[Literal["selected_options", "available_options"], set[T]]) -> tuple[bool, str]:
             
             if "selected_options" in dict_of_values:
                 selected_options: set[T] = dict_of_values["selected_options"] # type: ignore
@@ -203,7 +204,8 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
 
         super().__init__(
             {"selected_options": initial_selected_options, "available_options": initial_available_options},
-            verification_method=is_valid_value
+            verification_method=is_valid_value,
+            logger=logger
         )
 
         # Establish bindings if hooks were provided

@@ -13,6 +13,7 @@ from observables._build_in_observables.observable_single_value import Observable
 from observables._build_in_observables.observable_set import ObservableSet
 from observables._other_observables.observable_selection_option import ObservableSelectionOption
 from observables._utils.initial_sync_mode import InitialSyncMode
+from run_tests import console_logger as logger
 
 
 class TestCollectiveHooks(unittest.TestCase):
@@ -21,16 +22,16 @@ class TestCollectiveHooks(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         # Create ObservableSelectionOption instances with compatible initial states
-        self.selector1: ObservableSelectionOption[str] = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
-        self.selector2: ObservableSelectionOption[str] = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
+        self.selector1: ObservableSelectionOption[str] = ObservableSelectionOption("Red", {"Red", "Green", "Blue"}, logger=logger)
+        self.selector2: ObservableSelectionOption[str] = ObservableSelectionOption("Red", {"Red", "Green", "Blue"}, logger=logger)
         
         # Create ObservableSingleValue instances with colors (compatible types)
-        self.value1: ObservableSingleValue[str] = ObservableSingleValue("Red")
-        self.value2: ObservableSingleValue[str] = ObservableSingleValue("Red")
+        self.value1: ObservableSingleValue[str] = ObservableSingleValue("Red", logger=logger)
+        self.value2: ObservableSingleValue[str] = ObservableSingleValue("Red", logger=logger)
         
         # Create ObservableSet instances with color sets (compatible types)
-        self.set1: ObservableSet[str] = ObservableSet({"Red", "Green", "Blue"})
-        self.set2: ObservableSet[str] = ObservableSet({"Red", "Green", "Blue"})
+        self.set1: ObservableSet[str] = ObservableSet({"Red", "Green", "Blue"}, logger=logger)
+        self.set2: ObservableSet[str] = ObservableSet({"Red", "Green", "Blue"}, logger=logger)
 
     def test_collective_hooks_property(self):
         """Test that collective_hooks property returns the correct hooks."""
@@ -104,7 +105,7 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_validation(self):
         """Test collective validation with multiple dependent values."""
         # Create a selector with strict validation
-        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False)
+        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
         
         # Test that setting available_options without the current selected_option fails
         with self.assertRaises(ValueError):
@@ -124,7 +125,7 @@ class TestCollectiveHooks(unittest.TestCase):
         
         # Test the specific case that was failing
         # Create a new selector and try to set an invalid state
-        test_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False)
+        test_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
         
         # This should fail because "Red" is not in {"Green", "Blue"}
         with self.assertRaises(ValueError):
@@ -211,7 +212,7 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_set_to_both_selectors(self):
         """Test binding a set to both selectors to enable transmission of changes."""
         # Create a shared set that both selectors will bind to
-        shared_set = ObservableSet({"Red", "Green", "Blue"})
+        shared_set = ObservableSet({"Red", "Green", "Blue"}, logger=logger)
         
         # Ensure both selectors have compatible initial states using atomic updates
         self.selector1.set_selected_option_and_available_options("Red", {"Red", "Green", "Blue", "Yellow"})
@@ -280,7 +281,7 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_with_validation_errors(self):
         """Test binding behavior when validation errors occur."""
         # Create a selector with strict validation
-        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False)
+        strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, allow_none=False, logger=logger)
         
         # Bind it to a regular selector
         self.selector1.attach(strict_selector.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
@@ -341,7 +342,7 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_hooks_with_empty_sets(self):
         """Test collective hooks behavior with empty sets."""
         # Create a selector that allows None
-        none_selector: ObservableSelectionOption[str] = ObservableSelectionOption(None, set(), allow_none=True)
+        none_selector: ObservableSelectionOption[str] = ObservableSelectionOption(None, set(), allow_none=True, logger=logger)
         
         # Bind it to another selector
         none_selector.attach(self.selector1.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
@@ -359,7 +360,7 @@ class TestCollectiveHooks(unittest.TestCase):
         # Create multiple observables with compatible types
         observables: list[ObservableSelectionOption[str]] = []
         for i in range(10):
-            selector = ObservableSelectionOption("Common", {f"Color{i}", f"Option{i}", "Common"})
+            selector = ObservableSelectionOption("Common", {f"Color{i}", f"Option{i}", "Common"}, logger=logger)
             observables.append(selector)
         
         # Bind them in a complex network
@@ -381,9 +382,9 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_hooks_edge_cases(self):
         """Test edge cases with collective hooks."""
         # Test with circular references (should not cause infinite loops)
-        selector_a = ObservableSelectionOption("A", {"A", "B", "C"})
-        selector_b = ObservableSelectionOption("B", {"B", "C", "A"})
-        selector_c = ObservableSelectionOption("C", {"C", "A"})
+        selector_a = ObservableSelectionOption("A", {"A", "B", "C"}, logger=logger)
+        selector_b = ObservableSelectionOption("B", {"B", "C", "A"}, logger=logger)
+        selector_c = ObservableSelectionOption("C", {"C", "A"}, logger=logger)
         
         # Create a triangle binding - but avoid circular binding by using different sync modes
         selector_a.attach(selector_b.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
@@ -401,10 +402,10 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_with_different_sync_modes(self):
         """Test binding with different sync modes in collective scenarios."""
         # Create observables
-        selector_a = ObservableSelectionOption("A", {"A", "B", "C"})
-        selector_b = ObservableSelectionOption("B", {"B", "C", "A"})
-        value_a = ObservableSingleValue("ValueA")
-        value_b = ObservableSingleValue("ValueB")
+        selector_a = ObservableSelectionOption("A", {"A", "B", "C"}, logger=logger)
+        selector_b = ObservableSelectionOption("B", {"B", "C", "A"}, logger=logger)
+        value_a = ObservableSingleValue("ValueA", logger=logger)
+        value_b = ObservableSingleValue("ValueB", logger=logger)
         
         # Bind with different sync modes
         selector_a.attach(selector_b.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
@@ -420,9 +421,9 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_collective_hooks_cleanup(self):
         """Test that collective hooks are properly cleaned up."""
         # Create observables and bind them
-        selector: ObservableSelectionOption[str] = ObservableSelectionOption("Test", {"Test", "Other"})
-        value: ObservableSingleValue[str] = ObservableSingleValue("Test")
-        options: ObservableSet[str] = ObservableSet({"Test", "Other"})
+        selector: ObservableSelectionOption[str] = ObservableSelectionOption("Test", {"Test", "Other"}, logger=logger)
+        value: ObservableSingleValue[str] = ObservableSingleValue("Test", logger=logger)
+        options: ObservableSet[str] = ObservableSet({"Test", "Other"}, logger=logger)
         
         # Bind them together
         selector.attach(value.single_value_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET) # type: ignore

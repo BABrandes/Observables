@@ -1,6 +1,8 @@
+import logging
 from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any
 
 from .initial_sync_mode import InitialSyncMode
+from .general import log
 
 if TYPE_CHECKING:
     from .hook import HookLike
@@ -15,17 +17,24 @@ class HookNexus(Generic[T]):
     It is used to manage a group of hooks that are connected to each other.
     """
 
-    def __init__(self, value: T, *hooks: "HookLike[T]"):
+    def __init__(self, value: T, *hooks: "HookLike[T]", logger: Optional[logging.Logger] = None):
         self._hooks: set["HookLike[T]"] = set(hooks)
         self._value: T = value
         self._previous_value: T = value
+        self._logger: Optional[logging.Logger] = logger
 
-    def add_hook(self, hook: "HookLike[T]"):
+        log(self, "HookNexus.__init__", self._logger, True, "Successfully initialized hook nexus")
+
+    def add_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
         self._hooks.add(hook)
+        log(self, "add_hook", self._logger, True, "Successfully added hook")
+        return True, "Successfully added hook"
 
-    def remove_hook(self, hook: "HookLike[T]"):
+    def remove_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
         self._hooks.remove(hook)
-
+        log(self, "remove_hook", self._logger, True, "Successfully removed hook")
+        return True, "Successfully removed hook"
+    
     @property
     def hooks(self) -> tuple["HookLike[T]", ...]:
         return tuple(self._hooks)
@@ -143,6 +152,7 @@ class HookNexus(Generic[T]):
             if success:
                 hooks_to_invalidate.add(hook)
             else:
+                log(self, "submit_single_value", self._logger, False, msg)
                 return False, msg
         
         # Step 2: Update the HookNexus value after successful invalidation
@@ -155,6 +165,7 @@ class HookNexus(Generic[T]):
                 hook.invalidation_callback(hook) # type: ignore
                 hook._notify_listeners() # type: ignore
         
+        log(self, "submit_single_value", self._logger, True, "Submission successful")
         return True, "Submission successful"
 
     @staticmethod
@@ -207,7 +218,7 @@ class HookNexus(Generic[T]):
         return merged_group
     
     @staticmethod
-    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"]):
+    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"], logger: Optional[logging.Logger] = None) -> tuple[bool, str]:
         """
         Connect a list of hook pairs together.
         """
@@ -223,9 +234,11 @@ class HookNexus(Generic[T]):
             merged_nexus = HookNexus[T]._merge_nexus(hook_pair[0].hook_nexus, hook_pair[1].hook_nexus)
             for hook in merged_nexus._hooks:
                 hook._replace_hook_group(merged_nexus) # type: ignore
+
+        return True, "Successfully connected hook pairs"
     
     @staticmethod
-    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET):
+    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> tuple[bool, str]:
         """
         Connect two hooks together.
 
@@ -257,3 +270,5 @@ class HookNexus(Generic[T]):
         # Replace all hooks' hook groups with the merged one
         for hook in merged_nexus._hooks:
             hook._replace_hook_group(merged_nexus) # type: ignore
+
+        return True, "Successfully connected hooks"

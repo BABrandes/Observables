@@ -6,7 +6,23 @@ Test runner for the observables library.
 import sys
 import os
 import unittest
+import logging
 from pathlib import Path
+
+# Set up console logging for all tests
+def setup_logging():
+    """Set up console logging configuration."""
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler()
+        ]
+    )
+    return logging.getLogger(__name__)
+
+# Create a global logger instance that tests can import
+console_logger = setup_logging()
 
 def main():
     """Run the test suite."""

@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -70,16 +71,16 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
     """
 
     @overload
-    def __init__(self, single_value: T, validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
+    def __init__(self, single_value: T, validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct value."""
         ...
     
     @overload
-    def __init__(self, observable_or_hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None:
+    def __init__(self, observable_or_hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableSingleValue.
         
@@ -103,7 +104,8 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
 
         super().__init__(
             {"value": initial_value},
-            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"])
+            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
+            logger=logger
         )
         
         if hook is not None:

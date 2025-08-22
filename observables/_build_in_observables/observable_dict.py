@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Any, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -67,17 +68,17 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
     """
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None) -> None:
+    def __init__(self, observable_or_hook: HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
     @overload
-    def __init__(self, dict_value: dict[K, V]) -> None:
+    def __init__(self, dict_value: dict[K, V], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable dictionary, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableDictLike[K, V]) -> None:
+    def __init__(self, observable: ObservableDictLike[K, V], logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableDictLike object."""
         ...
     
@@ -86,7 +87,7 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookLike[dict[K, V]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookLike[dict[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -112,7 +113,8 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
 
         super().__init__(
             {"value": initial_dict_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary")
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary"),
+            logger=logger
         )
 
         if hook is not None:

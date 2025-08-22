@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal
 from typing import Optional
 from .._utils.hook import HookLike
@@ -67,26 +68,26 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
     """
 
     @overload
-    def __init__(self, tuple_value: tuple[T, ...]) -> None:
+    def __init__(self, tuple_value: tuple[T, ...], logger: Optional[Logger] = None) -> None:
         """Initialize with a direct tuple value."""
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[tuple[T, ...]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[tuple[T, ...]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable tuple, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableTupleLike[T]) -> None:
+    def __init__(self, observable: ObservableTupleLike[T], logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableTupleLike object."""
         ...
 
     @overload
-    def __init__(self, tuple_value: None) -> None:
+    def __init__(self, tuple_value: None, logger: Optional[Logger] = None) -> None:
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | HookLike[tuple[T, ...]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | HookLike[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableTuple.
         
@@ -112,7 +113,8 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
 
         super().__init__(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple")
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"),
+            logger=logger
         )
 
         if hook is not None:

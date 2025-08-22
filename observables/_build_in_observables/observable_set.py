@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -66,26 +67,26 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
     """
 
     @overload
-    def __init__(self, set_value: set[T]) -> None:
+    def __init__(self, set_value: set[T], logger: Optional[Logger] = None) -> None:
         """Initialize with a direct set value."""
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[set[T]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable set, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableSetLike[T]) -> None:
+    def __init__(self, observable: ObservableSetLike[T], logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableSetLike object."""
         ...
 
     @overload
-    def __init__(self, set_value: None) -> None:
+    def __init__(self, set_value: None, logger: Optional[Logger] = None) -> None:
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: set[T] | HookLike[set[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: set[T] | HookLike[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
@@ -110,7 +111,8 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         
         super().__init__(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set")
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"),
+            logger=logger
         )
 
         if hook is not None:

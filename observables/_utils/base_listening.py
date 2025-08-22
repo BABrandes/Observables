@@ -1,4 +1,5 @@
-from typing import Callable, Protocol, runtime_checkable
+from typing import Callable, Optional, Protocol, runtime_checkable
+from logging import Logger
 
 @runtime_checkable
 class BaseListeningLike(Protocol):
@@ -85,11 +86,12 @@ class BaseListening(BaseListeningLike):
         New value: 20
     """
 
-    def __init__(self):
+    def __init__(self, logger: Optional[Logger] = None):
         """
         Initialize the ListeningBase with an empty set of listeners.
         """
         self._listeners: set[Callable[[], None]] = set()
+        self._logger: Optional[Logger] = logger
 
     @property
     def listeners(self) -> set[Callable[[], None]]:
@@ -127,6 +129,8 @@ class BaseListening(BaseListeningLike):
             if callback not in self._listeners:
                 self._listeners.add(callback)
 
+        self._log("add_listeners", True, f"Successfully added {len(callbacks)} listeners")
+
     def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
         """
         Remove one or more listeners from the observable.
@@ -152,6 +156,7 @@ class BaseListening(BaseListeningLike):
             except KeyError:
                 # Ignore if callback doesn't exist
                 pass
+        self._log("remove_listeners", True, f"Successfully removed {len(callbacks)} listeners")
 
     def remove_all_listeners(self) -> set[Callable[[], None]]:
         """
@@ -173,6 +178,7 @@ class BaseListening(BaseListeningLike):
         """
         removed_listeners = self._listeners
         self._listeners = set()
+        self._log("remove_all_listeners", True, f"Successfully removed {len(removed_listeners)} listeners")
         return removed_listeners
 
     def _notify_listeners(self):
@@ -201,9 +207,9 @@ class BaseListening(BaseListeningLike):
             try:
                 callback()
             except Exception as e:
-                # Log error but continue with other listeners
-                print(f"Error in listener callback: {e}")
+                self._log("notify_listeners", False, f"Error in listener callback: {e}")
                 continue
+        self._log("notify_listeners", True, "Successfully notified listeners")
     
     def is_listening_to(self, callback: Callable[[], None]) -> bool:
         """
@@ -223,3 +229,13 @@ class BaseListening(BaseListeningLike):
             >>> print(obs.is_listening_to(callback))  # True
         """
         return callback in self._listeners
+    
+    def _log(self, action: str, success: bool, msg: str) -> None:
+        """
+        Log a message to the logger.
+        """
+        if self._logger is not None:
+            if not success:
+                self._logger.debug(f"BaseListening ({self}): Action {action} returned False: {msg}")
+            else:
+                self._logger.debug(f"BaseListening ({self}): Action {action} returned True")

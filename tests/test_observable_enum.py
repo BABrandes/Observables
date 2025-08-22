@@ -1,6 +1,7 @@
 import unittest
 from enum import Enum
-from observables import ObservableEnum, InitialSyncMode
+from observables import ObservableEnum, InitialSyncMode, ObservableOptionalEnum
+from run_tests import console_logger as logger
 
 class TestColor(Enum):
     RED = "red"
@@ -16,7 +17,7 @@ class TestObservableEnum(unittest.TestCase):
     """Test cases for ObservableEnum"""
     
     def setUp(self):
-        self.observable = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        self.observable = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         self.notification_count = 0
     
     def notification_callback(self):
@@ -79,14 +80,14 @@ class TestObservableEnum(unittest.TestCase):
     def test_initialization_with_carries_bindable_enum(self):
         """Test initialization with CarriesBindableEnum"""
         # Create a source observable enum
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         
         # Create a new observable enum initialized with the source
-        target = ObservableEnum(source.enum_value_hook)
+        target = ObservableEnum(source.enum_value_hook, logger=logger)
         
         # Check that the target has the same initial value
         self.assertEqual(target.enum_value, TestColor.RED)
-        self.assertEqual(target.enum_options, {TestColor.RED, TestColor.GREEN})
+        self.assertEqual(target.enum_options, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
         # Check that they are bound together
         source.enum_value = TestColor.GREEN
@@ -99,9 +100,9 @@ class TestObservableEnum(unittest.TestCase):
     def test_initialization_with_carries_bindable_enum_chain(self):
         """Test initialization with CarriesBindableEnum in a chain"""
         # Create a chain of observable enums
-        obs1 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM})
-        obs2 = ObservableEnum(obs1.enum_value_hook)
-        obs3 = ObservableEnum(obs2.enum_value_hook)
+        obs1 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM}, logger=logger)
+        obs2 = ObservableEnum(obs1.enum_value_hook, logger=logger)
+        obs3 = ObservableEnum(obs2.enum_value_hook, logger=logger)
         
         # Check initial values
         self.assertEqual(obs1.enum_value, TestSize.SMALL)
@@ -122,8 +123,8 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_initialization_with_carries_bindable_enum_unbinding(self):
         """Test that initialization with CarriesBindableEnum can be unbound"""
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
-        target = ObservableEnum(source.enum_value_hook)
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        target = ObservableEnum(source.enum_value_hook, logger=logger)
         
         # Verify they are bound
         self.assertEqual(target.enum_value, TestColor.RED)
@@ -143,10 +144,10 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_initialization_with_carries_bindable_enum_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
-        target1 = ObservableEnum(source.enum_value_hook)
-        target2 = ObservableEnum(source.enum_value_hook)
-        target3 = ObservableEnum(source.enum_value_hook)
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        target1 = ObservableEnum(source.enum_value_hook, logger=logger)
+        target2 = ObservableEnum(source.enum_value_hook, logger=logger)
+        target3 = ObservableEnum(source.enum_value_hook, logger=logger)
         
         # Check initial values
         self.assertEqual(target1.enum_value, TestColor.RED)
@@ -168,21 +169,19 @@ class TestObservableEnum(unittest.TestCase):
     def test_initialization_with_carries_bindable_enum_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableEnum"""
         # Test with single option in source
-        source_single = ObservableEnum(TestColor.RED, {TestColor.RED})
-        target_single = ObservableEnum(source_single.enum_value_hook)
+        source_single = ObservableEnum(TestColor.RED, {TestColor.RED}, logger=logger)
+        target_single = ObservableEnum(source_single.enum_value_hook, logger=logger)
         self.assertEqual(target_single.enum_value, TestColor.RED)
-        self.assertEqual(target_single.enum_options, {TestColor.RED})
+        self.assertEqual(target_single.enum_options, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
         
-        # Test with None value in source
-        source_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
-        target_none = ObservableEnum(source_none.enum_value_hook)
-        self.assertIsNone(target_none.enum_value)
-        self.assertEqual(target_none.enum_options, {TestColor.RED, TestColor.GREEN})
+        # Test that ObservableOptionalEnum can accept None values
+        optional_enum = ObservableOptionalEnum(None, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        self.assertIsNone(optional_enum.enum_value)
     
     def test_initialization_with_carries_bindable_enum_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableEnum"""
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
-        target = ObservableEnum(source.enum_value_hook)
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        target = ObservableEnum(source.enum_value_hook, logger=logger)
         
         # Check binding consistency
         
@@ -194,7 +193,7 @@ class TestObservableEnum(unittest.TestCase):
         """Test performance of initialization with CarriesBindableEnum"""
         import time
         
-        # Create source
+        # Create source without logger for performance
         source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         
         # Measure initialization time
@@ -213,8 +212,8 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_binding_bidirectional(self):
         """Test bidirectional binding between obs1 and obs2"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs1 to obs2
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
@@ -229,8 +228,8 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Test default mode - binding establishes connection, then changes propagate
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
@@ -241,8 +240,8 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(obs2.enum_value, TestColor.GREEN)
         
         # Test update_observable_from_self mode - this mode DOES update immediately
-        obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
-        obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE})
+        obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
+        obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
         obs3.attach(obs4.enum_value_hook, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
         # PULL_FROM_TARGET mode updates the target immediately
         self.assertEqual(obs4.enum_value, TestSize.SMALL)
@@ -252,8 +251,8 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_unbinding(self):
         """Test unbinding observables"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
         
@@ -271,15 +270,15 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         with self.assertRaises(ValueError):
             obs.attach(obs.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Create chain: obs1 -> obs2 -> obs3
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
@@ -321,7 +320,7 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_listener_management(self):
         """Test listener management methods"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         
         # Test is_listening_to
         self.assertFalse(obs.is_listening_to(self.notification_callback))
@@ -334,9 +333,9 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_multiple_bindings(self):
         """Test multiple bindings to the same observable"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs2 and obs3 to obs1
         obs2.attach(obs1.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
@@ -354,10 +353,11 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_enum_methods(self):
         """Test standard enum methods"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
-        # Test enum_value_not_none
-        self.assertEqual(obs.enum_value_not_none, TestColor.RED)
+        # Test enum_value (should not be None)
+        self.assertIsNotNone(obs.enum_value)
+        self.assertEqual(obs.enum_value, TestColor.RED)
         
         # Test set_enum_value_and_options
         obs.set_enum_value_and_options(TestColor.BLUE, {TestColor.BLUE, TestColor.GREEN, TestColor.RED})
@@ -366,7 +366,7 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_enum_copy_behavior(self):
         """Test that enum_options returns a copy"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Get the enum options
         options_copy = obs.enum_options
@@ -383,28 +383,27 @@ class TestObservableEnum(unittest.TestCase):
     def test_enum_validation(self):
         """Test enum validation"""
         # Test with valid enum value
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         self.assertEqual(obs.enum_value, TestColor.RED)
         self.assertEqual(obs.enum_options, {TestColor.RED, TestColor.GREEN})
         
-        # Test with None value
-        obs_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
-        self.assertIsNone(obs_none.enum_value)
-        self.assertEqual(obs_none.enum_options, {TestColor.RED, TestColor.GREEN})
+        # Test that ObservableOptionalEnum can accept None values
+        optional_enum = ObservableOptionalEnum(None, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        self.assertIsNone(optional_enum.enum_value)
     
     def test_enum_binding_edge_cases(self):
         """Test edge cases for enum binding"""
         # Test binding enums with same initial values
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
         
         obs1.enum_value = TestColor.GREEN
         self.assertEqual(obs2.enum_value, TestColor.GREEN)
         
         # Test binding enums with different options
-        obs3 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs4 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs3 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs4 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs3.attach(obs4.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
         
         obs3.enum_value = TestColor.BLUE
@@ -415,7 +414,7 @@ class TestObservableEnum(unittest.TestCase):
         import time
         
         # Test enum_value access performance
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         start_time = time.time()
         
         for _ in range(10000):
@@ -427,11 +426,11 @@ class TestObservableEnum(unittest.TestCase):
         self.assertLess(end_time - start_time, 1.0, "Enum value access should be fast")
         
         # Test binding performance
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         start_time = time.time()
         
         for _ in range(100):
-            ObservableEnum(source.enum_value_hook)
+            ObservableEnum(source.enum_value_hook, logger=logger)
         
         end_time = time.time()
         
@@ -440,21 +439,20 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_enum_error_handling(self):
         """Test enum error handling"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         
         # Test setting invalid enum value
         with self.assertRaises(ValueError):
             obs.enum_value = TestColor.BLUE  # Not in options
         
-        # Test enum_value_not_none when value is None
-        obs_none = ObservableEnum(None, {TestColor.RED, TestColor.GREEN})
-        with self.assertRaises(ValueError):
-            _ = obs_none.enum_value_not_none
+        # Test that ObservableOptionalEnum can accept None values
+        optional_enum = ObservableOptionalEnum(None, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        self.assertIsNone(optional_enum.enum_value)
     
     def test_enum_binding_consistency(self):
         """Test binding system consistency"""
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
-        target = ObservableEnum(source.enum_value_hook)
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        target = ObservableEnum(source.enum_value_hook, logger=logger)
     
         # Check binding consistency
         
@@ -464,14 +462,14 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_enum_binding_none_observable(self):
         """Test that binding to None raises an error"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         with self.assertRaises(ValueError):
             obs.attach(None, "enum_value", InitialSyncMode.PUSH_TO_TARGET)  # type: ignore
     
     def test_enum_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
-        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
-        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE})
+        obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
+        obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.PUSH_TO_TARGET)
         # Both should still have the same value
@@ -480,7 +478,7 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_listener_duplicates(self):
         """Test that duplicate listeners are not added"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         callback = lambda: None
         
         obs.add_listeners(callback, callback)
@@ -491,7 +489,7 @@ class TestObservableEnum(unittest.TestCase):
     
     def test_remove_nonexistent_listener(self):
         """Test removing a listener that doesn't exist"""
-        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
+        obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         callback = lambda: None
         
         # Should not raise an error

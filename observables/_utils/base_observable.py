@@ -1,10 +1,12 @@
 import threading
 from typing import Any, Callable, Mapping, Optional, TypeVar
+from logging import Logger
 from .base_listening import BaseListening
 from .hook import Hook, HookLike
 from .carries_collective_hooks import CarriesCollectiveHooks
 from .hook_nexus import HookNexus
 from .initial_sync_mode import InitialSyncMode
+from .general import log
 
 HK = TypeVar("HK")
 
@@ -74,7 +76,8 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
     def __init__(
             self,
             initial_component_values: dict[HK, Any],
-            verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = None):
+            verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = None,
+            logger: Optional[Logger] = None):
         """
         Initialize the BaseObservable.
 
@@ -83,17 +86,24 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             verification_method: A method to verify the component values.
         """
 
-        super().__init__()
+        super().__init__(logger)
+
+        self._logger: Optional[Logger] = logger
 
         self._component_hooks: dict[HK, HookLike[Any]] = {}
         for key, value in initial_component_values.items():
-            self._component_hooks[key] = Hook(self, value, lambda _, k=key: self._invalidate({k}))
+            self._component_hooks[key] = Hook(self, value, lambda _, k=key: self._invalidate({k}), logger)
 
         self._verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = verification_method
         # Thread safety: Lock for protecting component values and hooks
         self._lock = threading.RLock()
 
-    def _invalidate(self, keys: set[HK]) -> None:
+        if self._verification_method is not None:
+            success, message = self._verification_method(initial_component_values)
+            if not success:
+                raise ValueError(f"Verification method failed: {message}")
+
+    def _invalidate(self, keys: set[HK]) -> tuple[bool, str]:
         """
         Invalidate the the values of the component hooks of the given keys.
 
@@ -103,8 +113,11 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
         try:
             self._act_on_invalidation(keys)
         except Exception as e:
+            log(self, "invalidate", self._logger, False, f"Error in act_on_invalidation: {e}")
             raise ValueError(f"Error in act_on_invalidation: {e}")
         self._notify_listeners()
+        log(self, "invalidate", self._logger, True, "Successfully invalidated")
+        return True, "Successfully invalidated"
 
     def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None: # type: ignore
         """
@@ -115,6 +128,8 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             key = self._get_key_for(hook)
             keys.add(key)
         self._invalidate(keys)
+
+        log(self, "invalidate_hooks", self._logger, True, "Successfully invalidated hooks")
 
     def _act_on_invalidation(self, keys: set[HK]) -> None:
         """
@@ -141,6 +156,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
         with self._lock:
             if len(self._component_hooks) == 0:
                 error_msg = "No component hooks provided"
+                log(self, "set_component_values", self._logger, False, error_msg)
                 raise ValueError(error_msg)
             
             future_component_values: dict[HK, Any] = {key: hook.value for key, hook in self._component_hooks.items()}
@@ -148,6 +164,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
             for key, value in dict_of_values.items():
                 if key not in self._component_hooks:
                     error_msg = f"Key {key} not found in component_values"
+                    log(self, "set_component_values", self._logger, False, error_msg)
                     raise ValueError(error_msg)
                 future_component_values[key] = value
             
@@ -155,6 +172,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
                 success, message = self._verification_method(future_component_values)
                 if not success:
                     error_msg = f"Verification method failed: {message}"
+                    log(self, "set_component_values", self._logger, False, error_msg)
                     raise ValueError(error_msg)
 
             if notify_binding_system:
@@ -171,6 +189,8 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK]):
 
             if notify_listeners:
                 self._notify_listeners()
+
+            log(self, "set_component_values", self._logger, True, "Successfully set component values")
 
     def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK:
         """

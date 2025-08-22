@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal
 from typing import Optional, TypeVar, runtime_checkable, Protocol
 from .._utils.hook import HookLike
@@ -67,26 +68,26 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
     """
 
     @overload
-    def __init__(self, list_value: list[T]) -> None:
+    def __init__(self, list_value: list[T], logger: Optional[Logger] = None) -> None:
         """Initialize with a direct list value."""
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[list[T]]) -> None:
+    def __init__(self, observable_or_hook: HookLike[list[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable list, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableListLike[T]) -> None:
+    def __init__(self, observable: ObservableListLike[T], logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableListLike object."""
         ...
 
     @overload
-    def __init__(self, list_value: None) -> None:
+    def __init__(self, list_value: None, logger: Optional[Logger] = None) -> None:
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: list[T] | HookLike[list[T]] | None = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: list[T] | HookLike[list[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableList.
         
@@ -112,7 +113,8 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
 
         super().__init__(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list")
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"),
+            logger=logger
         )
 
         if hook is not None:

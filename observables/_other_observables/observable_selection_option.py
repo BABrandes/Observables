@@ -87,6 +87,8 @@ See Also:
 """
 
 from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal
+from logging import Logger
+
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
@@ -262,7 +264,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
     """
 
     @overload
-    def __init__(self, selected_option: HookLike[Optional[T]], options: HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: HookLike[Optional[T]], options: HookLike[set[T]], *, allow_none: bool = True, logger: Optional[Logger] = None) -> None:
         """
         Initialize with observable options and observable selected option.
         
@@ -287,7 +289,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], options: HookLike[set[T]], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: Optional[T], options: HookLike[set[T]], *, allow_none: bool = True, logger: Optional[Logger] = None) -> None:
         """
         Initialize with observable options and direct selected option.
         
@@ -309,7 +311,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
 
     @overload
-    def __init__(self, selected_option: HookLike[Optional[T]], options: set[T], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: HookLike[Optional[T]], options: set[T], *, allow_none: bool = True, logger: Optional[Logger] = None) -> None:
         """
         Initialize with direct options and observable selected option.
         
@@ -333,7 +335,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
 
     @overload
-    def __init__(self, observable: ObservableSelectionOptionLike[T], *, allow_none: bool = True) -> None:
+    def __init__(self, observable: ObservableSelectionOptionLike[T], *, allow_none: bool = True, logger: Optional[Logger] = None) -> None:
         """
         Initialize from another ObservableSelectionOption.
         
@@ -354,7 +356,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         ...
     
     @overload
-    def __init__(self, selected_option: Optional[T], options: set[T], *, allow_none: bool = True) -> None:
+    def __init__(self, selected_option: Optional[T], options: set[T], *, allow_none: bool = True, logger: Optional[Logger] = None) -> None:
         """
         Initialize with direct options and direct selected option.
         
@@ -374,7 +376,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
         """
         ...
 
-    def __init__(self, selected_option: Optional[T] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | HookLike[set[T]] | None = None, *, allow_none: bool = True) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | HookLike[Optional[T]] | ObservableSelectionOptionLike[T], options: set[T] | HookLike[set[T]] | None = None, *, allow_none: bool = True, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableSelectionOption.
         
@@ -456,7 +458,7 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
             if initial_selected_option is not None and initial_selected_option not in available_options:
                 raise ValueError(f"Selected option {initial_selected_option} not in options {available_options}")
             
-        def is_valid_value(dict_of_values: dict[str, Any]) -> tuple[bool, str]:
+        def is_valid_value(dict_of_values: dict[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in dict_of_values:
                 selected_option: Optional[T] = dict_of_values["selected_option"]
             else:
@@ -484,7 +486,8 @@ class ObservableSelectionOption(BaseObservable[Literal["selected_option", "avail
 
         super().__init__(
             {"selected_option": initial_selected_option, "available_options": available_options},
-            verification_method=lambda x: is_valid_value(x)
+            verification_method=lambda x: is_valid_value(x),
+            logger=logger
         )
 
         if selected_option_hook is not None:

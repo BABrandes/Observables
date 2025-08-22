@@ -1,8 +1,10 @@
 import threading
+import logging
 from typing import Callable, Generic, Optional, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
 from .initial_sync_mode import InitialSyncMode
 from .hook_nexus import HookNexus
 from .base_listening import BaseListeningLike, BaseListening
+from .general import log
 
 if TYPE_CHECKING:
     from .carries_hooks import CarriesHooks
@@ -52,7 +54,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         ...
 
     @property
-    def invalidation_callback(self) -> Callable[["HookLike[T]"], None]:
+    def invalidation_callback(self) -> Callable[["HookLike[T]"], tuple[bool, str]]:
         """
         The callback to be called when the value is invalidated.
         """
@@ -88,7 +90,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> None:
+    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
         """
@@ -134,15 +136,19 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             self,
             owner: "CarriesHooks[Any]",
             value: T,
-            invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = None,
+            invalidate_callback: Optional[Callable[["HookLike[T]"], tuple[bool, str]]] = None,
+            logger: Optional[logging.Logger] = None
             ) -> None:
 
         super().__init__()  # Initialize BaseListening
         self._owner: "CarriesHooks[Any]" = owner
         self._hook_group: "HookNexus[T]" = HookNexus(value, self)
-        self._invalidate_callback: Optional[Callable[["HookLike[T]"], None]] = invalidate_callback
+        self._invalidate_callback: Optional[Callable[["HookLike[T]"], tuple[bool, str]]] = invalidate_callback
         self._in_submission = False
         self._lock = threading.RLock()
+        self._logger = logger
+
+        log(self, "Hook.__init__", self._logger, True, "Successfully initialized hook")
 
     @property
     def value(self) -> T:
@@ -152,7 +158,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     @value.setter
     def value(self, value: T) -> None:
         """Set the value behind this hook."""
-        self._hook_group.submit_single_value(value, {self})  # Ignore self to prevent double notifications
+        success, msg = self._hook_group.submit_single_value(value, {self})  # Ignore self to prevent double notifications
+        log(self, "value.setter", self._logger, success, msg)
 
     @property
     def previous_value(self) -> T:
@@ -170,13 +177,13 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         return self._hook_group
     
     @property
-    def invalidation_callback(self) -> Callable[["HookLike[T]"], None]:
+    def invalidation_callback(self) -> Callable[["HookLike[T]"], tuple[bool, str]]:
         """
         The callback to be called when the value is invalidated.
         """
 
         if self._invalidate_callback is None:
-            raise ValueError("Invalidate callback is None")
+            raise ValueError("Invalidate callback is None")     
         return self._invalidate_callback
     
     @property
@@ -199,17 +206,21 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """Set if this hook is currently being submitted."""
         self._in_submission = value
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> None:
+    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
         """
         
         if sync_mode == InitialSyncMode.PUSH_TO_TARGET:
-            HookNexus[T].connect_hooks(self, hook, sync_mode)
+            success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
         elif sync_mode == InitialSyncMode.PULL_FROM_TARGET:
-            HookNexus[T].connect_hooks(self, hook, sync_mode)
+            success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
         else:
             raise ValueError(f"Invalid sync mode: {sync_mode}")
+
+        log(self, "connect_to", self._logger, success, msg)
+
+        return success, msg
     
     def detach(self) -> None:
         """
@@ -227,6 +238,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         
         # Update this hook's group reference
         self._hook_group = new_group
+
+        log(self, "detach", self._logger, True, "Successfully detached hook")
         
         # The remaining hooks in the old group will continue to be bound together
         # This effectively breaks the connection between this hook and all others
@@ -238,6 +251,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         self.in_submission = True
         success, msg = self._hook_group.submit_single_value(value, {self})
         self.in_submission = False
+        log(self, "submit_value", self._logger, success, msg)
         return success, msg
     
     def is_attached_to(self, hook: "HookLike[T]") -> bool:
@@ -250,10 +264,13 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """
         Check if the value is valid.
         """
-        return self.owner._is_valid_value(self, value) # type: ignore
+        success, msg = self.owner._is_valid_value(self, value) # type: ignore
+        log(self, "is_valid_value", self._logger, success, msg)
+        return success, msg
     
     def _replace_hook_group(self, hook_group: "HookNexus[T]") -> None:
         """
         Replace the hook group that this hook belongs to.
         """
         self._hook_group = hook_group
+        log(self, "replace_hook_group", self._logger, True, "Successfully replaced hook group")

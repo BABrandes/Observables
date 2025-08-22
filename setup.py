@@ -25,7 +25,7 @@ def read_version():
                 if line.startswith("__version__"):
                     return line.split("=")[1].strip().strip('"\'')
     except FileNotFoundError:
-        return "2.0.11"  # fallback version
+        return "2.1.0"  # fallback version
 
 setup(
     name="observables",

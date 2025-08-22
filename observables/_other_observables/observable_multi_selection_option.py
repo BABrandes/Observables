@@ -55,7 +55,19 @@ class ObservableMultiSelectionOptionLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-    def set_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+    def change_selected_options(self, selected_options: set[T]) -> None:
+        """
+        Change the selected options.
+        """
+        ...
+
+    def change_available_options(self, available_options: set[T]) -> None:
+        """
+        Change the available options.
+        """
+        ...
+
+    def change_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
         """
         Set the selected options and available options.
         """
@@ -242,7 +254,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             value: New set of available options
         """
-        self.set_available_options(value)
+        self.change_available_options(value)
 
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
@@ -273,25 +285,11 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             value: New set of selected options
         """
-        self.set_selected_options(value)
-
-    @property
-    def selected_options_not_empty(self) -> set[T]:
-        """
-        Get the current selected options if they are not empty.
-        
-        Returns:
-            The current selected options
-
-        Raises:
-            ValueError: If the selected options is empty
-        """
-        selected_options = self._component_hooks["selected_options"].value
-        if not selected_options:
-            raise ValueError("Selected options is empty")
-        return selected_options.copy()
+        if value == self._component_hooks["selected_options"].value:
+            return
+        self._set_component_values({"selected_options": value}, notify_binding_system=True)
     
-    def set_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+    def change_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
         """
         Set both the selected options and available options atomically.
         
@@ -316,7 +314,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         # Use the protocol method to set the values
         self._set_component_values({"selected_options": selected_options, "available_options": available_options}, notify_binding_system=True)
     
-    def set_available_options(self, available_options: set[T]) -> None:
+    def change_available_options(self, available_options: set[T]) -> None:
         """
         Set the available options set.
         
@@ -337,7 +335,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         # Use the protocol method to set the values
         self._set_component_values({"available_options": available_options}, notify_binding_system=True)
 
-    def set_selected_options(self, selected_options: set[T]) -> None:
+    def change_selected_options(self, selected_options: set[T]) -> None:
         """
         Set the selected options.
         

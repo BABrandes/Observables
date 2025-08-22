@@ -28,6 +28,12 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
+    def change_tuple_value(self, new_value: tuple[T, ...]) -> None:
+        """
+        Change the tuple value.
+        """
+        ...
+
     @property
     def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:
         """
@@ -135,8 +141,17 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         """
         Set the current tuple value.
         """
-        if value != self._component_hooks["value"].value:
-            self._set_component_values({"value": value}, notify_binding_system=True)
+        if value == self._component_hooks["value"].value:
+            return
+        self._set_component_values({"value": value}, notify_binding_system=True)
+    
+    def change_tuple_value(self, new_value: tuple[T, ...]) -> None:
+        """
+        Change the tuple value.
+        """
+        if new_value == self._component_hooks["value"].value:
+            return
+        self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
     def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:

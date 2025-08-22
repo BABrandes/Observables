@@ -350,7 +350,7 @@ class TestObservableMultiSelectionOption(unittest.TestCase):
         obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
         
         # Test set_selected_options_and_available_options
-        obs.set_selected_options_and_available_options({"Blue"}, {"Blue", "Green", "Yellow"})
+        obs.change_selected_options_and_available_options({"Blue"}, {"Blue", "Green", "Yellow"})
         self.assertEqual(obs.selected_options, {"Blue"})
         self.assertEqual(obs.available_options, {"Blue", "Green", "Yellow"})
         

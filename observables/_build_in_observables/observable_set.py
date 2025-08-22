@@ -34,6 +34,12 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
+    def change_set_value(self, value: set[T]) -> None:
+        """
+        Set the set value.
+        """
+        ...
+
 class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
@@ -133,6 +139,16 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         """
         Set the current value of the set.
         """
+        if value == self._component_hooks["value"].value:
+            return
+        self._set_component_values({"value": value}, notify_binding_system=True)
+
+    def change_set_value(self, value: set[T]) -> None:
+        """
+        Set the current value of the set.
+        """
+        if value == self._component_hooks["value"].value:
+            return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
     @property

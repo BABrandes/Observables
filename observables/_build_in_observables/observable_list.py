@@ -27,6 +27,12 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
         Set the list value.
         """
         ...
+
+    def change_list_value(self, new_value: list[T]) -> None:
+        """
+        Change the list value.
+        """
+        ...
     
     @property
     def list_value_hook(self) -> HookLike[list[T]]:
@@ -137,6 +143,13 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         """
         if value != self._component_hooks["value"].value:
             self._set_component_values({"value": value}, notify_binding_system=True)
+
+    def change_list_value(self, new_value: list[T]) -> None:
+        """
+        Change the list value.
+        """
+        if new_value != self._component_hooks["value"].value:
+            self._set_component_values({"value": new_value}, notify_binding_system=True)
 
     @property
     def list_value_hook(self) -> HookLike[list[T]]:

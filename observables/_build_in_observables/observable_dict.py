@@ -35,6 +35,12 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
         """
         ...
 
+    def change_dict(self, new_dict: dict[K, V]) -> None:
+        """
+        Change the entire dictionary to a new value.
+        """
+        ...
+
 class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
@@ -142,6 +148,8 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         """
         Set the current value of the dictionary.
         """
+        if value == self._component_hooks["value"].value:
+            return
         self._set_component_values({"value": value}, notify_binding_system=True)
     
     def change_dict(self, new_dict: dict[K, V]) -> None:
@@ -156,7 +164,6 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         """
         if new_dict == self._component_hooks["value"].value:
             return
-        # Use the protocol method to set the value
         self._set_component_values({"value": new_dict}, notify_binding_system=True)
     
     def set_item(self, key: K, value: V) -> None:

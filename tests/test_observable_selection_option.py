@@ -360,7 +360,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         
         # Test set_selected_option_and_available_options
-        obs.set_selected_option_and_available_options("Blue", {"Blue", "Green"})
+        obs.change_selected_option_and_available_options("Blue", {"Blue", "Green"})
         self.assertEqual(obs.selected_option, "Blue")
         self.assertEqual(obs.available_options, {"Blue", "Green"})
         

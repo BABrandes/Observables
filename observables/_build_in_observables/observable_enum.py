@@ -41,6 +41,12 @@ class ObservableEnumLikeBase(CarriesCollectiveHooks[Any], Protocol[E]):
         """
         ...
 
+    def change_enum_options(self, new_options: set[E]) -> None:
+        """
+        Change the enum options.
+        """
+        ...
+
 @runtime_checkable
 class ObservableOptionalEnumLike(ObservableEnumLikeBase[E], Protocol[E]):
     """
@@ -68,6 +74,12 @@ class ObservableOptionalEnumLike(ObservableEnumLikeBase[E], Protocol[E]):
         """
         ...
 
+    def change_enum_value(self, new_value: Optional[E]) -> None:
+        """
+        Change the enum value.
+        """
+        ...
+
     def set_enum_value_and_options(self, enum_value: Optional[E], enum_options: set[E]) -> None:
         """
         Set the enum value and options.
@@ -91,6 +103,12 @@ class ObservableEnumLike(ObservableEnumLikeBase[E], Protocol[E]):
     def enum_value(self, value: E) -> None:
         """
         Set the enum value.
+        """
+        ...
+
+    def change_enum_value(self, new_value: E) -> None:
+        """
+        Change the enum value.
         """
         ...
 
@@ -139,6 +157,12 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"]], 
         Get the hook for the enum options.
         """
         return self._component_hooks["enum_options"]
+    
+    def change_enum_options(self, new_options: set[E]) -> None:
+        """
+        Change the enum options.
+        """
+        self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
 
     def add_enum_option(self, option: E) -> None:
         """
@@ -435,6 +459,12 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
         """
         self._set_component_values({"enum_value": value}, notify_binding_system=True)
 
+    def change_enum_value(self, new_value: Optional[E]) -> None:
+        """
+        Change the enum value.
+        """
+        self._set_component_values({"enum_value": new_value}, notify_binding_system=True)
+
     @property
     def enum_value_hook(self) -> HookLike[Optional[E]]:
         """
@@ -714,6 +744,12 @@ class ObservableEnum(ObservableEnumBase[E], ObservableEnumLike[E], Generic[E]):
             value: New selected enum value
         """
         self._set_component_values({"enum_value": value}, notify_binding_system=True)
+
+    def change_enum_value(self, new_value: E) -> None:
+        """
+        Change the enum value.
+        """
+        self._set_component_values({"enum_value": new_value}, notify_binding_system=True)
 
     @property
     def enum_value_hook(self) -> HookLike[E]:

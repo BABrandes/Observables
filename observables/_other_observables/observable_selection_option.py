@@ -111,6 +111,9 @@ class ObservableSelectionOptionLikeBase(CarriesCollectiveHooks[Any], Protocol[T]
     def available_options_hook(self) -> HookLike[set[T]]:
         ...
 
+    def change_available_options(self, available_options: set[T]) -> None:
+        ...
+
 @runtime_checkable
 class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protocol[T]):
 
@@ -126,7 +129,10 @@ class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protoc
     def selected_option_hook(self) -> HookLike[T]:
         ...
 
-    def set_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
+    def change_selected_option(self, selected_option: T) -> None:
+        ...
+
+    def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
         ...
 
 @runtime_checkable
@@ -144,7 +150,10 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
     def selected_option_hook(self) -> HookLike[Optional[T]]:
         ...
 
-    def set_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
+    def change_selected_option(self, selected_option: Optional[T]) -> None:
+        ...
+
+    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         ...
 
 class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"]], ObservableSelectionOptionLikeBase[T], Generic[T]):
@@ -164,6 +173,12 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
 
         self._set_component_values({"available_options": options}, notify_binding_system=True)
     
+    def change_available_options(self, available_options: set[T]) -> None:
+        if available_options == self._component_hooks["available_options"].value:
+            return
+        
+        self._set_component_values({"available_options": available_options}, notify_binding_system=True)
+
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
         return self._component_hooks["available_options"]
@@ -318,8 +333,14 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSele
     @property
     def selected_option_hook(self) -> HookLike[T]:
         return self._component_hooks["selected_option"]
+    
+    def change_selected_option(self, selected_option: T) -> None:
+        if selected_option == self._component_hooks["selected_option"].value:
+            return
+        
+        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
  
-    def set_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
+    def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
         self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
 
     def _get_single_value_hook(self) -> HookLike[T]:
@@ -450,7 +471,13 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
     def selected_option_hook(self) -> HookLike[Optional[T]]:
         return self._component_hooks["selected_option"]
     
-    def set_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
+    def change_selected_option(self, selected_option: Optional[T]) -> None:
+        if selected_option == self._component_hooks["selected_option"].value:
+            return
+        
+        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
+    
+    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
 
     def _get_single_value_hook(self) -> HookLike[Optional[T]]:

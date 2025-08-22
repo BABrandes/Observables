@@ -27,6 +27,12 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
+    def change_single_value(self, new_value: T) -> None:
+        """
+        Change the single value.
+        """
+        ...
+
     @property
     def single_value_hook(self) -> HookLike[T]:
         """
@@ -129,7 +135,17 @@ class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleVa
         Raises:
             ValueError: If the new value fails validation
         """
+        if value == self._component_hooks["value"].value:
+            return
         self._set_component_values({"value": value}, notify_binding_system=True)
+
+    def change_single_value(self, new_value: T) -> None:
+        """
+        Change the single value.
+        """
+        if new_value == self._component_hooks["value"].value:
+            return
+        self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
     def single_value_hook(self) -> HookLike[T]:

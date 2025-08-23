@@ -31,10 +31,13 @@ class HookNexus(Generic[T]):
         return True, "Successfully added hook"
 
     def remove_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
-        self._hooks.remove(hook)
-        log(self, "remove_hook", self._logger, True, "Successfully removed hook")
-        return True, "Successfully removed hook"
-    
+        try:
+            self._hooks.remove(hook)
+            log(self, "remove_hook", self._logger, True, "Successfully removed hook")
+            return True, "Successfully removed hook"
+        except KeyError:
+            return False, "Hook not found in nexus"
+
     @property
     def hooks(self) -> tuple["HookLike[T]", ...]:
         return tuple(self._hooks)
@@ -223,6 +226,12 @@ class HookNexus(Generic[T]):
         Connect a list of hook pairs together.
         """
 
+        for hook_pair in hook_pairs:
+            if not hook_pair[0].is_active:
+                raise ValueError(f"Hook {hook_pair[0]} is deactivated")
+            if not hook_pair[1].is_active:
+                raise ValueError(f"Hook {hook_pair[1]} is deactivated")
+
         nexus_and_values: dict["HookNexus[Any]", Any] = {}
         for hook_pair in hook_pairs:
             nexus_and_values[hook_pair[1].hook_nexus] = hook_pair[0].value
@@ -233,7 +242,7 @@ class HookNexus(Generic[T]):
         for hook_pair in hook_pairs:
             merged_nexus = HookNexus[T]._merge_nexus(hook_pair[0].hook_nexus, hook_pair[1].hook_nexus)
             for hook in merged_nexus._hooks:
-                hook._replace_hook_group(merged_nexus) # type: ignore
+                hook._replace_hook_nexus(merged_nexus) # type: ignore
 
         return True, "Successfully connected hook pairs"
     
@@ -269,6 +278,6 @@ class HookNexus(Generic[T]):
         
         # Replace all hooks' hook groups with the merged one
         for hook in merged_nexus._hooks:
-            hook._replace_hook_group(merged_nexus) # type: ignore
+            hook._replace_hook_nexus(merged_nexus) # type: ignore
 
         return True, "Successfully connected hooks"

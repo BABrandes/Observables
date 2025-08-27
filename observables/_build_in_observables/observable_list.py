@@ -41,7 +41,7 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"], Literal["length"]], ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -120,6 +120,7 @@ class ObservableList(BaseObservable[Literal["value"]], ObservableListLike[T], Ge
         super().__init__(
             {"value": initial_value},
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 

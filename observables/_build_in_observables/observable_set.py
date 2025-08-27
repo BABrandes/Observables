@@ -40,7 +40,7 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -118,6 +118,7 @@ class ObservableSet(BaseObservable[Literal["value"]], ObservableSetLike[T], Gene
         super().__init__(
             {"value": initial_value},
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
@@ -85,7 +85,7 @@ class ObservableMultiSelectionOptionLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"]], ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"]], ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -197,15 +197,15 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             invalid_options = initial_selected_options - initial_available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {initial_available_options}")
         
-        def is_valid_value(dict_of_values: dict[Literal["selected_options", "available_options"], set[T]]) -> tuple[bool, str]:
+        def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], set[T]]) -> tuple[bool, str]:
             
-            if "selected_options" in dict_of_values:
-                selected_options: set[T] = dict_of_values["selected_options"] # type: ignore
+            if "selected_options" in x:
+                selected_options: set[T] = x["selected_options"] # type: ignore
             else:
                 selected_options: set[T] = self._component_hooks["selected_options"].value
             
-            if "available_options" in dict_of_values:
-                available_options: set[T] = dict_of_values["available_options"]
+            if "available_options" in x:
+                available_options: set[T] = x["available_options"]
             else:
                 available_options: set[T] = self._component_hooks["available_options"].value
             
@@ -217,6 +217,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         super().__init__(
             {"selected_options": initial_selected_options, "available_options": initial_available_options},
             verification_method=is_valid_value,
+            emitter_hook_callbacks={"number_of_selected_options": lambda x: len(x["selected_options"]), "number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
 

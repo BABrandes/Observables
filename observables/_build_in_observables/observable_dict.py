@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Any, Literal
+from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
@@ -41,7 +41,7 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
         """
         ...
 
-class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -120,6 +120,7 @@ class ObservableDict(BaseObservable[Literal["value"]], ObservableDictLike[K, V],
         super().__init__(
             {"value": initial_dict_value},
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 

@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping
 from enum import Enum
 from logging import Logger
 from .._utils.hook import HookLike
@@ -126,7 +126,7 @@ class ObservableEnumLike(ObservableEnumLikeBase[E], Protocol[E]):
         ...
 
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"]], ObservableEnumLikeBase[E], Generic[E]):
+class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], Any], ObservableEnumLikeBase[E], Generic[E]):
 
     @property
     def enum_options(self) -> set[E]:
@@ -404,15 +404,15 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
             logger.debug(f"bindable_enum_carrier: {bindable_enum_carrier}")
             logger.debug(f"bindable_set_carrier: {hook_enum_options}")
 
-        def is_valid_value(dict_of_values: dict[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
+        def is_valid_value(x: Mapping[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
 
-            if "enum_value" in dict_of_values:
-                enum_value: Optional[E] = dict_of_values["enum_value"] # type: ignore
+            if "enum_value" in x:
+                enum_value: Optional[E] = x["enum_value"] # type: ignore
             else:
                 enum_value: Optional[E] = self._component_hooks["enum_value"].value
             
-            if "enum_options" in dict_of_values:
-                enum_options: set[E] = dict_of_values["enum_options"]
+            if "enum_options" in x:
+                enum_options: set[E] = x["enum_options"]
             else:
                 enum_options: set[E] = self._component_hooks["enum_options"].value
 
@@ -690,15 +690,15 @@ class ObservableEnum(ObservableEnumBase[E], ObservableEnumLike[E], Generic[E]):
             logger.debug(f"hook_enum_value: {hook_enum_value}")
             logger.debug(f"hook_enum_options: {hook_enum_options}")
 
-        def is_valid_value(dict_of_values: dict[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
+        def is_valid_value(x: Mapping[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
 
-            if "enum_value" in dict_of_values:
-                enum_value: E = dict_of_values["enum_value"] # type: ignore
+            if "enum_value" in x:
+                enum_value: E = x["enum_value"] # type: ignore
             else:
                 enum_value: E = self._component_hooks["enum_value"].value
             
-            if "enum_options" in dict_of_values:
-                enum_options: set[E] = dict_of_values["enum_options"]
+            if "enum_options" in x:
+                enum_options: set[E] = x["enum_options"]
             else:
                 enum_options: set[E] = self._component_hooks["enum_options"].value
 

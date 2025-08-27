@@ -86,7 +86,7 @@ See Also:
 - SyncMode: For binding synchronization modes
 """
 
-from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal
+from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal, Mapping
 from logging import Logger
 
 from .._utils.hook import HookLike
@@ -156,7 +156,7 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         ...
 
-class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"]], ObservableSelectionOptionLikeBase[T], Generic[T]):
+class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"]], ObservableSelectionOptionLikeBase[T], Generic[T]):
 
     @property
     def _collective_hooks(self) -> set[HookLike[Any]]:
@@ -285,14 +285,14 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSele
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
             
-        def is_valid_value(dict_of_values: dict[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
-            if "selected_option" in dict_of_values:
-                selected_option: Optional[T] = dict_of_values["selected_option"]
+        def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
+            if "selected_option" in x:
+                selected_option: Optional[T] = x["selected_option"]
             else:
                 selected_option: Optional[T] = self._component_hooks["selected_option"].value
                 
-            if "available_options" in dict_of_values:
-                available_options: set[T] = dict_of_values["available_options"]
+            if "available_options" in x:
+                available_options: set[T] = x["available_options"]
             else:
                 available_options: set[T] = self._component_hooks["available_options"].value
 
@@ -306,6 +306,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSele
         super().__init__(
             {"selected_option": initial_selected_option, "available_options": initial_available_options},
             verification_method=lambda x: is_valid_value(x),
+            emitter_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
 
@@ -420,14 +421,14 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
             
-        def is_valid_value(dict_of_values: dict[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
-            if "selected_option" in dict_of_values:
-                selected_option: Optional[T] = dict_of_values["selected_option"]
+        def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
+            if "selected_option" in x:
+                selected_option: Optional[T] = x["selected_option"]
             else:
                 selected_option: Optional[T] = self._component_hooks["selected_option"].value
                 
-            if "available_options" in dict_of_values:
-                available_options: set[T] = dict_of_values["available_options"]
+            if "available_options" in x:
+                available_options: set[T] = x["available_options"]
             else:
                 available_options: set[T] = self._component_hooks["available_options"].value
 
@@ -441,6 +442,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         super().__init__(
             {"selected_option": initial_selected_option, "available_options": initial_available_options},
             verification_method=lambda x: is_valid_value(x),
+            emitter_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
 

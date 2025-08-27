@@ -40,7 +40,7 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
         """
         ... 
 
-class ObservableSingleValue(BaseObservable[Literal["value"]], ObservableSingleValueLike[T], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     

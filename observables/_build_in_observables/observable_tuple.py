@@ -41,7 +41,7 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -120,6 +120,7 @@ class ObservableTuple(BaseObservable[Literal["value"]], ObservableTupleLike[T], 
         super().__init__(
             {"value": initial_value},
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 

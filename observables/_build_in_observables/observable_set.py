@@ -4,6 +4,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
+from .._utils.serializable import Serializable
 
 T = TypeVar("T")
 
@@ -40,7 +41,7 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Serializable[Literal["value"], "ObservableSet"], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     

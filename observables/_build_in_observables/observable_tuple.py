@@ -5,6 +5,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
+from .._utils.serializable import Serializable
 
 T = TypeVar("T")
 
@@ -41,7 +42,7 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Serializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     

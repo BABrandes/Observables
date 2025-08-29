@@ -5,6 +5,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
+from .._utils.serializable import Serializable
 
 T = TypeVar("T")
 
@@ -41,7 +42,7 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableList(BaseObservable[Literal["value"], Literal["length"]], ObservableListLike[T], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Serializable[Literal["value"], "ObservableList"], ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     

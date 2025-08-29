@@ -4,6 +4,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
+from .._utils.serializable import Serializable
 
 T = TypeVar("T")
 
@@ -40,7 +41,7 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
         """
         ... 
 
-class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSingleValueLike[T], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"], Any], Serializable[Literal["value"], "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     

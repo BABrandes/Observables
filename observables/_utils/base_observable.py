@@ -1,5 +1,4 @@
 import threading
-from abc import abstractmethod
 from typing import Any, Callable, Generic, Mapping, Optional, TypeVar, final
 from logging import Logger
 from .base_listening import BaseListening
@@ -116,17 +115,6 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             success, message = self._verification_method(initial_component_values)
             if not success:
                 raise ValueError(f"Verification method failed: {message}")
-
-    @abstractmethod
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[HK, Any],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an BaseObservable instance.
-        """
-        raise NotImplementedError("Subclasses must implement this method")
 
     def _invalidate(self, keys: set[HK]) -> tuple[bool, str]:
         """
@@ -412,29 +400,13 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                     pass
                 else:
                     raise
-            
-    @classmethod
-    @final  
-    def create_from_values(
-        cls,
-        initial_values: Mapping[HK, Any],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> "BaseObservable[HK, EHK]":
-        """
-        Create an BaseObservable instance from a mapping of initial values.
-
-        This is a factory method for creating an instance of the class, usefull for serializing and deserializing.
-        """
-        instance = cls.__new__(cls)
-        instance._internal_construct_from_values(initial_values, logger, **kwargs)
-        return instance
     
     @final
     def get_values_as_references(self) -> Mapping[HK, Any]:
         """
         Get the values of the observable as references.
 
-        This method is used for serializing the observable.
+        This method can be used for serializing the observable.
 
         ** The returned values are references, so modifying them will modify the observable.
         Use with caution.

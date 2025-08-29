@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
@@ -82,7 +82,12 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSin
         ...
     
     @overload
-    def __init__(self, observable_or_hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+        """Initialize with another observable, establishing a bidirectional binding."""
+        ...
+
+    @overload
+    def __init__(self, observable: ObservableSingleValueLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
@@ -105,17 +110,36 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSin
             initial_value: T = observable_or_hook_or_value.single_value # type: ignore
             hook: Optional[HookLike[T]] = observable_or_hook_or_value.single_value_hook # type: ignore
         else:
+            # Assume the value is T
             initial_value: T = observable_or_hook_or_value
             hook: Optional[HookLike[T]] = None
 
-        super().__init__(
-            {"value": initial_value},
-            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
-            logger=logger
+        self._internal_construct_from_values(
+            initial_values={"value": initial_value}, # type: ignore
+            logger=logger,
+            validator=validator,
         )
         
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], T],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableSingleValue instance.
+        """
+
+        validator: Optional[Callable[[T], tuple[bool, str]]] = kwargs.get("validator")
+
+        super().__init__(
+            initial_values,
+            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
+            emitter_hook_callbacks={},
+            logger=logger
+        )
 
     @property
     def single_value(self) -> T:

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Mapping
 from typing import Optional, TypeVar, runtime_checkable, Protocol
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -119,13 +119,27 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
 
         super().__init__(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"),
-            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
-            logger=logger
+            logger=logger,
         )
 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], list[T]],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableList instance.
+        """
+
+        super().__init__(
+            initial_values,
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
+            logger=logger
+        )
 
     @property
     def list_value(self) -> list[T]:

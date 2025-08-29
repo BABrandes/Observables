@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from typing import Optional
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -117,15 +117,32 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             initial_value: tuple[T, ...] = observable_or_hook_or_value
             hook: Optional[HookLike[tuple[T, ...]]] = None
 
-        super().__init__(
+        self._internal_construct_from_values(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"),
-            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], tuple[T, ...]],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableTuple instance.
+        """
+
+        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
+            return (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple")
+
+        super().__init__(
+            initial_values,
+            verification_method=is_valid_value,
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
+            logger=logger
+        )
 
     @property
     def tuple_value(self) -> tuple[T, ...]:

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Mapping
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
@@ -115,15 +115,29 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             initial_value: set[T] = observable_or_hook_or_value.copy() # type: ignore
             hook: Optional[HookLike[set[T]]] = None
         
-        super().__init__(
+        self._internal_construct_from_values(
             {"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"),
-            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], set[T]],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableSet instance.
+        """
+
+        super().__init__(
+            initial_values,
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"),
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
+            logger=logger
+        )
     
     @property
     def set_value(self) -> set[T]:

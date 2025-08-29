@@ -284,7 +284,26 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSele
 
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
-            
+                
+        self._internal_construct_from_values(
+            {"selected_option": initial_selected_option, "available_options": initial_available_options},
+            logger=logger
+        )
+
+        if hook_selected_option is not None:
+            self.attach(hook_selected_option, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+        if hook_available_options is not None:
+            self.attach(hook_available_options, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["selected_option", "available_options"], Any],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableSelectionOption instance.
+        """
+
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
@@ -302,18 +321,13 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSele
                 return True, "Verification method passed"
             else:
                 return False, f"Selected option {selected_option} not in options {available_options}"
-                
+
         super().__init__(
-            {"selected_option": initial_selected_option, "available_options": initial_available_options},
-            verification_method=lambda x: is_valid_value(x),
+            initial_values,
+            verification_method=is_valid_value,
             emitter_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
-
-        if hook_selected_option is not None:
-            self.attach(hook_selected_option, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        if hook_available_options is not None:
-            self.attach(hook_available_options, "available_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def selected_option(self) -> T:
@@ -420,7 +434,26 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
 
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
-            
+                
+        self._internal_construct_from_values(
+            {"selected_option": initial_selected_option, "available_options": initial_available_options},
+            logger=logger
+        )
+
+        if hook_selected_option is not None:
+            self.attach(hook_selected_option, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+        if hook_available_options is not None:
+            self.attach(hook_available_options, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["selected_option", "available_options"], Any],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableOptionalSelectionOption instance.
+        """
+
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
@@ -438,18 +471,13 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
                 return True, "Verification method passed"
             else:
                 return False, f"Selected option {selected_option} not in options {available_options}"
-                
+
         super().__init__(
-            {"selected_option": initial_selected_option, "available_options": initial_available_options},
-            verification_method=lambda x: is_valid_value(x),
+            initial_values,
+            verification_method=is_valid_value,
             emitter_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
-
-        if hook_selected_option is not None:
-            self.attach(hook_selected_option, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        if hook_available_options is not None:
-            self.attach(hook_available_options, "available_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def selected_option(self) -> Optional[T]:

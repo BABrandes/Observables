@@ -245,6 +245,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
         if not self.is_active:
             raise ValueError("Hook is deactivated")
+        if hook is None: # type: ignore
+            raise ValueError("Cannot connect to None hook")
         if not hook.is_active:
             raise ValueError("Hook is deactivated")
         

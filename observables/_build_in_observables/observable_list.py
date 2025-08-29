@@ -117,7 +117,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_value: list[T] = observable_or_hook_or_value.copy()
             hook: Optional[HookLike[list[T]]] = None
 
-        super().__init__(
+        self._internal_construct_from_values(
             {"value": initial_value},
             logger=logger,
         )

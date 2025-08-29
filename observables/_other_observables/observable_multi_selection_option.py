@@ -196,7 +196,30 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         if initial_selected_options and not initial_selected_options.issubset(initial_available_options):
             invalid_options = initial_selected_options - initial_available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {initial_available_options}")
-        
+
+        self._internal_construct_from_values(
+            {"selected_options": initial_selected_options, "available_options": initial_available_options},
+            logger=logger
+        )
+
+        # Establish bindings if hooks were provided
+        if observable is not None:
+            self.attach(observable.selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
+            self.attach(observable.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        if available_options_hook is not None:
+            self.attach(available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        if selected_options_hook is not None and selected_options_hook is not available_options_hook:
+            self.attach(selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["selected_options", "available_options"], set[T]],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableMultiSelectionOption instance.
+        """
+
         def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], set[T]]) -> tuple[bool, str]:
             
             if "selected_options" in x:
@@ -215,20 +238,11 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             return True, "Verification method passed"
 
         super().__init__(
-            {"selected_options": initial_selected_options, "available_options": initial_available_options},
+            initial_values,
             verification_method=is_valid_value,
             emitter_hook_callbacks={"number_of_selected_options": lambda x: len(x["selected_options"]), "number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
-
-        # Establish bindings if hooks were provided
-        if observable is not None:
-            self.attach(observable.selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
-            self.attach(observable.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
-        if available_options_hook is not None:
-            self.attach(available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
-        if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.attach(selected_options_hook, "selected_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def _collective_hooks(self) -> set[HookLike[Any]]:

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any
+from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
@@ -117,15 +117,32 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_dict_value: dict[K, V] = observable_or_hook_or_value.copy()
             hook: Optional[HookLike[dict[K, V]]] = None
 
-        super().__init__(
+        self._internal_construct_from_values(
             {"value": initial_dict_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary"),
-            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
 
         if hook is not None:
             self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], dict[K, V]],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableDict instance.
+        """
+
+        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
+            return (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary")
+
+        super().__init__(
+            initial_values,
+            verification_method=is_valid_value,
+            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
+            logger=logger
+        )
 
     @property
     def dict_value_hook(self) -> HookLike[dict[K, V]]:

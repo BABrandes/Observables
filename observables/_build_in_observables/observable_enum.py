@@ -354,20 +354,20 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
 
         if enum_value is None:
             initial_enum_value: Optional[E] = None
-            bindable_enum_carrier: Optional[HookLike[Optional[E]]] = None
+            hook_selected_enum: Optional[HookLike[Optional[E]]] = None
 
         elif isinstance(enum_value, HookLike):
             initial_enum_value: Optional[E] = enum_value.value
-            bindable_enum_carrier: Optional[HookLike[Optional[E]]] = enum_value
+            hook_selected_enum: Optional[HookLike[Optional[E]]] = enum_value
 
         elif isinstance(enum_value, ObservableOptionalEnumLike):
             initial_enum_value: Optional[E] = enum_value.enum_value
-            bindable_enum_carrier: Optional[HookLike[Optional[E]]] = enum_value.enum_value_hook
+            hook_selected_enum: Optional[HookLike[Optional[E]]] = enum_value.enum_value_hook
             skip_enum_options_processing = True
 
         else:
             initial_enum_value: Optional[E] = enum_value
-            bindable_enum_carrier: Optional[HookLike[Optional[E]]] = None
+            hook_selected_enum: Optional[HookLike[Optional[E]]] = None
 
         # Only process enum_options if we haven't already set them from the hook
         if not skip_enum_options_processing:
@@ -401,8 +401,31 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
         if logger is not None:
             logger.debug(f"initial_enum_value: {initial_enum_value}")
             logger.debug(f"initial_enum_options: {initial_enum_options}")
-            logger.debug(f"bindable_enum_carrier: {bindable_enum_carrier}")
-            logger.debug(f"bindable_set_carrier: {hook_enum_options}")
+            logger.debug(f"hook_selected_enum: {hook_selected_enum}")
+            logger.debug(f"hook_enum_options: {hook_enum_options}")
+
+        self._internal_construct_from_values(
+            {
+                "enum_value": initial_enum_value,
+                "enum_options": initial_enum_options
+            },
+            logger=logger,
+        )
+
+        # Establish bindings if carriers were provided
+        if hook_selected_enum is not None:
+            self.attach(hook_selected_enum, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
+        if hook_enum_options is not None:
+            self.attach(hook_enum_options, "enum_options", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["enum_value", "enum_options"], Any],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableEnum instance.
+        """
 
         def is_valid_value(x: Mapping[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
 
@@ -422,19 +445,10 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableOptionalEnumLike[E
             return True, "Verification method passed"
 
         super().__init__(
-            {
-                "enum_value": initial_enum_value,
-                "enum_options": initial_enum_options
-            },
+            initial_values,
             verification_method=is_valid_value,
             logger=logger
         )
-
-        # Establish bindings if carriers were provided
-        if bindable_enum_carrier is not None:
-            self.attach(bindable_enum_carrier, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
-        if hook_enum_options is not None:
-            self.attach(hook_enum_options, "enum_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def enum_value(self) -> Optional[E]:
@@ -690,6 +704,29 @@ class ObservableEnum(ObservableEnumBase[E], ObservableEnumLike[E], Generic[E]):
             logger.debug(f"hook_enum_value: {hook_enum_value}")
             logger.debug(f"hook_enum_options: {hook_enum_options}")
 
+        self._internal_construct_from_values(
+            {
+                "enum_value": initial_enum_value,
+                "enum_options": initial_enum_options
+            },
+            logger=logger
+        )
+
+        # Establish bindings if hooks were provided
+        if hook_enum_value is not None:
+            self.attach(hook_enum_value, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
+        if hook_enum_options is not None:
+            self.attach(hook_enum_options, "enum_options", InitialSyncMode.PULL_FROM_TARGET)
+
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["enum_value", "enum_options"], Any],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """
+        Construct an ObservableEnum instance.
+        """
+
         def is_valid_value(x: Mapping[Literal["enum_value", "enum_options"], Any]) -> tuple[bool, str]:
 
             if "enum_value" in x:
@@ -708,19 +745,10 @@ class ObservableEnum(ObservableEnumBase[E], ObservableEnumLike[E], Generic[E]):
             return True, "Verification method passed"
 
         super().__init__(
-            {
-                "enum_value": initial_enum_value,
-                "enum_options": initial_enum_options
-            },
+            initial_values,
             verification_method=is_valid_value,
             logger=logger
         )
-
-        # Establish bindings if hooks were provided
-        if hook_enum_value is not None:
-            self.attach(hook_enum_value, "enum_value", InitialSyncMode.PULL_FROM_TARGET)
-        if hook_enum_options is not None:
-            self.attach(hook_enum_options, "enum_options", InitialSyncMode.PULL_FROM_TARGET)
 
     @property
     def enum_value(self) -> E:

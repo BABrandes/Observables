@@ -1,17 +1,26 @@
 import unittest
 import threading
-from typing import Any, Callable
+from typing import Any, Callable, Literal, Mapping, Optional
+from logging import Logger
 from observables import Hook, BaseObservable, HookLike, InitialSyncMode
 from run_tests import console_logger as logger
 
 
-class MockObservable(BaseObservable[str]):
+class MockObservable(BaseObservable[Literal["value"], Any]):
     """Mock observable for testing purposes."""
     
     def __init__(self, name: str):
-        super().__init__(initial_component_values={"value": name})
+        self._internal_construct_from_values({"value": name})
     
-    def _act_on_invalidation(self, keys: set[str]) -> None:
+    def _internal_construct_from_values(
+        self,
+        initial_values: Mapping[Literal["value"], str],
+        logger: Optional[Logger] = None,
+        **kwargs: Any) -> None:
+        """Construct a MockObservable instance."""
+        super().__init__(initial_component_values=initial_values)
+    
+    def _act_on_invalidation(self, keys: set[Literal["value"]]) -> None:
         """Act on invalidation - required by BaseObservable."""
         pass
 
@@ -470,7 +479,7 @@ class TestHookCapabilities(unittest.TestCase):
         new_nexus = HookNexus("new_value", hook)
         
         # Replace the hook nexus
-        hook._replace_hook_group(new_nexus) #type: ignore
+        hook._replace_hook_nexus(new_nexus) #type: ignore
         
         # Verify the hook is now in the new hook nexus
         self.assertEqual(hook.hook_nexus, new_nexus)

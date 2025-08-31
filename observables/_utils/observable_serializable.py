@@ -6,9 +6,9 @@ from abc import ABC, abstractmethod
 
 
 HK = TypeVar("HK")
-Obs = TypeVar("Obs", bound="Serializable[Any, Any]", covariant=True)
+Obs = TypeVar("Obs", bound="ObservableSerializable[Any, Any]", covariant=True)
 
-class Serializable(ABC, Generic[HK, Obs]):
+class ObservableSerializable(ABC, Generic[HK, Obs]):
     """
     A protocol for serializable observables.
     """
@@ -28,7 +28,7 @@ class Serializable(ABC, Generic[HK, Obs]):
     @final  
     def create_from_values(
         cls,
-        initial_values: Mapping[HK, Any],
+        values: Mapping[HK, Any],
         logger: Optional[Logger] = None,
         **kwargs: Any) -> "Obs":
         """
@@ -37,7 +37,7 @@ class Serializable(ABC, Generic[HK, Obs]):
         This is a factory method for creating an instance of the class, useful for serializing and deserializing.
         """
         instance: Obs = cls.__new__(cls) # type: ignore
-        instance._internal_construct_from_values(initial_values, logger, **kwargs)
+        instance._internal_construct_from_values(values, logger, **kwargs)
         return instance
     
     @abstractmethod

@@ -102,6 +102,7 @@ from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
 from ._utils.carries_collective_hooks import CarriesCollectiveHooks
+from ._utils.observable_serializable import ObservableSerializable
 
 __all__ = [
     'ObservableDict',
@@ -129,6 +130,7 @@ __all__ = [
     'HookLike',
     'CarriesCollectiveHooks',
     'InitialSyncMode',
+    'ObservableSerializable',
 ]
 
 # Package metadata

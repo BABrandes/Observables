@@ -4,7 +4,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks import CarriesHooks
-from .._utils.serializable import Serializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -86,7 +86,7 @@ class ObservableMultiSelectionOptionLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"]], Serializable[Literal["selected_options", "available_options"], "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"]], ObservableSerializable[Literal["selected_options", "available_options"], "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     

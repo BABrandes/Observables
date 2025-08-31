@@ -4,7 +4,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks import CarriesHooks
-from .._utils.serializable import Serializable
+from .._utils.observable_serializable import ObservableSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -42,7 +42,7 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
         """
         ...
 
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Serializable[Literal["value"], "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], ObservableSerializable[Literal["value"], "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     

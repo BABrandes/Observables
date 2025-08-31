@@ -5,7 +5,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
-from .._utils.serializable import Serializable
+from .._utils.observable_serializable import ObservableSerializable
 
 E = TypeVar("E", bound=Enum)
 
@@ -234,7 +234,7 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         return bool(self._component_hooks["enum_value"].value)
 
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableOptionalEnum(ObservableEnumBase[E], Serializable[Literal["enum_value", "enum_options"], "ObservableOptionalEnum"], ObservableOptionalEnumLike[E], Generic[E]):
+class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum_value", "enum_options"], "ObservableOptionalEnum"], ObservableOptionalEnumLike[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     
@@ -536,7 +536,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], Serializable[Literal["enum_v
     
     
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnum(ObservableEnumBase[E], Serializable[Literal["enum_value", "enum_options"], "ObservableEnum"], ObservableEnumLike[E], Generic[E]):
+class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum_value", "enum_options"], "ObservableEnum"], ObservableEnumLike[E], Generic[E]):
     """
     An observable wrapper around an enum that supports bidirectional bindings and reactive updates.
     

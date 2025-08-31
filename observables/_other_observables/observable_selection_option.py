@@ -93,7 +93,7 @@ from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
-from .._utils.serializable import Serializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -228,7 +228,7 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
     def __bool__(self) -> bool:
         return bool(self._component_hooks["selected_option"].value)
     
-class ObservableSelectionOption(ObservableSelectionOptionBase[T], Serializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
+class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
 
     @overload
     def __init__(self, selected_option: HookLike[T], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
@@ -377,7 +377,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], Serializable[L
     def __hash__(self) -> int:
         return hash((frozenset(self._component_hooks["available_options"].value), self._component_hooks["selected_option"].value))
     
-class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Serializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
+class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
 
     @overload
     def __init__(self, selected_option: HookLike[Optional[T]], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:

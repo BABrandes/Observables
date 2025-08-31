@@ -293,7 +293,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         Get the collective hooks for the observable.
         """
-        return set(self._component_hooks.values())
+        return set(self._component_hooks.values()) | set(self._emitter_hooks.values())
     
     #########################################################
     # Public API
@@ -304,7 +304,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         Get the hooks of the observable.
         """
-        return set(self._component_hooks.values())
+        return set(self._component_hooks.values()) | set(self._emitter_hooks.values())
     
     def get_value(self, key: HK|EHK) -> Any:
         """

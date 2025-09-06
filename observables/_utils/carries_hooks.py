@@ -2,7 +2,7 @@ from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Opt
 from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
-    from .hook import HookLike
+    from .hook_like import HookLike
 
 HK = TypeVar("HK", contravariant=True)
 

@@ -98,9 +98,12 @@ from ._build_in_observables.observable_enum import ObservableOptionalEnumLike, O
 from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
+from ._other_observables.observable_transfer import ObservableTransfer
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
+
+# Alias for convenienc
 from ._utils.carries_collective_hooks import CarriesCollectiveHooks
 from ._utils.observable_serializable import ObservableSerializable
 
@@ -117,6 +120,7 @@ __all__ = [
     'ObservableSelectionOption',
     'ObservableOptionalSelectionOption',
     'ObservableMultiSelectionOption',
+    'ObservableTransfer',
     'ObservableDictLike',
     'ObservableListLike',
     'ObservableSetLike',
@@ -125,6 +129,7 @@ __all__ = [
     'ObservableSelectionOptionLike',
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
+    'ObservableTransfer',
     'BaseObservable',
     'Hook',
     'HookLike',

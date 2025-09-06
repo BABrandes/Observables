@@ -94,8 +94,8 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
 
     def __init__(
         self,
-        input_trigger_hooks: Mapping[IHK, HookLike[Any]],
-        output_trigger_hooks: Mapping[OHK, HookLike[Any]],
+        input_trigger_hooks: Mapping[IHK, HookLike[Any] | None],
+        output_trigger_hooks: Mapping[OHK, HookLike[Any] | None],
         forward_callable: Callable[[Mapping[IHK, Any]], Mapping[OHK, Any]],
         reverse_callable: Optional[Callable[[Mapping[OHK, Any]], Mapping[IHK, Any]]] = None,
         logger: Optional[Logger] = None
@@ -104,10 +104,14 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         Initialize the ObservableTransfer.
 
         Args:
-            input_trigger_hooks: Dictionary mapping input names to their hooks.
+            input_trigger_hooks: Dictionary mapping input names to their hooks or None.
                 When any of these hooks are invalidated, forward transformation is triggered.
-            output_trigger_hooks: Dictionary mapping output names to their hooks.
+                Use None as value for keys that should be managed internally without external connection.
+                All keys that the forward_callable expects must be present in this dict.
+            output_trigger_hooks: Dictionary mapping output names to their hooks or None.
                 When any of these hooks are invalidated, reverse transformation is triggered (if available).
+                Use None as value for keys that should be managed internally without external connection.
+                All keys that the forward_callable returns must be present in this dict.
             forward_callable: Function that transforms input values to output values.
                 Expected signature: (input_values: Mapping[IHK, Any]) -> Mapping[OHK, Any]
                 Must return a dict with keys matching output_trigger_hooks keys.
@@ -115,24 +119,30 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
                 Expected signature: (output_values: Mapping[OHK, Any]) -> Mapping[IHK, Any]
                 Must return a dict with keys matching input_trigger_hooks keys.
             logger: Optional logger for debugging and monitoring transformations.
+        
+        Note:
+            For each key in the dictionaries, an internal hook is created:
+            - If the value is a HookLike object, it's connected to the internal hook
+            - If the value is None, the internal hook remains standalone
+            This ensures all transformation keys have corresponding hooks for the CarriesHooks interface.
 
         Example:
-            >>> # Mathematical transformation
+            >>> # Mathematical transformation with mixed external/internal hooks
             >>> x_hook = Hook(owner=some_owner, value=5)
             >>> y_hook = Hook(owner=some_owner, value=3)
             >>> sum_hook = Hook(owner=some_owner, value=0)
-            >>> product_hook = Hook(owner=some_owner, value=0)
             >>> 
             >>> transfer = ObservableTransfer(
             ...     input_trigger_hooks={"x": x_hook, "y": y_hook},
-            ...     output_trigger_hooks={"sum": sum_hook, "product": product_hook},
+            ...     output_trigger_hooks={"sum": sum_hook, "product": None},  # product is internal-only
             ...     forward_callable=lambda inputs: {
             ...         "sum": inputs["x"] + inputs["y"],
             ...         "product": inputs["x"] * inputs["y"]
             ...     }
             ... )
             >>> 
-            >>> # When x_hook or y_hook values change, sum_hook and product_hook are automatically updated
+            >>> # x_hook and y_hook changes trigger automatic updates
+            >>> # sum_hook gets external updates, product_hook remains internal
         """
         
         # Initialize base classes
@@ -143,36 +153,45 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         self._lock: RLock = RLock()
         self._logger: Optional[Logger] = logger
         
-        # Create internal hooks that mirror the external hooks
+        # Create internal hooks for all keys that will be used in transformations
         # These internal hooks will have invalidation callbacks that trigger our transformations
         self._input_hooks: dict[IHK, Hook[Any]] = {}
         self._output_hooks: dict[OHK, Hook[Any]] = {}
         
-        # Create input hooks and connect them to external hooks
+        # We need to determine all possible keys by analyzing the callable signatures
+        # For now, we'll create hooks for the provided external hooks and connect them
+        
+        # Create input hooks for all keys, connecting to external hooks when provided
         for key, external_hook in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
+            initial_value = external_hook.value if external_hook is not None else None
             internal_hook: Hook[Any] = Hook(
                 owner=self,
-                value=external_hook.value,
+                value=initial_value,
                 invalidate_callback=lambda _, k=key: self._on_input_invalidated(k),
                 logger=logger
             )
             self._input_hooks[key] = internal_hook
-            # Connect external hook to our internal hook so we get notified of changes
-            external_hook.connect_to(internal_hook, InitialSyncMode.PUSH_TO_TARGET)
+            
+            # Connect external hook to our internal hook if external hook is provided
+            if external_hook is not None:
+                external_hook.connect_to(internal_hook, InitialSyncMode.PUSH_TO_TARGET)
         
-        # Create output hooks and connect them to external hooks  
+        # Create output hooks for all keys, connecting to external hooks when provided
         for key, external_hook in output_trigger_hooks.items():
             # Create internal hook with invalidation callback
+            initial_value = external_hook.value if external_hook is not None else None
             internal_hook: Hook[Any] = Hook(
                 owner=self,
-                value=external_hook.value,
+                value=initial_value,
                 invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
                 logger=logger
             )
             self._output_hooks[key] = internal_hook
-            # Connect our internal hook to external hook for pushing results
-            internal_hook.connect_to(external_hook, InitialSyncMode.PUSH_TO_TARGET)
+            
+            # Connect our internal hook to external hook if external hook is provided
+            if external_hook is not None:
+                internal_hook.connect_to(external_hook, InitialSyncMode.PUSH_TO_TARGET)
 
     def _on_input_invalidated(self, key: IHK) -> tuple[bool, str]:
         """Called when an input hook is invalidated. Triggers forward transformation."""

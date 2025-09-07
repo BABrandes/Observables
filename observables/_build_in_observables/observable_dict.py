@@ -124,7 +124,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,

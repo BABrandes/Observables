@@ -53,7 +53,7 @@ class TestEssentialMemoryManagement:
         
         # Bind them
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test binding works
         obs1.single_value = "new_value"
@@ -127,7 +127,7 @@ class TestEssentialMemoryManagement:
         
         # Bind, test, detach
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.single_value = "bound_value"
         assert obs2.single_value == "bound_value"
         
@@ -167,7 +167,7 @@ class TestMemoryStressScenarios:
                 cycle_observables[i].attach(
                     cycle_observables[i + 1].get_hook("value"),
                     "value",
-                    InitialSyncMode.PUSH_TO_TARGET
+                    InitialSyncMode.USE_CALLER_VALUE
                 )
             
             # Use the chain

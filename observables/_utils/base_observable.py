@@ -112,7 +112,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             self._nexus_to_key_cache[hook.hook_nexus] = key
             
             if isinstance(value, HookLike):
-                value.connect_to(hook, InitialSyncMode.PULL_FROM_TARGET)
+                value.connect_to(hook, InitialSyncMode.USE_TARGET_VALUE)
 
         self._emitter_hooks: dict[EHK, HookLike[Any]] = {}
         self._emitter_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
@@ -486,7 +486,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         else:
             raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
     
-    def attach(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> None:
+    def attach(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
         """
         Attach a hook to the observable.
         """
@@ -499,7 +499,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         else:
             raise ValueError(f"Key {to_key} not found in component_hooks or emitter_hooks")
 
-    def attach_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> None:
+    def attach_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
         """
         Attach multiple hooks to the observable.
         """

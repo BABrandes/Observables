@@ -28,7 +28,7 @@ temp_celsius = ObservableSingleValue(25.0)
 temp_fahrenheit = ObservableSingleValue(77.0)
 
 # Bind them bidirectionally
-temp_celsius.attach(temp_fahrenheit.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+temp_celsius.attach(temp_fahrenheit.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # 🔄 Changes propagate in BOTH directions
 temp_celsius.single_value = 30.0
@@ -68,8 +68,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # 🎉 obs1 is automatically connected to obs3!
 # This happens through HookNexus merging, not manual configuration

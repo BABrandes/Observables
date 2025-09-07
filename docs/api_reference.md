@@ -35,8 +35,8 @@ Controls how values are synchronized when observables are first bound together.
 
 ```python
 class InitialSyncMode(Enum):
-    PUSH_TO_TARGET = "push_to_target"    # Source pushes its value to target
-    PULL_FROM_TARGET = "pull_from_target"  # Source pulls value from target
+    USE_CALLER_VALUE = "use_caller_value"    # Use caller's value for initial synchronization
+    USE_TARGET_VALUE = "use_target_value"  # Use target's value for initial synchronization
 ```
 
 ### **Usage Examples**
@@ -45,12 +45,12 @@ class InitialSyncMode(Enum):
 source = ObservableSingleValue(100)
 target = ObservableSingleValue(200)
 
-# Source pushes its value (100) to target
-source.attach(target.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+# Use caller's value (100) for initial synchronization
+source.attach(target.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 print(target.single_value)  # 100
 
-# Source pulls value (200) from target  
-source.attach(target.single_value_hook, "single_value", InitialSyncMode.PULL_FROM_TARGET)
+# Use target's value (200) for initial synchronization  
+source.attach(target.single_value_hook, "single_value", InitialSyncMode.USE_TARGET_VALUE)
 print(source.single_value)  # 200
 ```
 
@@ -82,7 +82,7 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind obs1 to obs2 with bidirectional sync
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # Now changes propagate in both directions
 obs1.single_value = 100
@@ -107,8 +107,8 @@ obs2 = ObservableSingleValue(20)
 obs3 = ObservableSingleValue(30)
 
 # Create binding chain
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # Detach obs2 - obs1 and obs3 remain connected
 obs2.detach()
@@ -134,7 +134,7 @@ obs2 = ObservableSingleValue(20)
 
 print(obs1.is_attached_to(obs2))  # False
 
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 print(obs1.is_attached_to(obs2))  # True
 ```
 
@@ -225,7 +225,7 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind using hooks
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 ```
 
 ### **Methods**
@@ -300,7 +300,7 @@ obs1 = ObservableList([1, 2, 3])
 obs2 = ObservableList([])
 
 # Bind lists bidirectionally
-obs1.attach(obs2.list_value_hook, "list_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.list_value_hook, "list_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # Changes propagate in both directions
 obs1.append(4)
@@ -433,7 +433,7 @@ primary = ObservableSelectionOption("option1", {"option1", "option2", "option3"}
 secondary = ObservableSelectionOption("option1", {"option1", "option2"})
 
 # Bind selected options bidirectionally
-primary.attach(secondary.selected_option_hook, "selected_option", InitialSyncMode.PUSH_TO_TARGET)
+primary.attach(secondary.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
 
 # Changes propagate in both directions
 primary.selected_option = "option2"
@@ -689,7 +689,7 @@ room_temp = ObservableTemperature(22.0, min_temp=10.0, max_temp=35.0)
 outdoor_temp = ObservableTemperature(15.0, min_temp=-20.0, max_temp=45.0)
 
 # Bind temperatures bidirectionally
-room_temp.attach(outdoor_temp.temperature_hook, "temperature", InitialSyncMode.PUSH_TO_TARGET)
+room_temp.attach(outdoor_temp.temperature_hook, "temperature", InitialSyncMode.USE_CALLER_VALUE)
 
 # Changes propagate with validation
 room_temp.temperature = 25.0

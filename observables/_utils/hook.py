@@ -132,9 +132,9 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         if not hook.is_active:
             raise ValueError("Hook is deactivated")
         
-        if sync_mode == InitialSyncMode.PUSH_TO_TARGET:
+        if sync_mode == InitialSyncMode.USE_CALLER_VALUE:
             success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
-        elif sync_mode == InitialSyncMode.PULL_FROM_TARGET:
+        elif sync_mode == InitialSyncMode.USE_TARGET_VALUE:
             success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
         else:
             raise ValueError(f"Invalid sync mode: {sync_mode}")

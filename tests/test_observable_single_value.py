@@ -80,7 +80,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20, logger=logger)
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update
         obs1.single_value = 30
@@ -95,14 +95,14 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(100, logger=logger)
         obs2 = ObservableSingleValue(200, logger=logger)
         
-        # Test PUSH_TO_TARGET mode
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        # Test USE_CALLER_VALUE mode
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs2.single_value, 100)  # obs2 gets obs1's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSingleValue(300, logger=logger)
         obs4 = ObservableSingleValue(400, logger=logger)
-        obs3.attach(obs4.single_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+        obs3.attach(obs4.single_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         self.assertEqual(obs4.single_value, 300)  # obs4 gets updated with obs3's value
     
     def test_unbinding(self):
@@ -110,7 +110,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10, logger=logger)
         obs2 = ObservableSingleValue(20, logger=logger)
         
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -122,7 +122,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10, logger=logger)
         obs2 = ObservableSingleValue(20, logger=logger)
         
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         obs1.detach()
         
         # Second unbind should not raise an error (current behavior)
@@ -139,7 +139,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs = ObservableSingleValue(10, logger=logger)
         # The new implementation may not prevent self-binding, so we'll test the current behavior
         try:
-            obs.attach(obs.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+            obs.attach(obs.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
             # If it doesn't raise an error, that's the current behavior
         except Exception as e:
             self.assertIsInstance(e, ValueError)
@@ -151,8 +151,8 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3 = ObservableSingleValue(30, logger=logger)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
-        obs2.attach(obs3.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.attach(obs3.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs1.single_value = 100
@@ -199,8 +199,8 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3 = ObservableSingleValue(30, logger=logger)
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
-        obs3.attach(obs1.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs2.attach(obs1.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.attach(obs1.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update
         obs1.single_value = 100
@@ -424,7 +424,7 @@ class TestObservableSingleValue(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableSingleValue(10, logger=logger)
         with self.assertRaises(ValueError):
-            obs.attach(None, "value", InitialSyncMode.PUSH_TO_TARGET)  # type: ignore
+            obs.attach(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_binding_with_invalid_sync_mode(self):
         """Test that invalid sync mode raises an error"""
@@ -439,7 +439,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(42, logger=logger)
         obs2 = ObservableSingleValue(42, logger=logger)
         
-        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.single_value, 42)
         self.assertEqual(obs2.single_value, 42)

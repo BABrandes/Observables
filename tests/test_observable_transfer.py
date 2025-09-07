@@ -273,14 +273,14 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Test attach
-        transfer.attach(external_hook, "x", InitialSyncMode.PUSH_TO_TARGET)
+        transfer.attach(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test detach
         transfer.detach("x")
         
         # Test invalid key for attach/detach
         with self.assertRaises(ValueError):
-            transfer.attach(external_hook, "invalid", InitialSyncMode.PUSH_TO_TARGET)
+            transfer.attach(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)
         
         with self.assertRaises(ValueError):
             transfer.detach("invalid")

@@ -209,8 +209,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
         
         # After binding, obs2 should have obs1's values
         self.assertEqual(obs2.selected_option, "Red")
@@ -234,16 +234,16 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
         # Test update_value_from_observable mode
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
         # Current semantics: target gets caller's values
         self.assertEqual(obs2.selected_option, "Red")
         
         # Test update_observable_from_self mode
         obs3 = ObservableSelectionOption("Small", {"Small", "Medium", "Large"})
         obs4 = ObservableSelectionOption("Large", {"Small", "Medium", "Large"})
-        obs3.attach(obs4.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs3.attach(obs4.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        obs3.attach(obs4.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.attach(obs4.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
         # Current semantics: target gets caller's values
         self.assertEqual(obs4.selected_option, "Small")
     
@@ -252,8 +252,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
         
         # After binding, obs2 should have obs1's values
         self.assertEqual(obs2.selected_option, "Red")
@@ -273,7 +273,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with self.assertRaises(ValueError):
-            obs.attach(obs.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+            obs.attach(obs.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -282,8 +282,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3 = ObservableSelectionOption("Green", {"Red", "Green", "Blue"})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs2.attach(obs3.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs2.attach(obs3.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
         
         # Verify chain works
         obs1.selected_option = "Green"
@@ -329,8 +329,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs3.attach(obs1.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+        obs2.attach(obs1.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.attach(obs1.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
         
         # After binding, all observables should be synchronized due to transitive binding
         # When multiple observables are bound to the same target, they all become part of the same binding group
@@ -406,16 +406,16 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         obs2 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
-        # Caller pulls from target → target gets caller's values
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+        # Use target value for sync → target gets caller's values
         self.assertEqual(obs2.selected_option, "Red")
         self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
         
         # Test binding selection options with different options
         obs3 = ObservableSelectionOption("Red", {"Red", "Blue", "Green"})
         obs4 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
-        obs3.attach(obs4.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
+        obs3.attach(obs4.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
         
         obs3.selected_option = "Blue"
         self.assertEqual(obs4.selected_option, "Blue")
@@ -475,16 +475,16 @@ class TestObservableSelectionOption(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with self.assertRaises(ValueError):
-            obs.attach(None, "selected_option", InitialSyncMode.PULL_FROM_TARGET)  # type: ignore
+            obs.attach(None, "selected_option", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
     
     def test_selection_option_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         obs2 = ObservableSelectionOption("Blue", {"Blue", "Green", "Red"})
         
-        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.PULL_FROM_TARGET)
-        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.PULL_FROM_TARGET)
-        # Caller pulls from target → target gets caller's values
+        obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+        obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+        # Use target value for sync → target gets caller's values
         self.assertEqual(obs2.selected_option, "Red")
         self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
     

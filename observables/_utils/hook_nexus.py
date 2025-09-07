@@ -244,7 +244,7 @@ class HookNexus(Generic[T]):
         return True, "Successfully connected hook pairs"
     
     @staticmethod
-    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.PUSH_TO_TARGET) -> tuple[bool, str]:
+    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> tuple[bool, str]:
         """
         Connect two hooks together.
 

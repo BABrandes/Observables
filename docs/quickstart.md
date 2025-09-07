@@ -57,7 +57,7 @@ display_name = ObservableSingleValue("Display")
 primary_name.attach(
     display_name.single_value_hook, 
     "single_value", 
-    InitialSyncMode.PUSH_TO_TARGET
+    InitialSyncMode.USE_CALLER_VALUE
 )
 
 print(f"After binding:")
@@ -113,8 +113,8 @@ page_title = ObservableSingleValue("Page")
 navigation_title = ObservableSingleValue("Nav")
 
 # Connect them in a chain
-header_title.attach(page_title.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
-page_title.attach(navigation_title.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+header_title.attach(page_title.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+page_title.attach(navigation_title.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # 🎯 Change the header - all others update automatically
 header_title.single_value = "Dashboard"
@@ -149,8 +149,8 @@ class UserProfileForm:
         self.is_valid = ObservableSingleValue(False)
         
         # Bind form fields to display fields
-        self.name.attach(self.display_name.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
-        self.email.attach(self.header_email.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+        self.name.attach(self.display_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+        self.email.attach(self.header_email.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Add validation listeners
         self.name.add_listener(self._validate)
@@ -216,9 +216,9 @@ display = ObservableSingleValue("Current")
 use_advanced = True
 
 if use_advanced:
-    advanced_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+    advanced_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 else:
-    simple_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+    simple_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 print(f"Display shows: {display.single_value}")  # "Advanced"
 ```
@@ -248,8 +248,8 @@ obs2 = ObservableSingleValue("Connected")
 obs3 = ObservableSingleValue("Connected")
 
 # Connect them
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.PUSH_TO_TARGET)
+obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
 
 # Disconnect the middle one
 obs2.detach()
@@ -276,8 +276,8 @@ print(f"obs3: {obs3.single_value}")  # "Updated" (still connected to obs1)
 - `is_attached_to(other)` - Check if bound to another observable
 
 ### **Initial Sync Modes**
-- `InitialSyncMode.PUSH_TO_TARGET` - Source pushes value to target
-- `InitialSyncMode.PULL_FROM_TARGET` - Source pulls value from target
+- `InitialSyncMode.USE_CALLER_VALUE` - Use caller's value for initial synchronization
+- `InitialSyncMode.USE_TARGET_VALUE` - Use target's value for initial synchronization
 
 ### **Common Hooks**
 - `single_value_hook` - For single values

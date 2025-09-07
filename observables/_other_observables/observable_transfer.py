@@ -175,7 +175,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             
             # Connect external hook to our internal hook if external hook is provided
             if external_hook is not None:
-                external_hook.connect_to(internal_hook, InitialSyncMode.PUSH_TO_TARGET)
+                external_hook.connect_to(internal_hook, InitialSyncMode.USE_CALLER_VALUE)
         
         # Create output hooks for all keys, connecting to external hooks when provided
         for key, external_hook in output_trigger_hooks.items():
@@ -191,7 +191,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             
             # Connect our internal hook to external hook if external hook is provided
             if external_hook is not None:
-                internal_hook.connect_to(external_hook, InitialSyncMode.PUSH_TO_TARGET)
+                internal_hook.connect_to(external_hook, InitialSyncMode.USE_CALLER_VALUE)
 
     def _on_input_invalidated(self, key: IHK) -> tuple[bool, str]:
         """Called when an input hook is invalidated. Triggers forward transformation."""

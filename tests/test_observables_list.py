@@ -203,7 +203,7 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([20])
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update with obs1's value appended
         obs1.append(30)
@@ -218,15 +218,15 @@ class TestObservableList(unittest.TestCase):
         obs1 = ObservableList([100])
         obs2 = ObservableList([200])
         
-        # Test PUSH_TO_TARGET: caller pushes to target → target (obs2) gets caller's value
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        # Test USE_CALLER_VALUE: use caller's value → target (obs2) gets caller's value
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs2.list_value, [100])
         
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
-        # Current semantics: target gets caller's value even for PULL_FROM_TARGET
+        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        # Current semantics: target gets caller's value even for USE_TARGET_VALUE
         self.assertEqual(obs4.list_value, [300])
     
     def test_unbinding(self):
@@ -234,7 +234,7 @@ class TestObservableList(unittest.TestCase):
         obs1 = ObservableList([10])
         obs2 = ObservableList([20])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.detach()
         
         # Changes should no longer propagate
@@ -246,7 +246,7 @@ class TestObservableList(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(obs.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+            obs.attach(obs.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -255,8 +255,8 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
-        obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works: values converge to caller on each bind
         obs1.append(100)
@@ -301,8 +301,8 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
-        obs3.attach(obs1.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs2.attach(obs1.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.attach(obs1.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update to obs1's value
         obs1.append(100)
@@ -427,7 +427,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding empty lists
         obs1: ObservableList[int] = ObservableList([])
         obs2: ObservableList[int] = ObservableList([])
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.append(1)
         self.assertEqual(obs2.list_value, [1])
@@ -435,7 +435,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding lists with same initial values
         obs3 = ObservableList([42])
         obs4 = ObservableList([42])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.append(100)
         self.assertEqual(obs4.list_value, [42, 100])
@@ -502,14 +502,14 @@ class TestObservableList(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(None, "value", InitialSyncMode.PUSH_TO_TARGET)  # type: ignore
+            obs.attach(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_list_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableList([42])
         obs2 = ObservableList([42])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.list_value, [42])
         self.assertEqual(obs2.list_value, [42])

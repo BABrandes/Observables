@@ -223,7 +223,7 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
         
         # Connect hook1 to hook2
-        hook1.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+        hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now they should be in the same hook nexus
         self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
@@ -281,7 +281,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same hook nexus
-        hook.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+        hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now disconnect the first hook
         hook.detach()
@@ -313,7 +313,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same group
-        hook.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+        hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Detach multiple times - should fail after first detach
         with self.assertRaises(ValueError) as cm:
@@ -391,7 +391,7 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertFalse(hook2.is_attached_to(hook1))
         
         # Connect them
-        hook1.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+        hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now they should be attached
         self.assertTrue(hook1.is_attached_to(hook2))
@@ -713,7 +713,7 @@ class TestHookCapabilities(unittest.TestCase):
                         value="value",
                         invalidate_callback=lambda _: (True, "success")
                     )
-                    hook.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+                    hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
                     hook.detach()
                     time.sleep(0.003)
                 except Exception:
@@ -814,7 +814,7 @@ class TestHookCapabilities(unittest.TestCase):
         def connect_caller():
             for _ in range(50):
                 try:
-                    hook1.connect_to(hook2, InitialSyncMode.PUSH_TO_TARGET)
+                    hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
                     time.sleep(0.003)
                 except Exception:
                     pass

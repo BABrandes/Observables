@@ -257,7 +257,7 @@ class TestEmitterHooksListeners:
         # Bind the length hook to the single value (reverse direction)
         from observables._utils.initial_sync_mode import InitialSyncMode
         length_hook = obs_list.get_hook("length")
-        length_hook.connect_to(length_tracker.get_hook("value"), InitialSyncMode.PUSH_TO_TARGET)
+        length_hook.connect_to(length_tracker.get_hook("value"), InitialSyncMode.USE_CALLER_VALUE)
         
         # Initial binding should work
         assert length_tracker.single_value == 3

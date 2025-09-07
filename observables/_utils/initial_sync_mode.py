@@ -9,8 +9,8 @@ class InitialSyncMode(Enum):
     observable's value is used as the source of truth during binding establishment.
     
     Attributes:
-        PUSH_TO_TARGET: The caller pushes its value to the target observable
-        PULL_FROM_TARGET: The caller pulls value from the target observable
+        USE_CALLER_VALUE: Use the caller's value for initial synchronization
+        USE_TARGET_VALUE: Use the target's value for initial synchronization
     
     Example:
         >>> from observables import ObservableSingleValue, InitialSyncMode
@@ -21,12 +21,12 @@ class InitialSyncMode(Enum):
         
         >>> # Bind with different sync modes
         >>> # This will set target to 10 (source's value)
-        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.PUSH_TO_TARGET)
+        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         >>> print(target.single_value)  # Output: 10
         
         >>> # This would set source to 20 (target's value)
-        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.PULL_FROM_TARGET)
+        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         >>> print(source.single_value)  # Output: 20
     """
-    PUSH_TO_TARGET = "push_to_target"
-    PULL_FROM_TARGET = "pull_from_target"
+    USE_CALLER_VALUE = "use_caller_value"
+    USE_TARGET_VALUE = "use_target_value"

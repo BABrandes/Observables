@@ -182,7 +182,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         keys: set[HK] = set()
         for hook in hooks:
-            key = self._get_key_for(hook)
+            key = self._get_key_for_primary_hook(hook)
             keys.add(key)
         self._invalidate(keys)
 
@@ -311,7 +311,20 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
 
             log(self, "set_component_values", self._logger, True, "Successfully set component values")
 
-    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK:
+    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK|EHK:
+        """
+        Get the key for a hook using O(1) cache lookup with lazy population.
+        """
+        try:
+            return self._get_key_for_primary_hook(hook_or_nexus)
+        except ValueError:
+            pass
+        try:
+            return self._get_key_for_secondary_hook(hook_or_nexus)
+        except ValueError:
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
+
+    def _get_key_for_primary_hook(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK:
         """
         Get the key for a hook using O(1) cache lookup with lazy population.
         """
@@ -387,7 +400,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                     return True, "Secondary hooks are always valid as they're computed values"
             
             # Must be a component hook
-            return self._verification_method({self._get_key_for(hook): value})
+            return self._verification_method({self._get_key_for_primary_hook(hook): value})
         
     def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]: # type: ignore
         """
@@ -398,7 +411,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         else:
             dict_of_values: dict[HK, Any] = self._primary_component_values
             for nexus, value in values.items():
-                dict_of_values[self._get_key_for(nexus)] = value
+                dict_of_values[self._get_key_for_primary_hook(nexus)] = value
             return self._verification_method(dict_of_values)
         
     def _get_component_value_reference(self, key: HK) -> Any:

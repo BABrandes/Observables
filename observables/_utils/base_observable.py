@@ -76,7 +76,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
 
     def __init__(
             self,
-            initial_component_values: Mapping[HK, Any],
+            initial_component_values_or_hooks: Mapping[HK, Any|HookLike[Any]],
             verification_method: Optional[Callable[[Mapping[HK, Any]], tuple[bool, str]]] = None,
             emitter_hook_callbacks: Mapping[EHK, Callable[[Mapping[HK, Any]], Any]] = {},
             logger: Optional[Logger] = None):
@@ -93,10 +93,14 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         self._logger: Optional[Logger] = logger
 
         self._component_hooks: dict[HK, HookLike[Any]] = {}
-        for key, value in initial_component_values.items():
-            if not isinstance(key, str):
-                raise ValueError(f"Key {key} is not a string")
-            self._component_hooks[key] = Hook(self, value, lambda _, k=key: self._invalidate({k}), logger)
+        for key, value in initial_component_values_or_hooks.items():
+            if isinstance(value, HookLike):
+                initial_value = value.value
+            else:
+                initial_value = value
+            self._component_hooks[key] = Hook(self, initial_value, lambda _, k=key: self._invalidate({k}), logger)
+            if isinstance(value, HookLike):
+                value.connect_to(self._component_hooks[key], InitialSyncMode.PULL_FROM_TARGET)
 
         self._emitter_hooks: dict[EHK, HookLike[Any]] = {}
         self._emitter_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
@@ -104,7 +108,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             if not isinstance(key, str):
                 raise ValueError(f"Key {key} is not a string")
             self._emitter_hook_callbacks[key] = callback
-            value = callback(initial_component_values)
+            value = callback(initial_component_values_or_hooks)
             self._emitter_hooks[key] = Hook(self, value, None, logger)
 
         self._verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = verification_method
@@ -112,7 +116,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         self._lock = threading.RLock()
 
         if self._verification_method is not None:
-            success, message = self._verification_method(initial_component_values)
+            success, message = self._verification_method(initial_component_values_or_hooks)
             if not success:
                 raise ValueError(f"Verification method failed: {message}")
 

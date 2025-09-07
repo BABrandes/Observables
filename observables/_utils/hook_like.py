@@ -1,5 +1,5 @@
 from threading import RLock
-from typing import Callable, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
+from typing import Callable, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any, Mapping
 from .initial_sync_mode import InitialSyncMode
 from .hook_nexus import HookNexus
 from .base_listening import BaseListeningLike
@@ -138,3 +138,20 @@ class HookLike(BaseListeningLike, Protocol[T]):
         Check if this hook is active.
         """
         ...
+    
+    @staticmethod
+    def set_multiple_values(values: Mapping[T, Any], hooks: Mapping[T, "HookLike[Any]"]) -> None:
+        """
+        Set the values of multiple hooks.
+        """
+        nexus_and_values: Mapping[HookNexus[Any], Any] = {}
+        for key, value in values.items():
+            nexus: HookNexus[Any] = hooks[key].hook_nexus
+            nexus_and_values[nexus] = value
+
+        # Submit the values to the hook nexus
+        HookNexus.submit_multiple_values(nexus_and_values)
+
+        # Notify listeners of the hooks
+        for hook in hooks.values():
+            hook._notify_listeners()

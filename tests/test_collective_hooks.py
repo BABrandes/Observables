@@ -41,11 +41,11 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertIn(self.selector1._component_hooks["selected_option"], self.selector1._collective_hooks) # type: ignore
         self.assertIn(self.selector1._component_hooks["available_options"], self.selector1._collective_hooks) # type: ignore
         
-        # ObservableSingleValue should have empty collective_hooks (no dependent hooks)
+        # ObservableSingleValue should have 1 collective hook (just the component hook, no emitter hooks)
         self.assertEqual(len(self.value1._collective_hooks), 1) # type: ignore
         
-        # ObservableSet should have empty collective_hooks (no dependent hooks)
-        self.assertEqual(len(self.set1._collective_hooks), 1) # type: ignore
+        # ObservableSet should have 2 collective hooks (component hook + length emitter hook)
+        self.assertEqual(len(self.set1._collective_hooks), 2) # type: ignore
 
     def test_complex_binding_network(self):
         """Test a complex binding network with multiple observable types."""

@@ -157,7 +157,7 @@ class TestHookListeners(unittest.TestCase):
         # This test verifies the callback works, not the listener notification
     
     def test_value_change_through_hook_nexus(self):
-        """Test that value changes work through HookNexus without self-notification."""
+        """Test that value changes work through HookNexus with listener notification."""
         callback = Mock()
         self.hook.add_listeners(callback)
         
@@ -167,10 +167,9 @@ class TestHookListeners(unittest.TestCase):
         # Verify value was changed
         self.assertEqual(self.hook.value, "new_value")
         
-        # Note: Listeners are not notified when a hook changes its own value
-        # This prevents circular notification patterns
-        # Listeners are only notified when other hooks in the nexus change values
-        callback.assert_not_called()
+        # With the new architecture, hooks always notify their own listeners
+        # This ensures consistent behavior across all hook types
+        callback.assert_called_once()
     
     def test_listeners_copy_is_returned(self):
         """Test that listeners property returns a copy, not the original set."""

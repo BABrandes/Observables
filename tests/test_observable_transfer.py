@@ -22,7 +22,7 @@ class MockObservable(BaseObservable[Literal["value"], Any]):
         logger: Optional[Logger] = None,
         **kwargs: Any) -> None:
         """Construct a MockObservable instance."""
-        super().__init__(initial_component_values=initial_values)
+        super().__init__(initial_component_values_or_hooks=initial_values)
     
     def _act_on_invalidation(self, keys: set[Literal["value"]]) -> None:
         """Act on invalidation - required by BaseObservable."""

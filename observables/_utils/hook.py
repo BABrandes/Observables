@@ -47,24 +47,34 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     @property
     def value(self) -> T:
         """Get the value behind this hook."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
-        assert self._hook_nexus is not None
-        return self.hook_nexus.value
+        with self._lock:
+            if not self.is_active:
+                raise ValueError("Hook is deactivated")
+            assert self._hook_nexus is not None
+            return self._hook_nexus.value
     
     @value.setter
     def value(self, value: T) -> None:
         """Set the value behind this hook."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
-        assert self._hook_nexus is not None
-        success, msg = self._hook_nexus.submit_single_value(value, {self})  # Ignore self to prevent double notifications
+        with self._lock:  # Atomic check and use
+            if not self.is_active:
+                raise ValueError("Hook is deactivated")
+            assert self._hook_nexus is not None
+            hook_nexus = self._hook_nexus  # Capture reference under lock
+            
+        # Release lock before potentially long operations
+        success, msg = hook_nexus.submit_single_value(value, {self})  # Ignore self to prevent double notifications
+        self._notify_listeners()
         log(self, "value.setter", self._logger, success, msg)
 
     @property
     def previous_value(self) -> T:
         """Get the previous value behind this hook."""
-        return self.hook_nexus.previous_value
+        with self._lock:
+            if not self.is_active:
+                raise ValueError("Hook is deactivated")
+            assert self._hook_nexus is not None
+            return self._hook_nexus.previous_value
 
     @property
     def owner(self) -> "CarriesHooks[Any]":
@@ -74,10 +84,11 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     @property
     def hook_nexus(self) -> "HookNexus[T]":
         """Get the hook nexus that this hook belongs to."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
-        assert self._hook_nexus is not None
-        return self._hook_nexus
+        with self._lock:
+            if not self.is_active:
+                raise ValueError("Hook is deactivated")
+            assert self._hook_nexus is not None
+            return self._hook_nexus
     
     @property
     def invalidation_callback(self) -> Callable[["HookLike[T]"], tuple[bool, str]]:
@@ -192,7 +203,14 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """
         if not self.is_active:
             raise ValueError("Hook is deactivated")
+        
+        old_nexus = self._hook_nexus
         self._hook_nexus = hook_nexus
+        
+        # Update the owner's cache if it has one
+        if hasattr(self._owner, '_update_hook_cache'):
+            self._owner._update_hook_cache(self, old_nexus)  # type: ignore
+        
         log(self, "replace_hook_nexus", self._logger, True, "Successfully replaced hook nexus")
 
     def deactivate(self) -> None:
@@ -202,11 +220,12 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         No value can be submitted to this hook.
         No value can be received from this hook.
         """
-        if not self.is_active:
-            raise ValueError("Hook is already deactivated")
-        assert self._hook_nexus is not None
-        self._hook_nexus.remove_hook(self)
-        self._hook_nexus = None
+        with self._lock:
+            if not self.is_active:
+                raise ValueError("Hook is already deactivated")
+            assert self._hook_nexus is not None
+            self._hook_nexus.remove_hook(self)
+            self._hook_nexus = None
         log(self, "deactivate", self._logger, True, "Successfully deactivated hook")
     
     def activate(self, initial_value: T) -> None:
@@ -215,9 +234,10 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         
         This hook can now be used to submit and receive values.
         """
-        if self.is_active:
-            raise ValueError("Hook is already activated")
-        self._hook_nexus = HookNexus(initial_value, self)
+        with self._lock:
+            if self.is_active:
+                raise ValueError("Hook is already activated")
+            self._hook_nexus = HookNexus(initial_value, self)
         log(self, "activate", self._logger, True, "Successfully activated hook")
 
     @property

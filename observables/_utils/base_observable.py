@@ -501,7 +501,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         else:
             raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
     
-    def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
+    def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode) -> None:
         """
         Connect a hook to the observable.
 
@@ -523,7 +523,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             raise ValueError(f"Key {to_key} not found in component_hooks or emitter_hooks")
     
 
-    def connect_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
+    def connect_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
         """
         Attach multiple hooks to the observable.
 

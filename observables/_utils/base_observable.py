@@ -455,6 +455,20 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         return set(self._primary_hooks.values()) | set(self._secondary_hooks.values())
     
     @property
+    def primary_hooks(self) -> set[HookLike[Any]]:
+        """
+        Get the primary hooks of the observable.
+        """
+        return set(self._primary_hooks.values())
+    
+    @property
+    def secondary_hooks(self) -> set[HookLike[Any]]:
+        """
+        Get the secondary hooks of the observable.
+        """
+        return set(self._secondary_hooks.values())
+    
+    @property
     def component_values_dict(self) -> dict[HK|EHK, Any]:
         """
         Get the values of the component (primary and secondary) hooks as a dictionary.
@@ -465,6 +479,20 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         for key, hook in self._secondary_hooks.items():
             values_dict[key] = hook.value
         return values_dict
+    
+    @property
+    def primary_component_values(self) -> dict[HK, Any]:
+        """
+        Get the values of the primary component hooks as a dictionary.
+        """
+        return {key: hook.value for key, hook in self._primary_hooks.items()}
+    
+    @property
+    def secondary_component_values(self) -> dict[EHK, Any]:
+        """
+        Get the values of the secondary component hooks as a dictionary.
+        """
+        return {key: hook.value for key, hook in self._secondary_hooks.items()}
     
     def get_component_value(self, key: HK|EHK) -> Any:
         """

@@ -151,7 +151,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         super().__init__(
             initial_values,
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"),
-            emitter_hook_callbacks={"length": lambda x: len(x["value"])},
+            secondary_hook_callbacks={"length": lambda x: len(x["value"])},
             logger=logger
         )
     
@@ -163,14 +163,14 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Returns:
             A copy of the current set to prevent external modification
         """
-        return self._component_hooks["value"].value.copy()    
+        return self._primary_hooks["value"].value.copy()    
     
     @value.setter
     def value(self, value: set[T]) -> None:
         """
         Set the current value of the set.
         """
-        if value == self._component_hooks["value"].value:
+        if value == self._primary_hooks["value"].value:
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
@@ -184,7 +184,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             value: The new set value to set
         """
-        if value == self._component_hooks["value"].value:
+        if value == self._primary_hooks["value"].value:
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
@@ -195,14 +195,14 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         
         This hook can be used for binding operations with other observables.
         """
-        return self._component_hooks["value"]
+        return self._primary_hooks["value"]
     
     @property
     def length(self) -> int:
         """
         Get the current length of the set.
         """
-        return len(self._component_hooks["value"].value)
+        return len(self._primary_hooks["value"].value)
     
     @property
     def length_hook(self) -> HookLike[int]:
@@ -211,7 +211,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         
         This hook can be used for binding operations that react to length changes.
         """
-        return self._emitter_hooks["length"]
+        return self._secondary_hooks["length"]
     
     
     # Standard set methods
@@ -225,8 +225,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             item: The element to add to the set
         """
-        if item not in self._component_hooks["value"].value:
-            new_set = self._component_hooks["value"].value.copy()
+        if item not in self._primary_hooks["value"].value:
+            new_set = self._primary_hooks["value"].value.copy()
             new_set.add(item)
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
@@ -243,10 +243,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Raises:
             KeyError: If the item is not in the set
         """
-        if item not in self._component_hooks["value"].value:
+        if item not in self._primary_hooks["value"].value:
             raise KeyError(item)
         
-        new_set = self._component_hooks["value"].value.copy()
+        new_set = self._primary_hooks["value"].value.copy()
         new_set.remove(item)
         self._set_component_values({"value": new_set}, notify_binding_system=True)
     
@@ -261,8 +261,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             item: The element to remove from the set
         """
-        if item in self._component_hooks["value"].value:
-            new_set = self._component_hooks["value"].value.copy()
+        if item in self._primary_hooks["value"].value:
+            new_set = self._primary_hooks["value"].value.copy()
             new_set.discard(item)
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
@@ -279,11 +279,11 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Raises:
             KeyError: If the set is empty
         """
-        if not self._component_hooks["value"].value:
+        if not self._primary_hooks["value"].value:
             raise KeyError("pop from an empty set")
         
-        item = next(iter(self._component_hooks["value"].value))
-        new_set = self._component_hooks["value"].value.copy()
+        item = next(iter(self._primary_hooks["value"].value))
+        new_set = self._primary_hooks["value"].value.copy()
         new_set.remove(item)
         self._set_component_values({"value": new_set}, notify_binding_system=True)
         return item
@@ -295,7 +295,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         This method removes all elements from the set, making it empty.
         It uses set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if self._component_hooks["value"].value:
+        if self._primary_hooks["value"].value:
             new_set: set[T] = set()
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
@@ -309,10 +309,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             *others: Variable number of iterables to add elements from
         """
-        new_set = self._component_hooks["value"].value.copy()
+        new_set = self._primary_hooks["value"].value.copy()
         for other in others:
             new_set.update(other)
-        if new_set != self._component_hooks["value"].value:
+        if new_set != self._primary_hooks["value"].value:
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
     def intersection_update(self, *others: Iterable[T]) -> None:
@@ -326,10 +326,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             *others: Variable number of iterables to intersect with
         """
-        new_set = self._component_hooks["value"].value.copy()
+        new_set = self._primary_hooks["value"].value.copy()
         for other in others:
             new_set.intersection_update(other)
-        if new_set != self._component_hooks["value"].value:
+        if new_set != self._primary_hooks["value"].value:
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
     def difference_update(self, *others: Iterable[T]) -> None:
@@ -343,10 +343,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             *others: Variable number of iterables to remove elements from
         """
-        new_set = self._component_hooks["value"].value.copy()
+        new_set = self._primary_hooks["value"].value.copy()
         for other in others:
             new_set.difference_update(other)
-        if new_set != self._component_hooks["value"].value:
+        if new_set != self._primary_hooks["value"].value:
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
     def symmetric_difference_update(self, other: Iterable[T]) -> None:
@@ -360,7 +360,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Args:
             other: An iterable to compute symmetric difference with
         """
-        current_set = self._component_hooks["value"].value
+        current_set = self._primary_hooks["value"].value
         new_set = current_set.copy()
         new_set.symmetric_difference_update(other)
         
@@ -369,10 +369,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             self._set_component_values({"value": new_set}, notify_binding_system=True)
     
     def __str__(self) -> str:
-        return f"OS(options={self._component_hooks['value'].value})"
+        return f"OS(options={self._primary_hooks['value'].value})"
     
     def __repr__(self) -> str:
-        return f"ObservableSet({self._component_hooks['value'].value})"
+        return f"ObservableSet({self._primary_hooks['value'].value})"
     
     def __len__(self) -> int:
         """
@@ -381,7 +381,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Returns:
             The number of elements in the set
         """
-        return len(self._component_hooks["value"].value)
+        return len(self._primary_hooks["value"].value)
     
     def __contains__(self, item: T) -> bool:
         """
@@ -393,7 +393,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Returns:
             True if the element is in the set, False otherwise
         """
-        return item in self._component_hooks["value"].value
+        return item in self._primary_hooks["value"].value
     
     def __iter__(self):
         """
@@ -402,7 +402,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Returns:
             An iterator that yields each element in the set
         """
-        return iter(self._component_hooks["value"].value)
+        return iter(self._primary_hooks["value"].value)
     
     def __eq__(self, other: Any) -> bool:
         """
@@ -415,8 +415,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             True if the sets contain the same elements, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value == other._component_hooks["value"].value
-        return self._component_hooks["value"].value == other
+            return self._primary_hooks["value"].value == other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value == other
     
     def __ne__(self, other: Any) -> bool:
         """
@@ -441,8 +441,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             True if this set is a subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value <= other._component_hooks["value"].value
-        return self._component_hooks["value"].value <= other
+            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value <= other
     
     def __lt__(self, other: Any) -> bool:
         """
@@ -455,8 +455,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             True if this set is a proper subset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value < other._component_hooks["value"].value
-        return self._component_hooks["value"].value < other
+            return self._primary_hooks["value"].value < other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value < other
     
     def __ge__(self, other: Any) -> bool:
         """
@@ -469,8 +469,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             True if this set is a superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value >= other._component_hooks["value"].value
-        return self._component_hooks["value"].value >= other
+            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value >= other
     
     def __gt__(self, other: Any) -> bool:
         """
@@ -483,8 +483,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             True if this set is a proper superset of the other, False otherwise
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value > other._component_hooks["value"].value
-        return self._component_hooks["value"].value > other
+            return self._primary_hooks["value"].value > other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value > other
     
     def __and__(self, other: Any) -> set[T]:
         """
@@ -497,8 +497,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             A new set containing elements common to both sets
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value & other._component_hooks["value"].value
-        return self._component_hooks["value"].value & other
+            return self._primary_hooks["value"].value & other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value & other
     
     def __or__(self, other: Any) -> set[T]:
         """
@@ -511,8 +511,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             A new set containing all elements from both sets
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value | other._component_hooks["value"].value
-        return self._component_hooks["value"].value | other
+            return self._primary_hooks["value"].value | other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value | other
     
     def __sub__(self, other: Any) -> set[T]:
         """
@@ -525,8 +525,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             A new set containing elements in this set but not in the other
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value - other._component_hooks["value"].value
-        return self._component_hooks["value"].value - other
+            return self._primary_hooks["value"].value - other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value - other
     
     def __xor__(self, other: Any) -> set[T]:
         """
@@ -539,8 +539,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             A new set containing elements in either set but not in both
         """
         if isinstance(other, ObservableSet):
-            return self._component_hooks["value"].value ^ other._component_hooks["value"].value
-        return self._component_hooks["value"].value ^ other
+            return self._primary_hooks["value"].value ^ other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value ^ other
     
     def __hash__(self) -> int:
         """
@@ -549,4 +549,4 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         Returns:
             Hash value of the set as a frozenset
         """
-        return hash(frozenset(self._component_hooks["value"].value))
+        return hash(frozenset(self._primary_hooks["value"].value))

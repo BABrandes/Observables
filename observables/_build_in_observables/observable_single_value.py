@@ -142,7 +142,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         super().__init__(
             initial_values,
             verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
-            emitter_hook_callbacks={},
+            secondary_hook_callbacks={},
             logger=logger
         )
 
@@ -151,7 +151,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         """
         Get the current value.
         """
-        return self._component_hooks["value"].value
+        return self._primary_hooks["value"].value
     
     @value.setter
     def value(self, value: T) -> None:
@@ -164,7 +164,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             ValueError: If the new value fails validation
         """
-        if value == self._component_hooks["value"].value:
+        if value == self._primary_hooks["value"].value:
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
@@ -178,7 +178,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Args:
             new_value: The new value to set
         """
-        if new_value == self._component_hooks["value"].value:
+        if new_value == self._primary_hooks["value"].value:
             return
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
@@ -189,15 +189,15 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         
         This hook can be used for binding operations with other observables.
         """
-        return self._component_hooks["value"]
+        return self._primary_hooks["value"]
     
     
     def __str__(self) -> str:
-        return f"OSV(value={self._component_hooks['value'].value})"
+        return f"OSV(value={self._primary_hooks['value'].value})"
     
     def __repr__(self) -> str:
         """Return a string representation of the observable."""
-        return f"ObservableSingleValue({self._component_hooks['value'].value!r})"
+        return f"ObservableSingleValue({self._primary_hooks['value'].value!r})"
     
     def __hash__(self) -> int:
         """Make the observable hashable for use in sets and as dictionary keys."""
@@ -232,8 +232,8 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is less than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_hooks["value"].value < other._component_hooks["value"].value
-        return self._component_hooks["value"].value < other
+            return self._primary_hooks["value"].value < other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value < other
     
     def __le__(self, other: Any) -> bool:
         """
@@ -246,8 +246,8 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_hooks["value"].value <= other._component_hooks["value"].value
-        return self._component_hooks["value"].value <= other
+            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value <= other
     
     def __gt__(self, other: Any) -> bool:
         """
@@ -260,8 +260,8 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is greater than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_hooks["value"].value > other._component_hooks["value"].value
-        return self._component_hooks["value"].value > other
+            return self._primary_hooks["value"].value > other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value > other
     
     def __ge__(self, other: Any) -> bool:
         """
@@ -274,8 +274,8 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._component_hooks["value"].value >= other._component_hooks["value"].value
-        return self._component_hooks["value"].value >= other
+            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value
+        return self._primary_hooks["value"].value >= other
     
     def __bool__(self) -> bool:
         """
@@ -284,7 +284,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Returns:
             Boolean representation of the current value
         """
-        return bool(self._component_hooks["value"].value)
+        return bool(self._primary_hooks["value"].value)
     
     def __int__(self) -> int:
         """
@@ -296,7 +296,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             ValueError: If the value cannot be converted to an integer
         """
-        return int(self._component_hooks["value"].value) # type: ignore
+        return int(self._primary_hooks["value"].value) # type: ignore
     
     def __float__(self) -> float:
         """
@@ -308,7 +308,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             ValueError: If the value cannot be converted to a float
         """
-        return float(self._component_hooks["value"].value) # type: ignore
+        return float(self._primary_hooks["value"].value) # type: ignore
     
     def __complex__(self) -> complex:
         """
@@ -320,7 +320,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             ValueError: If the value cannot be converted to a complex number
         """
-        return complex(self._component_hooks["value"].value) # type: ignore
+        return complex(self._primary_hooks["value"].value) # type: ignore
     
     def __abs__(self) -> float:
         """
@@ -332,7 +332,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             TypeError: If the value doesn't support absolute value operation
         """
-        return abs(self._component_hooks["value"].value) # type: ignore
+        return abs(self._primary_hooks["value"].value) # type: ignore
     
     def __round__(self, ndigits: Optional[int] = None) -> float:
         """
@@ -347,7 +347,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         Raises:
             TypeError: If the value doesn't support rounding
         """
-        return round(self._component_hooks["value"].value, ndigits) # type: ignore
+        return round(self._primary_hooks["value"].value, ndigits) # type: ignore
     
     def __floor__(self) -> int:
         """
@@ -360,7 +360,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             TypeError: If the value doesn't support floor operation
         """
         import math
-        return math.floor(self._component_hooks["value"].value) # type: ignore
+        return math.floor(self._primary_hooks["value"].value) # type: ignore
     
     def __ceil__(self) -> int:
         """
@@ -373,7 +373,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             TypeError: If the value doesn't support ceiling operation
         """
         import math
-        return math.ceil(self._component_hooks["value"].value) # type: ignore
+        return math.ceil(self._primary_hooks["value"].value) # type: ignore
     
     def __trunc__(self) -> int:
         """
@@ -386,4 +386,4 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             TypeError: If the value doesn't support truncation
         """
         import math
-        return math.trunc(self._component_hooks["value"].value) # type: ignore
+        return math.trunc(self._primary_hooks["value"].value) # type: ignore

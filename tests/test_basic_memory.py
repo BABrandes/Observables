@@ -53,7 +53,7 @@ class TestEssentialMemoryManagement:
         
         # Bind them
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test binding works
         obs1.value = "new_value"
@@ -68,16 +68,16 @@ class TestEssentialMemoryManagement:
         assert obs1_ref() is None, "Bound observable 1 was not cleaned up"
         assert obs2_ref() is None, "Bound observable 2 was not cleaned up"
 
-    def test_emitter_hook_basic_cleanup(self):
-        """Test basic cleanup of observables with emitter hooks."""
+    def test_secondary_hook_basic_cleanup(self):
+        """Test basic cleanup of observables with secondary hooks."""
         obs_list = ObservableList([1, 2, 3])
         
-        # Access emitter hook
-        length_hook = obs_list.get_hook("length")
+        # Access secondary hook
+        length_hook = obs_list.get_component_hook("length")
         initial_length = length_hook.value
         assert initial_length == 3
         
-        # Modify to trigger emitter hook update
+        # Modify to trigger secondary hook update
         obs_list.append(4)
         assert length_hook.value == 4
         
@@ -86,7 +86,7 @@ class TestEssentialMemoryManagement:
         del obs_list, length_hook
         gc.collect()
         
-        assert obs_ref() is None, "Observable with emitter hook was not cleaned up"
+        assert obs_ref() is None, "Observable with secondary hook was not cleaned up"
 
     def test_many_simple_observables(self):
         """Test that creating many observables doesn't leak memory."""
@@ -127,7 +127,7 @@ class TestEssentialMemoryManagement:
         
         # Bind, test, detach
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
@@ -165,7 +165,7 @@ class TestMemoryStressScenarios:
             from observables._utils.initial_sync_mode import InitialSyncMode
             for i in range(len(cycle_observables) - 1):
                 cycle_observables[i].connect(
-                    cycle_observables[i + 1].get_hook("value"),
+                    cycle_observables[i + 1].get_component_hook("value"),
                     "value",
                     InitialSyncMode.USE_CALLER_VALUE
                 )
@@ -210,7 +210,7 @@ class TestMemoryStressScenarios:
                 weakref.ref(obs_dict)
             ])
             
-            # Trigger emitter hooks
+            # Trigger secondary hooks
             obs_list.append(i+2)
             obs_dict[f"key_{i}_2"] = f"value_{i}_2"
         

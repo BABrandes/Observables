@@ -58,7 +58,7 @@ class TestThreadSafety:
     def test_hook_activation_deactivation_race_conditions(self):
         """Test thread safety of hook activation/deactivation."""
         obs = ObservableSingleValue("initial_value")
-        hook = obs.get_hook("value")
+        hook = obs.get_component_hook("value")
         
         errors: list[str] = []
         iterations = 200
@@ -115,7 +115,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -214,7 +214,7 @@ class TestThreadSafety:
                     
                     # Read operations
                     _ = len(obs_list.value)
-                    _ = obs_list.get_hook("length").value
+                    _ = obs_list.length_hook.value
                     
                     # Remove some elements if list is large enough
                     if len(obs_list.value) > 10:
@@ -242,8 +242,8 @@ class TestThreadSafety:
         
         # Verify final list is in a consistent state
         final_list = obs_list.value
-        final_length = obs_list.get_hook("length").value
-        assert len(final_list) == final_length, "List length emitter hook should match actual length"
+        final_length = obs_list.length_hook.value
+        assert len(final_list) == final_length, "List length secondary hook should match actual length"
 
     def test_observable_dict_thread_safety(self):
         """Test thread safety specific to ObservableDict operations."""
@@ -261,7 +261,7 @@ class TestThreadSafety:
                     
                     # Read operations
                     _ = len(obs_dict.value)
-                    _ = obs_dict.get_hook("length").value
+                    _ = obs_dict.length_hook.value
                     
                     # Remove some keys if dict is large enough
                     if len(obs_dict.value) > 10:
@@ -291,8 +291,8 @@ class TestThreadSafety:
         
         # Verify final dict is in a consistent state
         final_dict = obs_dict.value
-        final_length = obs_dict.length
-        assert len(final_dict) == final_length, "Dict length emitter hook should match actual length"
+        final_length = obs_dict.length_hook.value
+        assert len(final_dict) == final_length, "Dict length secondary hook should match actual length"
 
 
 class TestThreadSafetyEdgeCases:
@@ -311,8 +311,8 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
-                    obs2.connect(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs2.connect(obs3.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
@@ -337,18 +337,18 @@ class TestThreadSafetyEdgeCases:
         
         assert len(errors) == 0, f"Rapid binding thread safety issues: {errors}"
 
-    def test_concurrent_emitter_hook_access(self):
-        """Test concurrent access to emitter hooks."""
+    def test_concurrent_secondary_hook_access(self):
+        """Test concurrent access to secondary hooks."""
         obs_list = ObservableList(list(range(100)))
         errors: list[str] = []
         length_values: list[int] = []
         length_lock = threading.Lock()
         
         def length_reader():
-            """Thread that continuously reads the length emitter hook."""
+            """Thread that continuously reads the length secondary hook."""
             try:
                 for _ in range(200):
-                    length = obs_list.get_hook("length").value
+                    length = obs_list.length_hook.value
                     with length_lock:
                         length_values.append(length)
                     time.sleep(0.001)
@@ -385,9 +385,9 @@ class TestThreadSafetyEdgeCases:
         assert len(length_values) > 0, "Should have recorded length values"
         
         # Verify final consistency
-        final_length = obs_list.get_hook("length").value
+        final_length = obs_list.length_hook.value
         actual_length = len(obs_list.value)
-        assert final_length == actual_length, "Final emitter hook value should match actual length"
+        assert final_length == actual_length, "Final secondary hook value should match actual length"
 
     @pytest.mark.slow
     def test_stress_test_thread_safety(self):
@@ -411,7 +411,7 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                         obs1.value = f"worker_{worker_id}_value_{i}"
                         obs1.disconnect("value")
                     elif i % 4 == 1:
@@ -422,7 +422,7 @@ class TestThreadSafetyEdgeCases:
                         obs1.remove_listeners(listener)
                     elif i % 4 == 2:
                         # Hook operations
-                        hook = obs1.get_hook("value")
+                        hook = obs1.get_component_hook("value")
                         hook.value = f"worker_{worker_id}_hook_{i}"
                     else:
                         # Direct value operations

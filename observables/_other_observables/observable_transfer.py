@@ -284,8 +284,17 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         """Get all hooks (input and output) managed by this transfer."""
         hooks: set["HookLike[Any]"] = set(self._input_hooks.values()) | set(self._output_hooks.values()) # type: ignore
         return hooks
+    
+    def get_component_value(self, key: IHK|OHK) -> Any:
+        """Get a component value by its key (either input or output)."""
+        if key in self._input_hooks:
+            return self._input_hooks[key].value # type: ignore
+        elif key in self._output_hooks:
+            return self._output_hooks[key].value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
 
-    def get_hook(self, key: IHK|OHK) -> "HookLike[Any]":
+    def get_component_hook(self, key: IHK|OHK) -> "HookLike[Any]":
         """Get a hook by its key (either input or output)."""
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore

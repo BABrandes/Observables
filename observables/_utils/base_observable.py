@@ -78,7 +78,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             self,
             initial_component_values_or_hooks: Mapping[HK, Any|HookLike[Any]],
             verification_method: Optional[Callable[[Mapping[HK, Any]], tuple[bool, str]]] = None,
-            emitter_hook_callbacks: Mapping[EHK, Callable[[Mapping[HK, Any]], Any]] = {},
+            secondary_hook_callbacks: Mapping[EHK, Callable[[Mapping[HK, Any]], Any]] = {},
             logger: Optional[Logger] = None):
         """
         Initialize the BaseObservable.
@@ -92,7 +92,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
 
         self._logger: Optional[Logger] = logger
 
-        self._component_hooks: dict[HK, HookLike[Any]] = {}
+        self._primary_hooks: dict[HK, HookLike[Any]] = {}
         # Reverse lookup caches for O(1) _get_key_for operations
         self._hook_to_key_cache: dict[HookLike[Any], HK] = {}
         self._nexus_to_key_cache: dict[HookNexus[Any], HK] = {}
@@ -104,8 +104,8 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 initial_value = value
             # Create invalidation callback that doesn't capture 'self' in closure
             invalidation_callback = self._create_invalidation_callback(key)
-            hook = Hook(self, initial_value, invalidation_callback, logger)
-            self._component_hooks[key] = hook
+            hook: HookLike[Any] = Hook(self, initial_value, invalidation_callback, logger)
+            self._primary_hooks[key] = hook
             
             # Populate reverse lookup caches for O(1) performance
             self._hook_to_key_cache[hook] = key
@@ -114,23 +114,21 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             if isinstance(value, HookLike):
                 value.connect(hook, InitialSyncMode.USE_TARGET_VALUE)
 
-        self._emitter_hooks: dict[EHK, HookLike[Any]] = {}
-        self._emitter_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
-        # Reverse lookup caches for emitter hooks
-        self._emitter_hook_to_key_cache: dict[HookLike[Any], EHK] = {}
-        self._emitter_nexus_to_key_cache: dict[HookNexus[Any], EHK] = {}
+        self._secondary_hooks: dict[EHK, HookLike[Any]] = {}
+        self._secondary_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
+        # Reverse lookup caches for secondary hooks
+        self._secondary_hook_to_key_cache: dict[HookLike[Any], EHK] = {}
+        self._secondary_nexus_to_key_cache: dict[HookNexus[Any], EHK] = {}
         
-        for key, callback in emitter_hook_callbacks.items():
-            if not isinstance(key, str):
-                raise ValueError(f"Key {key} is not a string")
-            self._emitter_hook_callbacks[key] = callback
+        for key, callback in secondary_hook_callbacks.items():
+            self._secondary_hook_callbacks[key] = callback
             value = callback(initial_component_values_or_hooks)
-            emitter_hook = Hook(self, value, None, logger)
-            self._emitter_hooks[key] = emitter_hook
+            secondary_hook: HookLike[Any] = Hook(self, value, None, logger)
+            self._secondary_hooks[key] = secondary_hook
             
-            # Populate emitter hook reverse lookup caches
-            self._emitter_hook_to_key_cache[emitter_hook] = key
-            self._emitter_nexus_to_key_cache[emitter_hook.hook_nexus] = key
+            # Populate secondary hook reverse lookup caches
+            self._secondary_hook_to_key_cache[secondary_hook] = key
+            self._secondary_nexus_to_key_cache[secondary_hook.hook_nexus] = key
 
         self._verification_method: Optional[Callable[[dict[HK, Any]], tuple[bool, str]]] = verification_method
         # Thread safety: Lock for protecting component values and hooks
@@ -209,7 +207,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         # Find the key for this hook
         key = None
-        for k, h in self._component_hooks.items():
+        for k, h in self._primary_hooks.items():
             if h is hook:
                 key = k
                 break
@@ -223,46 +221,46 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             self._nexus_to_key_cache[hook.hook_nexus] = key
             return
         
-        # Check emitter hooks
-        for k, h in self._emitter_hooks.items():
+        # Check secondary hooks
+        for k, h in self._secondary_hooks.items():
             if h is hook:
                 key = k
                 break
         
         if key is not None:
-            # Update emitter hook caches
+            # Update secondary hook caches
             if old_nexus is not None:
                 # Remove old nexus from cache
-                self._emitter_nexus_to_key_cache.pop(old_nexus, None)
+                self._secondary_nexus_to_key_cache.pop(old_nexus, None)
             # Add new nexus to cache
-            self._emitter_nexus_to_key_cache[hook.hook_nexus] = key
+            self._secondary_nexus_to_key_cache[hook.hook_nexus] = key
 
-    def _update_emitter_hooks(self) -> None:
+    def _update_secondary_hooks(self) -> None:
         """
-        Update all emitter hooks by recomputing their values from current component values.
+        Update all secondary hooks by recomputing their values from current component values.
         
-        This method is called whenever component values change to ensure emitter hooks
+        This method is called whenever component values change to ensure secondary hooks
         stay synchronized with the current state.
         """
-        if not self._emitter_hooks:
+        if not self._secondary_hooks:
             return
             
-        current_component_values = self._component_values
+        current_component_values = self._primary_component_values
         
-        for key, callback in self._emitter_hook_callbacks.items():
+        for key, callback in self._secondary_hook_callbacks.items():
             try:
                 new_value = callback(current_component_values)
-                emitter_hook = self._emitter_hooks[key]
+                secondary_hook = self._secondary_hooks[key]
                 
                 # Only update if the value actually changed to avoid unnecessary notifications
-                if emitter_hook.value != new_value:
-                    emitter_hook.value = new_value
+                if secondary_hook.value != new_value:
+                    secondary_hook.value = new_value
                     
             except Exception as e:
-                log(self, "update_emitter_hooks", self._logger, False, f"Error updating emitter hook '{key}': {e}")
-                # Continue with other emitter hooks even if one fails
+                log(self, "update_secondary_hooks", self._logger, False, f"Error updating secondary hook '{key}': {e}")
+                # Continue with other secondary hooks even if one fails
                 
-        log(self, "update_emitter_hooks", self._logger, True, "Successfully updated emitter hooks")
+        log(self, "update_secondary_hooks", self._logger, True, "Successfully updated secondary hooks")
 
     def _set_component_values(self, dict_of_values: dict[HK, Any], notify_binding_system: bool) -> None:
         """
@@ -276,15 +274,15 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             ValueError: If the verification method fails
         """
         with self._lock:
-            if len(self._component_hooks) == 0:
+            if len(self._primary_hooks) == 0:
                 error_msg = "No component hooks provided"
                 log(self, "set_component_values", self._logger, False, error_msg)
                 raise ValueError(error_msg)
             
-            future_component_values: dict[HK, Any] = {key: hook.value for key, hook in self._component_hooks.items()}
+            future_component_values: dict[HK, Any] = {key: hook.value for key, hook in self._primary_hooks.items()}
             
             for key, value in dict_of_values.items():
-                if key not in self._component_hooks:
+                if key not in self._primary_hooks:
                     error_msg = f"Key {key} not found in component_values"
                     log(self, "set_component_values", self._logger, False, error_msg)
                     raise ValueError(error_msg)
@@ -300,13 +298,13 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             if notify_binding_system:
                 if len(dict_of_values) == 1:
                     key, value = next(iter(dict_of_values.items()))
-                    hook = self._component_hooks[key]
+                    hook = self._primary_hooks[key]
                     hook.value = value
                 else:
-                    HookLike[Any].set_multiple_values(dict_of_values, self._component_hooks)
+                    HookLike[Any].set_multiple_values(dict_of_values, self._primary_hooks)
 
-            # Update emitter hooks after component values have changed
-            self._update_emitter_hooks()
+            # Update secondary hooks after component values have changed
+            self._update_secondary_hooks()
 
             # Notify listeners of this observable (Hook specific listeners are notified by the hook system)
             self._notify_listeners()
@@ -324,7 +322,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 return key
                 
             # Cache miss - do linear search and populate cache
-            for k, h in self._component_hooks.items():
+            for k, h in self._primary_hooks.items():
                 if h.hook_nexus is hook_or_nexus:
                     # Update cache for future O(1) lookups
                     self._nexus_to_key_cache[hook_or_nexus] = k
@@ -337,43 +335,43 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 return key
                 
             # Cache miss - do linear search and populate cache
-            for k, h in self._component_hooks.items():
+            for k, h in self._primary_hooks.items():
                 if h is hook_or_nexus:
                     # Update cache for future O(1) lookups
                     self._hook_to_key_cache[hook_or_nexus] = k
                     return k
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks")
         
-    def _get_key_for_emitter_hook(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> EHK:
+    def _get_key_for_secondary_hook(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> EHK:
         """
-        Get the key for an emitter hook using O(1) cache lookup with lazy population.
+        Get the key for an secondary hook using O(1) cache lookup with lazy population.
         """
         if isinstance(hook_or_nexus, HookNexus):
             # Try cached lookup first
-            key = self._emitter_nexus_to_key_cache.get(hook_or_nexus)
+            key = self._secondary_nexus_to_key_cache.get(hook_or_nexus)
             if key is not None:
                 return key
                 
             # Cache miss - do linear search and populate cache
-            for k, h in self._emitter_hooks.items():
+            for k, h in self._secondary_hooks.items():
                 if h.hook_nexus is hook_or_nexus:
                     # Update cache for future O(1) lookups
-                    self._emitter_nexus_to_key_cache[hook_or_nexus] = k
+                    self._secondary_nexus_to_key_cache[hook_or_nexus] = k
                     return k
-            raise ValueError(f"Hook nexus {hook_or_nexus} not found in emitter_hooks")
+            raise ValueError(f"Hook nexus {hook_or_nexus} not found in secondary_hooks")
         else:
             # Try cached lookup first
-            key = self._emitter_hook_to_key_cache.get(hook_or_nexus)
+            key = self._secondary_hook_to_key_cache.get(hook_or_nexus)
             if key is not None:
                 return key
                 
             # Cache miss - do linear search and populate cache
-            for k, h in self._emitter_hooks.items():
+            for k, h in self._secondary_hooks.items():
                 if h is hook_or_nexus:
                     # Update cache for future O(1) lookups
-                    self._emitter_hook_to_key_cache[hook_or_nexus] = k
+                    self._secondary_hook_to_key_cache[hook_or_nexus] = k
                     return k
-            raise ValueError(f"Hook {hook_or_nexus} not found in emitter_hooks")
+            raise ValueError(f"Hook {hook_or_nexus} not found in secondary_hooks")
     
     def _is_valid_value(self, hook: HookLike[Any], value: Any) -> tuple[bool, str]:
         """
@@ -382,11 +380,11 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
         else:
-            # Check if this is an emitter hook first
-            for _, h in self._emitter_hooks.items():
+            # Check if this is an secondary hook first
+            for _, h in self._secondary_hooks.items():
                 if h is hook:
-                    # Emitter hooks don't need validation since they're computed from component values
-                    return True, "Emitter hooks are always valid as they're computed values"
+                    # Secondary hooks don't need validation since they're computed from component values
+                    return True, "Secondary hooks are always valid as they're computed values"
             
             # Must be a component hook
             return self._verification_method({self._get_key_for(hook): value})
@@ -398,7 +396,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
         else:
-            dict_of_values: dict[HK, Any] = self._component_values
+            dict_of_values: dict[HK, Any] = self._primary_component_values
             for nexus, value in values.items():
                 dict_of_values[self._get_key_for(nexus)] = value
             return self._verification_method(dict_of_values)
@@ -416,15 +414,15 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             The value of the component hook as a reference
         """
         with self._lock:
-            return self._component_hooks[key].value
+            return self._primary_hooks[key].value
 
     @property
-    def _component_values(self) -> dict[HK, Any]:
+    def _primary_component_values(self) -> dict[HK, Any]:
         """
         Get the values of all component hooks as a dictionary copy.
         """
         with self._lock:
-            return {key: hook.value for key, hook in self._component_hooks.items()}
+            return {key: hook.value for key, hook in self._primary_hooks.items()}
         
     def _verify_state(self) -> tuple[bool, str]:
         """
@@ -432,7 +430,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
-        return self._verification_method(self._component_values)
+        return self._verification_method(self._primary_component_values)
     
 
     @property
@@ -440,7 +438,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         """
         Get the collective hooks for the observable.
         """
-        return set(self._component_hooks.values()) | set(self._emitter_hooks.values())
+        return set(self._primary_hooks.values()) | set(self._secondary_hooks.values())
     
     #########################################################
     # Public API
@@ -454,11 +452,23 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Returns:
             A set of hooks
         """
-        return set(self._component_hooks.values()) | set(self._emitter_hooks.values())
+        return set(self._primary_hooks.values()) | set(self._secondary_hooks.values())
     
-    def get_value(self, key: HK|EHK) -> Any:
+    @property
+    def component_values_dict(self) -> dict[HK|EHK, Any]:
         """
-        Get the value of a component hook.
+        Get the values of the component (primary and secondary) hooks as a dictionary.
+        """
+        values_dict: dict[HK|EHK, Any] = {}
+        for key, hook in self._primary_hooks.items():
+            values_dict[key] = hook.value
+        for key, hook in self._secondary_hooks.items():
+            values_dict[key] = hook.value
+        return values_dict
+    
+    def get_component_value(self, key: HK|EHK) -> Any:
+        """
+        Get the value of a component (primary and secondary) hook.
 
         If copying is available, the copy is returned.
 
@@ -466,40 +476,36 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             key: The key to get the value for
 
         Raises:
-            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
+            ValueError: If the key is not found in component_hooks or secondary_hooks
         """
-        if not isinstance(key, str):
-            raise ValueError(f"Key {key} is not a string")
-        if key not in self._component_hooks and key not in self._emitter_hooks:
-            raise ValueError(f"Key {key} not found in component_hooks")
-        if key in self._component_hooks:
-            value = self._component_hooks[key].value # type: ignore
+        if key not in self._primary_hooks and key not in self._secondary_hooks:
+            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
+        if key in self._primary_hooks:
+            value = self._primary_hooks[key].value # type: ignore
             if hasattr(value, "copy"):
                 return value.copy()
-        elif key in self._emitter_hooks:
-            value = self._emitter_hook_callbacks[key](self._component_values) # type: ignore
+        elif key in self._secondary_hooks:
+            value = self._secondary_hook_callbacks[key](self._primary_component_values) # type: ignore
         else:
-            raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
+            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
         return value
     
-    def get_hook(self, key: HK|EHK) -> HookLike[Any]:
+    def get_component_hook(self, key: HK|EHK) -> HookLike[Any]:
         """
-        Get a hook by key.
+        Get a hook by key. Primary and secondary hooks are both supported.
 
         Args:
             key: The key to get the hook for
 
         Raises:
-            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
+            ValueError: If the key is not found in component_hooks or secondary_hooks
         """
-        if not isinstance(key, str):
-            raise ValueError(f"Key {key} is not a string")
-        if key in self._component_hooks:
-            return self._component_hooks[key] # type: ignore
-        elif key in self._emitter_hooks:
-            return self._emitter_hooks[key] # type: ignore
+        if key in self._primary_hooks:
+            return self._primary_hooks[key] # type: ignore
+        elif key in self._secondary_hooks:
+            return self._secondary_hooks[key] # type: ignore
         else:
-            raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
+            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
     
     def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode) -> None:
         """
@@ -511,16 +517,14 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             initial_sync_mode: The initial synchronization mode
 
         Raises:
-            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
+            ValueError: If the key is not found in component_hooks or secondary_hooks
         """
-        if not isinstance(to_key, str):
-            raise ValueError(f"Key {to_key} is not a string")
-        if to_key in self._component_hooks:
-            self._component_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        elif to_key in self._emitter_hooks:
-            self._emitter_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        if to_key in self._primary_hooks:
+            self._primary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        elif to_key in self._secondary_hooks:
+            self._secondary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
         else:
-            raise ValueError(f"Key {to_key} not found in component_hooks or emitter_hooks")
+            raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
     
 
     def connect_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
@@ -532,19 +536,17 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             initial_sync_mode: The initial synchronization mode
 
         Raises:
-            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
+            ValueError: If the key is not found in component_hooks or secondary_hooks
         """
 
         hook_pairs: list[tuple[HookLike[Any], HookLike[Any]]] = []
         for key, hook in hooks.items():
-            if not isinstance(key, str):
-                raise ValueError(f"Key {key} is not a string")
-            if key in self._component_hooks:
-                hook_of_observable = self._component_hooks[key] # type: ignore
-            elif key in self._emitter_hooks:
-                hook_of_observable = self._emitter_hooks[key] # type: ignore
+            if key in self._primary_hooks:
+                hook_of_observable = self._primary_hooks[key] # type: ignore
+            elif key in self._secondary_hooks:
+                hook_of_observable = self._secondary_hooks[key] # type: ignore
             else:
-                raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
+                raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
             match initial_sync_mode:
                 case InitialSyncMode.USE_CALLER_VALUE:
                     hook_pairs.append((hook_of_observable, hook))
@@ -562,10 +564,10 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             key: The key to disconnect the hook from
 
         Raises:
-            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
+            ValueError: If the key is not found in component_hooks or secondary_hooks
         """
         if key is None:
-            for hook in self._component_hooks.values():
+            for hook in self._primary_hooks.values():
                 try:
                     hook.disconnect()
                 except ValueError as e:
@@ -575,15 +577,13 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                     else:
                         raise
         else:
-            if not isinstance(key, str):
-                raise ValueError(f"Key {key} is not a string")
             try:
-                if key in self._component_hooks:
-                    self._component_hooks[key].disconnect() # type: ignore
-                elif key in self._emitter_hooks:
-                    self._emitter_hooks[key].disconnect() # type: ignore
+                if key in self._primary_hooks:
+                    self._primary_hooks[key].disconnect() # type: ignore
+                elif key in self._secondary_hooks:
+                    self._secondary_hooks[key].disconnect() # type: ignore
                 else:
-                    raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
+                    raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
             except ValueError as e:
                 if "already disconnected" in str(e):
                     # Hook is already disconnected, ignore
@@ -592,9 +592,9 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                     raise
     
     @final
-    def get_values_as_references(self) -> Mapping[HK, Any]:
+    def get_primary_component_values_as_references(self) -> Mapping[HK, Any]:
         """
-        Get the values of the observable as references.
+        Get the values of the primary component hooks as references.
 
         This method can be used for serializing the observable.
 
@@ -604,5 +604,4 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Returns:
             A dictionary of keys to values
         """
-        return self._component_values.copy()
-    
+        return self._primary_component_values.copy()

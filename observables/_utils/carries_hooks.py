@@ -16,7 +16,10 @@ class CarriesHooks(Protocol[HK]):
     def hooks(self) -> set["HookLike[Any]"]:
         ...
 
-    def get_hook(self, key: HK) -> "HookLike[Any]":
+    def get_component_value(self, key: HK) -> Any:
+        ...
+
+    def get_component_hook(self, key: HK) -> "HookLike[Any]":
         ...
 
     def connect(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:

@@ -13,7 +13,7 @@ Verify that the library is safe to use in multi-threaded environments and that n
 - **Concurrent binding operations**: Multiple threads creating and destroying bindings
 - **Listener thread safety**: Concurrent listener addition/removal and notifications
 - **Observable-specific threading**: Thread safety for `ObservableList`, `ObservableDict` operations
-- **Emitter hook concurrency**: Concurrent access to emitter hooks during modifications
+- **Secondary hook concurrency**: Concurrent access to secondary hooks during modifications
 - **Stress testing**: Complex scenarios with many concurrent operations
 
 ### **Key Features Tested**
@@ -31,7 +31,7 @@ Verify that the library is safe to use in multi-threaded environments and that n
 Verify that the library properly manages memory and doesn't have memory leaks, especially in complex binding scenarios.
 
 ### **Test Coverage**
-- **Basic cleanup**: Simple observables, listeners, emitter hooks
+- **Basic cleanup**: Simple observables, listeners, secondary hooks
 - **Binding cleanup**: Simple and complex binding networks
 - **Stress scenarios**: Many short-lived observables, mixed types
 - **Detachment cleanup**: Memory cleanup after binding detachment

@@ -38,13 +38,13 @@ class TestCollectiveHooks(unittest.TestCase):
         """Test that collective_hooks property returns the correct hooks."""
         # ObservableSelectionOption should have both selected_option and available_options hooks
         self.assertEqual(len(self.selector1._collective_hooks), 2) # type: ignore
-        self.assertIn(self.selector1._component_hooks["selected_option"], self.selector1._collective_hooks) # type: ignore
-        self.assertIn(self.selector1._component_hooks["available_options"], self.selector1._collective_hooks) # type: ignore
+        self.assertIn(self.selector1._primary_hooks["selected_option"], self.selector1._collective_hooks) # type: ignore
+        self.assertIn(self.selector1._primary_hooks["available_options"], self.selector1._collective_hooks) # type: ignore
         
-        # ObservableSingleValue should have 1 collective hook (just the component hook, no emitter hooks)
+        # ObservableSingleValue should have 1 collective hook (just the primary hook, no secondary hooks)
         self.assertEqual(len(self.value1._collective_hooks), 1) # type: ignore
         
-        # ObservableSet should have 2 collective hooks (component hook + length emitter hook)
+        # ObservableSet should have 2 collective hooks (primary hook + length secondary hook)
         self.assertEqual(len(self.set1._collective_hooks), 2) # type: ignore
 
     def test_complex_binding_network(self):

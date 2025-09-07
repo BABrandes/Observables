@@ -6,7 +6,7 @@ emitter hooks are properly recomputed when component values change.
 """
 
 import pytest
-from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple
+from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple, InitialSyncMode
 from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
 
 
@@ -303,7 +303,7 @@ class TestEmitterHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to emitter hook
-        obs_list.connect(target.get_hook("value"), "length")
+        obs_list.connect(target.get_hook("value"), "length", InitialSyncMode.USE_CALLER_VALUE)
         
         # Should sync immediately
         assert target.value == 3

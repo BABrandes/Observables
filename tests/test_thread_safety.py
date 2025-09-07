@@ -31,7 +31,7 @@ class TestThreadSafety:
                     value = f"thread_{thread_id}_value_{i}"
                     obs.value = value
                     # Verify we can read it back
-                    read_value = obs.single_value
+                    read_value = obs.value
                     assert isinstance(read_value, str), f"Expected string, got {type(read_value)}"
             except Exception as e:
                 errors.append(f"Thread {thread_id} error: {e}")
@@ -51,7 +51,7 @@ class TestThreadSafety:
         assert len(errors) == 0, f"Thread safety errors: {errors}"
         
         # Verify final state is consistent
-        final_value = obs.single_value
+        final_value = obs.value
         assert isinstance(final_value, str)
         assert "thread_" in final_value
 
@@ -121,7 +121,7 @@ class TestThreadSafety:
                     obs1.value = f"modified_{i}"
                     
                     # Read synchronized value
-                    _ = obs2.single_value
+                    _ = obs2.value
                     
                     # Detach
                     obs1.disconnect("value")
@@ -156,7 +156,7 @@ class TestThreadSafety:
         def listener():
             """Listener that records calls."""
             try:
-                value = obs.single_value
+                value = obs.value
                 with listener_lock:
                     listener_calls.append(value)
             except Exception as e:
@@ -241,7 +241,7 @@ class TestThreadSafety:
         assert len(errors) == 0, f"ObservableList thread safety issues: {errors}"
         
         # Verify final list is in a consistent state
-        final_list = obs_list.list_value
+        final_list = obs_list.value
         final_length = obs_list.get_hook("length").value
         assert len(final_list) == final_length, "List length emitter hook should match actual length"
 
@@ -290,8 +290,8 @@ class TestThreadSafety:
         assert len(errors) == 0, f"ObservableDict thread safety issues: {errors}"
         
         # Verify final dict is in a consistent state
-        final_dict = obs_dict.dict_value
-        final_length = obs_dict.get_hook("length").value
+        final_dict = obs_dict.value
+        final_length = obs_dict.length
         assert len(final_dict) == final_length, "Dict length emitter hook should match actual length"
 
 

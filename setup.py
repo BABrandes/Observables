@@ -8,22 +8,23 @@ from setuptools import setup, find_packages
 import os
 
 # Read the README file
-def read_readme():
+def read_readme() -> str:
     with open("README.md", "r", encoding="utf-8") as fh:
         return fh.read()
 
 # Read requirements
-def read_requirements():
+def read_requirements() -> list[str]:
     with open("requirements.txt", "r", encoding="utf-8") as fh:
         return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 # Read version
-def read_version():
+def read_version() -> str:
     try:
         with open("observables/_version.py", "r", encoding="utf-8") as fh:
             for line in fh:
                 if line.startswith("__version__"):
                     return line.split("=")[1].strip().strip('"\'')
+        raise FileNotFoundError("Version file not found")
     except FileNotFoundError:
         return "2.2.9"  # fallback version
 

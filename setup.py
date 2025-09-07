@@ -5,7 +5,6 @@ This is a fallback for tools that don't support pyproject.toml.
 """
 
 from setuptools import setup, find_packages
-import os
 
 # Read the README file
 def read_readme() -> str:

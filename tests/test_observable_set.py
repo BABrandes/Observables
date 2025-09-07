@@ -64,7 +64,7 @@ class TestObservableSet(unittest.TestCase):
         source = ObservableSet({1, 2, 3})
         
         # Create a new observable set initialized with the source
-        target = ObservableSet(source.hook_value)
+        target = ObservableSet(source.value_hook)
         
         # Check that the target has the same initial value
         self.assertEqual(target.value, {1, 2, 3})
@@ -81,8 +81,8 @@ class TestObservableSet(unittest.TestCase):
         """Test initialization with CarriesBindableSet in a chain"""
         # Create a chain of observable sets
         obs1 = ObservableSet({10})
-        obs2 = ObservableSet(obs1.hook_value)
-        obs3 = ObservableSet(obs2.hook_value)
+        obs2 = ObservableSet(obs1.value_hook)
+        obs3 = ObservableSet(obs2.value_hook)
         
         # Check initial values
         self.assertEqual(obs1.value, {10})
@@ -104,7 +104,7 @@ class TestObservableSet(unittest.TestCase):
     def test_initialization_with_carries_bindable_set_unbinding(self):
         """Test that initialization with CarriesBindableSet can be unbound"""
         source = ObservableSet({100})
-        target = ObservableSet(source.hook_value)
+        target = ObservableSet(source.value_hook)
         
         # Verify they are bound
         self.assertEqual(target.value, {100})
@@ -125,9 +125,9 @@ class TestObservableSet(unittest.TestCase):
     def test_initialization_with_carries_bindable_set_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source = ObservableSet({100})
-        target1 = ObservableSet(source.hook_value)
-        target2 = ObservableSet(source.hook_value)
-        target3 = ObservableSet(source.hook_value)
+        target1 = ObservableSet(source.value_hook)
+        target2 = ObservableSet(source.value_hook)
+        target3 = ObservableSet(source.value_hook)
         
         # Check initial values
         self.assertEqual(target1.value, {100})
@@ -150,29 +150,29 @@ class TestObservableSet(unittest.TestCase):
         """Test edge cases for initialization with CarriesBindableSet"""
         # Test with empty set in source
         source_empty: ObservableSet[int] = ObservableSet(set())
-        target_empty = ObservableSet(source_empty.hook_value)
+        target_empty = ObservableSet(source_empty.value_hook)
         self.assertEqual(target_empty.value, set())
         
         # Test with None in source
         source_none: ObservableSet[int] = ObservableSet(None)
-        target_none = ObservableSet(source_none.hook_value)
+        target_none = ObservableSet(source_none.value_hook)
         self.assertEqual(target_none.value, set())
         
         # Test with single item
         source_single = ObservableSet({42})
-        target_single = ObservableSet(source_single.hook_value)
+        target_single = ObservableSet(source_single.value_hook)
         self.assertEqual(target_single.value, {42})
     
     def test_initialization_with_carries_bindable_set_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableSet"""
         source = ObservableSet({100})
-        target = ObservableSet(source.hook_value)
+        target = ObservableSet(source.value_hook)
         
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_initialization_with_carries_bindable_set_performance(self):
         """Test performance of initialization with CarriesBindableSet"""
@@ -184,14 +184,14 @@ class TestObservableSet(unittest.TestCase):
         # Measure initialization time
         start_time = time.time()
         for _ in range(1000):
-            target = ObservableSet(source.hook_value)
+            target = ObservableSet(source.value_hook)
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
         self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
         
         # Verify the last target is properly bound
-        target = ObservableSet(source.hook_value)
+        target = ObservableSet(source.value_hook)
         source.add(200)
         self.assertEqual(target.value, {100, 200})
     
@@ -201,7 +201,7 @@ class TestObservableSet(unittest.TestCase):
         obs2 = ObservableSet({20})
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update to include obs1's elements
         obs1.add(30)
@@ -217,13 +217,13 @@ class TestObservableSet(unittest.TestCase):
         obs2 = ObservableSet({200})
         
         # USE_CALLER_VALUE: target (obs2) gets caller's value
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs2.value, {100})
         
         # Test update_observable_from_self mode
         obs3 = ObservableSet({300})
         obs4 = ObservableSet({400})
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         # USE_TARGET_VALUE means caller gets target's value
         self.assertEqual(obs3.value, {400})
     
@@ -232,7 +232,7 @@ class TestObservableSet(unittest.TestCase):
         obs1 = ObservableSet({10})
         obs2 = ObservableSet({20})
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -244,7 +244,7 @@ class TestObservableSet(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableSet({10})
         with self.assertRaises(ValueError):
-            obs.connect(obs.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -253,8 +253,8 @@ class TestObservableSet(unittest.TestCase):
         obs3 = ObservableSet({30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs1.add(100)
@@ -299,8 +299,8 @@ class TestObservableSet(unittest.TestCase):
         obs3 = ObservableSet({30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update to obs1's value
         obs1.add(100)
@@ -367,7 +367,7 @@ class TestObservableSet(unittest.TestCase):
         # Test binding empty sets
         obs1: ObservableSet[int] = ObservableSet(set())
         obs2: ObservableSet[int] = ObservableSet(set())
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.add(1)
         self.assertEqual(obs2.value, {1})
@@ -375,7 +375,7 @@ class TestObservableSet(unittest.TestCase):
         # Test binding sets with same initial values
         obs3 = ObservableSet({42})
         obs4 = ObservableSet({42})
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.add(100)
         self.assertEqual(obs4.value, {42, 100})
@@ -402,7 +402,7 @@ class TestObservableSet(unittest.TestCase):
         start_time = time.time()
         
         for _ in range(100):
-            ObservableSet(source.hook_value)
+            ObservableSet(source.value_hook)
         
         end_time = time.time()
         
@@ -424,13 +424,13 @@ class TestObservableSet(unittest.TestCase):
     def test_set_binding_consistency(self):
         """Test binding system consistency"""
         source = ObservableSet({100})
-        target = ObservableSet(source.hook_value)
+        target = ObservableSet(source.value_hook)
         
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_set_binding_none_observable(self):
         """Test that binding to None raises an error"""
@@ -443,7 +443,7 @@ class TestObservableSet(unittest.TestCase):
         obs1 = ObservableSet({42})
         obs2 = ObservableSet({42})
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.value, {42})
         self.assertEqual(obs2.value, {42})

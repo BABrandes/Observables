@@ -36,7 +36,7 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
         ...
     
     @property
-    def hook_value(self) -> HookLike[list[T]]:
+    def value_hook(self) -> HookLike[list[T]]:
         """
         Get the hook for the list.
         """
@@ -50,7 +50,7 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
         ...
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the list length.
         """
@@ -125,7 +125,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
             hook: Optional[HookLike[list[T]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListLike):
             initial_value: list[T] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.hook_value # type: ignore
+            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: list[T] = observable_or_hook_or_value.value
             hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value
@@ -189,7 +189,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
             self._set_component_values({"value": new_value}, notify_binding_system=True)
 
     @property
-    def hook_value(self) -> HookLike[list[T]]:
+    def value_hook(self) -> HookLike[list[T]]:
         """
         Get the hook for the list value.
         
@@ -205,7 +205,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
         return len(self._component_hooks["value"].value)
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the list length.
         

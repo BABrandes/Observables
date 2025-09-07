@@ -35,7 +35,7 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
         ...
 
     @property
-    def hook_value(self) -> HookLike[T]:
+    def value_hook(self) -> HookLike[T]:
         """
         Get the hook for the value.
         """
@@ -113,7 +113,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             hook: Optional[HookLike[T]] = observable_or_hook_or_value
         elif isinstance(observable_or_hook_or_value, ObservableSingleValueLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[T]] = observable_or_hook_or_value.hook_value # type: ignore
+            hook: Optional[HookLike[T]] = observable_or_hook_or_value.value_hook # type: ignore
         else:
             # Assume the value is T
             initial_value: T = observable_or_hook_or_value
@@ -183,7 +183,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
-    def hook_value(self) -> HookLike[T]:
+    def value_hook(self) -> HookLike[T]:
         """
         Get the hook for the value.
         

@@ -134,8 +134,8 @@ class TestObservableTransfer(unittest.TestCase):
         sum_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]](
-            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
-            output_trigger_hooks={"sum": sum_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
+            output_trigger_hooks={"sum": sum_obs.value_hook},
             forward_callable=forward_transform,
             logger=logger
         )
@@ -172,8 +172,8 @@ class TestObservableTransfer(unittest.TestCase):
         diff_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"]](
-            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
-            output_trigger_hooks={"sum": sum_obs.hook_value, "product": product_obs.hook_value, "difference": diff_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
+            output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "difference": diff_obs.value_hook},
             forward_callable=forward_transform,
             logger=logger
         )
@@ -212,8 +212,8 @@ class TestObservableTransfer(unittest.TestCase):
         result_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x"], Literal["result"]](
-            input_trigger_hooks={"x": x_obs.hook_value},
-            output_trigger_hooks={"result": result_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook},
+            output_trigger_hooks={"result": result_obs.value_hook},
             forward_callable=forward_transform,
             reverse_callable=reverse_transform,
             logger=logger
@@ -244,8 +244,8 @@ class TestObservableTransfer(unittest.TestCase):
             return {"celsius": (outputs["fahrenheit"] - 32) * 5/9}
         
         ObservableTransfer[Literal["celsius"], Literal["fahrenheit"]](
-            input_trigger_hooks={"celsius": celsius_obs.hook_value},
-            output_trigger_hooks={"fahrenheit": fahrenheit_obs.hook_value},
+            input_trigger_hooks={"celsius": celsius_obs.value_hook},
+            output_trigger_hooks={"fahrenheit": fahrenheit_obs.value_hook},
             forward_callable=celsius_to_fahrenheit,
             reverse_callable=fahrenheit_to_celsius,
             logger=logger
@@ -302,8 +302,8 @@ class TestObservableTransfer(unittest.TestCase):
             }
         
         ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"]](
-            input_trigger_hooks={"dict": dict_obs.hook_value, "key": key_obs.hook_value},
-            output_trigger_hooks={"value": value_obs.hook_value, "exists": exists_obs.hook_value},
+            input_trigger_hooks={"dict": dict_obs.value_hook, "key": key_obs.value_hook},
+            output_trigger_hooks={"value": value_obs.value_hook, "exists": exists_obs.value_hook},
             forward_callable=dict_access_transform,
             logger=logger
         )
@@ -343,8 +343,8 @@ class TestObservableTransfer(unittest.TestCase):
             return {"sum": inputs["x"] + inputs["y"]}
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]](
-            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
-            output_trigger_hooks={"sum": sum_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
+            output_trigger_hooks={"sum": sum_obs.value_hook},
             forward_callable=slow_transform,
             logger=logger
         )
@@ -376,8 +376,8 @@ class TestObservableTransfer(unittest.TestCase):
         result_obs = ObservableSingleValue(0, logger=logger)
         
         transfer = ObservableTransfer(
-            input_trigger_hooks={"x": x_obs.hook_value},
-            output_trigger_hooks={"result": result_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook},
+            output_trigger_hooks={"result": result_obs.value_hook},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
@@ -403,8 +403,8 @@ class TestObservableTransfer(unittest.TestCase):
             return {"result": inputs["template"].format(name=inputs["name"])}
         
         ObservableTransfer[Literal["template", "name"], Literal["result"]](
-            input_trigger_hooks={"template": template_obs.hook_value, "name": name_obs.hook_value},
-            output_trigger_hooks={"result": result_obs.hook_value},
+            input_trigger_hooks={"template": template_obs.value_hook, "name": name_obs.value_hook},
+            output_trigger_hooks={"result": result_obs.value_hook},
             forward_callable=format_string,
             logger=logger
         )
@@ -436,8 +436,8 @@ class TestObservableTransfer(unittest.TestCase):
             }
         
         ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"]](
-            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
-            output_trigger_hooks={"sum": sum_obs.hook_value, "product": product_obs.hook_value, "quotient": quotient_obs.hook_value},
+            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
+            output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "quotient": quotient_obs.value_hook},
             forward_callable=math_operations,
             logger=logger
         )

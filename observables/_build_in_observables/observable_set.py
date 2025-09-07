@@ -29,7 +29,7 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
         ...
 
     @property
-    def hook_value(self) -> HookLike[set[T]]:
+    def value_hook(self) -> HookLike[set[T]]:
         """
         Get the hook for the set.
         """
@@ -49,7 +49,7 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
         ...
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the set length.
         """
@@ -123,7 +123,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             hook: Optional[HookLike[set[T]]] = None 
         elif isinstance(observable_or_hook_or_value, ObservableSetLike):
             initial_value: set[T] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.hook_value # type: ignore
+            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: set[T] = observable_or_hook_or_value.value
             hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value
@@ -189,7 +189,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         self._set_component_values({"value": value}, notify_binding_system=True)
 
     @property
-    def hook_value(self) -> HookLike[set[T]]:
+    def value_hook(self) -> HookLike[set[T]]:
         """
         Get the hook for the set.
         
@@ -205,7 +205,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         return len(self._component_hooks["value"].value)
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the set length.
         

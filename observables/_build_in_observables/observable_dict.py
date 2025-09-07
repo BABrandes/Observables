@@ -30,7 +30,7 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
         ...
 
     @property
-    def hook_value(self) -> HookLike[dict[K, V]]:
+    def value_hook(self) -> HookLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
@@ -50,7 +50,7 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
         ...
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the dictionary length.
         """
@@ -125,7 +125,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             hook: Optional[HookLike[dict[K, V]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableDictLike):
             initial_dict_value: dict[K, V] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.hook_value # type: ignore
+            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_dict_value: dict[K, V] = observable_or_hook_or_value.value
             hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value
@@ -194,7 +194,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         self._set_component_values({"value": new_dict}, notify_binding_system=True)
 
     @property
-    def hook_value(self) -> HookLike[dict[K, V]]:
+    def value_hook(self) -> HookLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         
@@ -210,7 +210,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         return len(self._component_hooks["value"].value)
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the dictionary length.
         

@@ -64,7 +64,7 @@ class TestObservableDict(unittest.TestCase):
         source = ObservableDict({"x": 100, "y": 200})
         
         # Create a new observable dict initialized with the source
-        target: ObservableDict[str, int] = ObservableDict(source.hook_value)
+        target: ObservableDict[str, int] = ObservableDict(source.value_hook)
         
         # Check that the target has the same initial value
         self.assertEqual(target.value, {"x": 100, "y": 200})
@@ -81,8 +81,8 @@ class TestObservableDict(unittest.TestCase):
         """Test initialization with CarriesBindableDict in a chain"""
         # Create a chain of observable dicts
         obs1 = ObservableDict({"key1": 10})
-        obs2 = ObservableDict(obs1.hook_value)
-        obs3 = ObservableDict(obs2.hook_value)
+        obs2 = ObservableDict(obs1.value_hook)
+        obs3 = ObservableDict(obs2.value_hook)
         
         # Check initial values
         self.assertEqual(obs1.value, {"key1": 10})
@@ -104,7 +104,7 @@ class TestObservableDict(unittest.TestCase):
     def test_initialization_with_carries_bindable_dict_unbinding(self):
         """Test that initialization with CarriesBindableDict can be unbound"""
         source = ObservableDict({"key1": 100})
-        target = ObservableDict(source.hook_value)
+        target = ObservableDict(source.value_hook)
         
         # Verify they are bound
         self.assertEqual(target.value, {"key1": 100})
@@ -125,9 +125,9 @@ class TestObservableDict(unittest.TestCase):
     def test_initialization_with_carries_bindable_dict_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source = ObservableDict({"key1": 100})
-        target1 = ObservableDict(source.hook_value)
-        target2 = ObservableDict(source.hook_value)
-        target3 = ObservableDict(source.hook_value)
+        target1 = ObservableDict(source.value_hook)
+        target2 = ObservableDict(source.value_hook)
+        target3 = ObservableDict(source.value_hook)
         
         # Check initial values
         self.assertEqual(target1.value, {"key1": 100})
@@ -150,29 +150,29 @@ class TestObservableDict(unittest.TestCase):
         """Test edge cases for initialization with CarriesBindableDict"""
         # Test with empty dict in source
         source_empty: ObservableDict[str, int] = ObservableDict({})
-        target_empty = ObservableDict(source_empty.hook_value)
+        target_empty = ObservableDict(source_empty.value_hook)
         self.assertEqual(target_empty.value, {})
         
         # Test with None in source
         source_none: ObservableDict[str, int] = ObservableDict(None)
-        target_none = ObservableDict(source_none.hook_value)
+        target_none = ObservableDict(source_none.value_hook)
         self.assertEqual(target_none.value, {})
         
         # Test with single item
         source_single = ObservableDict({"single": 42})
-        target_single = ObservableDict(source_single.hook_value)
+        target_single = ObservableDict(source_single.value_hook)
         self.assertEqual(target_single.value, {"single": 42})
     
     def test_initialization_with_carries_bindable_dict_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableDict"""
         source = ObservableDict({"key1": 100})
-        target = ObservableDict(source.hook_value)
+        target = ObservableDict(source.value_hook)
         
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_initialization_with_carries_bindable_dict_performance(self):
         """Test performance of initialization with CarriesBindableDict"""
@@ -184,14 +184,14 @@ class TestObservableDict(unittest.TestCase):
         # Measure initialization time
         start_time = time.time()
         for _ in range(1000):
-            target = ObservableDict(source.hook_value)
+            target = ObservableDict(source.value_hook)
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
         self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
         
         # Verify the last target is properly bound
-        target = ObservableDict(source.hook_value)
+        target = ObservableDict(source.value_hook)
         source.set_item("key2", 200)
         self.assertEqual(target.value, {"key1": 100, "key2": 200})
     
@@ -201,7 +201,7 @@ class TestObservableDict(unittest.TestCase):
         obs2 = ObservableDict({"key2": 20})
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update
         obs1.set_item("key3", 30)
@@ -217,13 +217,13 @@ class TestObservableDict(unittest.TestCase):
         obs2 = ObservableDict({"key2": 200})
         
         # Test USE_CALLER_VALUE mode (obs1 pushes its value to obs2)
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs2.value, {"key1": 100})  # obs2 gets obs1's value
         
         # Test USE_CALLER_VALUE mode (obs3 pushes its value to obs4)
         obs3 = ObservableDict({"key3": 300})
         obs4 = ObservableDict({"key4": 400})
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs4.value, {"key3": 300})  # obs4 gets obs3's value
     
     def test_unbinding(self):
@@ -231,7 +231,7 @@ class TestObservableDict(unittest.TestCase):
         obs1 = ObservableDict({"key1": 10})
         obs2 = ObservableDict({"key2": 20})
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -242,7 +242,7 @@ class TestObservableDict(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableDict({"key1": 10})
         with self.assertRaises(ValueError):
-            obs.connect(obs.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -251,8 +251,8 @@ class TestObservableDict(unittest.TestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs1.set_item("key4", 100)
@@ -297,8 +297,8 @@ class TestObservableDict(unittest.TestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update
         obs1.set_item("key4", 100)
@@ -365,7 +365,7 @@ class TestObservableDict(unittest.TestCase):
         # Test binding empty dicts
         obs1: ObservableDict[str, str] = ObservableDict({})
         obs2: ObservableDict[str, str] = ObservableDict({})
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.set_item("key1", "value1")
         self.assertEqual(obs2.value, {"key1": "value1"})
@@ -373,7 +373,7 @@ class TestObservableDict(unittest.TestCase):
         # Test binding dicts with same initial values
         obs3 = ObservableDict({"key1": "value1"})
         obs4 = ObservableDict({"key1": "value1"})
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.set_item("key2", "value2")
         self.assertEqual(obs4.value, {"key1": "value1", "key2": "value2"})
@@ -400,7 +400,7 @@ class TestObservableDict(unittest.TestCase):
         start_time = time.time()
         
         for _ in range(100):
-            ObservableDict(source.hook_value)
+            ObservableDict(source.value_hook)
         
         end_time = time.time()
         
@@ -418,13 +418,13 @@ class TestObservableDict(unittest.TestCase):
     def test_dict_binding_consistency(self):
         """Test binding system consistency"""
         source = ObservableDict({"key1": "value1"})
-        target = ObservableDict(source.hook_value)
+        target = ObservableDict(source.value_hook)
         
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_dict_binding_none_observable(self):
         """Test that binding to None raises an error"""
@@ -437,7 +437,7 @@ class TestObservableDict(unittest.TestCase):
         obs1 = ObservableDict({"key1": "value1"})
         obs2 = ObservableDict({"key1": "value1"})
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.value, {"key1": "value1"})
         self.assertEqual(obs2.value, {"key1": "value1"})

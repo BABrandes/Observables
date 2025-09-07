@@ -65,7 +65,7 @@ class TestObservableTuple(unittest.TestCase):
         source = ObservableTuple((1, 2, 3))
         
         # Create a new observable tuple initialized with the source
-        target = ObservableTuple(source.hook_value)
+        target = ObservableTuple(source.value_hook)
         
         # Check that the target has the same initial value
         self.assertEqual(target.value, (1, 2, 3))
@@ -82,8 +82,8 @@ class TestObservableTuple(unittest.TestCase):
         """Test initialization with CarriesBindableTuple in a chain"""
         # Create a chain of observable tuples
         obs1 = ObservableTuple((10,))
-        obs2 = ObservableTuple(obs1.hook_value)
-        obs3 = ObservableTuple(obs2.hook_value)
+        obs2 = ObservableTuple(obs1.value_hook)
+        obs3 = ObservableTuple(obs2.value_hook)
         
         # Check initial values
         self.assertEqual(obs1.value, (10,))
@@ -105,7 +105,7 @@ class TestObservableTuple(unittest.TestCase):
     def test_initialization_with_carries_bindable_tuple_unbinding(self):
         """Test that initialization with CarriesBindableTuple can be unbound"""
         source = ObservableTuple((100,))
-        target = ObservableTuple(source.hook_value)
+        target = ObservableTuple(source.value_hook)
         
         # Verify they are bound
         self.assertEqual(target.value, (100,))
@@ -126,9 +126,9 @@ class TestObservableTuple(unittest.TestCase):
     def test_initialization_with_carries_bindable_tuple_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source = ObservableTuple((100,))
-        target1 = ObservableTuple(source.hook_value)
-        target2 = ObservableTuple(source.hook_value)
-        target3 = ObservableTuple(source.hook_value)
+        target1 = ObservableTuple(source.value_hook)
+        target2 = ObservableTuple(source.value_hook)
+        target3 = ObservableTuple(source.value_hook)
         
         # Check initial values
         self.assertEqual(target1.value, (100,))
@@ -151,30 +151,30 @@ class TestObservableTuple(unittest.TestCase):
         """Test edge cases for initialization with CarriesBindableTuple"""
         # Test with empty tuple in source
         source_empty = ObservableTuple(())
-        target_empty = ObservableTuple(source_empty.hook_value)
+        target_empty = ObservableTuple(source_empty.value_hook)
         self.assertEqual(target_empty.value, ())
         
         # Test with None in source
         source_none: ObservableTuple[int] = ObservableTuple(None)
-        target_none = ObservableTuple(source_none.hook_value)
+        target_none = ObservableTuple(source_none.value_hook)
         self.assertEqual(target_none.value, ())
         
         # Test with single item
         source_single = ObservableTuple((42,))
-        target_single = ObservableTuple(source_single.hook_value)
+        target_single = ObservableTuple(source_single.value_hook)
         self.assertEqual(target_single.value, (42,))
     
     def test_initialization_with_carries_bindable_tuple_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableTuple"""
         source = ObservableTuple((100,))
-        target = ObservableTuple(source.hook_value)
+        target = ObservableTuple(source.value_hook)
         
         # Note: check_status_consistency() method no longer exists in new architecture
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_initialization_with_carries_bindable_tuple_performance(self):
         """Test performance of initialization with CarriesBindableTuple"""
@@ -186,14 +186,14 @@ class TestObservableTuple(unittest.TestCase):
         # Measure initialization time
         start_time = time.time()
         for _ in range(1000):
-            target = ObservableTuple(source.hook_value)
+            target = ObservableTuple(source.value_hook)
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
         self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
         
         # Verify the last target is properly bound
-        target = ObservableTuple(source.hook_value)
+        target = ObservableTuple(source.value_hook)
         source.value = (200, 300)
         self.assertEqual(target.value, (200, 300))
     
@@ -203,7 +203,7 @@ class TestObservableTuple(unittest.TestCase):
         obs2 = ObservableTuple((20,))
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update
         obs1.value = (30, 40)
@@ -219,13 +219,13 @@ class TestObservableTuple(unittest.TestCase):
         obs2 = ObservableTuple((200,))
         
         # USE_CALLER_VALUE: target (obs2) gets caller's value
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertEqual(obs2.value, (100,))
         
         # Test update_observable_from_self mode
         obs3 = ObservableTuple((300,))
         obs4 = ObservableTuple((400,))
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         # USE_TARGET_VALUE means caller gets target's value
         self.assertEqual(obs3.value, (400,))
     
@@ -234,7 +234,7 @@ class TestObservableTuple(unittest.TestCase):
         obs1 = ObservableTuple((10,))
         obs2 = ObservableTuple((20,))
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -245,7 +245,7 @@ class TestObservableTuple(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableTuple((10,))
         with self.assertRaises(ValueError):
-            obs.connect(obs.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -254,8 +254,8 @@ class TestObservableTuple(unittest.TestCase):
         obs3 = ObservableTuple((30,))
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs1.value = (100, 200)
@@ -300,8 +300,8 @@ class TestObservableTuple(unittest.TestCase):
         obs3 = ObservableTuple((30,))
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update
         obs1.value = (100, 200)
@@ -353,7 +353,7 @@ class TestObservableTuple(unittest.TestCase):
         # Test binding empty tuples
         obs1 = ObservableTuple(())
         obs2 = ObservableTuple(())
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.value = (1,)
         self.assertEqual(obs2.value, (1,))
@@ -361,7 +361,7 @@ class TestObservableTuple(unittest.TestCase):
         # Test binding tuples with same initial values
         obs3 = ObservableTuple((42,))
         obs4 = ObservableTuple((42,))
-        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.value = (100, 200)
         self.assertEqual(obs4.value, (100, 200))
@@ -387,7 +387,7 @@ class TestObservableTuple(unittest.TestCase):
         start_time = time.time()
         
         for _ in range(100):
-            ObservableTuple(source.hook_value)
+            ObservableTuple(source.value_hook)
         
         end_time = time.time()
         
@@ -409,14 +409,14 @@ class TestObservableTuple(unittest.TestCase):
     def test_tuple_binding_consistency(self):
         """Test binding system consistency"""
         source = ObservableTuple((100,))
-        target = ObservableTuple(source.hook_value)
+        target = ObservableTuple(source.value_hook)
         
         # Note: check_status_consistency() method no longer exists in new architecture
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
-        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
+        self.assertTrue(target.value_hook.is_connected_to(source.value_hook))
+        self.assertTrue(source.value_hook.is_connected_to(target.value_hook))
     
     def test_tuple_binding_none_observable(self):
         """Test that binding to None raises an error"""
@@ -429,7 +429,7 @@ class TestObservableTuple(unittest.TestCase):
         obs1 = ObservableTuple((42,))
         obs2 = ObservableTuple((42,))
         
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.value, (42,))
         self.assertEqual(obs2.value, (42,))
@@ -493,9 +493,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs_c = ObservableSingleValue(30)
         
         # Bind A to B
-        obs_a.connect(obs_b.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs_a.connect(obs_b.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Bind B to C
-        obs_b.connect(obs_c.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs_b.connect(obs_c.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change A, should propagate to B and C
         obs_a.value = 100
@@ -518,7 +518,7 @@ class TestObservableIntegration(unittest.TestCase):
         # Bind single value to selection option
         single_obs.connect(selection_obs.selected_option_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         # Bind selection option to set (through options)
-        selection_obs.connect(set_obs.hook_value, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        selection_obs.connect(set_obs.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change single value, should propagate through chain
         single_obs.value = (6)
@@ -533,9 +533,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs_c = ObservableSingleValue(30)
         
         # Bind A to B
-        obs_a.connect(obs_b.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs_a.connect(obs_b.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Bind B to C
-        obs_b.connect(obs_c.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs_b.connect(obs_c.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs_a.value = 100
@@ -562,11 +562,11 @@ class TestObservableIntegration(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Try to bind obs2 back to obs1 (should raise ValueError about hook groups not being disjoint)
         with self.assertRaises(ValueError) as context:
-            obs2.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         self.assertIn("hook groups must be disjoint", str(context.exception))
         
         # The first binding still exists and is bidirectional, so changing obs1 should affect obs2
@@ -585,9 +585,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs3 = ObservableSingleValue(30)
         
         # Bind all three to the target
-        obs1.connect(target.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(target.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(target.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(target.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(target.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(target.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change target, all should update
         target.value = 100

@@ -36,7 +36,7 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         ...
 
     @property
-    def hook_value(self) -> HookLike[tuple[T, ...]]:
+    def value_hook(self) -> HookLike[tuple[T, ...]]:
         """
         Get the hook for the tuple.
         """
@@ -50,7 +50,7 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         ...
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the tuple length.
         """
@@ -124,7 +124,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             hook: Optional[HookLike[tuple[T, ...]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableTupleLike):
             initial_value: tuple[T, ...] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.hook_value # type: ignore
+            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: tuple[T, ...] = observable_or_hook_or_value.value
             hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value
@@ -138,7 +138,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         )
 
         if hook is not None:
-            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -187,7 +187,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
-    def hook_value(self) -> HookLike[tuple[T, ...]]:
+    def value_hook(self) -> HookLike[tuple[T, ...]]:
         """
         Get the hook for the tuple value.
         """
@@ -201,7 +201,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         return len(self._component_hooks["value"].value)
     
     @property
-    def hook_length(self) -> HookLike[int]:
+    def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the tuple length.
         """

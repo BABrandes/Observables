@@ -65,7 +65,7 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertFalse(hook.can_be_invalidated)
         self.assertIsNotNone(hook.hook_nexus)
 
-    def test_hook_value_property(self):
+    def test_value_hook_property(self):
         """Test the value property of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")

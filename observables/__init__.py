@@ -98,6 +98,7 @@ from ._other_observables.observable_transfer import ObservableTransfer
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
+from ._utils.system_analysis import write_report    
 
 # Alias for convenienc
 from ._utils.carries_collective_hooks import CarriesCollectiveHooks
@@ -132,6 +133,7 @@ __all__ = [
     'CarriesCollectiveHooks',
     'InitialSyncMode',
     'ObservableSerializable',
+    'write_report',
 ]
 
 # Package metadata

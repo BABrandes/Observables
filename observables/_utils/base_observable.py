@@ -419,7 +419,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
     @property
     def _primary_component_values(self) -> dict[HK, Any]:
         """
-        Get the values of all component hooks as a dictionary copy.
+        Get the values of the primary component hooks as a dictionary copy.
         """
         with self._lock:
             return {key: hook.value for key, hook in self._primary_hooks.items()}

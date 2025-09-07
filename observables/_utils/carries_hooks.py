@@ -3,8 +3,9 @@ from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
     from .hook_like import HookLike
+    from .hook_nexus import HookNexus
 
-HK = TypeVar("HK", contravariant=True)
+HK = TypeVar("HK")
 
 @runtime_checkable
 class CarriesHooks(Protocol[HK]):
@@ -20,6 +21,9 @@ class CarriesHooks(Protocol[HK]):
         ...
 
     def get_component_hook(self, key: HK) -> "HookLike[Any]":
+        ...
+
+    def _get_key_for(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> HK:
         ...
 
     def connect(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-class Hook(HookLike[T], BaseListening, Generic[T]):
+class       Hook(HookLike[T], BaseListening, Generic[T]):
     """
     A simple hook that provides value access and basic capabilities.
     
@@ -120,9 +120,13 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """Set if this hook is currently being submitted."""
         self._in_submission = value
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
+
+        Args:
+            hook: The hook to connect to
+            initial_sync_mode: The initial synchronization mode
         """
 
         if not self.is_active:
@@ -132,18 +136,18 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         if not hook.is_active:
             raise ValueError("Hook is deactivated")
         
-        if sync_mode == InitialSyncMode.USE_CALLER_VALUE:
-            success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
-        elif sync_mode == InitialSyncMode.USE_TARGET_VALUE:
-            success, msg = HookNexus[T].connect_hooks(self, hook, sync_mode)
+        if initial_sync_mode == InitialSyncMode.USE_CALLER_VALUE:
+            success, msg = HookNexus[T].connect_hooks(self, hook)
+        elif initial_sync_mode == InitialSyncMode.USE_TARGET_VALUE:
+            success, msg = HookNexus[T].connect_hooks(hook, self)
         else:
-            raise ValueError(f"Invalid sync mode: {sync_mode}")
+            raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 
         log(self, "connect_to", self._logger, success, msg)
 
         return success, msg
     
-    def detach(self) -> None:
+    def disconnect(self) -> None:
         """
         Detach this hook from the hook group.
         """
@@ -180,7 +184,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         log(self, "submit_value", self._logger, success, msg)
         return success, msg
     
-    def is_attached_to(self, hook: "HookLike[T]") -> bool:
+    def is_connected_to(self, hook: "HookLike[T]") -> bool:
         """
         Check if this hook is attached to another hook.
         """

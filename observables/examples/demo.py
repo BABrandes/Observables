@@ -33,27 +33,27 @@ def demo_centralized_architecture() -> None:
     scores = ObservableList([85, 90, 78])
     
     print("Initial observables created:")
-    print(f"  Name: {name.single_value} (stored in HookNexus: {id(name._component_hooks['value'].hook_nexus)})") # type: ignore
-    print(f"  Age: {age.single_value} (stored in HookNexus: {id(age._component_hooks['value'].hook_nexus)})") # type: ignore
-    print(f"  Scores: {scores.list_value} (stored in HookNexus: {id(scores._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  Name: {name.value} (stored in HookNexus: {id(name._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  Age: {age.value} (stored in HookNexus: {id(age._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  Scores: {scores.value} (stored in HookNexus: {id(scores._component_hooks['value'].hook_nexus)})") # type: ignore
     
     # Add listeners to see changes
     def on_name_change():
-        print(f"  📢 Name changed to: {name.single_value}")
+        print(f"  📢 Name changed to: {name.value}")
     
     def on_age_change():
-        print(f"  📢 Age changed to: {age.single_value}")
+        print(f"  📢 Age changed to: {age.value}")
     
     def on_scores_change():
-        print(f"  📢 Scores changed to: {scores.list_value}")
+        print(f"  📢 Scores changed to: {scores.value}")
     
     name.add_listeners(on_name_change)
     age.add_listeners(on_age_change)
     scores.add_listeners(on_scores_change)
     
     print("\n🔧 Making changes (each triggers its own HookNexus):")
-    name.single_value = "Jane"
-    age.single_value = 26
+    name.value = "Jane"
+    age.value = 26
     scores.append(95)
     
     print(f"\n💾 Memory efficiency: Each value stored exactly once!")
@@ -74,17 +74,17 @@ def demo_transitive_binding() -> None:
     c = ObservableSingleValue(3)
     
     print("Initial values:")
-    print(f"  A: {a.single_value}, B: {b.single_value}, C: {c.single_value}")
+    print(f"  A: {a.value}, B: {b.value}, C: {c.value}")
     
     # Add listeners to see the transitive behavior
     def on_a_change():
-        print(f"  📢 A changed to: {a.single_value}")
+        print(f"  📢 A changed to: {a.value}")
     
     def on_b_change():
-        print(f"  📢 B changed to: {b.single_value}")
+        print(f"  📢 B changed to: {b.value}")
     
     def on_c_change():
-        print(f"  📢 C changed to: {c.single_value}")
+        print(f"  📢 C changed to: {c.value}")
     
     a.add_listeners(on_a_change)
     b.add_listeners(on_b_change)
@@ -97,8 +97,8 @@ def demo_transitive_binding() -> None:
     
     # Bind them in a chain - this creates transitive behavior!
     print("\n🔗 Binding A → B → C...")
-    a.attach(b.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-    b.attach(c.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+    a.connect(b.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+    b.connect(c.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     print(f"\n🔗 After binding - HookNexus IDs:")
     print(f"  A's HookNexus: {id(a._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -106,10 +106,10 @@ def demo_transitive_binding() -> None:
     print(f"  C's HookNexus: {id(c._component_hooks['value'].hook_nexus)}") # type: ignore
     
     print("\n🎯 Now changing A (should propagate through entire chain):")
-    a.single_value = 10
+    a.value = 10
     
     print(f"\n📊 Final values (all synchronized through single HookNexus):")
-    print(f"  A: {a.single_value}, B: {b.single_value}, C: {c.single_value}")
+    print(f"  A: {a.value}, B: {b.value}, C: {c.value}")
     
     print("\n🔍 Key insight: A, B, and C now share the SAME HookNexus!")
     print("   This means they all reference the same central value.")
@@ -129,19 +129,19 @@ def demo_hook_group_merging() -> None:
     price_gbp = ObservableSingleValue(75.0)
     
     print("Initial state:")
-    print(f"  USD: ${price_usd.single_value} (HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)})") # type: ignore
-    print(f"  EUR: €{price_eur.single_value} (HookNexus: {id(price_eur._component_hooks['value'].hook_nexus)})") # type: ignore
-    print(f"  GBP: £{price_gbp.single_value} (HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  USD: ${price_usd.value} (HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  EUR: €{price_eur.value} (HookNexus: {id(price_eur._component_hooks['value'].hook_nexus)})") # type: ignore
+    print(f"  GBP: £{price_gbp.value} (HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)})") # type: ignore
     
     # Add listeners
     def on_usd_change():
-        print(f"  📢 USD price changed to: ${price_usd.single_value}")
+        print(f"  📢 USD price changed to: ${price_usd.value}")
     
     def on_eur_change():
-        print(f"  📢 EUR price changed to: €{price_eur.single_value}")
+        print(f"  📢 EUR price changed to: €{price_eur.value}")
     
     def on_gbp_change():
-        print(f"  📢 GBP price changed to: £{price_gbp.single_value}")
+        print(f"  📢 GBP price changed to: £{price_gbp.value}")
     
     price_usd.add_listeners(on_usd_change)
     price_eur.add_listeners(on_eur_change)
@@ -149,7 +149,7 @@ def demo_hook_group_merging() -> None:
     
     # Bind USD to EUR (merges their HookNexus instances)
     print("\n🔗 Binding USD ↔ EUR...")
-    price_usd.attach(price_eur.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+    price_usd.connect(price_eur.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     print(f"\n🔀 After USD↔EUR binding:")
     print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -158,7 +158,7 @@ def demo_hook_group_merging() -> None:
     
     # Now bind EUR to GBP (this will merge all three!)
     print("\n🔗 Binding EUR ↔ GBP...")
-    price_eur.attach(price_gbp.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+    price_eur.connect(price_gbp.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     print(f"\n🔀 After EUR↔GBP binding (all three now share HookNexus):")
     print(f"  USD HookNexus: {id(price_usd._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -166,12 +166,12 @@ def demo_hook_group_merging() -> None:
     print(f"  GBP HookNexus: {id(price_gbp._component_hooks['value'].hook_nexus)}") # type: ignore
     
     print("\n🎯 Changing USD price (propagates to all three):")
-    price_usd.single_value = 110.0
+    price_usd.value = 110.0
     
     print(f"\n📊 Final synchronized values:")
-    print(f"  USD: ${price_usd.single_value}")
-    print(f"  EUR: €{price_eur.single_value}")
-    print(f"  GBP: £{price_gbp.single_value}")
+    print(f"  USD: ${price_usd.value}")
+    print(f"  EUR: €{price_eur.value}")
+    print(f"  GBP: £{price_gbp.value}")
     
     print("\n💡 Memory efficiency: All three prices stored in ONE HookNexus!")
 
@@ -203,8 +203,8 @@ def demo_memory_efficiency() -> None:
     
     # Bind them together
     print("\n🔗 Binding all three together...")
-    obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-    obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+    obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+    obs2.connect(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     print(f"\n🔀 After binding (all share same HookNexus):")
     print(f"  Obs1 HookNexus: {id(obs1._component_hooks['value'].hook_nexus)}") # type: ignore
@@ -216,9 +216,9 @@ def demo_memory_efficiency() -> None:
     obs1[0] = -1
     
     print(f"\n📊 Final synchronized values:")
-    print(f"  Obs1: {obs1.list_value[:5]}... (length: {len(obs1.list_value)})")
-    print(f"  Obs2: {obs2.list_value[:5]}... (length: {len(obs2.list_value)})")
-    print(f"  Obs3: {obs3.list_value[:5]}... (length: {len(obs3.list_value)})")
+    print(f"  Obs1: {obs1.value[:5]}... (length: {len(obs1.value)})")
+    print(f"  Obs2: {obs2.value[:5]}... (length: {len(obs2.value)})")
+    print(f"  Obs3: {obs3.value[:5]}... (length: {len(obs3.value)})")
     
     print("\n💡 Memory savings:")
     print(f"   Traditional: 3 × {len(large_dataset)} = {3 * len(large_dataset)} items stored")
@@ -245,7 +245,7 @@ def demo_complex_networks() -> None:
     
     print("Initial network nodes:")
     for name, obs in network.items():
-        print(f"  {name}: {obs.single_value} (HookNexus: {id(obs._component_hooks['value'].hook_nexus)})") # type: ignore
+        print(f"  {name}: {obs.value} (HookNexus: {id(obs._component_hooks['value'].hook_nexus)})") # type: ignore
     
     # Create a complex binding pattern
     print("\n🔗 Creating complex binding pattern:")
@@ -254,21 +254,21 @@ def demo_complex_networks() -> None:
     print("  C ↔ E")
     
     # Bind them
-    network['node_a'].attach(network['node_b'].single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-    network['node_b'].attach(network['node_c'].single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-    network['node_b'].attach(network['node_d'].single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-    network['node_c'].attach(network['node_e'].single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+    network['node_a'].connect(network['node_b'].hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+    network['node_b'].connect(network['node_c'].hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+    network['node_b'].connect(network['node_d'].hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+    network['node_c'].connect(network['node_e'].hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     print(f"\n🔀 After binding - HookNexus IDs:")
     for name, obs in network.items():
         print(f"  {name}: HookNexus {id(obs._component_hooks['value'].hook_nexus)}") # type: ignore
     
     print("\n🎯 Changing node A (should propagate through entire network):")
-    network['node_a'].single_value = 100
+    network['node_a'].value = 100
     
     print(f"\n📊 Final synchronized values:")
     for name, obs in network.items():
-        print(f"  {name}: {obs.single_value}")
+        print(f"  {name}: {obs.value}")
     
     print("\n💡 Transitive behavior: A change in any node propagates to ALL nodes!")
     print("   This happens automatically through HookNexus merging.")
@@ -302,7 +302,7 @@ def demo_performance_benefits() -> None:
     
     # Create a chain binding
     for i in range(0, 999, 2):
-        observables[i].attach(observables[i + 1].single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        observables[i].connect(observables[i + 1].hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     binding_time = time.time() - start_time
     print(f"  ✅ Binding time: {binding_time:.4f} seconds")
@@ -313,7 +313,7 @@ def demo_performance_benefits() -> None:
     start_time = time.time()
     
     # Change the first observable - should propagate through entire chain
-    observables[0].single_value = 9999
+    observables[0].value = 9999
     
     propagation_time = time.time() - start_time
     print(f"  ✅ Propagation time: {propagation_time:.6f} seconds")

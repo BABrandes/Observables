@@ -19,10 +19,10 @@ class CarriesHooks(Protocol[HK]):
     def get_hook(self, key: HK) -> "HookLike[Any]":
         ...
 
-    def attach(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
         ...
 
-    def detach(self, key: Optional[HK]) -> None:
+    def disconnect(self, key: Optional[HK]) -> None:
         ...
 
     def _is_valid_value(self, hook: "HookLike[Any]", value: Any) -> tuple[bool, str]:

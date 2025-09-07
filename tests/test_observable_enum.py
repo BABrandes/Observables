@@ -132,7 +132,7 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(target.enum_value, TestColor.GREEN)
         
         # Unbind them
-        target.detach()
+        target.disconnect()
         
         # Change source, target should not update
         source.enum_value = TestColor.RED
@@ -186,8 +186,8 @@ class TestObservableEnum(unittest.TestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.enum_value_hook.is_attached_to(source.enum_value_hook))
-        self.assertTrue(source.enum_value_hook.is_attached_to(target.enum_value_hook))
+        self.assertTrue(target.enum_value_hook.is_connected_to(source.enum_value_hook))
+        self.assertTrue(source.enum_value_hook.is_connected_to(target.enum_value_hook))
     
     def test_initialization_with_carries_bindable_enum_performance(self):
         """Test performance of initialization with CarriesBindableEnum"""
@@ -216,7 +216,7 @@ class TestObservableEnum(unittest.TestCase):
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update
         obs1.enum_value = TestColor.GREEN
@@ -232,7 +232,7 @@ class TestObservableEnum(unittest.TestCase):
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Test default mode - binding establishes connection, then changes propagate
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         # After binding, target (obs2) takes caller's value
         self.assertEqual(obs2.enum_value, TestColor.RED)
         # But changes should now propagate
@@ -242,9 +242,9 @@ class TestObservableEnum(unittest.TestCase):
         # Test update_observable_from_self mode - this mode DOES update immediately
         obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
         obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
-        obs3.attach(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
-        # USE_TARGET_VALUE mode updates the target immediately
-        self.assertEqual(obs4.enum_value, TestSize.SMALL)
+        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+        # USE_TARGET_VALUE mode updates the caller to target's value
+        self.assertEqual(obs3.enum_value, TestSize.LARGE)
         # And changes continue to propagate
         obs3.enum_value = TestSize.MEDIUM
         self.assertEqual(obs4.enum_value, TestSize.MEDIUM)
@@ -254,12 +254,12 @@ class TestObservableEnum(unittest.TestCase):
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         # After binding, obs2 should have obs1's value
         self.assertEqual(obs2.enum_value, TestColor.RED)
         
-        obs1.detach()
+        obs1.disconnect()
         
         # After disconnecting, obs2 keeps its current bound value
         self.assertEqual(obs2.enum_value, TestColor.RED)
@@ -272,7 +272,7 @@ class TestObservableEnum(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         with self.assertRaises(ValueError):
-            obs.attach(obs.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -281,8 +281,8 @@ class TestObservableEnum(unittest.TestCase):
         obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.attach(obs3.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs3.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works
         obs1.enum_value = TestColor.GREEN
@@ -290,7 +290,7 @@ class TestObservableEnum(unittest.TestCase):
         self.assertEqual(obs3.enum_value, TestColor.GREEN)
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.detach()
+        obs2.disconnect()
         
         # After obs2 disconnects, obs1 and obs3 should remain bound (transitive binding)
         # Change obs1, obs3 should update but obs2 should not
@@ -338,8 +338,8 @@ class TestObservableEnum(unittest.TestCase):
         obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.attach(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update
         obs1.enum_value = TestColor.GREEN
@@ -396,7 +396,7 @@ class TestObservableEnum(unittest.TestCase):
         # Test binding enums with same initial values
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.enum_value = TestColor.GREEN
         self.assertEqual(obs2.enum_value, TestColor.GREEN)
@@ -404,7 +404,7 @@ class TestObservableEnum(unittest.TestCase):
         # Test binding enums with different options
         obs3 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs4 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
-        obs3.attach(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.enum_value = TestColor.BLUE
         self.assertEqual(obs4.enum_value, TestColor.BLUE)
@@ -426,11 +426,11 @@ class TestObservableEnum(unittest.TestCase):
         self.assertLess(end_time - start_time, 1.0, "Enum value access should be fast")
         
         # Test binding performance
-        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
+        source = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN})
         start_time = time.time()
         
         for _ in range(100):
-            ObservableEnum(source.enum_value_hook, logger=logger)
+            ObservableEnum(source.enum_value_hook)
         
         end_time = time.time()
         
@@ -457,21 +457,21 @@ class TestObservableEnum(unittest.TestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.enum_value_hook.is_attached_to(source.enum_value_hook))
-        self.assertTrue(source.enum_value_hook.is_attached_to(target.enum_value_hook))
+        self.assertTrue(target.enum_value_hook.is_connected_to(source.enum_value_hook))
+        self.assertTrue(source.enum_value_hook.is_connected_to(target.enum_value_hook))
     
     def test_enum_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         with self.assertRaises(ValueError):
-            obs.attach(None, "enum_value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect(None, "enum_value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_enum_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
-        obs1.attach(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
         self.assertEqual(obs1.enum_value, TestColor.RED)
         self.assertEqual(obs2.enum_value, TestColor.RED)

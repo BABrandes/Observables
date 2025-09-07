@@ -175,7 +175,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             
             # Connect external hook to our internal hook if external hook is provided
             if external_hook is not None:
-                external_hook.connect_to(internal_hook, InitialSyncMode.USE_CALLER_VALUE)
+                external_hook.connect(internal_hook, InitialSyncMode.USE_CALLER_VALUE)
         
         # Create output hooks for all keys, connecting to external hooks when provided
         for key, external_hook in output_trigger_hooks.items():
@@ -191,7 +191,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             
             # Connect our internal hook to external hook if external hook is provided
             if external_hook is not None:
-                internal_hook.connect_to(external_hook, InitialSyncMode.USE_CALLER_VALUE)
+                internal_hook.connect(external_hook, InitialSyncMode.USE_CALLER_VALUE)
 
     def _on_input_invalidated(self, key: IHK) -> tuple[bool, str]:
         """Called when an input hook is invalidated. Triggers forward transformation."""
@@ -294,25 +294,25 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def attach(self, hook: "HookLike[Any]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
-        """Attach an external hook to one of this transfer's hooks."""
+    def connect(self, hook: "HookLike[Any]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
+        """Connect an external hook to one of this transfer's hooks."""
         if to_key in self._input_hooks:
-            self._input_hooks[to_key].connect_to(hook, initial_sync_mode) # type: ignore
+            self._input_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
         elif to_key in self._output_hooks:
-            self._output_hooks[to_key].connect_to(hook, initial_sync_mode) # type: ignore
+            self._output_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
         else:
             raise ValueError(f"Key {to_key} not found in hooks")
 
-    def detach(self, key: Optional[IHK|OHK]) -> None:
-        """Detach a hook from this transfer by its key."""
+    def disconnect(self, key: Optional[IHK|OHK]) -> None:
+        """Disconnect a hook from this transfer by its key."""
         if key is None:
-            # Detach all hooks
+            # Disconnect all hooks
             for hook in list(self._input_hooks.values()) + list(self._output_hooks.values()):
-                hook.detach()
+                hook.disconnect()
         elif key in self._input_hooks:
-            self._input_hooks[key].detach() # type: ignore
+            self._input_hooks[key].disconnect() # type: ignore
         elif key in self._output_hooks:
-            self._output_hooks[key].detach() # type: ignore
+            self._output_hooks[key].disconnect() # type: ignore
         else:
             raise ValueError(f"Key {key} not found in hooks")
 

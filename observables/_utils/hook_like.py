@@ -87,19 +87,25 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def connect_to(self, hook: "HookLike[T]", sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
+
+        Args:
+            hook: The hook to connect to
+            initial_sync_mode: The initial synchronization mode
         """
         ...
 
-    def detach(self) -> None:
+    def disconnect(self) -> None:
         """
-        Detach this hook from the hook nexus.
+        Disconnect this hook from the hook nexus.
+
+        The hook will be disconnected.
         """
         ...
 
-    def is_attached_to(self, hook: "HookLike[T]") -> bool:
+    def is_connected_to(self, hook: "HookLike[T]") -> bool:
         """
         Check if this hook is connected to another hook.
         """

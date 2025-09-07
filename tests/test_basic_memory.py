@@ -34,7 +34,7 @@ class TestEssentialMemoryManagement:
             call_count[0] += 1
         
         obs.add_listeners(listener)
-        obs.single_value = "modified"
+        obs.value = "modified"
         assert call_count[0] == 1
         
         obs_ref = weakref.ref(obs)
@@ -53,11 +53,11 @@ class TestEssentialMemoryManagement:
         
         # Bind them
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test binding works
-        obs1.single_value = "new_value"
-        assert obs2.single_value == "new_value"
+        obs1.value = "new_value"
+        assert obs2.value == "new_value"
         
         obs1_ref = weakref.ref(obs1)
         obs2_ref = weakref.ref(obs2)
@@ -103,7 +103,7 @@ class TestEssentialMemoryManagement:
             
             # Use the observables
             for obs in observables:
-                obs.single_value = f"modified_{batch}"
+                obs.value = f"modified_{batch}"
             
             # Clear batch
             observables.clear()
@@ -127,13 +127,13 @@ class TestEssentialMemoryManagement:
         
         # Bind, test, detach
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs1.single_value = "bound_value"
-        assert obs2.single_value == "bound_value"
+        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.value = "bound_value"
+        assert obs2.value == "bound_value"
         
-        obs1.detach("value")
-        obs1.single_value = "detached_value"
-        assert obs2.single_value == "bound_value"  # Should not change
+        obs1.disconnect("value")
+        obs1.value = "detached_value"
+        assert obs2.value == "bound_value"  # Should not change
         
         obs1_ref = weakref.ref(obs1)
         obs2_ref = weakref.ref(obs2)
@@ -164,14 +164,14 @@ class TestMemoryStressScenarios:
             # Create some bindings
             from observables._utils.initial_sync_mode import InitialSyncMode
             for i in range(len(cycle_observables) - 1):
-                cycle_observables[i].attach(
+                cycle_observables[i].connect(
                     cycle_observables[i + 1].get_hook("value"),
                     "value",
                     InitialSyncMode.USE_CALLER_VALUE
                 )
             
             # Use the chain
-            cycle_observables[0].single_value = f"chain_value_{cycle}"
+            cycle_observables[0].value = f"chain_value_{cycle}"
             
             # Clear cycle
             cycle_observables.clear()

@@ -31,7 +31,7 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs = ObservableSingleValue(f"value_{i}")
-            obs.attach(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
             bound_observables.append(obs)
         
         # Now main_obs's hook nexus has many hooks
@@ -62,7 +62,7 @@ class TestCachePerformance:
         
         # Clean up
         for obs in bound_observables:
-            obs.detach("value")
+            obs.disconnect("value")
 
     def test_emitter_hook_cache_performance(self):
         """Test that emitter hook lookups are cached."""
@@ -100,8 +100,8 @@ class TestCachePerformance:
         operations: list[tuple[int, float, str]] = []
         
         def operation1():
-            obs.single_value = "modified1"
-            return obs.single_value
+            obs.value = "modified1"
+            return obs.value
         
         def operation2():
             hook = obs.get_hook("value")
@@ -109,8 +109,8 @@ class TestCachePerformance:
             return hook.value
         
         def operation3():
-            obs.single_value = "modified3"
-            return obs.single_value
+            obs.value = "modified3"
+            return obs.value
         
         # Time each operation
         for i, op in enumerate([operation1, operation2, operation3]):
@@ -148,20 +148,20 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.attach(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
             binding_times.append((scale, binding_time))
             
             # Test that the binding network works
-            main_obs.single_value = f"test_{scale}"
+            main_obs.value = f"test_{scale}"
             for obs in bound_observables[:5]:  # Check a few
-                assert obs.single_value == f"test_{scale}"
+                assert obs.value == f"test_{scale}"
             
             # Clean up
             for obs in bound_observables:
-                obs.detach("value")
+                obs.disconnect("value")
         
         # Performance should not degrade dramatically with scale
         # (With O(1) cache, it should be roughly linear or better)
@@ -220,8 +220,8 @@ class TestScalabilityPerformance:
         obs_dict = ObservableDict({"key": "value"})
         
         # Bind them in a network
-        obs_single.attach(obs_list.get_hook("length"), "value", InitialSyncMode.USE_TARGET_VALUE)
-        obs_list.get_hook("length").connect_to(obs_dict.get_hook("length"), InitialSyncMode.USE_CALLER_VALUE)
+        obs_single.connect(obs_list.get_hook("length"), "value", InitialSyncMode.USE_TARGET_VALUE)
+        obs_list.get_hook("length").connect(obs_dict.get_hook("length"), InitialSyncMode.USE_CALLER_VALUE)
         
         # Time complex operations
         def complex_operation():
@@ -229,7 +229,7 @@ class TestScalabilityPerformance:
             obs_list.extend([4, 5, 6])
             
             # Access various values (triggers cache lookups)
-            single_val = obs_single.single_value
+            single_val = obs_single.value
             list_len = obs_list.get_hook("length").value
             dict_len = obs_dict.get_hook("length").value
             
@@ -267,7 +267,7 @@ class TestPerformanceRegression:
         start_time = time.perf_counter()
         
         for i in range(num_operations):
-            obs.single_value = f"value_{i}"
+            obs.value = f"value_{i}"
         
         total_time = time.perf_counter() - start_time
         avg_time_per_op = total_time / num_operations
@@ -315,7 +315,7 @@ class TestPerformanceRegression:
         start_time = time.perf_counter()
         
         for i in range(num_operations):
-            obs.single_value = f"value_{i}"
+            obs.value = f"value_{i}"
         
         total_time = time.perf_counter() - start_time
         avg_time_per_op = total_time / num_operations
@@ -342,7 +342,7 @@ class TestPerformanceRegression:
             obs = ObservableSingleValue(f"cycle_{cycle}")
             
             # Perform various operations
-            obs.single_value = f"modified_{cycle}"
+            obs.value = f"modified_{cycle}"
             hook = obs.get_hook("value")
             _ = hook.value
             

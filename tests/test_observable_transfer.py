@@ -134,22 +134,22 @@ class TestObservableTransfer(unittest.TestCase):
         sum_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]](
-            input_trigger_hooks={"x": x_obs.single_value_hook, "y": y_obs.single_value_hook},
-            output_trigger_hooks={"sum": sum_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
+            output_trigger_hooks={"sum": sum_obs.hook_value},
             forward_callable=forward_transform,
             logger=logger
         )
         
         # Initially, sum should be 0
-        self.assertEqual(sum_obs.single_value, 0)
+        self.assertEqual(sum_obs.value, 0)
         
         # Trigger transformation by changing input value
         transform_called.clear()
-        x_obs.single_value = 10  # This should trigger the transfer
+        x_obs.value = 10  # This should trigger the transfer
         
         # Should have triggered transformation
         self.assertTrue(transform_called)
-        self.assertEqual(sum_obs.single_value, 13)  # 10 + 3
+        self.assertEqual(sum_obs.value, 13)  # 10 + 3
 
     def test_forward_transformation_multiple_outputs(self):
         """Test forward transformation with multiple outputs."""
@@ -172,26 +172,26 @@ class TestObservableTransfer(unittest.TestCase):
         diff_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"]](
-            input_trigger_hooks={"x": x_obs.single_value_hook, "y": y_obs.single_value_hook},
-            output_trigger_hooks={"sum": sum_obs.single_value_hook, "product": product_obs.single_value_hook, "difference": diff_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
+            output_trigger_hooks={"sum": sum_obs.hook_value, "product": product_obs.hook_value, "difference": diff_obs.hook_value},
             forward_callable=forward_transform,
             logger=logger
         )
         
         # Initially, outputs should be 0
-        self.assertEqual(sum_obs.single_value, 0)
-        self.assertEqual(product_obs.single_value, 0)
-        self.assertEqual(diff_obs.single_value, 0)
+        self.assertEqual(sum_obs.value, 0)
+        self.assertEqual(product_obs.value, 0)
+        self.assertEqual(diff_obs.value, 0)
         
         # Trigger transformation by changing input
         transform_called.clear()
-        y_obs.single_value = 5  # Change from 4 to 5
+        y_obs.value = 5  # Change from 4 to 5
         
         # Should have triggered transformation and updated all outputs
         self.assertTrue(transform_called)
-        self.assertEqual(sum_obs.single_value, 15)    # 10 + 5
-        self.assertEqual(product_obs.single_value, 50)  # 10 * 5
-        self.assertEqual(diff_obs.single_value, 5)     # 10 - 5
+        self.assertEqual(sum_obs.value, 15)    # 10 + 5
+        self.assertEqual(product_obs.value, 50)  # 10 * 5
+        self.assertEqual(diff_obs.value, 5)     # 10 - 5
 
     def test_reverse_transformation(self):
         """Test reverse transformation (outputs → inputs)."""
@@ -212,8 +212,8 @@ class TestObservableTransfer(unittest.TestCase):
         result_obs = ObservableSingleValue(0, logger=logger)
         
         ObservableTransfer[Literal["x"], Literal["result"]](
-            input_trigger_hooks={"x": x_obs.single_value_hook},
-            output_trigger_hooks={"result": result_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value},
+            output_trigger_hooks={"result": result_obs.hook_value},
             forward_callable=forward_transform,
             reverse_callable=reverse_transform,
             logger=logger
@@ -221,15 +221,15 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test forward transformation
         forward_called.clear()
-        x_obs.single_value = 7  # This should trigger forward transformation
+        x_obs.value = 7  # This should trigger forward transformation
         self.assertTrue(forward_called)
-        self.assertEqual(result_obs.single_value, 14)  # 7 * 2
+        self.assertEqual(result_obs.value, 14)  # 7 * 2
         
         # Test reverse transformation
         reverse_called.clear()
-        result_obs.single_value = 20  # This should trigger reverse transformation
+        result_obs.value = 20  # This should trigger reverse transformation
         self.assertTrue(reverse_called)
-        self.assertEqual(x_obs.single_value, 10)  # 20 // 2
+        self.assertEqual(x_obs.value, 10)  # 20 // 2
 
     def test_bidirectional_temperature_conversion(self):
         """Test bidirectional transformation with temperature conversion."""
@@ -244,20 +244,20 @@ class TestObservableTransfer(unittest.TestCase):
             return {"celsius": (outputs["fahrenheit"] - 32) * 5/9}
         
         ObservableTransfer[Literal["celsius"], Literal["fahrenheit"]](
-            input_trigger_hooks={"celsius": celsius_obs.single_value_hook},
-            output_trigger_hooks={"fahrenheit": fahrenheit_obs.single_value_hook},
+            input_trigger_hooks={"celsius": celsius_obs.hook_value},
+            output_trigger_hooks={"fahrenheit": fahrenheit_obs.hook_value},
             forward_callable=celsius_to_fahrenheit,
             reverse_callable=fahrenheit_to_celsius,
             logger=logger
         )
         
         # Test forward: Change Celsius, check Fahrenheit
-        celsius_obs.single_value = 0.0  # Freezing point
-        self.assertAlmostEqual(fahrenheit_obs.single_value, 32.0, places=1)
+        celsius_obs.value = 0.0  # Freezing point
+        self.assertAlmostEqual(fahrenheit_obs.value, 32.0, places=1)
         
         # Test reverse: Change Fahrenheit, check Celsius  
-        fahrenheit_obs.single_value = 100.0
-        self.assertAlmostEqual(celsius_obs.single_value, 37.777777777777786, places=5)
+        fahrenheit_obs.value = 100.0
+        self.assertAlmostEqual(celsius_obs.value, 37.777777777777786, places=5)
 
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
@@ -273,17 +273,17 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Test attach
-        transfer.attach(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test detach
-        transfer.detach("x")
+        transfer.disconnect("x")
         
         # Test invalid key for attach/detach
         with self.assertRaises(ValueError):
-            transfer.attach(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)
+            transfer.connect(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)
         
         with self.assertRaises(ValueError):
-            transfer.detach("invalid")
+            transfer.disconnect("invalid")
 
     def test_dictionary_access_scenario(self):
         """Test dictionary access transformation scenario."""
@@ -302,30 +302,30 @@ class TestObservableTransfer(unittest.TestCase):
             }
         
         ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"]](
-            input_trigger_hooks={"dict": dict_obs.single_value_hook, "key": key_obs.single_value_hook},
-            output_trigger_hooks={"value": value_obs.single_value_hook, "exists": exists_obs.single_value_hook},
+            input_trigger_hooks={"dict": dict_obs.hook_value, "key": key_obs.hook_value},
+            output_trigger_hooks={"value": value_obs.hook_value, "exists": exists_obs.hook_value},
             forward_callable=dict_access_transform,
             logger=logger
         )
         
         # Test initial state
-        self.assertIsNone(value_obs.single_value)
-        self.assertFalse(exists_obs.single_value)
+        self.assertIsNone(value_obs.value)
+        self.assertFalse(exists_obs.value)
         
         # Trigger transformation by changing key
-        key_obs.single_value = "b"
-        self.assertEqual(value_obs.single_value, 2)      # dict["b"] = 2
-        self.assertTrue(exists_obs.single_value)         # "b" exists in dict
+        key_obs.value = "b"
+        self.assertEqual(value_obs.value, 2)      # dict["b"] = 2
+        self.assertTrue(exists_obs.value)         # "b" exists in dict
         
         # Change key to non-existent value
-        key_obs.single_value = "z"
-        self.assertIsNone(value_obs.single_value)        # dict["z"] = None
-        self.assertFalse(exists_obs.single_value)        # "z" doesn't exist
+        key_obs.value = "z"
+        self.assertIsNone(value_obs.value)        # dict["z"] = None
+        self.assertFalse(exists_obs.value)        # "z" doesn't exist
         
         # Change dictionary
-        dict_obs.single_value = {"x": 10, "y": 20, "z": 30}
-        self.assertEqual(value_obs.single_value, 30)     # dict["z"] = 30 now
-        self.assertTrue(exists_obs.single_value)         # "z" exists now
+        dict_obs.value = {"x": 10, "y": 20, "z": 30}
+        self.assertEqual(value_obs.value, 30)     # dict["z"] = 30 now
+        self.assertTrue(exists_obs.value)         # "z" exists now
 
     def test_thread_safety(self):
         """Test thread safety of transformations."""
@@ -343,8 +343,8 @@ class TestObservableTransfer(unittest.TestCase):
             return {"sum": inputs["x"] + inputs["y"]}
         
         ObservableTransfer[Literal["x", "y"], Literal["sum"]](
-            input_trigger_hooks={"x": x_obs.single_value_hook, "y": y_obs.single_value_hook},
-            output_trigger_hooks={"sum": sum_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
+            output_trigger_hooks={"sum": sum_obs.hook_value},
             forward_callable=slow_transform,
             logger=logger
         )
@@ -352,7 +352,7 @@ class TestObservableTransfer(unittest.TestCase):
         def worker_thread(thread_id: int) -> None:
             """Worker thread that triggers transformations."""
             for i in range(3):  # Reduced for faster testing
-                x_obs.single_value = thread_id * 10 + i
+                x_obs.value = thread_id * 10 + i
                 time.sleep(0.005)
         
         # Start multiple threads
@@ -376,8 +376,8 @@ class TestObservableTransfer(unittest.TestCase):
         result_obs = ObservableSingleValue(0, logger=logger)
         
         transfer = ObservableTransfer(
-            input_trigger_hooks={"x": x_obs.single_value_hook},
-            output_trigger_hooks={"result": result_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value},
+            output_trigger_hooks={"result": result_obs.hook_value},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
@@ -387,7 +387,7 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.add_listeners(lambda: notifications.append("transfer_notified"))
         
         # Trigger transformation by changing input
-        x_obs.single_value = 10
+        x_obs.value = 10
         
         # Should have notified listeners
         self.assertIn("transfer_notified", notifications)
@@ -403,19 +403,19 @@ class TestObservableTransfer(unittest.TestCase):
             return {"result": inputs["template"].format(name=inputs["name"])}
         
         ObservableTransfer[Literal["template", "name"], Literal["result"]](
-            input_trigger_hooks={"template": template_obs.single_value_hook, "name": name_obs.single_value_hook},
-            output_trigger_hooks={"result": result_obs.single_value_hook},
+            input_trigger_hooks={"template": template_obs.hook_value, "name": name_obs.hook_value},
+            output_trigger_hooks={"result": result_obs.hook_value},
             forward_callable=format_string,
             logger=logger
         )
         
         # Test initial transformation
-        name_obs.single_value = "Alice"  # Trigger transformation
-        self.assertEqual(result_obs.single_value, "Hello, Alice!")
+        name_obs.value = "Alice"  # Trigger transformation
+        self.assertEqual(result_obs.value, "Hello, Alice!")
         
         # Change template
-        template_obs.single_value = "Hi {name}, how are you?"
-        self.assertEqual(result_obs.single_value, "Hi Alice, how are you?")
+        template_obs.value = "Hi {name}, how are you?"
+        self.assertEqual(result_obs.value, "Hi Alice, how are you?")
 
     def test_mathematical_operations_use_case(self):
         """Test mathematical operations use case."""
@@ -436,23 +436,23 @@ class TestObservableTransfer(unittest.TestCase):
             }
         
         ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"]](
-            input_trigger_hooks={"x": x_obs.single_value_hook, "y": y_obs.single_value_hook},
-            output_trigger_hooks={"sum": sum_obs.single_value_hook, "product": product_obs.single_value_hook, "quotient": quotient_obs.single_value_hook},
+            input_trigger_hooks={"x": x_obs.hook_value, "y": y_obs.hook_value},
+            output_trigger_hooks={"sum": sum_obs.hook_value, "product": product_obs.hook_value, "quotient": quotient_obs.hook_value},
             forward_callable=math_operations,
             logger=logger
         )
         
         # Test calculation by changing input
-        x_obs.single_value = 12.0  # Trigger transformation
-        self.assertEqual(sum_obs.single_value, 15.0)      # 12 + 3
-        self.assertEqual(product_obs.single_value, 36.0)  # 12 * 3
-        self.assertEqual(quotient_obs.single_value, 4.0)  # 12 / 3
+        x_obs.value = 12.0  # Trigger transformation
+        self.assertEqual(sum_obs.value, 15.0)      # 12 + 3
+        self.assertEqual(product_obs.value, 36.0)  # 12 * 3
+        self.assertEqual(quotient_obs.value, 4.0)  # 12 / 3
         
         # Test division by zero
-        y_obs.single_value = 0.0
-        self.assertEqual(sum_obs.single_value, 12.0)      # 12 + 0
-        self.assertEqual(product_obs.single_value, 0.0)   # 12 * 0
-        self.assertEqual(quotient_obs.single_value, float('inf'))  # 12 / 0
+        y_obs.value = 0.0
+        self.assertEqual(sum_obs.value, 12.0)      # 12 + 0
+        self.assertEqual(product_obs.value, 0.0)   # 12 * 0
+        self.assertEqual(quotient_obs.value, float('inf'))  # 12 / 0
 
 
 if __name__ == '__main__':

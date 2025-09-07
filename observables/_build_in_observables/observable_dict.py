@@ -16,31 +16,46 @@ class ObservableDictLike(CarriesHooks[Any], Protocol[K, V]):
     """
     
     @property
-    def dict_value(self) -> dict[K, V]:
+    def value(self) -> dict[K, V]:
         """
         Get the dictionary value.
         """
         ...
     
-    @dict_value.setter
-    def dict_value(self, value: dict[K, V]) -> None:
+    @value.setter
+    def value(self, value: dict[K, V]) -> None:
         """
         Set the dictionary value.
         """
         ...
 
     @property
-    def dict_value_hook(self) -> HookLike[dict[K, V]]:
+    def hook_value(self) -> HookLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
         ...
 
-    def change_dict(self, new_dict: dict[K, V]) -> None:
+    def change_value(self, new_dict: dict[K, V]) -> None:
         """
-        Change the entire dictionary to a new value.
+        Change the dictionary value (lambda-friendly method).
         """
         ...
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the dictionary.
+        """
+        ...
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the dictionary length.
+        """
+        ...
+    
 
 class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], ObservableSerializable[Literal["value"], "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
     """
@@ -109,8 +124,8 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_dict_value: dict[K, V] = {}
             hook: Optional[HookLike[dict[K, V]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableDictLike):
-            initial_dict_value: dict[K, V] = observable_or_hook_or_value.dict_value # type: ignore
-            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.dict_value_hook # type: ignore
+            initial_dict_value: dict[K, V] = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.hook_value # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_dict_value: dict[K, V] = observable_or_hook_or_value.value
             hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value
@@ -124,7 +139,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -146,14 +161,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         )
 
     @property
-    def dict_value_hook(self) -> HookLike[dict[K, V]]:
-        """
-        Get the hook for the dictionary.
-        """
-        return self._component_hooks["value"]
-
-    @property
-    def dict_value(self) -> dict[K, V]:
+    def value(self) -> dict[K, V]:
         """
         Get the current value of the dictionary as a copy.
         
@@ -162,8 +170,8 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         """
         return self._component_hooks["value"].value.copy()
     
-    @dict_value.setter
-    def dict_value(self, value: dict[K, V]) -> None:
+    @value.setter
+    def value(self, value: dict[K, V]) -> None:
         """
         Set the current value of the dictionary.
         """
@@ -171,12 +179,12 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
     
-    def change_dict(self, new_dict: dict[K, V]) -> None:
+    def change_value(self, new_dict: dict[K, V]) -> None:
         """
-        Change the entire dictionary to a new value.
+        Change the dictionary value (lambda-friendly method).
         
-        This method replaces the current dictionary with a new one, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
+        This method is equivalent to setting the .value property but can be used
+        in lambda expressions and other contexts where property assignment isn't suitable.
         
         Args:
             new_dict: The new dictionary to set
@@ -184,6 +192,32 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
         if new_dict == self._component_hooks["value"].value:
             return
         self._set_component_values({"value": new_dict}, notify_binding_system=True)
+
+    @property
+    def hook_value(self) -> HookLike[dict[K, V]]:
+        """
+        Get the hook for the dictionary.
+        
+        This hook can be used for binding operations with other observables.
+        """
+        return self._component_hooks["value"]
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the dictionary.
+        """
+        return len(self._component_hooks["value"].value)
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the dictionary length.
+        
+        This hook can be used for binding operations that react to length changes.
+        """
+        return self._emitter_hooks["length"]
+    
     
     def set_item(self, key: K, value: V) -> None:
         """
@@ -196,9 +230,9 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             key: The key to set or update
             value: The value to associate with the key
         """
-        if key in self.dict_value and self.dict_value[key] == value:
+        if key in self.value and self.value[key] == value:
             return  # No change
-        new_dict = self.dict_value.copy()
+        new_dict = self.value.copy()
         new_dict[key] = value
         self._set_component_values({"value": new_dict}, notify_binding_system=True)
     

@@ -202,7 +202,42 @@ except ValueError as e:
 form.print_status()
 ```
 
-## 🔧 **6. Essential Patterns**
+## 🔧 **6. Atomic Multi-Component Binding**
+
+When working with observables that have multiple dependent components (like selection options), use `connect_multiple` for atomic binding:
+
+```python
+from observables import ObservableSelectionOption, InitialSyncMode
+
+# Create two selection observables with different setups
+user_preferences = ObservableSelectionOption("dark", {"dark", "light", "auto"})
+display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
+
+# ❌ Individual binding might cause validation conflicts
+# user_preferences.attach(display_settings.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+# user_preferences.attach(display_settings.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+
+# ✅ Atomic binding prevents validation conflicts
+user_preferences.connect_multiple({
+    "selected_option": display_settings.selected_option_hook,
+    "available_options": display_settings.available_options_hook
+}, InitialSyncMode.USE_TARGET_VALUE)
+
+print(f"User preferences now has:")
+print(f"  Selected: {user_preferences.selected_option}")      # "blue"
+print(f"  Available: {user_preferences.available_options}")   # {"blue", "red", "green"}
+
+# Changes propagate bidirectionally
+user_preferences.selected_option = "red"
+print(f"Display settings updated: {display_settings.selected_option}")  # "red"
+```
+
+**Why Use connect_multiple:**
+- **Prevents validation errors** during binding
+- **Atomic operation** - all components update together
+- **Better performance** than sequential binding
+
+## 🔧 **7. Essential Patterns**
 
 ### **Pattern 1: Conditional Binding**
 
@@ -272,6 +307,7 @@ print(f"obs3: {obs3.single_value}")  # "Updated" (still connected to obs1)
 
 ### **Binding Methods**
 - `attach(hook, component_name, sync_mode)` - Bind to another observable
+- `connect_multiple(hook_dict, sync_mode)` - Atomically bind multiple components
 - `detach()` - Disconnect from all bindings
 - `is_attached_to(other)` - Check if bound to another observable
 

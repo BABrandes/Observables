@@ -16,29 +16,43 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
     """
     
     @property
-    def tuple_value(self) -> tuple[T, ...]:
+    def value(self) -> tuple[T, ...]:
         """
         Get the tuple value.
         """
         ...
     
-    @tuple_value.setter
-    def tuple_value(self, value: tuple[T, ...]) -> None:
+    @value.setter
+    def value(self, value: tuple[T, ...]) -> None:
         """
         Set the tuple value.
         """
         ...
 
-    def change_tuple_value(self, new_value: tuple[T, ...]) -> None:
+    def change_value(self, new_value: tuple[T, ...]) -> None:
         """
-        Change the tuple value.
+        Change the tuple value (lambda-friendly method).
         """
         ...
 
     @property
-    def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:
+    def hook_value(self) -> HookLike[tuple[T, ...]]:
         """
         Get the hook for the tuple.
+        """
+        ...
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the tuple.
+        """
+        ...
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the tuple length.
         """
         ...
 
@@ -109,8 +123,8 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             initial_value: tuple[T, ...] = ()
             hook: Optional[HookLike[tuple[T, ...]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableTupleLike):
-            initial_value: tuple[T, ...] = observable_or_hook_or_value.tuple_value # type: ignore
-            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.tuple_value_hook # type: ignore
+            initial_value: tuple[T, ...] = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.hook_value # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: tuple[T, ...] = observable_or_hook_or_value.value
             hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value
@@ -119,12 +133,12 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             hook: Optional[HookLike[tuple[T, ...]]] = None
 
         self._internal_construct_from_values(
-            {"value": initial_value},
+            initial_values={"value": initial_value}, # type: ignore
             logger=logger
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -146,7 +160,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         )
 
     @property
-    def tuple_value(self) -> tuple[T, ...]:
+    def value(self) -> tuple[T, ...]:
         """
         Get a copy of the current tuple value.
         
@@ -155,8 +169,8 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         """
         return self._component_hooks["value"].value
     
-    @tuple_value.setter
-    def tuple_value(self, value: tuple[T, ...]) -> None:
+    @value.setter
+    def value(self, value: tuple[T, ...]) -> None:
         """
         Set the current tuple value.
         """
@@ -164,20 +178,34 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
     
-    def change_tuple_value(self, new_value: tuple[T, ...]) -> None:
+    def change_value(self, new_value: tuple[T, ...]) -> None:
         """
-        Change the tuple value.
+        Change the tuple value (lambda-friendly method).
         """
         if new_value == self._component_hooks["value"].value:
             return
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
-    def tuple_value_hook(self) -> HookLike[tuple[T, ...]]:
+    def hook_value(self) -> HookLike[tuple[T, ...]]:
         """
         Get the hook for the tuple value.
         """
         return self._component_hooks["value"]
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the tuple.
+        """
+        return len(self._component_hooks["value"].value)
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the tuple length.
+        """
+        return self._emitter_hooks["length"]
 
     def __str__(self) -> str:
         """String representation of the observable tuple."""

@@ -1,7 +1,6 @@
 import logging
 from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any
 
-from .initial_sync_mode import InitialSyncMode
 from .general import log
 
 if TYPE_CHECKING:
@@ -218,9 +217,17 @@ class HookNexus(Generic[T]):
         return merged_group
     
     @staticmethod
-    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"], logger: Optional[logging.Logger] = None) -> tuple[bool, str]:
+    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"]) -> tuple[bool, str]:
         """
         Connect a list of hook pairs together.
+
+        The value of the first hook will be used to set the value of the second hook.
+
+        Args:
+            *hook_pairs: The pairs of hooks to connect
+
+        Returns:
+            A tuple containing a boolean indicating if the connection was successful and a string message
         """
 
         for hook_pair in hook_pairs:
@@ -244,14 +251,13 @@ class HookNexus(Generic[T]):
         return True, "Successfully connected hook pairs"
     
     @staticmethod
-    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]", initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> tuple[bool, str]:
+    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]") -> tuple[bool, str]:
         """
         Connect two hooks together.
 
         Args:
             source_hook: The hook to take the value from upon initialization
             target_hook: The hook to set the value to upon initialization
-            initial_sync_mode: Determines which value becomes the source of truth
 
         Raises:
             ValueError: If the hooks are not of the same type

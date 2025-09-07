@@ -15,31 +15,32 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
     """
     
     @property
-    def single_value(self) -> T:
+    def value(self) -> T:
         """
-        Get the single value.
+        Get the value.
         """
         ...
     
-    @single_value.setter
-    def single_value(self, value: T) -> None:
+    @value.setter
+    def value(self, value: T) -> None:
         """
-        Set the single value.
+        Set the value.
         """
         ...
 
-    def change_single_value(self, new_value: T) -> None:
+    def change_value(self, new_value: T) -> None:
         """
-        Change the single value.
+        Change the value (lambda-friendly method).
         """
         ...
 
     @property
-    def single_value_hook(self) -> HookLike[T]:
+    def hook_value(self) -> HookLike[T]:
         """
-        Get the hook for the single value.
+        Get the hook for the value.
         """
-        ... 
+        ...
+    
 
 class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSerializable[Literal["value"], "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
     """
@@ -60,14 +61,17 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         >>> # Create an observable with validation
         >>> age = ObservableSingleValue(25, validator=lambda x: 0 <= x <= 150)
         >>> age.add_listeners(lambda: print("Age changed!"))
-        >>> age.single_value = 30  # Triggers listener and validation
+        >>> age.value = 30  # Triggers listener and validation
         Age changed!
         
         >>> # Create bidirectional binding
         >>> age_copy = ObservableSingleValue(age)
-        >>> age_copy.single_value = 35  # Updates both observables
-        >>> print(age.single_value, age_copy.single_value)
+        >>> age_copy.value = 35  # Updates both observables
+        >>> print(age.value, age_copy.value)
         35 35
+        
+        >>> # Lambda-friendly method for event handlers
+        >>> button.on_click(lambda: age.change_value(40))
     
     Args:
         value: The initial value or another ObservableSingleValue to bind to
@@ -107,9 +111,9 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         if isinstance(observable_or_hook_or_value, HookLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
             hook: Optional[HookLike[T]] = observable_or_hook_or_value
-        elif isinstance(observable_or_hook_or_value, ObservableSingleValue):
-            initial_value: T = observable_or_hook_or_value.single_value # type: ignore
-            hook: Optional[HookLike[T]] = observable_or_hook_or_value.single_value_hook # type: ignore
+        elif isinstance(observable_or_hook_or_value, ObservableSingleValueLike):
+            initial_value: T = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[HookLike[T]] = observable_or_hook_or_value.hook_value # type: ignore
         else:
             # Assume the value is T
             initial_value: T = observable_or_hook_or_value
@@ -122,7 +126,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         )
         
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -143,14 +147,14 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
         )
 
     @property
-    def single_value(self) -> T:
+    def value(self) -> T:
         """
-        Get the current value of the single value.
+        Get the current value.
         """
         return self._component_hooks["value"].value
     
-    @single_value.setter
-    def single_value(self, value: T) -> None:
+    @value.setter
+    def value(self, value: T) -> None:
         """
         Set a new value, triggering validation, binding updates, and listener notifications.
         
@@ -164,20 +168,29 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
-    def change_single_value(self, new_value: T) -> None:
+    def change_value(self, new_value: T) -> None:
         """
-        Change the single value.
+        Change the value (lambda-friendly method).
+        
+        This method is equivalent to setting the .value property but can be used
+        in lambda expressions and other contexts where property assignment isn't suitable.
+        
+        Args:
+            new_value: The new value to set
         """
         if new_value == self._component_hooks["value"].value:
             return
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
     @property
-    def single_value_hook(self) -> HookLike[T]:
+    def hook_value(self) -> HookLike[T]:
         """
-        Get the current value of the single value.
+        Get the hook for the value.
+        
+        This hook can be used for binding operations with other observables.
         """
         return self._component_hooks["value"]
+    
     
     def __str__(self) -> str:
         return f"OSV(value={self._component_hooks['value'].value})"

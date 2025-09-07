@@ -415,9 +415,9 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
 
         # Establish bindings if carriers were provided
         if hook_selected_enum is not None:
-            self.attach(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
         if hook_enum_options is not None:
-            self.attach(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -715,9 +715,9 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
 
         # Establish bindings if hooks were provided
         if hook_enum_value is not None:
-            self.attach(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
         if hook_enum_options is not None:
-            self.attach(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,

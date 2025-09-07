@@ -292,9 +292,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         )
 
         if hook_selected_option is not None:
-            self.attach(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
         if hook_available_options is not None:
-            self.attach(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -442,9 +442,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         )
 
         if hook_selected_option is not None:
-            self.attach(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
         if hook_available_options is not None:
-            self.attach(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,

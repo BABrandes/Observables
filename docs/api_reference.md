@@ -92,6 +92,54 @@ obs2.single_value = 200
 print(obs1.single_value)  # 200
 ```
 
+#### **`connect_multiple(hook_dict, initial_sync_mode, logger=None)`**
+
+Atomically binds multiple components to hooks from another observable. This method prevents validation errors that can occur when binding components with dependencies.
+
+**Parameters:**
+- `hook_dict: Dict[str, HookLike]` - Dictionary mapping component names to hooks
+- `initial_sync_mode: InitialSyncMode` - How to synchronize initial values
+- `logger: Optional[Logger]` - Logger for debugging (optional)
+
+**Returns:** `None`
+
+**Raises:** 
+- `ValueError` - If binding would create invalid state
+- `TypeError` - If hook types are incompatible
+
+**Use Cases:**
+- Binding observables with multiple dependent components (e.g., selected_option + available_options)
+- Preventing temporary invalid states during multi-component binding
+- Atomic updates that require consistency across multiple properties
+
+**Example:**
+```python
+from observables import ObservableSelectionOption, InitialSyncMode
+
+# Create two selection observables with different available options
+obs1 = ObservableSelectionOption("red", {"red", "green", "blue"})
+obs2 = ObservableSelectionOption("yellow", {"yellow", "orange", "purple"})
+
+# Bind both selected_option AND available_options atomically
+obs1.connect_multiple({
+    "selected_option": obs2.selected_option_hook,
+    "available_options": obs2.available_options_hook
+}, InitialSyncMode.USE_TARGET_VALUE)
+
+# obs1 now has obs2's values: selected="yellow", options={"yellow", "orange", "purple"}
+print(f"Selected: {obs1.selected_option}")        # "yellow"
+print(f"Available: {obs1.available_options}")     # {"yellow", "orange", "purple"}
+
+# Changes propagate bidirectionally
+obs1.selected_option = "orange"
+print(f"obs2 selected: {obs2.selected_option}")   # "orange"
+```
+
+**Why Use connect_multiple:**
+- **Prevents validation errors**: Binding available_options before selected_option could temporarily create invalid states
+- **Atomic operation**: All bindings succeed or fail together
+- **Better performance**: Single validation pass for all components
+
 #### **`detach()`**
 
 Disconnects this observable from all bindings, creating an isolated HookNexus.
@@ -734,6 +782,102 @@ def debug_observable_state(obs):
         print(f"  {name}: {hook.value}")
         print(f"    HookNexus ID: {id(hook.hook_nexus)}")
         print(f"    Bound hooks: {len(hook.hook_nexus._hooks)}")
+```
+
+## ⚡ **Performance Considerations**
+
+### **Best Practices for High-Performance Applications**
+
+#### **Avoid Loggers in Performance-Critical Code**
+
+Loggers add significant overhead to operations. Avoid them in performance-sensitive scenarios:
+
+```python
+# ❌ Slow: Logger adds overhead to every operation
+obs = ObservableSingleValue(0, logger=logger)
+for i in range(1000):
+    obs.single_value = i  # Each operation logs detailed information
+
+# ✅ Fast: No logger for performance-critical operations  
+obs = ObservableSingleValue(0)  # No logger parameter
+for i in range(1000):
+    obs.single_value = i  # Direct operations without logging overhead
+
+# ✅ Conditional logging: Use logger only when debugging
+DEBUG = False
+logger = logging.getLogger(__name__) if DEBUG else None
+obs = ObservableSingleValue(0, logger=logger)
+```
+
+#### **Use connect_multiple for Atomic Multi-Component Binding**
+
+When binding observables with multiple dependent components, use `connect_multiple` for better performance and reliability:
+
+```python
+# ❌ Slower: Sequential binding with potential validation conflicts
+obs1.attach(obs2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+obs1.attach(obs2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+
+# ✅ Faster: Atomic multi-binding
+obs1.connect_multiple({
+    "selected_option": obs2.selected_option_hook,
+    "available_options": obs2.available_options_hook
+}, InitialSyncMode.USE_TARGET_VALUE)
+```
+
+#### **Batch Operations When Possible**
+
+```python
+# ❌ Slower: Multiple individual operations
+for item in items:
+    observable_list.append(item)
+
+# ✅ Faster: Single batch operation
+observable_list.extend(items)
+
+# ❌ Slower: Multiple validation passes
+observable_selector.selected_option = "new_option"
+observable_selector.available_options = {"new_option", "other_option"}
+
+# ✅ Faster: Single atomic update
+observable_selector.set_selected_option_and_available_options(
+    "new_option", 
+    {"new_option", "other_option"}
+)
+```
+
+#### **Choose Appropriate Initial Sync Modes**
+
+Select the sync mode that minimizes unnecessary value transfers:
+
+```python
+# If you want to keep the caller's values
+obs1.attach(obs2.hook, "component", InitialSyncMode.USE_CALLER_VALUE)
+
+# If you want to adopt the target's values
+obs1.attach(obs2.hook, "component", InitialSyncMode.USE_TARGET_VALUE)
+```
+
+#### **Performance Test Guidelines**
+
+When writing performance tests, avoid loggers and focus on core operations:
+
+```python
+import time
+
+# ✅ Accurate performance test
+start_time = time.time()
+for _ in range(1000):
+    obs = ObservableSingleValue(0)  # No logger
+    obs.single_value = 42
+end_time = time.time()
+
+# ❌ Inaccurate performance test (logger overhead dominates)
+start_time = time.time()
+for _ in range(1000):
+    obs = ObservableSingleValue(0, logger=logger)  # Logger adds overhead
+    obs.single_value = 42
+end_time = time.time()
 ```
 
 ## 🔍 **Error Handling**

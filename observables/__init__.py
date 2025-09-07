@@ -151,18 +151,18 @@ __year__ = '2025'
 # Package description
 __description__ = 'A Python library for reactive programming and centralized value management'
 __keywords__ = ['observable', 'reactive', 'binding', 'data-binding', 'reactive-programming']
-__url__ = 'https://github.com/yourusername/observables'
+__url__ = 'https://github.com/benediktbrandes/observables'
 __project_urls__ = {
-    'Bug Reports': 'https://github.com/yourusername/observables/issues',
-    'Source': 'https://github.com/yourusername/observables',
-    'Documentation': 'https://github.com/yourusername/observables#readme',
+    'Bug Reports': 'https://github.com/benediktbrandes/observables/issues',
+    'Source': 'https://github.com/benediktbrandes/observables',
+    'Documentation': 'https://github.com/benediktbrandes/observables#readme',
 }
 
 # Development status
 __classifiers__ = [
     'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: Apache 2.0 Software License',
+    'License :: OSI Approved :: Apache Software License',
     'Operating System :: OS Independent',
     'Programming Language :: Python :: 3.12',
     'Programming Language :: Python :: 3.13',

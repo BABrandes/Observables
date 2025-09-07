@@ -7,18 +7,17 @@ name = "observables"
 dynamic = ["version"]
 description = "A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture"
 readme = "README.md"
-license = {text = "Apache 2.0"}
+license = "Apache-2.0"
 authors = [
-    {name = "Benedikt Axel Brandes", email = "benedikt.brandes@example.com"}
+    {name = "Benedikt Axel Brandes", email = "benedikt.brandes@gmail.com"}
 ]
 maintainers = [
-    {name = "Benedikt Axel Brandes", email = "benedikt.brandes@example.com"}
+    {name = "Benedikt Axel Brandes", email = "benedikt.brandes@gmail.com"}
 ]
 keywords = ["observable", "binding", "reactive", "event-driven", "observer-pattern"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-            "License :: OSI Approved :: Apache 2.0 Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -45,11 +44,11 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/observables"
-Documentation = "https://observables.readthedocs.io/"
-Repository = "https://github.com/yourusername/observables.git"
-"Bug Tracker" = "https://github.com/yourusername/observables/issues"
-"Changelog" = "https://github.com/yourusername/observables/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/benediktbrandes/observables"
+Documentation = "https://github.com/benediktbrandes/observables#readme"
+Repository = "https://github.com/benediktbrandes/observables.git"
+"Bug Tracker" = "https://github.com/benediktbrandes/observables/issues"
+"Changelog" = "https://github.com/benediktbrandes/observables/blob/main/CHANGELOG.md"
 
 [project.scripts]
 observables-demo = "observables.examples.demo:main"

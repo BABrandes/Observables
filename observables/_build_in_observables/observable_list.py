@@ -16,31 +16,46 @@ class ObservableListLike(CarriesHooks[Any], Protocol[T]):
     """
     
     @property
-    def list_value(self) -> list[T]:
+    def value(self) -> list[T]:
         """
         Get the list value.
         """
         ...
     
-    @list_value.setter
-    def list_value(self, value: list[T]) -> None:
+    @value.setter
+    def value(self, value: list[T]) -> None:
         """
         Set the list value.
         """
         ...
 
-    def change_list_value(self, new_value: list[T]) -> None:
+    def change_value(self, new_value: list[T]) -> None:
         """
-        Change the list value.
+        Change the list value (lambda-friendly method).
         """
         ...
     
     @property
-    def list_value_hook(self) -> HookLike[list[T]]:
+    def hook_value(self) -> HookLike[list[T]]:
         """
         Get the hook for the list.
         """
         ...
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the list.
+        """
+        ...
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the list length.
+        """
+        ...
+    
 
 class ObservableList(BaseObservable[Literal["value"], Literal["length"]], ObservableSerializable[Literal["value"], "ObservableList"], ObservableListLike[T], Generic[T]):
     """
@@ -109,8 +124,8 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_value: list[T] = []
             hook: Optional[HookLike[list[T]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListLike):
-            initial_value: list[T] = observable_or_hook_or_value.list_value # type: ignore
-            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.list_value_hook # type: ignore
+            initial_value: list[T] = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.hook_value # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: list[T] = observable_or_hook_or_value.value
             hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value
@@ -124,7 +139,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -143,7 +158,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
         )
 
     @property
-    def list_value(self) -> list[T]:
+    def value(self) -> list[T]:
         """
         Get a copy of the current list value.
         
@@ -152,27 +167,52 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
         """
         return self._component_hooks["value"].value.copy()
     
-    @list_value.setter
-    def list_value(self, value: list[T]) -> None:
+    @value.setter
+    def value(self, value: list[T]) -> None:
         """
         Set the current value of the list.
         """
         if value != self._component_hooks["value"].value:
             self._set_component_values({"value": value}, notify_binding_system=True)
 
-    def change_list_value(self, new_value: list[T]) -> None:
+    def change_value(self, new_value: list[T]) -> None:
         """
-        Change the list value.
+        Change the list value (lambda-friendly method).
+        
+        This method is equivalent to setting the .value property but can be used
+        in lambda expressions and other contexts where property assignment isn't suitable.
+        
+        Args:
+            new_value: The new list value to set
         """
         if new_value != self._component_hooks["value"].value:
             self._set_component_values({"value": new_value}, notify_binding_system=True)
 
     @property
-    def list_value_hook(self) -> HookLike[list[T]]:
+    def hook_value(self) -> HookLike[list[T]]:
         """
         Get the hook for the list value.
+        
+        This hook can be used for binding operations with other observables.
         """
         return self._component_hooks["value"]
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the list.
+        """
+        return len(self._component_hooks["value"].value)
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the list length.
+        
+        This hook can be used for binding operations that react to length changes.
+        """
+        return self._emitter_hooks["length"]
+    
     
     # Standard list methods
     def append(self, item: T) -> None:

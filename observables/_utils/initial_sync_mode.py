@@ -21,11 +21,11 @@ class InitialSyncMode(Enum):
         
         >>> # Bind with different sync modes
         >>> # This will set target to 10 (source's value)
-        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        >>> source.connect(target.single_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
         >>> print(target.single_value)  # Output: 10
         
         >>> # This would set source to 20 (target's value)
-        >>> source.attach(target.single_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        >>> source.connect(target.single_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         >>> print(source.single_value)  # Output: 20
     """
     USE_CALLER_VALUE = "use_caller_value"

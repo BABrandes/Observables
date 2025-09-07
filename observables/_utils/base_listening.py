@@ -39,6 +39,12 @@ class BaseListeningLike(Protocol):
         """
         ...
 
+    def has_listeners(self) -> bool:
+        """
+        Check if there are any listeners registered.
+        """
+        ...
+
     def _notify_listeners(self) -> None:
         """
         Notify the listeners.
@@ -180,6 +186,12 @@ class BaseListening(BaseListeningLike):
         self._listeners = set()
         self._log("remove_all_listeners", True, f"Successfully removed {len(removed_listeners)} listeners")
         return removed_listeners
+
+    def has_listeners(self) -> bool:
+        """
+        Check if there are any listeners registered.
+        """
+        return len(self._listeners) > 0
 
     def _notify_listeners(self):
         """

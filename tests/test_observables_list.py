@@ -14,12 +14,12 @@ class TestObservableList(unittest.TestCase):
     
     def test_initial_value(self):
         """Test that initial value is set correctly"""
-        self.assertEqual(self.observable.list_value, [1, 2, 3])
+        self.assertEqual(self.observable.value, [1, 2, 3])
     
     def test_append(self):
         """Test appending a new value"""
         self.observable.append(4)
-        self.assertEqual(self.observable.list_value, [1, 2, 3, 4])
+        self.assertEqual(self.observable.value, [1, 2, 3, 4])
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
@@ -30,7 +30,7 @@ class TestObservableList(unittest.TestCase):
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
         self.observable.add_listeners(self.notification_callback)
-        self.observable.list_value = [1, 2, 3]  # Same value
+        self.observable.value = [1, 2, 3]  # Same value
         self.assertEqual(self.notification_count, 0)
     
     def test_remove_listeners(self):
@@ -68,15 +68,15 @@ class TestObservableList(unittest.TestCase):
         target = ObservableList(source)
         
         # Check that the target has the same initial value
-        self.assertEqual(target.list_value, [1, 2, 3])
+        self.assertEqual(target.value, [1, 2, 3])
         
         # Check that they are bound together
         source.append(4)
-        self.assertEqual(target.list_value, [1, 2, 3, 4])
+        self.assertEqual(target.value, [1, 2, 3, 4])
         
         # Check bidirectional binding
         target.append(5)
-        self.assertEqual(source.list_value, [1, 2, 3, 4, 5])
+        self.assertEqual(source.value, [1, 2, 3, 4, 5])
     
     def test_initialization_with_carries_bindable_list_chain(self):
         """Test initialization with CarriesBindableList in a chain"""
@@ -86,21 +86,21 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList(obs2)
         
         # Check initial values
-        self.assertEqual(obs1.list_value, [10])
-        self.assertEqual(obs2.list_value, [10])
-        self.assertEqual(obs3.list_value, [10])
+        self.assertEqual(obs1.value, [10])
+        self.assertEqual(obs2.value, [10])
+        self.assertEqual(obs3.value, [10])
         
         # Change the first observable
         obs1.append(20)
-        self.assertEqual(obs1.list_value, [10, 20])
-        self.assertEqual(obs2.list_value, [10, 20])
-        self.assertEqual(obs3.list_value, [10, 20])     
+        self.assertEqual(obs1.value, [10, 20])
+        self.assertEqual(obs2.value, [10, 20])
+        self.assertEqual(obs3.value, [10, 20])     
         
         # Change the middle observable
         obs2.append(30)
-        self.assertEqual(obs1.list_value, [10, 20, 30])
-        self.assertEqual(obs2.list_value, [10, 20, 30])
-        self.assertEqual(obs3.list_value, [10, 20, 30])
+        self.assertEqual(obs1.value, [10, 20, 30])
+        self.assertEqual(obs2.value, [10, 20, 30])
+        self.assertEqual(obs3.value, [10, 20, 30])
     
     def test_initialization_with_carries_bindable_list_unbinding(self):
         """Test that initialization with CarriesBindableList can be unbound"""
@@ -108,20 +108,20 @@ class TestObservableList(unittest.TestCase):
         target = ObservableList(source)
         
         # Verify they are bound
-        self.assertEqual(target.list_value, [100])
+        self.assertEqual(target.value, [100])
         source.append(200)
-        self.assertEqual(target.list_value, [100, 200])
+        self.assertEqual(target.value, [100, 200])
         
         # Unbind them
-        target.detach()
+        target.disconnect()
         
         # Change source, target should not update
         source.append(300)
-        self.assertEqual(target.list_value, [100, 200])  # Should remain unchanged
+        self.assertEqual(target.value, [100, 200])  # Should remain unchanged
         
         # Change target, source should not update
         target.append(400)
-        self.assertEqual(source.list_value, [100, 200, 300])  # Should remain unchanged
+        self.assertEqual(source.value, [100, 200, 300])  # Should remain unchanged
     
     def test_initialization_with_carries_bindable_list_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
@@ -131,38 +131,38 @@ class TestObservableList(unittest.TestCase):
         target3 = ObservableList(source)
         
         # Check initial values
-        self.assertEqual(target1.list_value, [100])
-        self.assertEqual(target2.list_value, [100])
-        self.assertEqual(target3.list_value, [100])
+        self.assertEqual(target1.value, [100])
+        self.assertEqual(target2.value, [100])
+        self.assertEqual(target3.value, [100])
         
         # Change source, all targets should update
         source.append(200)
-        self.assertEqual(target1.list_value, [100, 200])
-        self.assertEqual(target2.list_value, [100, 200])
-        self.assertEqual(target3.list_value, [100, 200])
+        self.assertEqual(target1.value, [100, 200])
+        self.assertEqual(target2.value, [100, 200])
+        self.assertEqual(target3.value, [100, 200])
         
         # Change one target, source and other targets should update
         target1.append(300)
-        self.assertEqual(source.list_value, [100, 200, 300])
-        self.assertEqual(target2.list_value, [100, 200, 300])
-        self.assertEqual(target3.list_value, [100, 200, 300])
+        self.assertEqual(source.value, [100, 200, 300])
+        self.assertEqual(target2.value, [100, 200, 300])
+        self.assertEqual(target3.value, [100, 200, 300])
     
     def test_initialization_with_carries_bindable_list_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableList"""
         # Test with empty list in source
         source_empty: ObservableList[int] = ObservableList([])
         target_empty = ObservableList(source_empty)
-        self.assertEqual(target_empty.list_value, [])
+        self.assertEqual(target_empty.value, [])
         
         # Test with None in source
         source_none: ObservableList[int] = ObservableList(None)
         target_none = ObservableList(source_none)
-        self.assertEqual(target_none.list_value, [])
+        self.assertEqual(target_none.value, [])
         
         # Test with single item
         source_single = ObservableList([42])
         target_single = ObservableList(source_single)
-        self.assertEqual(target_single.list_value, [42])
+        self.assertEqual(target_single.value, [42])
     
     def test_initialization_with_carries_bindable_list_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableList"""
@@ -173,8 +173,8 @@ class TestObservableList(unittest.TestCase):
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.list_value_hook.is_attached_to(source.list_value_hook))
-        self.assertTrue(source.list_value_hook.is_attached_to(target.list_value_hook))
+        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
+        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
     
     def test_initialization_with_carries_bindable_list_performance(self):
         """Test performance of initialization with CarriesBindableList"""
@@ -195,7 +195,7 @@ class TestObservableList(unittest.TestCase):
         # Verify the last target is properly bound
         target = ObservableList(source)
         source.append(200)
-        self.assertEqual(target.list_value, [100, 200])
+        self.assertEqual(target.value, [100, 200])
     
     def test_binding_bidirectional(self):
         """Test bidirectional binding between obs1 and obs2"""
@@ -203,15 +203,15 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([20])
         
         # Bind obs1 to obs2
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, obs2 should update with obs1's value appended
         obs1.append(30)
-        self.assertEqual(obs2.list_value, [10, 30])
+        self.assertEqual(obs2.value, [10, 30])
         
         # Change obs2, obs1 should also update (bidirectional)
         obs2.append(40)
-        self.assertEqual(obs1.list_value, [10, 30, 40])  # obs1 took obs2's initial value [20]
+        self.assertEqual(obs1.value, [10, 30, 40])  # obs1 took obs2's initial value [20]
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
@@ -219,34 +219,34 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([200])
         
         # Test USE_CALLER_VALUE: use caller's value → target (obs2) gets caller's value
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        self.assertEqual(obs2.list_value, [100])
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        self.assertEqual(obs2.value, [100])
         
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
-        # Current semantics: target gets caller's value even for USE_TARGET_VALUE
-        self.assertEqual(obs4.list_value, [300])
+        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_TARGET_VALUE)
+        # USE_TARGET_VALUE means caller gets target's value
+        self.assertEqual(obs3.value, [400])
     
     def test_unbinding(self):
         """Test unbinding observables"""
         obs1 = ObservableList([10])
         obs2 = ObservableList([20])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs1.detach()
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.disconnect()
         
         # Changes should no longer propagate
         obs1.append(50)
-        self.assertEqual(obs1.list_value, [10, 50])
-        self.assertEqual(obs2.list_value, [10])
+        self.assertEqual(obs1.value, [10, 50])
+        self.assertEqual(obs2.value, [10])
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(obs.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -255,26 +255,26 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.attach(obs3.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Verify chain works: values converge to caller on each bind
         obs1.append(100)
-        self.assertEqual(obs2.list_value, [10, 100])
-        self.assertEqual(obs3.list_value, [10, 100])
+        self.assertEqual(obs2.value, [10, 100])
+        self.assertEqual(obs3.value, [10, 100])
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.detach()
+        obs2.disconnect()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.append(200)
-        self.assertEqual(obs2.list_value, [10, 100])  # obs2 is isolated, should not update
-        self.assertEqual(obs3.list_value, [10, 100, 200])  # obs3 gets updated since obs1 and obs3 remain bound
+        self.assertEqual(obs2.value, [10, 100])  # obs2 is isolated, should not update
+        self.assertEqual(obs3.value, [10, 100, 200])  # obs3 gets updated since obs1 and obs3 remain bound
         
-        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.detach()
+        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect()
         obs3.append(300)
-        self.assertEqual(obs1.list_value, [10, 100, 200, 300])
-        self.assertEqual(obs2.list_value, [10, 100])
+        self.assertEqual(obs1.value, [10, 100, 200, 300])
+        self.assertEqual(obs2.value, [10, 100])
     
     def test_string_representation(self):
         """Test string and repr methods"""
@@ -301,18 +301,18 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Bind obs2 and obs3 to obs1
-        obs2.attach(obs1.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.attach(obs1.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs1.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Change obs1, both should update to obs1's value
         obs1.append(100)
-        self.assertEqual(obs2.list_value, [30, 100])
-        self.assertEqual(obs3.list_value, [30, 100])
+        self.assertEqual(obs2.value, [30, 100])
+        self.assertEqual(obs3.value, [30, 100])
         
         # Change obs2, obs1 should also update (bidirectional), obs3 should also update
         obs2.append(200)
-        self.assertEqual(obs1.list_value, [30, 100, 200])
-        self.assertEqual(obs3.list_value, [30, 100, 200])
+        self.assertEqual(obs1.value, [30, 100, 200])
+        self.assertEqual(obs3.value, [30, 100, 200])
     
     def test_list_methods(self):
         """Test standard list methods"""
@@ -320,28 +320,28 @@ class TestObservableList(unittest.TestCase):
         
         # Test append
         obs.append(4)
-        self.assertEqual(obs.list_value, [1, 2, 3, 4])
+        self.assertEqual(obs.value, [1, 2, 3, 4])
         
         # Test extend
         obs.extend([5, 6])
-        self.assertEqual(obs.list_value, [1, 2, 3, 4, 5, 6])
+        self.assertEqual(obs.value, [1, 2, 3, 4, 5, 6])
         
         # Test insert
         obs.insert(0, 0)
-        self.assertEqual(obs.list_value, [0, 1, 2, 3, 4, 5, 6])
+        self.assertEqual(obs.value, [0, 1, 2, 3, 4, 5, 6])
         
         # Test remove
         obs.remove(3)
-        self.assertEqual(obs.list_value, [0, 1, 2, 4, 5, 6])
+        self.assertEqual(obs.value, [0, 1, 2, 4, 5, 6])
         
         # Test pop
         popped = obs.pop()
         self.assertEqual(popped, 6)
-        self.assertEqual(obs.list_value, [0, 1, 2, 4, 5])
+        self.assertEqual(obs.value, [0, 1, 2, 4, 5])
         
         # Test clear
         obs.clear()
-        self.assertEqual(obs.list_value, [])
+        self.assertEqual(obs.value, [])
     
     def test_list_indexing(self):
         """Test list indexing operations"""
@@ -353,15 +353,15 @@ class TestObservableList(unittest.TestCase):
         
         # Test setitem
         obs[2] = 35
-        self.assertEqual(obs.list_value, [10, 20, 35, 40, 50])
+        self.assertEqual(obs.value, [10, 20, 35, 40, 50])
         
         # Test delitem
         del obs[1]
-        self.assertEqual(obs.list_value, [10, 35, 40, 50])
+        self.assertEqual(obs.value, [10, 35, 40, 50])
         
         # Test slice operations
         obs[1:3] = [25, 30] # type: ignore
-        self.assertEqual(obs.list_value, [10, 25, 30, 50])
+        self.assertEqual(obs.value, [10, 25, 30, 50])
     
     def test_list_comparison(self):
         """Test list comparison operations"""
@@ -393,17 +393,17 @@ class TestObservableList(unittest.TestCase):
         self.assertNotIn(6, obs)
     
     def test_list_copy_behavior(self):
-        """Test that list_value returns a copy"""
+        """Test that value returns a copy"""
         obs = ObservableList([1, 2, 3])
         
         # Get the list value
-        list_copy = obs.list_value
+        list_copy = obs.value
         
         # Modify the copy
         list_copy.append(4)
         
         # Original should not change
-        self.assertEqual(obs.list_value, [1, 2, 3])
+        self.assertEqual(obs.value, [1, 2, 3])
         
         # The copy should have the modification
         self.assertEqual(list_copy, [1, 2, 3, 4])
@@ -412,33 +412,33 @@ class TestObservableList(unittest.TestCase):
         """Test list validation"""
         # Test with valid list
         obs = ObservableList([1, 2, 3])
-        self.assertEqual(obs.list_value, [1, 2, 3])
+        self.assertEqual(obs.value, [1, 2, 3])
         
         # Test with None (should create empty list)
         obs_none: ObservableList[int] = ObservableList(None)
-        self.assertEqual(obs_none.list_value, [])
+        self.assertEqual(obs_none.value, [])
         
         # Test with empty list
         obs_empty: ObservableList[int] = ObservableList([])
-        self.assertEqual(obs_empty.list_value, [])
+        self.assertEqual(obs_empty.value, [])
     
     def test_list_binding_edge_cases(self):
         """Test edge cases for list binding"""
         # Test binding empty lists
         obs1: ObservableList[int] = ObservableList([])
         obs2: ObservableList[int] = ObservableList([])
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs1.append(1)
-        self.assertEqual(obs2.list_value, [1])
+        self.assertEqual(obs2.value, [1])
         
         # Test binding lists with same initial values
         obs3 = ObservableList([42])
         obs4 = ObservableList([42])
-        obs3.attach(obs4.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         
         obs3.append(100)
-        self.assertEqual(obs4.list_value, [42, 100])
+        self.assertEqual(obs4.value, [42, 100])
     
     def test_list_performance(self):
         """Test list performance characteristics"""
@@ -455,7 +455,7 @@ class TestObservableList(unittest.TestCase):
         
         # Should complete in reasonable time
         self.assertLess(end_time - start_time, 1.0, "Append operations should be fast")
-        self.assertEqual(len(obs.list_value), 1000)
+        self.assertEqual(len(obs.value), 1000)
         
         # Test binding performance
         source = ObservableList([1, 2, 3])
@@ -479,7 +479,7 @@ class TestObservableList(unittest.TestCase):
         
         # Test remove non-existent item (should not raise error, just do nothing)
         obs.remove(99)
-        self.assertEqual(obs.list_value, [1, 2, 3])  # Should remain unchanged
+        self.assertEqual(obs.value, [1, 2, 3])  # Should remain unchanged
         
         # Test pop from empty list
         empty_obs: ObservableList[int] = ObservableList([])
@@ -495,24 +495,24 @@ class TestObservableList(unittest.TestCase):
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.list_value_hook.is_attached_to(source.list_value_hook))
-        self.assertTrue(source.list_value_hook.is_attached_to(target.list_value_hook))
+        self.assertTrue(target.hook_value.is_connected_to(source.hook_value))
+        self.assertTrue(source.hook_value.is_connected_to(target.hook_value))
     
     def test_list_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.attach(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_list_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableList([42])
         obs2 = ObservableList([42])
         
-        obs1.attach(obs2.list_value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
         # Both should still have the same value
-        self.assertEqual(obs1.list_value, [42])
-        self.assertEqual(obs2.list_value, [42])
+        self.assertEqual(obs1.value, [42])
+        self.assertEqual(obs2.value, [42])
     
     def test_listener_duplicates(self):
         """Test that duplicate listeners are not added"""

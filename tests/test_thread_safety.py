@@ -29,7 +29,7 @@ class TestThreadSafety:
             try:
                 for i in range(iterations_per_thread):
                     value = f"thread_{thread_id}_value_{i}"
-                    obs.single_value = value
+                    obs.value = value
                     # Verify we can read it back
                     read_value = obs.single_value
                     assert isinstance(read_value, str), f"Expected string, got {type(read_value)}"
@@ -115,16 +115,16 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify values
-                    obs1.single_value = f"modified_{i}"
+                    obs1.value = f"modified_{i}"
                     
                     # Read synchronized value
                     _ = obs2.single_value
                     
                     # Detach
-                    obs1.detach("value")
+                    obs1.disconnect("value")
                     
                     time.sleep(0.001)  # Small delay
                     
@@ -166,7 +166,7 @@ class TestThreadSafety:
             """Thread that modifies values."""
             try:
                 for i in range(100):
-                    obs.single_value = f"thread_{thread_id}_value_{i}"
+                    obs.value = f"thread_{thread_id}_value_{i}"
                     time.sleep(0.001)
             except Exception as e:
                 errors.append(f"Modifier {thread_id} error: {e}")
@@ -213,13 +213,13 @@ class TestThreadSafety:
                     obs_list.extend([base_value + 1, base_value + 2])
                     
                     # Read operations
-                    _ = len(obs_list.list_value)
+                    _ = len(obs_list.value)
                     _ = obs_list.get_hook("length").value
                     
                     # Remove some elements if list is large enough
-                    if len(obs_list.list_value) > 10:
+                    if len(obs_list.value) > 10:
                         try:
-                            obs_list.remove(obs_list.list_value[0])
+                            obs_list.remove(obs_list.value[0])
                         except (ValueError, IndexError):
                             pass  # Element might have been removed by another thread
                     
@@ -260,13 +260,13 @@ class TestThreadSafety:
                     obs_dict[key] = value
                     
                     # Read operations
-                    _ = len(obs_dict.dict_value)
+                    _ = len(obs_dict.value)
                     _ = obs_dict.get_hook("length").value
                     
                     # Remove some keys if dict is large enough
-                    if len(obs_dict.dict_value) > 10:
+                    if len(obs_dict.value) > 10:
                         try:
-                            keys = list(obs_dict.dict_value.keys())
+                            keys = list(obs_dict.value.keys())
                             if keys:
                                 del obs_dict[keys[0]]
                         except KeyError:
@@ -311,15 +311,15 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
-                    obs2.attach(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs2.connect(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify the chain
-                    obs1.single_value = f"new_value_{i}"
+                    obs1.value = f"new_value_{i}"
                     
                     # Break the chain
-                    obs1.detach("value")
-                    obs2.detach("value")
+                    obs1.disconnect("value")
+                    obs2.disconnect("value")
                     
             except Exception as e:
                 errors.append(f"Rapid binder error: {e}")
@@ -360,8 +360,8 @@ class TestThreadSafetyEdgeCases:
             try:
                 for i in range(100):
                     obs_list.append(100 + i)
-                    if i % 10 == 0 and len(obs_list.list_value) > 50:
-                        obs_list.remove(obs_list.list_value[0])
+                    if i % 10 == 0 and len(obs_list.value) > 50:
+                        obs_list.remove(obs_list.value[0])
                     time.sleep(0.002)
             except Exception as e:
                 errors.append(f"List modifier error: {e}")
@@ -386,7 +386,7 @@ class TestThreadSafetyEdgeCases:
         
         # Verify final consistency
         final_length = obs_list.get_hook("length").value
-        actual_length = len(obs_list.list_value)
+        actual_length = len(obs_list.value)
         assert final_length == actual_length, "Final emitter hook value should match actual length"
 
     @pytest.mark.slow
@@ -411,14 +411,14 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.attach(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
-                        obs1.single_value = f"worker_{worker_id}_value_{i}"
-                        obs1.detach("value")
+                        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                        obs1.value = f"worker_{worker_id}_value_{i}"
+                        obs1.disconnect("value")
                     elif i % 4 == 1:
                         # Listener operations
                         listener = Mock()
                         obs1.add_listeners(listener)
-                        obs1.single_value = f"worker_{worker_id}_listen_{i}"
+                        obs1.value = f"worker_{worker_id}_listen_{i}"
                         obs1.remove_listeners(listener)
                     elif i % 4 == 2:
                         # Hook operations
@@ -426,7 +426,7 @@ class TestThreadSafetyEdgeCases:
                         hook.value = f"worker_{worker_id}_hook_{i}"
                     else:
                         # Direct value operations
-                        obs1.single_value = f"worker_{worker_id}_direct_{i}"
+                        obs1.value = f"worker_{worker_id}_direct_{i}"
                     
                     time.sleep(0.001)
                     

@@ -15,31 +15,46 @@ class ObservableSetLike(CarriesHooks[Any], Protocol[T]):
     """
     
     @property
-    def set_value(self) -> set[T]:
+    def value(self) -> set[T]:
         """
         Get the set value.
         """
         ...
     
-    @set_value.setter
-    def set_value(self, value: set[T]) -> None:
+    @value.setter
+    def value(self, value: set[T]) -> None:
         """
         Set the set value.
         """
         ...
 
     @property
-    def set_value_hook(self) -> HookLike[set[T]]:
+    def hook_value(self) -> HookLike[set[T]]:
         """
         Get the hook for the set.
         """
         ...
 
-    def change_set_value(self, value: set[T]) -> None:
+    def change_value(self, value: set[T]) -> None:
         """
-        Set the set value.
+        Change the set value (lambda-friendly method).
         """
         ...
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the set.
+        """
+        ...
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the set length.
+        """
+        ...
+    
 
 class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], ObservableSerializable[Literal["value"], "ObservableSet"], ObservableSetLike[T], Generic[T]):
     """
@@ -107,8 +122,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             initial_value: set[T] = set()
             hook: Optional[HookLike[set[T]]] = None 
         elif isinstance(observable_or_hook_or_value, ObservableSetLike):
-            initial_value: set[T] = observable_or_hook_or_value.set_value # type: ignore
-            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.set_value_hook # type: ignore
+            initial_value: set[T] = observable_or_hook_or_value.value # type: ignore
+            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.hook_value # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
             initial_value: set[T] = observable_or_hook_or_value.value
             hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value
@@ -122,7 +137,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         )
 
         if hook is not None:
-            self.attach(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
 
     def _internal_construct_from_values(
         self,
@@ -141,7 +156,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         )
     
     @property
-    def set_value(self) -> set[T]:
+    def value(self) -> set[T]:
         """
         Get a copy of the current set value.
         
@@ -150,8 +165,8 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
         """
         return self._component_hooks["value"].value.copy()    
     
-    @set_value.setter
-    def set_value(self, value: set[T]) -> None:
+    @value.setter
+    def value(self, value: set[T]) -> None:
         """
         Set the current value of the set.
         """
@@ -159,20 +174,45 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
-    def change_set_value(self, value: set[T]) -> None:
+    def change_value(self, value: set[T]) -> None:
         """
-        Set the current value of the set.
+        Change the set value (lambda-friendly method).
+        
+        This method is equivalent to setting the .value property but can be used
+        in lambda expressions and other contexts where property assignment isn't suitable.
+        
+        Args:
+            value: The new set value to set
         """
         if value == self._component_hooks["value"].value:
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
     @property
-    def set_value_hook(self) -> HookLike[set[T]]:
+    def hook_value(self) -> HookLike[set[T]]:
         """
         Get the hook for the set.
+        
+        This hook can be used for binding operations with other observables.
         """
         return self._component_hooks["value"]
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the set.
+        """
+        return len(self._component_hooks["value"].value)
+    
+    @property
+    def hook_length(self) -> HookLike[int]:
+        """
+        Get the hook for the set length.
+        
+        This hook can be used for binding operations that react to length changes.
+        """
+        return self._emitter_hooks["length"]
+    
     
     # Standard set methods
     def add(self, item: T) -> None:

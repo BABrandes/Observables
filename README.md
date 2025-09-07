@@ -28,14 +28,14 @@ temp_celsius = ObservableSingleValue(25.0)
 temp_fahrenheit = ObservableSingleValue(77.0)
 
 # Bind them bidirectionally
-temp_celsius.attach(temp_fahrenheit.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+temp_celsius.attach(temp_fahrenheit.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
 
 # 🔄 Changes propagate in BOTH directions
-temp_celsius.single_value = 30.0
-print(temp_fahrenheit.single_value)  # 30.0 (celsius → fahrenheit)
+temp_celsius.value = 30.0
+print(temp_fahrenheit.value)  # 30.0 (celsius → fahrenheit)
 
-temp_fahrenheit.single_value = 100.0
-print(temp_celsius.single_value)     # 100.0 (fahrenheit → celsius)
+temp_fahrenheit.value = 100.0
+print(temp_celsius.value)     # 100.0 (fahrenheit → celsius)
 ```
 
 ### **🛡️ Rigorous State Validation**
@@ -68,15 +68,15 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
+obs2.attach(obs3.hook_value, "value", InitialSyncMode.USE_CALLER_VALUE)
 
 # 🎉 obs1 is automatically connected to obs3!
 # This happens through HookNexus merging, not manual configuration
 
-obs1.single_value = 500
-print(obs2.single_value)  # 500 (through direct binding)
-print(obs3.single_value)  # 500 (through transitive binding!)
+obs1.value = 500
+print(obs2.value)  # 500 (through direct binding)
+print(obs3.value)  # 500 (through transitive binding!)
 ```
 
 ### **🔀 HookNexus Merging - Dynamic Centralization**
@@ -88,16 +88,16 @@ obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
 
 print(f"Initial HookNexus IDs:")
-print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"  Obs1: {id(obs1._component_hooks['value'].hook_nexus)}")
+print(f"  Obs2: {id(obs2._component_hooks['value'].hook_nexus)}")
 # Output: Different IDs - separate storage
 
 # Bind them together (merges their HookNexus instances)
 obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
 
 print(f"After binding - HookNexus IDs:")
-print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"  Obs1: {id(obs1._component_hooks['value'].hook_nexus)}")
+print(f"  Obs2: {id(obs2._component_hooks['value'].hook_nexus)}")
 # Output: Same ID - shared storage!
 ```
 
@@ -161,17 +161,17 @@ user_data = ObservableDict({"city": "New York", "country": "USA"})
 
 # Add listeners
 def on_name_change():
-    print(f"Name changed to: {name.single_value}")
+    print(f"Name changed to: {name.value}")
 
 def on_age_change():
-    print(f"Age changed to: {age.single_value}")
+    print(f"Age changed to: {age.value}")
 
 name.add_listeners(on_name_change)
 age.add_listeners(on_age_change)
 
 # Changes automatically trigger notifications
-name.single_value = "Jane"  # Prints: "Name changed to: Jane"
-age.single_value = 26       # Prints: "Age changed to: 26"
+name.value = "Jane"  # Prints: "Name changed to: Jane"
+age.value = 26       # Prints: "Age changed to: 26"
 ```
 
 ### Transitive Binding (Automatic Network Formation)
@@ -189,17 +189,17 @@ obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
 obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
 
 # Now obs1 is automatically connected to obs3!
-obs1.single_value = 500
-print(obs2.single_value)  # 500
-print(obs3.single_value)  # 500 (transitive binding!)
+obs1.value = 500
+print(obs2.value)  # 500
+print(obs3.value)  # 500 (transitive binding!)
 
 # Break the middle connection
 obs2.detach()
 
 # obs1 and obs3 remain connected (transitive binding preserved)
-obs1.single_value = 1000
-print(obs3.single_value)  # 1000
-print(obs2.single_value)  # 500 (unchanged, no longer bound)
+obs1.value = 1000
+print(obs3.value)  # 1000
+print(obs2.value)  # 500 (unchanged, no longer bound)
 ```
 
 ### Memory-Efficient Data Sharing
@@ -222,7 +222,7 @@ view2.bind_to(view3, InitialSyncMode.SELF_IS_UPDATED)
 # All views automatically stay synchronized
 # Memory usage: 1 copy of data + 3 lightweight references
 view1.append(99999)
-print(f"All views updated: {len(view1.list_value)} = {len(view2.list_value)} = {len(view3.list_value)}")
+print(f"All views updated: {len(view1.value)} = {len(view2.value)} = {len(view3.value)}")
 ```
 
 ## 🎯 **Use Cases**
@@ -308,11 +308,7 @@ Disconnects this observable from all bindings, creating its own isolated HookNex
 
 Each observable provides hooks for different aspects of its data:
 
-- **`single_value_hook`**: Access to single values
-- **`list_value_hook`**: Access to entire lists
-- **`dict_value_hook`**: Access to entire dictionaries
-- **`set_value_hook`**: Access to entire sets
-- **`tuple_value_hook`**: Access to entire tuples
+- **`hook_value`**: Access to observable values for all types
 
 ## 💡 **Best Practices**
 
@@ -365,15 +361,15 @@ name = ObservableSingleValue("John")
 scores = ObservableList([85, 90, 78])
 
 # Add listeners
-name.add_listeners(lambda: print(f"Name changed to: {name.single_value}"))
-scores.add_listeners(lambda: print(f"Scores updated: {scores.list_value}"))
+name.add_listeners(lambda: print(f"Name changed to: {name.value}"))
+scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
 
 # Create bindings (automatic HookNexus merging)
 name_display = ObservableSingleValue("")
 name_display.bind_to(name, InitialSyncMode.SELF_IS_UPDATED)
 
 # Changes propagate automatically
-name.single_value = "Jane"  # Updates both name and name_display
+name.value = "Jane"  # Updates both name and name_display
 scores.append(95)           # Triggers listener notification
 ```
 

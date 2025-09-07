@@ -112,7 +112,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             self._nexus_to_key_cache[hook.hook_nexus] = key
             
             if isinstance(value, HookLike):
-                value.connect_to(hook, InitialSyncMode.USE_TARGET_VALUE)
+                value.connect(hook, InitialSyncMode.USE_TARGET_VALUE)
 
         self._emitter_hooks: dict[EHK, HookLike[Any]] = {}
         self._emitter_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
@@ -450,6 +450,9 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
     def hooks(self) -> set[HookLike[Any]]:
         """
         Get the hooks of the observable.
+
+        Returns:
+            A set of hooks
         """
         return set(self._component_hooks.values()) | set(self._emitter_hooks.values())
     
@@ -458,6 +461,12 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Get the value of a component hook.
 
         If copying is available, the copy is returned.
+
+        Args:
+            key: The key to get the value for
+
+        Raises:
+            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
         """
         if not isinstance(key, str):
             raise ValueError(f"Key {key} is not a string")
@@ -476,6 +485,12 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
     def get_hook(self, key: HK|EHK) -> HookLike[Any]:
         """
         Get a hook by key.
+
+        Args:
+            key: The key to get the hook for
+
+        Raises:
+            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
         """
         if not isinstance(key, str):
             raise ValueError(f"Key {key} is not a string")
@@ -486,22 +501,38 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         else:
             raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
     
-    def attach(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
+    def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
         """
-        Attach a hook to the observable.
+        Connect a hook to the observable.
+
+        Args:
+            hook: The hook to connect
+            to_key: The key to connect the hook to
+            initial_sync_mode: The initial synchronization mode
+
+        Raises:
+            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
         """
         if not isinstance(to_key, str):
             raise ValueError(f"Key {to_key} is not a string")
         if to_key in self._component_hooks:
-            self._component_hooks[to_key].connect_to(hook, initial_sync_mode) # type: ignore
+            self._component_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
         elif to_key in self._emitter_hooks:
-            self._emitter_hooks[to_key].connect_to(hook, initial_sync_mode) # type: ignore
+            self._emitter_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
         else:
             raise ValueError(f"Key {to_key} not found in component_hooks or emitter_hooks")
+    
 
-    def attach_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
+    def connect_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode = InitialSyncMode.USE_CALLER_VALUE) -> None:
         """
         Attach multiple hooks to the observable.
+
+        Args:
+            hooks: A mapping of keys to hooks
+            initial_sync_mode: The initial synchronization mode
+
+        Raises:
+            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
         """
 
         hook_pairs: list[tuple[HookLike[Any], HookLike[Any]]] = []
@@ -514,17 +545,29 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 hook_of_observable = self._emitter_hooks[key] # type: ignore
             else:
                 raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
-            hook_pairs.append((hook, hook_of_observable))
+            match initial_sync_mode:
+                case InitialSyncMode.USE_CALLER_VALUE:
+                    hook_pairs.append((hook_of_observable, hook))
+                case InitialSyncMode.USE_TARGET_VALUE:
+                    hook_pairs.append((hook, hook_of_observable))
+                case _: # type: ignore
+                    raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
         HookNexus[Any].connect_hook_pairs(*hook_pairs)
     
-    def detach(self, key: Optional[HK|EHK]=None) -> None:
+    def disconnect(self, key: Optional[HK|EHK]=None) -> None:
         """
-        Detach a hook from the observable.
+        Disconnect a hook from the observable.
+
+        Args:
+            key: The key to disconnect the hook from
+
+        Raises:
+            ValueError: If the key is not a string or not found in component_hooks or emitter_hooks
         """
         if key is None:
             for hook in self._component_hooks.values():
                 try:
-                    hook.detach()
+                    hook.disconnect()
                 except ValueError as e:
                     if "already disconnected" in str(e):
                         # Hook is already disconnected, ignore
@@ -536,9 +579,9 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 raise ValueError(f"Key {key} is not a string")
             try:
                 if key in self._component_hooks:
-                    self._component_hooks[key].detach() # type: ignore
+                    self._component_hooks[key].disconnect() # type: ignore
                 elif key in self._emitter_hooks:
-                    self._emitter_hooks[key].detach() # type: ignore
+                    self._emitter_hooks[key].disconnect() # type: ignore
                 else:
                     raise ValueError(f"Key {key} not found in component_hooks or emitter_hooks")
             except ValueError as e:
@@ -557,6 +600,9 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
 
         ** The returned values are references, so modifying them will modify the observable.
         Use with caution.
+
+        Returns:
+            A dictionary of keys to values
         """
         return self._component_values.copy()
     

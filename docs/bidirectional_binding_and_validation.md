@@ -224,6 +224,43 @@ print(f"Selected: {product_selector.selected_option}")           # smartwatch (u
 print(f"Available: {product_selector.available_options}")        # {'smartwatch', 'laptop', 'phone'} (unchanged)
 ```
 
+### **Atomic Multi-Component Binding**
+
+For observables with multiple interdependent components, use `connect_multiple` to prevent validation conflicts:
+
+```python
+from observables import ObservableSelectionOption, InitialSyncMode
+
+# Create observables with different component values
+config_primary = ObservableSelectionOption("production", {"production", "staging", "development"})
+config_backup = ObservableSelectionOption("test", {"test", "validation", "sandbox"})
+
+# ❌ Sequential binding can cause validation errors
+# When binding selected_option first, "production" might not be in backup's available options
+try:
+    config_primary.attach(config_backup.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+    # This could fail if "test" is not in primary's available options
+    config_primary.attach(config_backup.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+except ValueError as e:
+    print(f"Sequential binding failed: {e}")
+
+# ✅ Atomic binding succeeds - all components update together
+config_primary.connect_multiple({
+    "selected_option": config_backup.selected_option_hook,
+    "available_options": config_backup.available_options_hook
+}, InitialSyncMode.USE_TARGET_VALUE)
+
+print(f"After atomic binding:")
+print(f"  Primary selected: {config_primary.selected_option}")        # "test"
+print(f"  Primary available: {config_primary.available_options}")     # {"test", "validation", "sandbox"}
+print(f"  Backup selected: {config_backup.selected_option}")          # "test"
+print(f"  Backup available: {config_backup.available_options}")       # {"test", "validation", "sandbox"}
+
+# Both observables now share the same values and remain consistent
+config_primary.selected_option = "validation"
+print(f"Both updated: {config_backup.selected_option}")  # "validation"
+```
+
 ### **Validation During Binding Operations**
 
 Validation is enforced even during binding operations, ensuring compatibility:

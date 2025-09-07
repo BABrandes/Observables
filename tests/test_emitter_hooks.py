@@ -111,7 +111,7 @@ class TestEmitterHooksRecomputation:
         assert obs_list.get_value("length") == 2
         
         # Directly assign new list
-        obs_list.list_value = [1, 2, 3, 4, 5]
+        obs_list.value = [1, 2, 3, 4, 5]
         
         # Length should now be 5
         assert obs_list.get_value("length") == 5, "Length emitter hook should update when list_value is assigned"
@@ -153,7 +153,7 @@ class TestEmitterHooksRecomputation:
         assert obs_tuple.get_value("length") == 3
         
         # Replace the tuple
-        obs_tuple.tuple_value = (1, 2, 3, 4, 5)
+        obs_tuple.value = (1, 2, 3, 4, 5)
         
         # Length should now be 5
         assert obs_tuple.get_value("length") == 5, "Length emitter hook should update when tuple changes"
@@ -257,16 +257,16 @@ class TestEmitterHooksListeners:
         # Bind the length hook to the single value (reverse direction)
         from observables._utils.initial_sync_mode import InitialSyncMode
         length_hook = obs_list.get_hook("length")
-        length_hook.connect_to(length_tracker.get_hook("value"), InitialSyncMode.USE_CALLER_VALUE)
+        length_hook.connect(length_tracker.get_hook("value"), InitialSyncMode.USE_CALLER_VALUE)
         
         # Initial binding should work
-        assert length_tracker.single_value == 3
+        assert length_tracker.value == 3
         
         # Modify the list
         obs_list.extend([4, 5])
         
         # The bound observable should reflect the new length
-        assert length_tracker.single_value == 5, "Bound observable should receive updated length from emitter hook"
+        assert length_tracker.value == 5, "Bound observable should receive updated length from emitter hook"
 
 
 class TestEmitterHooksEdgeCases:
@@ -303,10 +303,10 @@ class TestEmitterHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to emitter hook
-        obs_list.attach(target.get_hook("value"), "length")
+        obs_list.connect(target.get_hook("value"), "length")
         
         # Should sync immediately
-        assert target.single_value == 3
+        assert target.value == 3
     
     def test_detach_emitter_hook(self):
         """Test that emitter hooks cannot be detached since they are computed values."""
@@ -318,5 +318,5 @@ class TestEmitterHooksEdgeCases:
         assert length_hook.is_active
         
         # Calling detach on an emitter hook should not change its active state
-        obs_list.detach("length")
+        obs_list.disconnect("length")
         assert length_hook.is_active, "Emitter hooks should remain active even after detach attempt"

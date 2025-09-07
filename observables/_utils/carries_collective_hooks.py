@@ -18,7 +18,7 @@ class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
     def _collective_hooks(self) -> set["HookLike[Any]"]:
         ...
 
-    def attach_multiple(self, hooks: Mapping[HK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_multiple(self, hooks: Mapping[HK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
         ...
 
     def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:

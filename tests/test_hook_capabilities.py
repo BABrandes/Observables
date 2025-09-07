@@ -223,7 +223,7 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
         
         # Connect hook1 to hook2
-        hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now they should be in the same hook nexus
         self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
@@ -252,7 +252,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test with invalid sync mode
         with self.assertRaises(ValueError) as cm:
-            hook1.connect_to(hook2, "invalid_mode")  # type: ignore
+            hook1.connect(hook2, "invalid_mode")  # type: ignore
         
         self.assertIn("Invalid sync mode", str(cm.exception))
 
@@ -281,10 +281,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same hook nexus
-        hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now disconnect the first hook
-        hook.detach()
+        hook.disconnect()
         
         # Verify the hook is now in a new, separate hook nexus
         self.assertNotEqual(hook.hook_nexus, original_nexus)
@@ -313,13 +313,13 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same group
-        hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Detach multiple times - should fail after first detach
         with self.assertRaises(ValueError) as cm:
             for _ in range(5):
                 original_nexus = hook.hook_nexus
-                hook.detach()
+                hook.disconnect()
                 
                 # Should always create a new hook nexus
                 self.assertNotEqual(hook.hook_nexus, original_nexus)
@@ -366,8 +366,8 @@ class TestHookCapabilities(unittest.TestCase):
         success, message = hook.submit_value("new_value")
         self.assertTrue(success, f"Submit failed: {message}")
 
-    def test_hook_is_attached_to(self):
-        """Test the is_attached_to method of hooks."""
+    def test_hook_is_connected_to(self):
+        """Test the is_connected_to method of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
@@ -387,15 +387,15 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Initially, hooks are not attached
-        self.assertFalse(hook1.is_attached_to(hook2))
-        self.assertFalse(hook2.is_attached_to(hook1))
+        self.assertFalse(hook1.is_connected_to(hook2))
+        self.assertFalse(hook2.is_connected_to(hook1))
         
         # Connect them
-        hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
         
         # Now they should be attached
-        self.assertTrue(hook1.is_attached_to(hook2))
-        self.assertTrue(hook2.is_attached_to(hook1))
+        self.assertTrue(hook1.is_connected_to(hook2))
+        self.assertTrue(hook2.is_connected_to(hook1))
 
     def test_hook_invalidate(self):
         """Test the invalidate method of hooks."""
@@ -669,7 +669,7 @@ class TestHookCapabilities(unittest.TestCase):
                 try:
                     _ = hook1.hook_nexus.hooks
                     _ = len(hook1.hook_nexus.hooks)
-                    _ = hook1.is_attached_to(hook2)
+                    _ = hook1.is_connected_to(hook2)
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -713,8 +713,8 @@ class TestHookCapabilities(unittest.TestCase):
                         value="value",
                         invalidate_callback=lambda _: (True, "success")
                     )
-                    hook.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
-                    hook.detach()
+                    hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
+                    hook.disconnect()
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -814,7 +814,7 @@ class TestHookCapabilities(unittest.TestCase):
         def connect_caller():
             for _ in range(50):
                 try:
-                    hook1.connect_to(hook2, InitialSyncMode.USE_CALLER_VALUE)
+                    hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -822,8 +822,8 @@ class TestHookCapabilities(unittest.TestCase):
         def connection_checker():
             for _ in range(200):
                 try:
-                    _ = hook1.is_attached_to(hook2)
-                    _ = hook2.is_attached_to(hook1)
+                    _ = hook1.is_connected_to(hook2)
+                    _ = hook2.is_connected_to(hook1)
                     time.sleep(0.001)
                 except Exception:
                     pass

@@ -20,11 +20,11 @@ def print_separator(title: str) -> None:
 
 
 def demo_centralized_architecture() -> None:
-    """Demonstrate the revolutionary centralized value storage system."""
-    print_separator("🚀 Centralized Architecture - Single Source of Truth")
+    """Demonstrate the centralized value storage system."""
+    print_separator("🚀 Centralized Value Storage")
     
     print("Traditional reactive libraries duplicate data across observables.")
-    print("Our system stores each value in exactly ONE central HookNexus!")
+    print("This system stores each value in exactly one central HookNexus.")
     print()
     
     # Create observable values (each has its own central HookNexus)
@@ -328,7 +328,7 @@ def demo_performance_benefits() -> None:
 
 def main() -> None:
     """Run all demos showcasing the new architecture."""
-    print("🚀 Observables Library Demo - Revolutionary Centralized Architecture")
+    print("🚀 Observables - Centralized Reactive Programming Demo")
     print("=" * 70)
     print("This demo showcases:")
     print("• 🎯 Single Source of Truth - No data duplication")

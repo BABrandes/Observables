@@ -32,7 +32,7 @@ setup(
     version=read_version(),
     author="Benedikt Axel Brandes",
     author_email="benedikt.brandes@gmail.com",
-    description="A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture",
+    description="Centralized Reactive Programming - A Python library for creating observable objects with centralized value storage and automatic transitive binding",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/benediktbrandes/observables",

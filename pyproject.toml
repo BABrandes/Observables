@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "observables"
 dynamic = ["version"]
-description = "A Python library for creating observable objects with automatic change notifications and bidirectional bindings using a component-based architecture"
+description = "Centralized Reactive Programming - A Python library for creating observable objects with centralized value storage and automatic transitive binding"
 readme = "README.md"
 license = "Apache-2.0"
 authors = [

@@ -1,11 +1,11 @@
 """
-Observables Library - A Python library for reactive programming and centralized value management.
+Observables - Centralized Reactive Programming
 
-This library provides a comprehensive set of observable data structures that support
-bidirectional bindings through a unique central value storage system. Unlike traditional
-reactive libraries that duplicate data across observables, this system stores values
-in centralized HookNexus objects that observables reference, ensuring perfect
-synchronization without data duplication.
+A Python library for reactive programming and centralized value management.
+This library provides observable data structures that support bidirectional bindings 
+through a centralized value storage system. Unlike traditional reactive libraries that 
+duplicate data across observables, this system stores values in centralized HookNexus 
+objects that observables reference, ensuring efficient synchronization.
 
 Core Features:
 - Centralized value storage with shared references (no data duplication)
@@ -24,15 +24,11 @@ The library uses a revolutionary hook-based architecture where:
 - Observables: User-facing interfaces that access values through hooks
 - Binding: Merging hook groups so multiple observables reference the same central value
 
-Key Innovation - Central Value Storage:
-Instead of copying values between observables, the system:
-1. Stores each value in exactly one HookNexus
-2. Creates hooks that reference these central values
-3. Binds observables by merging their hook groups
-4. Ensures all bound observables view the same central data
-
-This eliminates synchronization issues, reduces memory usage, and provides
-atomic updates across all bound observables.
+Central Value Storage:
+The system stores each value in exactly one HookNexus and creates hooks that reference 
+these central values. When observables are bound, their hook groups are merged, ensuring 
+all bound observables view the same central data. This approach reduces memory usage and 
+provides atomic updates across all bound observables.
 
 Protocols and Interfaces:
 The library provides several protocols that can be used for type hints and interface definitions:
@@ -149,7 +145,7 @@ __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'
 
 # Package description
-__description__ = 'A Python library for reactive programming and centralized value management'
+__description__ = 'Centralized Reactive Programming - A Python library for reactive programming and centralized value management'
 __keywords__ = ['observable', 'reactive', 'binding', 'data-binding', 'reactive-programming']
 __url__ = 'https://github.com/benediktbrandes/observables'
 __project_urls__ = {

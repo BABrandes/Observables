@@ -273,6 +273,9 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Raises:
             ValueError: If the verification method fails
         """
+
+        log(self, "_set_component_values", self._logger, True, f"Setting component values: {dict_of_values}")
+
         with self._lock:
             if len(self._primary_hooks) == 0:
                 error_msg = "No component hooks provided"

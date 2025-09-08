@@ -79,6 +79,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             initial_component_values_or_hooks: Mapping[HK, Any|HookLike[Any]],
             verification_method: Optional[Callable[[Mapping[HK, Any]], tuple[bool, str]]] = None,
             secondary_hook_callbacks: Mapping[EHK, Callable[[Mapping[HK, Any]], Any]] = {},
+            act_on_invalidation_callback: Optional[Callable[[], None]] = None,
             logger: Optional[Logger] = None):
         """
         Initialize the BaseObservable.
@@ -91,6 +92,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         super().__init__(logger)
 
         self._logger: Optional[Logger] = logger
+        self._act_on_invalidation_callback: Optional[Callable[[], None]] = act_on_invalidation_callback
 
         self._primary_hooks: dict[HK, HookLike[Any]] = {}
         # Reverse lookup caches for O(1) _get_key_for operations
@@ -99,12 +101,12 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         
         for key, value in initial_component_values_or_hooks.items():
             if isinstance(value, HookLike):
-                initial_value = value.value
+                initial_value = value.value # type: ignore
             else:
                 initial_value = value
             # Create invalidation callback that doesn't capture 'self' in closure
             invalidation_callback = self._create_invalidation_callback(key)
-            hook: HookLike[Any] = Hook(self, initial_value, invalidation_callback, logger)
+            hook: HookLike[Any] = Hook(self, initial_value, invalidation_callback, logger) # type: ignore
             self._primary_hooks[key] = hook
             
             # Populate reverse lookup caches for O(1) performance
@@ -112,7 +114,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             self._nexus_to_key_cache[hook.hook_nexus] = key
             
             if isinstance(value, HookLike):
-                value.connect(hook, InitialSyncMode.USE_TARGET_VALUE)
+                value.connect(hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
         self._secondary_hooks: dict[EHK, HookLike[Any]] = {}
         self._secondary_hook_callbacks: dict[EHK, Callable[[Mapping[HK, Any]], Any]] = {}
@@ -167,11 +169,12 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Args:
             keys: The keys of the component hooks to invalidate.
         """
-        try:
-            self._act_on_invalidation(keys)
-        except Exception as e:
-            log(self, "invalidate", self._logger, False, f"Error in act_on_invalidation: {e}")
-            raise ValueError(f"Error in act_on_invalidation: {e}")
+        if self._act_on_invalidation_callback is not None:
+            try:
+                self._act_on_invalidation_callback()
+            except Exception as e:
+                log(self, "invalidate", self._logger, False, f"Error in the act_on_invalidation_callback: {e}")
+                raise ValueError(f"Error in the act_on_invalidation_callback: {e}")
         self._notify_listeners()
         log(self, "invalidate", self._logger, True, "Successfully invalidated")
         return True, "Successfully invalidated"
@@ -187,16 +190,6 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         self._invalidate(keys)
 
         log(self, "invalidate_hooks", self._logger, True, "Successfully invalidated hooks")
-
-    def _act_on_invalidation(self, keys: set[HK]) -> None:
-        """
-        Act on the invalidation of a component hook. This method is called when a hook is invalidated.
-        This method should be overridden by the subclass to act on the invalidation of the component hooks.
-
-        Args:
-            keys: The keys of the component hooks to invalidate.
-        """
-        pass
 
     def _update_hook_cache(self, hook: HookLike[Any], old_nexus: Optional[HookNexus[Any]] = None) -> None:
         """

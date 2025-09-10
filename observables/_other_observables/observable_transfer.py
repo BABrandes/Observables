@@ -181,7 +181,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         for key, external_hook in output_trigger_hooks.items():
             # Create internal hook with invalidation callback
             initial_value = external_hook.value if external_hook is not None else None
-            internal_hook: Hook[Any] = Hook(
+            internal_hook = Hook(
                 owner=self,
                 value=initial_value,
                 invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
@@ -278,6 +278,15 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             transform_callable=self._reverse_callable,
             direction="reverse"
         )
+
+    def _get_key_for(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> IHK|OHK:
+        for key, hook in self._input_hooks.items():
+            if hook is hook_or_nexus:
+                return key
+        for key, hook in self._output_hooks.items():
+            if hook is hook_or_nexus:
+                return key
+        raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
 
     @property
     def hooks(self) -> set["HookLike[Any]"]:

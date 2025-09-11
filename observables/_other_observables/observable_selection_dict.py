@@ -263,8 +263,8 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
     def __init__(
         self,
         dict_hook: dict[K, V] | HookLike[dict[K, V]],
-        key_hook: Optional[K] | HookLike[K] = None,
-        value_hook: Optional[V] | HookLike[V] = None,
+        key_hook: Optional[K] | HookLike[Optional[K]] = None,
+        value_hook: Optional[V] | HookLike[Optional[V]] = None,
         logger: Optional[Logger] = None):
         """
 

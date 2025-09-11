@@ -558,18 +558,18 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
     #########################################################################
 
     @property
-    def primary_hooks(self) -> set[HookLike[Any]]:
+    def primary_hooks(self) -> dict[HK, HookLike[Any]]:
         """
         Get the primary hooks of the observable.
         """
-        return set(self._primary_hooks.values())
+        return self._primary_hooks.copy()
     
     @property
-    def secondary_hooks(self) -> set[HookLike[Any]]:
+    def secondary_hooks(self) -> dict[EHK, HookLike[Any]]:
         """
         Get the secondary hooks of the observable.
         """
-        return set(self._secondary_hooks.values())
+        return self._secondary_hooks.copy()
 
     @property
     def primary_values(self) -> dict[HK, Any]:

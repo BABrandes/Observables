@@ -160,10 +160,6 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
 class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"]], ObservableSelectionOptionLikeBase[T], Generic[T]):
 
     @property
-    def _collective_hooks(self) -> set[HookLike[Any]]:
-        return {self._primary_hooks["selected_option"], self._primary_hooks["available_options"]}
-    
-    @property
     def available_options(self) -> set[T]:
         return self._primary_hooks["available_options"].value.copy()
     
@@ -264,20 +260,20 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
             
             elif isinstance(selected_option, HookLike):
                 initial_selected_option: T = selected_option.value # type: ignore
-                hook_selected_option: Optional[HookLike[T]] = selected_option
+                hook_selected_option: Optional[HookLike[T]] = selected_option # type: ignore
 
             else:
                 # selected_option is a T
                 initial_selected_option: T = selected_option
-                hook_selected_option: Optional[HookLike[T]] = None
+                hook_selected_option = None
 
             if available_options is None:
-                initial_available_options: set[T] = set()
-                hook_available_options: Optional[HookLike[set[T]]] = None
+                initial_available_options = set()
+                hook_available_options = None
 
             elif isinstance(available_options, HookLike):
-                initial_available_options: set[T] = available_options.value # type: ignore
-                hook_available_options: Optional[HookLike[set[T]]] = available_options
+                initial_available_options = available_options.value # type: ignore
+                hook_available_options = available_options
 
             elif isinstance(available_options, set): # type: ignore
                 initial_available_options: set[T] = available_options.copy()
@@ -309,10 +305,10 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
             else:
-                selected_option: Optional[T] = self._primary_hooks["selected_option"].value
+                selected_option = self._primary_hooks["selected_option"].value
                 
             if "available_options" in x:
-                available_options: set[T] = x["available_options"]
+                available_options = x["available_options"]
             else:
                 available_options: set[T] = self._primary_hooks["available_options"].value
 
@@ -413,25 +409,25 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
                 hook_selected_option: Optional[HookLike[Optional[T]]] = None
             
             elif isinstance(selected_option, HookLike):
-                initial_selected_option: Optional[T] = selected_option.value # type: ignore
-                hook_selected_option: Optional[HookLike[Optional[T]]] = selected_option
+                initial_selected_option = selected_option.value # type: ignore
+                hook_selected_option = selected_option # type: ignore
 
             else:
                 # selected_option is a T
-                initial_selected_option: Optional[T] = selected_option
-                hook_selected_option: Optional[HookLike[Optional[T]]] = None
+                initial_selected_option = selected_option
+                hook_selected_option = None
 
             if available_options is None:
                 initial_available_options: set[T] = set()
                 hook_available_options: Optional[HookLike[set[T]]] = None
 
             elif isinstance(available_options, HookLike):
-                initial_available_options: set[T] = available_options.value # type: ignore
-                hook_available_options: Optional[HookLike[set[T]]] = available_options
+                initial_available_options = available_options.value # type: ignore
+                hook_available_options = available_options
 
             elif isinstance(available_options, set): # type: ignore
-                initial_available_options: set[T] = available_options.copy()
-                hook_available_options: Optional[HookLike[set[T]]] = None
+                initial_available_options = available_options.copy()
+                hook_available_options = None
 
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
@@ -459,12 +455,12 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
             else:
-                selected_option: Optional[T] = self._primary_hooks["selected_option"].value
+                selected_option = self._primary_hooks["selected_option"].value
                 
             if "available_options" in x:
                 available_options: set[T] = x["available_options"]
             else:
-                available_options: set[T] = self._primary_hooks["available_options"].value
+                available_options = self._primary_hooks["available_options"].value
 
             if selected_option is None:
                 return True, "Verification method passed"

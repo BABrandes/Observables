@@ -12,7 +12,7 @@ class MockCarriesHooks(CarriesHooks[Any]):
         self.name = name
         self._hooks: dict[str, HookLike[Any]] = {}
     
-    def _is_valid_value(self, hook: HookLike[Any], value: Any) -> tuple[bool, str]:
+    def is_valid_hook_value(self, key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
     def __repr__(self) -> str:
@@ -148,7 +148,7 @@ class TestHookListeners(unittest.TestCase):
         self.hook._invalidate_callback = invalidate_callback # type: ignore
         
         # Call invalidate callback directly (as HookNexus would do)
-        self.hook.invalidation_callback(self.hook)
+        self.hook.invalidate()
         
         # Verify invalidate callback was called
         invalidate_callback.assert_called_once_with(self.hook)
@@ -162,7 +162,7 @@ class TestHookListeners(unittest.TestCase):
         self.hook.add_listeners(callback)
         
         # Change the value through the proper HookNexus process
-        self.hook.value = "new_value"
+        self.hook.submit_single_value("new_value")
         
         # Verify value was changed
         self.assertEqual(self.hook.value, "new_value")
@@ -274,7 +274,7 @@ class TestHookListeners(unittest.TestCase):
         hook.add_listeners(callback)
         
         # Call invalidate callback directly (as HookNexus would do)
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         
         # Verify invalidate callback was called
         invalidate_callback.assert_called_once_with(hook)
@@ -288,7 +288,7 @@ class TestHookListeners(unittest.TestCase):
         
         # Should raise ValueError when invalidate callback is accessed
         with self.assertRaises(ValueError):
-            _ = hook.invalidation_callback
+            hook.invalidate()
 
 
 if __name__ == "__main__":

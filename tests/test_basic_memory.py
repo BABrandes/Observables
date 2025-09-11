@@ -53,7 +53,7 @@ class TestEssentialMemoryManagement:
         
         # Bind them
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test binding works
         obs1.value = "new_value"
@@ -73,7 +73,7 @@ class TestEssentialMemoryManagement:
         obs_list = ObservableList([1, 2, 3])
         
         # Access secondary hook
-        length_hook = obs_list.get_component_hook("length")
+        length_hook = obs_list.get_hook("length")
         initial_length = length_hook.value
         assert initial_length == 3
         
@@ -127,7 +127,7 @@ class TestEssentialMemoryManagement:
         
         # Bind, test, detach
         from observables._utils.initial_sync_mode import InitialSyncMode
-        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
@@ -165,7 +165,7 @@ class TestMemoryStressScenarios:
             from observables._utils.initial_sync_mode import InitialSyncMode
             for i in range(len(cycle_observables) - 1):
                 cycle_observables[i].connect(
-                    cycle_observables[i + 1].get_component_hook("value"),
+                    cycle_observables[i + 1].get_hook("value"),
                     "value",
                     InitialSyncMode.USE_CALLER_VALUE
                 )

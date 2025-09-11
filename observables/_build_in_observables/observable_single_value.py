@@ -110,14 +110,14 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
 
         if isinstance(observable_or_hook_or_value, HookLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[T]] = observable_or_hook_or_value
+            hook: Optional[HookLike[T]] = observable_or_hook_or_value #type: ignore
         elif isinstance(observable_or_hook_or_value, ObservableSingleValueLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[T]] = observable_or_hook_or_value.value_hook # type: ignore
+            hook = observable_or_hook_or_value.value_hook # type: ignore
         else:
             # Assume the value is T
             initial_value: T = observable_or_hook_or_value
-            hook: Optional[HookLike[T]] = None
+            hook = None
 
         self._internal_construct_from_values(
             initial_values={"value": initial_value}, # type: ignore

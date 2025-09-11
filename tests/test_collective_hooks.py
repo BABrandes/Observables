@@ -36,8 +36,8 @@ class TestCollectiveHooks(unittest.TestCase):
 
     def test_collective_hooks_property(self):
         """Test that collective_hooks property returns the correct hooks."""
-        # ObservableSelectionOption should have both selected_option and available_options hooks
-        self.assertEqual(len(self.selector1._collective_hooks), 2) # type: ignore
+        # ObservableSelectionOption should have selected_option, available_options, and secondary hooks
+        self.assertEqual(len(self.selector1._collective_hooks), 3) # type: ignore
         self.assertIn(self.selector1._primary_hooks["selected_option"], self.selector1._collective_hooks) # type: ignore
         self.assertIn(self.selector1._primary_hooks["available_options"], self.selector1._collective_hooks) # type: ignore
         

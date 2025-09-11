@@ -123,14 +123,14 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             initial_value: tuple[T, ...] = ()
             hook: Optional[HookLike[tuple[T, ...]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableTupleLike):
-            initial_value: tuple[T, ...] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value.value_hook # type: ignore
+            initial_value = observable_or_hook_or_value.value # type: ignore
+            hook = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
-            initial_value: tuple[T, ...] = observable_or_hook_or_value.value
-            hook: Optional[HookLike[tuple[T, ...]]] = observable_or_hook_or_value
+            initial_value = observable_or_hook_or_value.value
+            hook = observable_or_hook_or_value
         else:
-            initial_value: tuple[T, ...] = observable_or_hook_or_value
-            hook: Optional[HookLike[tuple[T, ...]]] = None
+            initial_value = observable_or_hook_or_value
+            hook = None
 
         self._internal_construct_from_values(
             initial_values={"value": initial_value}, # type: ignore

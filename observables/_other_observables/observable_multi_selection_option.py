@@ -175,24 +175,24 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             available_options_hook: Optional[HookLike[set[T]]] = None
             observable: Optional[ObservableMultiSelectionOptionLike[T]] = selected_options
         else:
-            observable: Optional[ObservableMultiSelectionOptionLike[T]] = None
+            observable = None
             # Handle initialization from separate selected_options and available_options
             if available_options is None:
                 raise ValueError("available_options must be provided when not initializing from ObservableMultiSelectionOptionLike")
             
             if isinstance(available_options, HookLike):
                 initial_available_options: set[T] = available_options.value
-                available_options_hook: Optional[HookLike[set[T]]] = available_options
+                available_options_hook = available_options
             else:
-                initial_available_options: set[T] = available_options.copy()
-                available_options_hook: Optional[HookLike[set[T]]] = None
+                initial_available_options = available_options.copy()
+                available_options_hook = None
 
             if isinstance(selected_options, HookLike):
-                initial_selected_options: set[T] = selected_options.value
-                selected_options_hook: Optional[HookLike[set[T]]] = selected_options
+                initial_selected_options = selected_options.value
+                selected_options_hook = selected_options
             else:
-                initial_selected_options: set[T] = selected_options.copy()
-                selected_options_hook: Optional[HookLike[set[T]]] = None
+                initial_selected_options = selected_options.copy()
+                selected_options_hook = None
 
         if initial_selected_options and not initial_selected_options.issubset(initial_available_options):
             invalid_options = initial_selected_options - initial_available_options
@@ -226,12 +226,12 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             if "selected_options" in x:
                 selected_options: set[T] = x["selected_options"] # type: ignore
             else:
-                selected_options: set[T] = self._primary_hooks["selected_options"].value
+                selected_options = self._primary_hooks["selected_options"].value
             
             if "available_options" in x:
                 available_options: set[T] = x["available_options"]
             else:
-                available_options: set[T] = self._primary_hooks["available_options"].value
+                available_options = self._primary_hooks["available_options"].value
             
             if selected_options and not selected_options.issubset(available_options):
                 return False, f"Selected options {selected_options} not in available options {available_options}"
@@ -244,11 +244,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             secondary_hook_callbacks={"number_of_selected_options": lambda x: len(x["selected_options"]), "number_of_available_options": lambda x: len(x["available_options"])},
             logger=logger
         )
-
-    @property
-    def _collective_hooks(self) -> set[HookLike[Any]]:
-        return {self._primary_hooks["selected_options"], self._primary_hooks["available_options"]}
-    
+        
     @property
     def available_options(self) -> set[T]:
         """

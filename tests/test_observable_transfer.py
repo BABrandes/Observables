@@ -59,18 +59,18 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Verify creation
         self.assertIsNotNone(transfer)
-        self.assertEqual(len(transfer.hooks), 4)  # 2 inputs + 2 outputs
+        self.assertEqual(len(transfer.get_hook_keys()), 4)  # 2 inputs + 2 outputs
         
         # The transfer should have its own internal hooks, not the external ones
         # This is correct architecture - the transfer manages its own hooks
-        transfer_hooks = transfer.hooks
+        transfer_hooks = transfer.get_hook_dict().values()
         self.assertEqual(len(transfer_hooks), 4)
         
         # Verify we can access the hooks by key
-        x_internal_hook = transfer.get_component_hook("x")
-        y_internal_hook = transfer.get_component_hook("y")
-        sum_internal_hook = transfer.get_component_hook("sum")
-        product_internal_hook = transfer.get_component_hook("product")
+        x_internal_hook = transfer.get_hook("x")
+        y_internal_hook = transfer.get_hook("y")
+        sum_internal_hook = transfer.get_hook("sum")
+        product_internal_hook = transfer.get_hook("product")
         
         # These should be the transfer's internal hooks, not the external ones
         self.assertNotEqual(x_internal_hook, x_hook)  # Different objects
@@ -96,9 +96,9 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Test get_hook - should return transfer's internal hooks, not external ones
-        x_internal_hook = transfer.get_component_hook("x")
-        y_internal_hook = transfer.get_component_hook("y")
-        sum_internal_hook = transfer.get_component_hook("sum")
+        x_internal_hook = transfer.get_hook("x")
+        y_internal_hook = transfer.get_hook("y")
+        sum_internal_hook = transfer.get_hook("sum")
         
         # These should be different objects (internal vs external hooks)
         self.assertNotEqual(x_internal_hook, x_hook)
@@ -117,7 +117,7 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test invalid key
         with self.assertRaises(ValueError):
-            transfer.get_component_hook("invalid")
+            transfer.get_hook("invalid")
 
     def test_forward_transformation_single_output(self):
         """Test forward transformation with single output."""

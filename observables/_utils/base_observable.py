@@ -1,5 +1,5 @@
 import threading
-from typing import Any, Callable, Generic, Mapping, Optional, TypeVar, final
+from typing import Any, Callable, Generic, Mapping, Optional, TypeVar
 from logging import Logger
 from .base_listening import BaseListening
 from .hook import Hook, HookLike
@@ -141,34 +141,123 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
             if not success:
                 raise ValueError(f"Verification method failed: {message}")
 
-    def _create_invalidation_callback(self, key: HK) -> Callable[["HookLike[Any]"], tuple[bool, str]]:
-        """
-        Create an invalidation callback for a specific key without circular references.
-        
-        Uses a bound method approach to avoid closure-based circular references.
-        """
-        # Create a wrapper class to avoid capturing 'self' in a closure
-        class InvalidationCallback:
-            def __init__(self, observable: "BaseObservable[Any, Any]", hook_key: HK):
-                import weakref
-                self._observable_ref = weakref.ref(observable)
-                self._key = hook_key
-            
-            def __call__(self, hook: "HookLike[Any]") -> tuple[bool, str]:
-                observable = self._observable_ref()
-                if observable is None:
-                    return False, "Observable was garbage collected"
-                return observable._invalidate({self._key})
-        
-        return InvalidationCallback(self, key)
+    #########################################################################
+    # CarriesHooks interface
+    #########################################################################
 
-    def _invalidate(self, keys: set[HK]) -> tuple[bool, str]:
+    def get_hook(self, key: HK|EHK) -> HookLike[Any]:
+        if key in self._primary_hooks:
+            return self._primary_hooks[key] # type: ignore
+        elif key in self._secondary_hooks:
+            return self._secondary_hooks[key] # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
+
+    def get_hook_value_as_reference(self, key: HK|EHK) -> Any:
+        if key in self._primary_hooks:
+            return self._primary_hooks[key].value # type: ignore
+        elif key in self._secondary_hooks:
+            return self._secondary_hooks[key].value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
+
+    def get_hook_keys(self) -> set[HK|EHK]:
+        return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
+
+    def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> HK|EHK:
         """
-        Invalidate the the values of the component hooks of the given keys.
+        Get the key for a hook using O(1) cache lookup with lazy population.
+        """
+        try:
+            return self._get_key_for_primary_hook(hook_or_nexus)
+        except ValueError:
+            pass
+        try:
+            return self._get_key_for_secondary_hook(hook_or_nexus)
+        except ValueError:
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
+
+    def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode) -> None:
+        """
+        Connect a hook to the observable.
+
+        Args:
+            hook: The hook to connect
+            to_key: The key to connect the hook to
+            initial_sync_mode: The initial synchronization mode
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+        if to_key in self._primary_hooks:
+            self._primary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        elif to_key in self._secondary_hooks:
+            self._secondary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        else:
+            raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
+
+    def disconnect(self, key: Optional[HK|EHK]=None) -> None:
+        """
+        Disconnect a hook from the observable.
+
+        Args:
+            key: The key to disconnect the hook from
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+        if key is None:
+            for hook in self._primary_hooks.values():
+                try:
+                    hook.disconnect()
+                except ValueError as e:
+                    if "already disconnected" in str(e):
+                        # Hook is already disconnected, ignore
+                        pass
+                    else:
+                        raise
+        else:
+            try:
+                if key in self._primary_hooks:
+                    self._primary_hooks[key].disconnect() # type: ignore
+                elif key in self._secondary_hooks:
+                    self._secondary_hooks[key].disconnect() # type: ignore
+                else:
+                    raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
+            except ValueError as e:
+                if "already disconnected" in str(e):
+                    # Hook is already disconnected, ignore
+                    pass
+                else:
+                    raise
+
+    def is_valid_hook_value(self, key: HK|EHK, value: Any) -> tuple[bool, str]:
+        """
+        Check if the value is valid.
+        """
+        if self._verification_method is None:
+            return True, "No verification method provided. Default is True"
+        else:
+            # Check if the key corresponds to a secondary hook
+            for _, h in self._secondary_hooks.items():
+                if h is key:
+                    # Secondary hooks don't need validation since they're computed from component values
+                    return True, "Secondary hooks are always valid as they're computed values"
+            
+            # Must be a component hook
+            # Convert hook object to its key for the verification method
+            hook_key: HK = self._get_key_for_primary_hook(key) # type: ignore
+            return self._verification_method({hook_key: value}) # type: ignore
+
+    def invalidate_hooks(self) -> tuple[bool, str]:
+        """
+        Invalidate the the values of the component hooks.
 
         Args:
             keys: The keys of the component hooks to invalidate.
+            hooks_not_to_invalidate: The hooks to not invalidate (The validity of the values will still be checked!)
         """
+
         if self._act_on_invalidation_callback is not None:
             try:
                 self._act_on_invalidation_callback()
@@ -179,17 +268,67 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         log(self, "invalidate", self._logger, True, "Successfully invalidated")
         return True, "Successfully invalidated"
 
-    def _invalidate_hooks(self, hooks: set[HookLike[Any]]) -> None: # type: ignore
-        """
-        Invalidate the hooks.
-        """
-        keys: set[HK] = set()
-        for hook in hooks:
-            key = self._get_key_for_primary_hook(hook)
-            keys.add(key)
-        self._invalidate(keys)
+    #########################################################################
+    # CarriesCollectiveHooks interface
+    #########################################################################
 
-        log(self, "invalidate_hooks", self._logger, True, "Successfully invalidated hooks")
+    def get_collective_hook_keys(self) -> set[HK|EHK]:
+        """
+        Get the collective hooks for the observable.
+        """
+        return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
+
+    def connect_multiple_hooks(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
+        """
+        Attach multiple hooks to the observable.
+
+        Args:
+            hooks: A mapping of keys to hooks
+            initial_sync_mode: The initial synchronization mode
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+
+        hook_pairs: list[tuple[HookLike[Any], HookLike[Any]]] = []
+        for key, hook in hooks.items():
+            if key in self._primary_hooks:
+                hook_of_observable = self._primary_hooks[key] # type: ignore
+            elif key in self._secondary_hooks:
+                hook_of_observable = self._secondary_hooks[key] # type: ignore
+            else:
+                raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
+            match initial_sync_mode:
+                case InitialSyncMode.USE_CALLER_VALUE:
+                    hook_pairs.append((hook_of_observable, hook))
+                case InitialSyncMode.USE_TARGET_VALUE:
+                    hook_pairs.append((hook, hook_of_observable))
+                case _: # type: ignore
+                    raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
+        HookNexus[Any].connect_hook_pairs(*hook_pairs)
+
+    def is_valid_hook_values(self, values: Mapping[HK|EHK, Any]) -> tuple[bool, str]: # type: ignore
+        """
+        Check if the values are valid.
+        """
+        if self._verification_method is None:
+            return True, "No verification method provided. Default is True"
+        else:
+            dict_of_values: Mapping[HK, Any] = self._get_primary_values_as_references()
+            # Check if the keys correspond to secondary hooks
+            for key, value in values.items():
+                for _, h in self._secondary_hooks.items():
+                    if h is key:
+                        # Secondary hooks don't need validation since they're computed from component values
+                        return True, "Secondary hooks are always valid as they're computed values"
+            
+            for key, value in values.items():
+                dict_of_values[key] = value # type: ignore
+            return self._verification_method(dict_of_values) # type: ignore
+
+    #########################################################################
+    # Other private methods
+    #########################################################################
 
     def _update_hook_cache(self, hook: HookLike[Any], old_nexus: Optional[HookNexus[Any]] = None) -> None:
         """
@@ -238,7 +377,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         if not self._secondary_hooks:
             return
             
-        current_component_values = self._primary_component_values
+        current_component_values = self._get_primary_values_as_references()
         
         for key, callback in self._secondary_hook_callbacks.items():
             try:
@@ -247,7 +386,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 
                 # Only update if the value actually changed to avoid unnecessary notifications
                 if secondary_hook.value != new_value:
-                    secondary_hook.value = new_value
+                    secondary_hook.submit_single_value(new_value)
                     
             except Exception as e:
                 log(self, "update_secondary_hooks", self._logger, False, f"Error updating secondary hook '{key}': {e}")
@@ -295,30 +434,14 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                 if len(dict_of_values) == 1:
                     key, value = next(iter(dict_of_values.items()))
                     hook = self._primary_hooks[key]
-                    hook.value = value
+                    hook.submit_single_value(value)
                 else:
-                    HookLike[Any].set_multiple_values(dict_of_values, self._primary_hooks)
+                    HookLike[Any].submit_multiple_values(*list(zip(self._primary_hooks.values(), dict_of_values.values())))
 
             # Update secondary hooks after component values have changed
             self._update_secondary_hooks()
 
-            # Notify listeners of this observable (Hook specific listeners are notified by the hook system)
-            self._notify_listeners()
-
             log(self, "set_component_values", self._logger, True, "Successfully set component values")
-
-    def _get_key_for(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK|EHK:
-        """
-        Get the key for a hook using O(1) cache lookup with lazy population.
-        """
-        try:
-            return self._get_key_for_primary_hook(hook_or_nexus)
-        except ValueError:
-            pass
-        try:
-            return self._get_key_for_secondary_hook(hook_or_nexus)
-        except ValueError:
-            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
 
     def _get_key_for_primary_hook(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> HK:
         """
@@ -381,88 +504,59 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
                     self._secondary_hook_to_key_cache[hook_or_nexus] = k
                     return k
             raise ValueError(f"Hook {hook_or_nexus} not found in secondary_hooks")
-    
-    def _is_valid_value(self, hook: HookLike[Any], value: Any) -> tuple[bool, str]:
-        """
-        Check if the value is valid.
-        """
-        if self._verification_method is None:
-            return True, "No verification method provided. Default is True"
-        else:
-            # Check if this is an secondary hook first
-            for _, h in self._secondary_hooks.items():
-                if h is hook:
-                    # Secondary hooks don't need validation since they're computed from component values
-                    return True, "Secondary hooks are always valid as they're computed values"
-            
-            # Must be a component hook
-            return self._verification_method({self._get_key_for_primary_hook(hook): value})
-        
-    def _are_valid_values(self, values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]: # type: ignore
-        """
-        Check if the values are valid.
-        """
-        if self._verification_method is None:
-            return True, "No verification method provided. Default is True"
-        else:
-            dict_of_values: dict[HK, Any] = self._primary_component_values
-            for nexus, value in values.items():
-                dict_of_values[self._get_key_for_primary_hook(nexus)] = value
-            return self._verification_method(dict_of_values)
-        
-    def _get_component_value_reference(self, key: HK) -> Any:
-        """
-        Internal method to get the value of a component hook as a reference.
 
-        The value is returned as a reference.
-
-        Args:
-            key: The key of the component hook to get the value of
-
-        Returns:
-            The value of the component hook as a reference
-        """
-        with self._lock:
-            return self._primary_hooks[key].value
-
-    @property
-    def _primary_component_values(self) -> dict[HK, Any]:
-        """
-        Get the values of the primary component hooks as a dictionary copy.
-        """
-        with self._lock:
-            return {key: hook.value for key, hook in self._primary_hooks.items()}
-        
     def _verify_state(self) -> tuple[bool, str]:
         """
         Verify the state of the observable.
         """
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
-        return self._verification_method(self._primary_component_values)
-    
+        return self._verification_method(self.primary_values)
 
-    @property
-    def _collective_hooks(self) -> set[HookLike[Any]]:
+    def _get_primary_values_as_references(self) -> Mapping[HK, Any]:
         """
-        Get the collective hooks for the observable.
-        """
-        return set(self._primary_hooks.values()) | set(self._secondary_hooks.values())
-    
-    #########################################################
-    # Public API
-    #########################################################
+        Get the values of the primary component hooks as references.
 
-    @property
-    def hooks(self) -> set[HookLike[Any]]:
-        """
-        Get the hooks of the observable.
+        This method can be used for serializing the observable.
+
+        ** The returned values are references, so modifying them will modify the observable.
+        Use with caution.
 
         Returns:
-            A set of hooks
+            A dictionary of keys to values
         """
-        return set(self._primary_hooks.values()) | set(self._secondary_hooks.values())
-    
+
+        primary_values: dict[HK, Any] = {}
+        for key, hook in self._primary_hooks.items():
+            primary_values[key] = hook.value # type: ignore
+
+        return primary_values
+
+    def _create_invalidation_callback(self, key: HK) -> Callable[["HookLike[Any]"], tuple[bool, str]]:
+        """
+        Create an invalidation callback for a specific key without circular references.
+        
+        Uses a bound method approach to avoid closure-based circular references.
+        """
+        # Create a wrapper class to avoid capturing 'self' in a closure
+        class InvalidationCallback:
+            def __init__(self, observable: "BaseObservable[Any, Any]", hook_key: HK):
+                import weakref
+                self._observable_ref = weakref.ref(observable)
+                self._key = hook_key
+            
+            def __call__(self, hook: "HookLike[Any]") -> tuple[bool, str]:
+                observable = self._observable_ref()
+                if observable is None:
+                    return False, "Observable was garbage collected"
+                return observable.invalidate_hooks()
+        
+        return InvalidationCallback(self, key)
+
+    #########################################################################
+    # Other public methods
+    #########################################################################
+
     @property
     def primary_hooks(self) -> set[HookLike[Any]]:
         """
@@ -476,179 +570,17 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[HK|EHK], Generic[HK, 
         Get the secondary hooks of the observable.
         """
         return set(self._secondary_hooks.values())
-    
-    @property
-    def component_values_dict(self) -> dict[HK|EHK, Any]:
-        """
-        Get the values of the component (primary and secondary) values as a dictionary.
-        """
-        values_dict: dict[HK|EHK, Any] = {}
-        for key, hook in self._primary_hooks.items():
-            values_dict[key] = hook.value
-        for key, hook in self._secondary_hooks.items():
-            values_dict[key] = hook.value
-        return values_dict
 
     @property
-    def component_hooks_dict(self) -> dict[HK|EHK, HookLike[Any]]:
-
-        hook_dict: dict[HK|EHK, HookLike[Any]] = {}
-        for key, hook in self._primary_hooks.items():
-            hook_dict[key] = hook
-        for key, hook in self._secondary_hooks.items():
-            hook_dict[key] = hook
-        return hook_dict
-
-    @property
-    def primary_component_values(self) -> dict[HK, Any]:
+    def primary_values(self) -> dict[HK, Any]:
         """
         Get the values of the primary component hooks as a dictionary.
         """
         return {key: hook.value for key, hook in self._primary_hooks.items()}
     
     @property
-    def secondary_component_values(self) -> dict[EHK, Any]:
+    def secondary_values(self) -> dict[EHK, Any]:
         """
         Get the values of the secondary component hooks as a dictionary.
         """
         return {key: hook.value for key, hook in self._secondary_hooks.items()}
-    
-    def get_component_value(self, key: HK|EHK) -> Any:
-        """
-        Get the value of a component (primary and secondary) hook.
-
-        If copying is available, the copy is returned.
-
-        Args:
-            key: The key to get the value for
-
-        Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
-        """
-        if key not in self._primary_hooks and key not in self._secondary_hooks:
-            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-        if key in self._primary_hooks:
-            value = self._primary_hooks[key].value # type: ignore
-            if hasattr(value, "copy"):
-                return value.copy()
-        elif key in self._secondary_hooks:
-            value = self._secondary_hook_callbacks[key](self._primary_component_values) # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-        return value
-    
-    def get_component_hook(self, key: HK|EHK) -> HookLike[Any]:
-        """
-        Get a hook by key. Primary and secondary hooks are both supported.
-
-        Args:
-            key: The key to get the hook for
-
-        Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
-        """
-        if key in self._primary_hooks:
-            return self._primary_hooks[key] # type: ignore
-        elif key in self._secondary_hooks:
-            return self._secondary_hooks[key] # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-    
-    def connect(self, hook: HookLike[Any], to_key: HK|EHK, initial_sync_mode: InitialSyncMode) -> None:
-        """
-        Connect a hook to the observable.
-
-        Args:
-            hook: The hook to connect
-            to_key: The key to connect the hook to
-            initial_sync_mode: The initial synchronization mode
-
-        Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
-        """
-        if to_key in self._primary_hooks:
-            self._primary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        elif to_key in self._secondary_hooks:
-            self._secondary_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        else:
-            raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
-    
-
-    def connect_multiple(self, hooks: Mapping[HK|EHK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
-        """
-        Attach multiple hooks to the observable.
-
-        Args:
-            hooks: A mapping of keys to hooks
-            initial_sync_mode: The initial synchronization mode
-
-        Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
-        """
-
-        hook_pairs: list[tuple[HookLike[Any], HookLike[Any]]] = []
-        for key, hook in hooks.items():
-            if key in self._primary_hooks:
-                hook_of_observable = self._primary_hooks[key] # type: ignore
-            elif key in self._secondary_hooks:
-                hook_of_observable = self._secondary_hooks[key] # type: ignore
-            else:
-                raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-            match initial_sync_mode:
-                case InitialSyncMode.USE_CALLER_VALUE:
-                    hook_pairs.append((hook_of_observable, hook))
-                case InitialSyncMode.USE_TARGET_VALUE:
-                    hook_pairs.append((hook, hook_of_observable))
-                case _: # type: ignore
-                    raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
-        HookNexus[Any].connect_hook_pairs(*hook_pairs)
-    
-    def disconnect(self, key: Optional[HK|EHK]=None) -> None:
-        """
-        Disconnect a hook from the observable.
-
-        Args:
-            key: The key to disconnect the hook from
-
-        Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
-        """
-        if key is None:
-            for hook in self._primary_hooks.values():
-                try:
-                    hook.disconnect()
-                except ValueError as e:
-                    if "already disconnected" in str(e):
-                        # Hook is already disconnected, ignore
-                        pass
-                    else:
-                        raise
-        else:
-            try:
-                if key in self._primary_hooks:
-                    self._primary_hooks[key].disconnect() # type: ignore
-                elif key in self._secondary_hooks:
-                    self._secondary_hooks[key].disconnect() # type: ignore
-                else:
-                    raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-            except ValueError as e:
-                if "already disconnected" in str(e):
-                    # Hook is already disconnected, ignore
-                    pass
-                else:
-                    raise
-    
-    @final
-    def get_primary_component_values_as_references(self) -> Mapping[HK, Any]:
-        """
-        Get the values of the primary component hooks as references.
-
-        This method can be used for serializing the observable.
-
-        ** The returned values are references, so modifying them will modify the observable.
-        Use with caution.
-
-        Returns:
-            A dictionary of keys to values
-        """
-        return self._primary_component_values.copy()

@@ -169,10 +169,12 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         Args:
             option: The new enum option to add
         """
-        if option not in self._primary_component_values["enum_options"]:
-            new_options = self._primary_component_values["enum_options"].copy()
-            new_options.add(option)
-            self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
+
+        values: Mapping[Literal["enum_value", "enum_options"], Any] = self.hook_value_dict.copy()
+
+        if option not in values["enum_options"]:
+            values["enum_options"].add(option)
+            self._set_component_values({"enum_options": values["enum_options"]}, notify_binding_system=True)
 
     def remove_enum_option(self, option: E) -> None:
         """
@@ -188,13 +190,15 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         Raises:
             ValueError: If trying to remove the currently selected enum value
         """
-        if option == self._primary_component_values["enum_value"]:
+
+        values: Mapping[Literal["enum_value", "enum_options"], Any] = self.hook_value_dict.copy()
+
+        if option == values["enum_value"]:
             raise ValueError(f"Cannot remove currently selected enum value {option}")
         
-        if option in self._primary_component_values["enum_options"]:
-            new_options = self._primary_component_values["enum_options"].copy()
-            new_options.remove(option)
-            self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
+        if option in values["enum_options"]:
+            values["enum_options"].remove(option)
+            self._set_component_values({"enum_options": values["enum_options"]}, notify_binding_system=True)
 
     def __str__(self) -> str:
         """String representation of the observable enum."""
@@ -348,16 +352,16 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         hook_enum_options: Optional[HookLike[set[E]]] = None
 
         if enum_value is None:
-            initial_enum_value: Optional[E] = None
-            hook_selected_enum: Optional[HookLike[Optional[E]]] = None
+            initial_enum_value = None
+            hook_selected_enum = None
 
         elif isinstance(enum_value, HookLike):
-            initial_enum_value: Optional[E] = enum_value.value
-            hook_selected_enum: Optional[HookLike[Optional[E]]] = enum_value
+            initial_enum_value = enum_value.value
+            hook_selected_enum = enum_value
 
         elif isinstance(enum_value, ObservableOptionalEnumLike):
-            initial_enum_value: Optional[E] = enum_value.enum_value
-            hook_selected_enum: Optional[HookLike[Optional[E]]] = enum_value.enum_value_hook
+            initial_enum_value = enum_value.enum_value
+            hook_selected_enum = enum_value.enum_value_hook
             skip_enum_options_processing = True
 
         else:
@@ -371,22 +375,22 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
                     raise ValueError("initial_enum_value is None and enum_options is None - no way to determine enum options")
                 else:
                     if hasattr(initial_enum_value, '__class__') and hasattr(initial_enum_value.__class__, '__members__'):
-                        initial_enum_options: set[E] = set(initial_enum_value.__class__.__members__.values()) # type: ignore
+                        initial_enum_options = set(initial_enum_value.__class__.__members__.values()) # type: ignore
                     else:
                         raise ValueError("enum_value is not a valid enum value and enum_options is None - no way to determine enum options")
-                hook_enum_options: Optional[HookLike[set[E]]] = None
+                hook_enum_options = None
 
             elif isinstance(enum_options, HookLike):
-                initial_enum_options: set[E] = enum_options.value
-                hook_enum_options: Optional[HookLike[set[E]]] = enum_options
+                initial_enum_options = enum_options.value
+                hook_enum_options = enum_options
 
             elif isinstance(enum_options, ObservableOptionalEnumLike):
-                initial_enum_options: set[E] = enum_options.enum_options # type: ignore
-                hook_enum_options: Optional[HookLike[set[E]]] = enum_options.enum_options_hook # type: ignore
+                initial_enum_options = enum_options.enum_options # type: ignore
+                hook_enum_options = enum_options.enum_options_hook # type: ignore
 
             elif isinstance(enum_options, set): # type: ignore
-                initial_enum_options: set[E] = enum_options.copy() # type: ignore
-                hook_enum_options: Optional[HookLike[set[E]]] = None
+                initial_enum_options = enum_options.copy() # type: ignore
+                hook_enum_options = None
 
             else:
                 raise ValueError("enum_options is not a valid set of enum options")
@@ -427,12 +431,12 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             if "enum_value" in x:
                 enum_value: Optional[E] = x["enum_value"] # type: ignore
             else:
-                enum_value: Optional[E] = self._primary_hooks["enum_value"].value
+                enum_value = self._primary_hooks["enum_value"].value
             
             if "enum_options" in x:
                 enum_options: set[E] = x["enum_options"]
             else:
-                enum_options: set[E] = self._primary_hooks["enum_options"].value
+                enum_options = self._primary_hooks["enum_options"].value
 
             if enum_value is not None and enum_value not in enum_options:
                 return False, f"Enum value {enum_value} not in options {enum_options}"
@@ -509,10 +513,10 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableOptionalEnumLike):
-            return (self.get_component_value("enum_value") == other.get_component_value("enum_value") and 
-                   self.get_component_value("enum_options") == other.get_component_value("enum_options"))
+            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and 
+                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options"))
         elif isinstance(other, Enum):
-            return self.get_component_value("enum_value") == other
+            return self.get_hook_value("enum_value") == other
         return False
     
     def __hash__(self) -> int:
@@ -523,7 +527,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             Hash value of the stored enum value and options
         """
         try:
-            return hash((self.get_component_value("enum_value"), frozenset(self.get_component_value("enum_options"))))
+            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options"))))
         except (AttributeError, KeyError):
             # Fallback to object identity if not fully initialized
             return id(self)
@@ -650,15 +654,15 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             raise ValueError("enum_value is None")
         
         elif isinstance(enum_value, HookLike):
-            initial_enum_value: E = enum_value.value
-            hook_enum_value: Optional[HookLike[E]] = enum_value
+            initial_enum_value = enum_value.value
+            hook_enum_value = enum_value
             skip_enum_options_processing = False
 
         elif isinstance(enum_value, ObservableEnumLike):
-            initial_enum_value: E = enum_value.enum_value
-            hook_enum_value: Optional[HookLike[E]] = enum_value.enum_value_hook
-            initial_enum_options: set[E] = enum_value.enum_options
-            hook_enum_options: Optional[HookLike[set[E]]] = enum_value.enum_options_hook
+            initial_enum_value = enum_value.enum_value
+            hook_enum_value = enum_value.enum_value_hook
+            initial_enum_options = enum_value.enum_options
+            hook_enum_options = enum_value.enum_options_hook
             skip_enum_options_processing = True
 
         else:
@@ -672,22 +676,22 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
 
             if enum_options is None:
                 if hasattr(initial_enum_value, '__class__') and hasattr(initial_enum_value.__class__, '__members__'):
-                    initial_enum_options: set[E] = set(initial_enum_value.__class__.__members__.values()) # type: ignore
+                    initial_enum_options = set(initial_enum_value.__class__.__members__.values()) # type: ignore
                 else:
                     raise ValueError("enum_value is not a valid enum value and enum_options is None - no way to determine enum options")
-                hook_enum_options: Optional[HookLike[set[E]]] = None
+                hook_enum_options = None
 
             elif isinstance(enum_options, HookLike):
-                initial_enum_options: set[E] = enum_options.value
-                hook_enum_options: Optional[HookLike[set[E]]] = enum_options
+                initial_enum_options = enum_options.value
+                hook_enum_options = enum_options
 
             elif isinstance(enum_options, ObservableEnumLike):
-                initial_enum_options: set[E] = enum_options.enum_options # type: ignore
-                hook_enum_options: Optional[HookLike[set[E]]] = enum_options.enum_options_hook # type: ignore
+                initial_enum_options  = enum_options.enum_options # type: ignore
+                hook_enum_options = enum_options.enum_options_hook # type: ignore
 
             elif isinstance(enum_options, set): # type: ignore
-                initial_enum_options: set[E] = enum_options.copy() # type: ignore
-                hook_enum_options: Optional[HookLike[set[E]]] = None
+                initial_enum_options = enum_options.copy() # type: ignore
+                hook_enum_options = None
 
             else:
                 raise ValueError("enum_options is not a valid set of enum options")
@@ -732,7 +736,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             if "enum_options" in x:
                 enum_options: set[E] = x["enum_options"]
             else:
-                enum_options: set[E] = self._primary_hooks["enum_options"].value
+                enum_options = self._primary_hooks["enum_options"].value
 
             if enum_value not in enum_options:
                 return False, f"Enum value {enum_value} not in options {enum_options}"
@@ -809,10 +813,10 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableEnumLike):
-            return (self.get_component_value("enum_value") == other.get_component_value("enum_value") and 
-                   self.get_component_value("enum_options") == other.get_component_value("enum_options"))
+            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and 
+                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options"))
         elif isinstance(other, Enum):
-            return self.get_component_value("enum_value") == other
+            return self.get_hook_value("enum_value") == other
         return False
     
     def __hash__(self) -> int:
@@ -823,7 +827,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             Hash value of the stored enum value and options
         """
         try:
-            return hash((self.get_component_value("enum_value"), frozenset(self.get_component_value("enum_options"))))
+            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options"))))
         except (AttributeError, KeyError):
             # Fallback to object identity if not fully initialized
             return id(self)

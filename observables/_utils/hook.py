@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-class       Hook(HookLike[T], BaseListening, Generic[T]):
+class Hook(HookLike[T], BaseListening, Generic[T]):
     """
     A simple hook that provides value access and basic capabilities.
     
@@ -53,20 +53,6 @@ class       Hook(HookLike[T], BaseListening, Generic[T]):
             assert self._hook_nexus is not None
             return self._hook_nexus.value
     
-    @value.setter
-    def value(self, value: T) -> None:
-        """Set the value behind this hook."""
-        with self._lock:  # Atomic check and use
-            if not self.is_active:
-                raise ValueError("Hook is deactivated")
-            assert self._hook_nexus is not None
-            hook_nexus = self._hook_nexus  # Capture reference under lock
-            
-        # Release lock before potentially long operations
-        success, msg = hook_nexus.submit_single_value(value, {self})  # Ignore self to prevent double notifications
-        self._notify_listeners()
-        log(self, "value.setter", self._logger, success, msg)
-
     @property
     def previous_value(self) -> T:
         """Get the previous value behind this hook."""
@@ -91,16 +77,6 @@ class       Hook(HookLike[T], BaseListening, Generic[T]):
             return self._hook_nexus
     
     @property
-    def invalidation_callback(self) -> Callable[["HookLike[T]"], tuple[bool, str]]:
-        """
-        The callback to be called when the value is invalidated.
-        """
-
-        if self._invalidate_callback is None:
-            raise ValueError("Invalidate callback is None")     
-        return self._invalidate_callback
-    
-    @property
     def lock(self) -> RLock:
         """Get the lock for thread safety."""
         return self._lock
@@ -109,6 +85,14 @@ class       Hook(HookLike[T], BaseListening, Generic[T]):
     def can_be_invalidated(self) -> bool:
         """Check if this hook can be invalidated."""
         return True if self._invalidate_callback is not None else False
+
+    def invalidate(self) -> None:
+        """Invalidate this hook."""
+        if not self.is_active:
+            raise ValueError("Hook is deactivated")
+        if self._invalidate_callback is None:
+            raise ValueError("Invalidate callback is None")
+        self._invalidate_callback(self)
 
     @property
     def in_submission(self) -> bool:
@@ -171,17 +155,26 @@ class       Hook(HookLike[T], BaseListening, Generic[T]):
         # The remaining hooks in the old group will continue to be bound together
         # This effectively breaks the connection between this hook and all others
     
-    def submit_value(self, value: T) -> tuple[bool, str]:
+    def submit_single_value(self, value: T) -> tuple[bool, str]:
         """
         Submit a value to this hook.
+
+        Args:
+            value: The value to submit
+            hooks_not_to_invalidate: The hooks to not invalidate (The validity of the value will still be checked!)
         """
         if not self.is_active:
             raise ValueError("Hook is deactivated")
         assert self._hook_nexus is not None
         self.in_submission = True
-        success, msg = self._hook_nexus.submit_single_value(value, {self})
+        success, msg = self._hook_nexus.submit_single_value(
+            value=value,
+            hooks_not_to_invalidate=set(),
+            hooks_to_consider=None,
+        )
         self.in_submission = False
         log(self, "submit_value", self._logger, success, msg)
+        self._notify_listeners()
         return success, msg
     
     def is_connected_to(self, hook: "HookLike[T]") -> bool:
@@ -197,7 +190,7 @@ class       Hook(HookLike[T], BaseListening, Generic[T]):
         """
         Check if the value is valid.
         """
-        success, msg = self.owner._is_valid_value(self, value) # type: ignore
+        success, msg = self.owner.is_valid_hook_value(self, value) # type: ignore
         log(self, "is_valid_value", self._logger, success, msg)
         return success, msg
     

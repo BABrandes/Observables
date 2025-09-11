@@ -113,7 +113,7 @@ class TestWriteReport(unittest.TestCase):
         
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[Any] = ObservableMultiSelectionOption(set(), available_statuses)
-        status_backup.connect_multiple({
+        status_backup.connect_multiple_hooks({
             "selected_options": current_task_statuses.selected_options_hook,
             "available_options": current_task_statuses.available_options_hook
         }, InitialSyncMode.USE_TARGET_VALUE)
@@ -162,7 +162,7 @@ class TestWriteReport(unittest.TestCase):
         # Count how many hooks exist in total
         total_hooks = 0
         for name, observable in observables_dict.items():
-            total_hooks += len(observable.hooks)
+            total_hooks += len(observable.get_hook_keys())
         
         print(f"Total observables: {total_observables}")
         print(f"Total hooks: {total_hooks}")
@@ -272,7 +272,7 @@ class TestWriteReport(unittest.TestCase):
         """Test write_report with an empty system"""
         
         report: str = write_report({})
-        self.assertEqual(report, "")
+        self.assertEqual(report, "No observables provided.\n")
         
         print("\nEmpty system report (should be empty):")
         print(f"'{report}'")

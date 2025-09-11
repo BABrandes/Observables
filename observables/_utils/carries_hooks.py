@@ -1,4 +1,4 @@
-from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Optional
+from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Optional, final
 from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
@@ -13,17 +13,16 @@ class CarriesHooks(Protocol[HK]):
     Protocol for observables that carry a set of hooks.
     """
 
-    @property
-    def hooks(self) -> set["HookLike[Any]"]:
+    def get_hook(self, key: HK) -> "HookLike[Any]":
         ...
 
-    def get_component_value(self, key: HK) -> Any:
+    def get_hook_value_as_reference(self, key: HK) -> Any:
         ...
 
-    def get_component_hook(self, key: HK) -> "HookLike[Any]":
+    def get_hook_keys(self) -> set[HK]:
         ...
 
-    def _get_key_for(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> HK:
+    def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> HK:
         ...
 
     def connect(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
@@ -32,8 +31,54 @@ class CarriesHooks(Protocol[HK]):
     def disconnect(self, key: Optional[HK]) -> None:
         ...
 
-    def _is_valid_value(self, hook: "HookLike[Any]", value: Any) -> tuple[bool, str]:
+    def is_valid_hook_value(self, key: HK, value: Any) -> tuple[bool, str]:
         ...
 
-    def _invalidate_hooks(self, hooks: set["HookLike[Any]"]) -> None:
+    def invalidate_hooks(self) -> tuple[bool, str]:
         ...
+
+    #########################################################
+
+    @final
+    def get_hook_value(self, key: HK) -> Any:
+        value_as_reference = self.get_hook_value_as_reference(key)
+        if hasattr(value_as_reference, "copy"):
+            return value_as_reference.copy() # type: ignore
+        else:
+            return value_as_reference # type: ignore
+
+    @final
+    def get_hook_dict(self) ->  "dict[HK, HookLike[Any]]":
+        hook_dict: dict[HK, "HookLike[Any]"] = {}
+        for key in self.get_hook_keys():
+            hook_dict[key] = self.get_hook(key)
+        return hook_dict
+
+    @final
+    def get_hook_value_dict(self) -> Any:
+        hook_value_dict: dict[HK, Any] = {}
+        for key in self.get_hook_keys():
+            hook_value_dict[key] = self.get_hook_value(key)
+        return hook_value_dict
+
+    @final
+    def get_hook_value_as_reference_dict(self) -> Any:
+        hook_value_as_reference_dict: dict[HK, Any] = {}
+        for key in self.get_hook_keys():
+            hook_value_as_reference_dict[key] = self.get_hook_value_as_reference(key)
+        return hook_value_as_reference_dict
+
+    @property
+    @final
+    def hook_dict(self) -> "dict[HK, HookLike[Any]]":
+        return self.get_hook_dict()
+
+    @property
+    @final
+    def hook_value_dict(self) -> dict[HK, Any]:
+        return self.get_hook_value_dict()
+
+    @property
+    @final
+    def hook_value_as_reference_dict(self) -> dict[HK, Any]:
+        return self.get_hook_value_as_reference_dict()

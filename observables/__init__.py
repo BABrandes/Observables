@@ -95,7 +95,7 @@ from ._build_in_observables.observable_tuple import ObservableTuple, ObservableT
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._other_observables.observable_transfer import ObservableTransfer
-from ._other_observables.observable_transfer_dict import ObservableTransferDict, ObservableTransferOptionalDict
+from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._utils.hook import Hook, HookLike
@@ -128,8 +128,8 @@ __all__ = [
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
     'ObservableTransfer',
-    'ObservableTransferDict',
-    'ObservableTransferOptionalDict',
+    'ObservableSelectionDict',
+    'ObservableOptionalSelectionDict',
     'BaseObservable',
     'Hook',
     'HookLike',

@@ -58,7 +58,7 @@ class TestThreadSafety:
     def test_hook_activation_deactivation_race_conditions(self):
         """Test thread safety of hook activation/deactivation."""
         obs = ObservableSingleValue("initial_value")
-        hook = obs.get_component_hook("value")
+        hook = obs.get_hook("value")
         
         errors: list[str] = []
         iterations = 200
@@ -67,7 +67,7 @@ class TestThreadSafety:
             """Thread that continuously sets values."""
             for i in range(iterations):
                 try:
-                    hook.value = f"value_{i}"
+                    hook.submit_single_value(f"value_{i}")
                     time.sleep(0.001)  # Small delay to increase race window
                 except ValueError as e:
                     # "Hook is deactivated" is expected and safe when hook is deactivated
@@ -115,7 +115,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -311,8 +311,8 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
-                    obs2.connect(obs3.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                    obs2.connect(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
@@ -411,7 +411,7 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.connect(obs2.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                         obs1.value = f"worker_{worker_id}_value_{i}"
                         obs1.disconnect("value")
                     elif i % 4 == 1:
@@ -422,8 +422,8 @@ class TestThreadSafetyEdgeCases:
                         obs1.remove_listeners(listener)
                     elif i % 4 == 2:
                         # Hook operations
-                        hook = obs1.get_component_hook("value")
-                        hook.value = f"worker_{worker_id}_hook_{i}"
+                        hook = obs1.get_hook("value")
+                        hook.submit_single_value(f"worker_{worker_id}_hook_{i}")
                     else:
                         # Direct value operations
                         obs1.value = f"worker_{worker_id}_direct_{i}"

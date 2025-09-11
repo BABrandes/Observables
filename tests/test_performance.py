@@ -22,8 +22,8 @@ def time_operation(func: Callable[..., Any], *args: Any, **kwargs: Any) -> tuple
 class TestCachePerformance:
     """Test performance of the O(1) cache optimizations."""
 
-    def test_get_key_for_cache_performance(self):
-        """Test that _get_key_for operations use O(1) cache after first access."""
+    def test_get_key_cache_performance(self):
+        """Test that get_key operations use O(1) cache after first access."""
         # Create an observable with a moderate number of hooks via binding
         main_obs: ObservableSingleValue[Any] = ObservableSingleValue("main")
         bound_observables: list[BaseObservable[Any, Any]] = []
@@ -31,15 +31,15 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs = ObservableSingleValue(f"value_{i}")
-            obs.connect(main_obs.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
             bound_observables.append(obs)
         
         # Now main_obs's hook nexus has many hooks
-        hook = main_obs.get_component_hook("value")
+        hook = main_obs.get_hook("value")
         
         # Time the first call (should do linear search + populate cache)
         def first_call():
-            return main_obs._get_key_for(hook) # type: ignore
+            return main_obs.get_hook_key(hook) # type: ignore
         
         result1, time1 = time_operation(first_call)
         assert result1 == "value"
@@ -48,7 +48,7 @@ class TestCachePerformance:
         times: list[float] = []
         for _ in range(10):
             def cached_call():
-                return main_obs._get_key_for(hook) # type: ignore
+                return main_obs.get_hook_key(hook) # type: ignore
             
             result, elapsed = time_operation(cached_call)
             assert result == "value"
@@ -73,7 +73,7 @@ class TestCachePerformance:
         
         # Time first access to secondary hook key lookup
         def first_secondary_lookup() -> str:
-            return obs_list._get_key_for_secondary_hook(length_hook) # type: ignore
+            return obs_list.get_hook_key(length_hook) # type: ignore
         
         result1, time1 = time_operation(first_secondary_lookup)
         assert result1 == "length"
@@ -82,7 +82,7 @@ class TestCachePerformance:
         times: list[float] = []
         for _ in range(10):
             def cached_secondary_lookup() -> str:
-                return obs_list._get_key_for_secondary_hook(length_hook) # type: ignore
+                return obs_list.get_hook_key(length_hook) # type: ignore
             
             result, elapsed = time_operation(cached_secondary_lookup)
             assert result == "length"
@@ -93,10 +93,10 @@ class TestCachePerformance:
         assert all(t <= time1 * 2 for t in times), "Cached secondary hook calls should not be slower"
 
     def test_cache_effectiveness_across_operations(self):
-        """Test that cache is effective across different operations that use _get_key_for."""
+        """Test that cache is effective across different operations that use get_key."""
         obs = ObservableSingleValue("test")
         
-        # Perform operations that internally use _get_key_for
+        # Perform operations that internally use get_key
         operations: list[tuple[int, float, str]] = []
         
         def operation1():
@@ -104,8 +104,8 @@ class TestCachePerformance:
             return obs.value
         
         def operation2():
-            hook = obs.get_component_hook("value")
-            hook.value = "modified2"
+            hook = obs.get_hook("value")
+            hook.submit_single_value("modified2")
             return hook.value
         
         def operation3():
@@ -148,7 +148,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.connect(main_obs.get_component_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -284,7 +284,7 @@ class TestPerformanceRegression:
         start_time = time.perf_counter()
         
         for _ in range(num_operations):
-            hook = obs.get_component_hook("value")
+            hook = obs.get_hook("value")
             _ = hook.value
         
         total_time = time.perf_counter() - start_time
@@ -343,7 +343,7 @@ class TestPerformanceRegression:
             
             # Perform various operations
             obs.value = f"modified_{cycle}"
-            hook = obs.get_component_hook("value")
+            hook = obs.get_hook("value")
             _ = hook.value
             
             # Add and remove listener

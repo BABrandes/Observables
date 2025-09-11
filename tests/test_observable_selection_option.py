@@ -209,7 +209,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
         # Bind obs1 to obs2
-        obs1.connect_multiple({
+        obs1.connect_multiple_hooks({
             "available_options": obs2.available_options_hook,
             "selected_option": obs2.selected_option_hook
         }, InitialSyncMode.USE_TARGET_VALUE)

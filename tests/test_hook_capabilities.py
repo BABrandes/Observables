@@ -343,7 +343,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test submitting a new value
-        success, message = hook.submit_value("new_value")
+        success, message = hook.submit_single_value("new_value")
         self.assertTrue(success, f"Submit failed: {message}")
         
         # The value should be updated in the hook nexus
@@ -363,7 +363,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test submitting a value - should still work as it goes through the hook nexus
-        success, message = hook.submit_value("new_value")
+        success, message = hook.submit_single_value("new_value")
         self.assertTrue(success, f"Submit failed: {message}")
 
     def test_hook_is_connected_to(self):
@@ -417,7 +417,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test invalidation by calling callback directly (as HookNexus would do)
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(received_values, ["invalidated"])
 
     def test_hook_invalidate_without_callback(self):
@@ -435,7 +435,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test invalidate callback access should fail
         with self.assertRaises(ValueError) as cm:
-            _ = hook.invalidation_callback
+            hook.invalidate()
         
         self.assertIn("Invalidate callback is None", str(cm.exception))
 
@@ -513,7 +513,7 @@ class TestHookCapabilities(unittest.TestCase):
         def writer():
             for i in range(100):
                 try:
-                    hook.submit_value(f"value_{i}")
+                    hook.submit_single_value(f"value_{i}")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -603,7 +603,7 @@ class TestHookCapabilities(unittest.TestCase):
         def method_caller():
             for _ in range(150):
                 try:
-                    hook.submit_value("test")
+                    hook.submit_single_value("test")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -761,7 +761,7 @@ class TestHookCapabilities(unittest.TestCase):
         def submit_caller():
             for _ in range(100):
                 try:
-                    hook.submit_value("test")
+                    hook.submit_single_value("test")
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -863,7 +863,7 @@ class TestHookCapabilities(unittest.TestCase):
                 try:
                     # Mix of operations
                     if i % 5 == 0:
-                        hook.submit_value(f"value_{worker_id}_{i}")
+                        hook.submit_single_value(f"value_{worker_id}_{i}")
                     elif i % 5 == 1:
                         hook.in_submission = (i % 2 == 0)
                     elif i % 5 == 2:
@@ -913,7 +913,7 @@ class TestHookCapabilities(unittest.TestCase):
                     with hook.lock:
                         # Hold the lock for a bit to create contention
                         time.sleep(0.001)
-                        hook.submit_value("contended")
+                        hook.submit_single_value("contended")
                 except Exception:
                     pass
         
@@ -1010,7 +1010,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test that invalidate callback raises the expected error
         with self.assertRaises(RuntimeError) as cm:
-            hook.invalidation_callback(hook)
+            hook.invalidate()
         self.assertEqual(str(cm.exception), "Invalidate callback failed")
 
     def test_hook_with_different_types(self):
@@ -1144,11 +1144,11 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertEqual(side_effects, [])
         
         # Call invalidate callback directly
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(side_effects, ["invalidate_called"])
         
         # Call invalidate callback again
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(side_effects, ["invalidate_called", "invalidate_called"])
 
     def test_hook_with_callable_objects(self):
@@ -1177,10 +1177,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that it works
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(callable_obj.call_count, 1)
         
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(callable_obj.call_count, 2)
 
     def test_hook_with_lambda_callbacks(self):
@@ -1204,10 +1204,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that lambda callback works
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(call_count, 1)
         
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(call_count, 2)
 
     def test_hook_with_method_objects(self):
@@ -1237,10 +1237,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that bound method works
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(method_obj.call_count, 1)
         
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(method_obj.call_count, 2)
 
     def test_hook_with_class_methods(self):
@@ -1272,10 +1272,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that class method works
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(TestClass.class_call_count, 1)
         
-        hook.invalidation_callback(hook)
+        hook.invalidate()
         self.assertEqual(TestClass.class_call_count, 2)
         
         # Test with static method
@@ -1286,7 +1286,7 @@ class TestHookCapabilities(unittest.TestCase):
             logger=logger
         )
         
-        static_hook.invalidation_callback(static_hook)
+        static_hook.invalidate()
         self.assertEqual(TestClass.static_call_count, 1)
 
     def test_hook_with_decorated_functions(self):
@@ -1314,7 +1314,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that decorated function works
-        hook.invalidation_callback(hook)  # Should not raise error
+        hook.invalidate()  # Should not raise error
 
     def test_hook_with_closure_functions(self):
         """Test hooks with closure functions."""
@@ -1342,7 +1342,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that closure function works
-        hook.invalidation_callback(hook)  # Should not raise error
+        hook.invalidate()  # Should not raise error
 
     def test_hook_with_exception_handling_callbacks(self):
         """Test hooks with callbacks that handle exceptions."""
@@ -1366,7 +1366,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that safe callback works
-        hook.invalidation_callback(hook)  # Should not raise error
+        hook.invalidate()  # Should not raise error
 
 
 if __name__ == '__main__':

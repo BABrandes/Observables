@@ -1,6 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Mapping
-from typing import Optional, TypeVar, runtime_checkable, Protocol
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Mapping, Optional
 from .._utils.hook import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
@@ -124,14 +123,14 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_value: list[T] = []
             hook: Optional[HookLike[list[T]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListLike):
-            initial_value: list[T] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value.value_hook # type: ignore
+            initial_value = observable_or_hook_or_value.value # type: ignore
+            hook = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
-            initial_value: list[T] = observable_or_hook_or_value.value
-            hook: Optional[HookLike[list[T]]] = observable_or_hook_or_value
+            initial_value = observable_or_hook_or_value.value
+            hook = observable_or_hook_or_value
         else:
-            initial_value: list[T] = observable_or_hook_or_value.copy()
-            hook: Optional[HookLike[list[T]]] = None
+            initial_value = observable_or_hook_or_value.copy()
+            hook = None
 
         self._internal_construct_from_values(
             {"value": initial_value},

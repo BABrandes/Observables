@@ -41,7 +41,7 @@ class ObservableSerializable(ABC, Generic[HK, Obs]):
         return instance
     
     @abstractmethod
-    def get_primary_component_values_as_references(self) -> Mapping[HK, Any]:
+    def _get_primary_values_as_references(self) -> Mapping[HK, Any]:
         """
         Get the values of the primary component hooks as references, usefull for serializing the observable.
 

@@ -94,8 +94,8 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
 
     def __init__(
         self,
-        input_trigger_hooks: Mapping[IHK, HookLike[Any] | None],
-        output_trigger_hooks: Mapping[OHK, HookLike[Any] | None],
+        input_trigger_hooks: Mapping[IHK, HookLike[Any]|Any],
+        output_trigger_hooks: Mapping[OHK, HookLike[Any]|Any],
         forward_callable: Callable[[Mapping[IHK, Any]], Mapping[OHK, Any]],
         reverse_callable: Optional[Callable[[Mapping[OHK, Any]], Mapping[IHK, Any]]] = None,
         logger: Optional[Logger] = None
@@ -106,11 +106,11 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         Args:
             input_trigger_hooks: Dictionary mapping input names to their hooks or None.
                 When any of these hooks are invalidated, forward transformation is triggered.
-                Use None as value for keys that should be managed internally without external connection.
+                Use value as value for keys that should be managed internally without external connection.
                 All keys that the forward_callable expects must be present in this dict.
             output_trigger_hooks: Dictionary mapping output names to their hooks or None.
                 When any of these hooks are invalidated, reverse transformation is triggered (if available).
-                Use None as value for keys that should be managed internally without external connection.
+                Use value as value for keys that should be managed internally without external connection.
                 All keys that the forward_callable returns must be present in this dict.
             forward_callable: Function that transforms input values to output values.
                 Expected signature: (input_values: Mapping[IHK, Any]) -> Mapping[OHK, Any]
@@ -123,7 +123,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         Note:
             For each key in the dictionaries, an internal hook is created:
             - If the value is a HookLike object, it's connected to the internal hook
-            - If the value is None, the internal hook remains standalone
+            - If the value is a value, the internal hook remains standalone
             This ensures all transformation keys have corresponding hooks for the CarriesHooks interface.
 
         Example:
@@ -131,10 +131,11 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             >>> x_hook = Hook(owner=some_owner, value=5)
             >>> y_hook = Hook(owner=some_owner, value=3)
             >>> sum_hook = Hook(owner=some_owner, value=0)
+            >>> product_value = 0
             >>> 
             >>> transfer = ObservableTransfer(
             ...     input_trigger_hooks={"x": x_hook, "y": y_hook},
-            ...     output_trigger_hooks={"sum": sum_hook, "product": None},  # product is internal-only
+            ...     output_trigger_hooks={"sum": sum_hook, "product": product_value},  # product is internal-only
             ...     forward_callable=lambda inputs: {
             ...         "sum": inputs["x"] + inputs["y"],
             ...         "product": inputs["x"] * inputs["y"]
@@ -162,36 +163,108 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         # For now, we'll create hooks for the provided external hooks and connect them
         
         # Create input hooks for all keys, connecting to external hooks when provided
-        for key, external_hook in input_trigger_hooks.items():
+        for key, external_hook_or_value in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
-            initial_value = external_hook.value if external_hook is not None else None
+            initial_value: Any = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
             internal_hook: Hook[Any] = Hook(
                 owner=self,
-                value=initial_value,
+                value=initial_value, # type: ignore
                 invalidate_callback=lambda _, k=key: self._on_input_invalidated(k),
                 logger=logger
             )
             self._input_hooks[key] = internal_hook
-            
-            # Connect external hook to our internal hook if external hook is provided
-            if external_hook is not None:
-                external_hook.connect(internal_hook, InitialSyncMode.USE_CALLER_VALUE)
+            if isinstance(external_hook_or_value, HookLike):
+                internal_hook.connect(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Create output hooks for all keys, connecting to external hooks when provided
-        for key, external_hook in output_trigger_hooks.items():
+        for key, external_hook_or_value in output_trigger_hooks.items():
             # Create internal hook with invalidation callback
-            initial_value = external_hook.value if external_hook is not None else None
+            initial_value: Any = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
             internal_hook = Hook(
                 owner=self,
-                value=initial_value,
+                value=initial_value, # type: ignore
                 invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
                 logger=logger
             )
             self._output_hooks[key] = internal_hook
             
             # Connect our internal hook to external hook if external hook is provided
-            if external_hook is not None:
-                internal_hook.connect(external_hook, InitialSyncMode.USE_CALLER_VALUE)
+            if isinstance(external_hook_or_value, HookLike):
+                internal_hook.connect(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+
+    #########################################################################
+    # CarriesHooks interface
+    #########################################################################
+
+    def get_hook(self, key: IHK|OHK) -> "HookLike[Any]":
+        """Get a hook by its key (either input or output)."""
+        if key in self._input_hooks:
+            return self._input_hooks[key] # type: ignore
+        elif key in self._output_hooks:
+            return self._output_hooks[key] # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def get_hook_value_as_reference(self, key: IHK|OHK) -> Any:
+        if key in self._input_hooks:
+            return self._input_hooks[key].value # type: ignore
+        elif key in self._output_hooks:
+            return self._output_hooks[key].value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def get_hook_keys(self) -> set[IHK|OHK]:
+        return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
+
+    def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> IHK|OHK:
+        for key, hook in self._input_hooks.items():
+            if hook is hook_or_nexus:
+                return key
+        for key, hook in self._output_hooks.items():
+            if hook is hook_or_nexus:
+                return key
+        raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
+
+    def connect(self, hook: "HookLike[Any]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
+        """Connect an external hook to one of this transfer's hooks."""
+        if to_key in self._input_hooks:
+            self._input_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        elif to_key in self._output_hooks:
+            self._output_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
+        else:
+            raise ValueError(f"Key {to_key} not found in hooks")
+
+    def disconnect(self, key: Optional[IHK|OHK]) -> None:
+        """Disconnect a hook from this transfer by its key."""
+        if key is None:
+            # Disconnect all hooks
+            for hook in list(self._input_hooks.values()) + list(self._output_hooks.values()):
+                hook.disconnect()
+        elif key in self._input_hooks:
+            self._input_hooks[key].disconnect() # type: ignore
+        elif key in self._output_hooks:
+            self._output_hooks[key].disconnect() # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def is_valid_hook_value(self, key: IHK|OHK, value: Any) -> tuple[bool, str]:
+        """Validate a value for a specific hook. Currently allows all values."""
+        return True, "All values are always valid"
+
+    def invalidate_hooks(self) -> tuple[bool, str]:
+        """
+        Handle hook invalidation (required by CarriesHooks protocol).
+        
+        This method is called by the hook system when any of our internal hooks are invalidated.
+        Since we handle invalidation through our callback methods (_on_input_invalidated, 
+        _on_output_invalidated), this method just logs that it was called.
+        """
+        log(self, "invalidate_hook", self._logger, True, "Successfully invalidated")
+        return True, "Successfully invalidated"
+
+    #########################################################################
+    # Other private methods
+    #########################################################################
 
     def _on_input_invalidated(self, key: IHK) -> tuple[bool, str]:
         """Called when an input hook is invalidated. Triggers forward transformation."""
@@ -203,6 +276,8 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             log(self, "_on_input_invalidated", self._logger, False, f"Error in forward transformation: {e}")
             return False, f"Error in forward transformation: {e}"
     
+
+
     def _on_output_invalidated(self, key: OHK) -> tuple[bool, str]:
         """Called when an output hook is invalidated. Triggers reverse transformation if available."""
         if self._reverse_callable is None:
@@ -245,15 +320,13 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             
             # Update target hooks
             if len(target_values) == 1:
-                key: OHK | IHK = next(iter(target_values.keys())) # type: ignore
-                value: Any = target_values[key] # type: ignore
-                target_hooks[key].value = value # type: ignore
+                key: OHK | IHK = next(iter(target_values.keys()))
+                target_hooks[key].submit_single_value(target_values[key]) # type: ignore
             else:
-                nexus_and_values: dict[HookNexus[Any], Any] = {}
+                hooks_and_values: list[tuple[HookLike[Any], Any]] = []
                 for key, value in target_values.items():
-                    nexus: HookNexus[Any] = target_hooks[key].hook_nexus # type: ignore
-                    nexus_and_values[nexus] = value
-                HookNexus.submit_multiple_values(nexus_and_values)
+                    hooks_and_values.append((target_hooks[key], value)) # type: ignore
+                HookLike[Any].submit_multiple_values(*hooks_and_values)
             
             # Notify listeners
             self._notify_listeners()
@@ -278,76 +351,4 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
             transform_callable=self._reverse_callable,
             direction="reverse"
         )
-
-    def _get_key_for(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> IHK|OHK:
-        for key, hook in self._input_hooks.items():
-            if hook is hook_or_nexus:
-                return key
-        for key, hook in self._output_hooks.items():
-            if hook is hook_or_nexus:
-                return key
-        raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
-
-    @property
-    def hooks(self) -> set["HookLike[Any]"]:
-        """Get all hooks (input and output) managed by this transfer."""
-        hooks: set["HookLike[Any]"] = set(self._input_hooks.values()) | set(self._output_hooks.values()) # type: ignore
-        return hooks
-    
-    def get_component_value(self, key: IHK|OHK) -> Any:
-        """Get a component value by its key (either input or output)."""
-        if key in self._input_hooks:
-            return self._input_hooks[key].value # type: ignore
-        elif key in self._output_hooks:
-            return self._output_hooks[key].value # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in hooks")
-
-    def get_component_hook(self, key: IHK|OHK) -> "HookLike[Any]":
-        """Get a hook by its key (either input or output)."""
-        if key in self._input_hooks:
-            return self._input_hooks[key] # type: ignore
-        elif key in self._output_hooks:
-            return self._output_hooks[key] # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in hooks")
-
-    def connect(self, hook: "HookLike[Any]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
-        """Connect an external hook to one of this transfer's hooks."""
-        if to_key in self._input_hooks:
-            self._input_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        elif to_key in self._output_hooks:
-            self._output_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        else:
-            raise ValueError(f"Key {to_key} not found in hooks")
-
-    def disconnect(self, key: Optional[IHK|OHK]) -> None:
-        """Disconnect a hook from this transfer by its key."""
-        if key is None:
-            # Disconnect all hooks
-            for hook in list(self._input_hooks.values()) + list(self._output_hooks.values()):
-                hook.disconnect()
-        elif key in self._input_hooks:
-            self._input_hooks[key].disconnect() # type: ignore
-        elif key in self._output_hooks:
-            self._output_hooks[key].disconnect() # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in hooks")
-
-    def _is_valid_value(self, hook: "HookLike[Any]", value: Any) -> tuple[bool, str]:
-        """Validate a value for a specific hook. Currently allows all values."""
-        return True, "All values are always valid"
-
-    def _invalidate_hooks(self, hooks: set["HookLike[Any]"]) -> None:
-        """
-        Handle hook invalidation (required by CarriesHooks protocol).
-        
-        This method is called by the hook system when any of our internal hooks are invalidated.
-        Since we handle invalidation through our callback methods (_on_input_invalidated, 
-        _on_output_invalidated), this method just logs that it was called.
-        """
-        log(self, "_invalidate_hooks", self._logger, True, f"Invalidated {len(hooks)} hooks (handled by callbacks)")
-
-
-
 

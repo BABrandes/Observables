@@ -124,14 +124,14 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"]], Observ
             initial_dict_value: dict[K, V] = {}
             hook: Optional[HookLike[dict[K, V]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableDictLike):
-            initial_dict_value: dict[K, V] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value.value_hook # type: ignore
+            initial_dict_value = observable_or_hook_or_value.value # type: ignore
+            hook = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
-            initial_dict_value: dict[K, V] = observable_or_hook_or_value.value
-            hook: Optional[HookLike[dict[K, V]]] = observable_or_hook_or_value
+            initial_dict_value = observable_or_hook_or_value.value
+            hook = observable_or_hook_or_value
         else:
-            initial_dict_value: dict[K, V] = observable_or_hook_or_value.copy()
-            hook: Optional[HookLike[dict[K, V]]] = None
+            initial_dict_value = observable_or_hook_or_value.copy()
+            hook = None
 
         self._internal_construct_from_values(
             {"value": initial_dict_value},

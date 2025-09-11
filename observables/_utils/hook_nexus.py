@@ -54,7 +54,8 @@ class HookNexus(Generic[T]):
 
     
     @staticmethod
-    def submit_multiple_values(nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+    def submit_multiple_values(
+        nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
         """
         This function submits multiple values to one or more hooks.
 
@@ -85,7 +86,7 @@ class HookNexus(Generic[T]):
             intersection: set["HookNexus[Any]"] = set()
             for nexus in all_nexus_and_values:
                 for collective_hook in carries_collective_hooks._collective_hooks: # type: ignore
-                    if collective_hook.hook_nexus is nexus or collective_hook is nexus:
+                    if collective_hook.hook_nexus is nexus:
                         intersection.add(nexus)
             return intersection
         remaining_owners: set[CarriesHooks[Any]] = owners.copy()
@@ -94,7 +95,12 @@ class HookNexus(Generic[T]):
             if isinstance(owner, CarriesCollectiveHooks):
                 if len(nexus_intersection(owner)) >= 2:
                     # Overlap found - verify that the values would be valid
-                    are_valid, msg = owner._are_valid_values(nexus_and_values) # type: ignore
+                    dict_of_values: dict[Any, Any] = {}
+                    for nexus in nexus_intersection(owner):
+                        # Get the key in the owner's collective hooks of the hook with the nexus
+                        key_for_nexus: Any = owner.get_hook_key(nexus) # type: ignore
+                        dict_of_values[key_for_nexus] = nexus_and_values[nexus]
+                    are_valid, msg = owner.is_valid_hook_values(dict_of_values) # type: ignore
                     if are_valid:
                         remaining_owners.remove(owner)
                     else:
@@ -102,7 +108,7 @@ class HookNexus(Generic[T]):
                     
         # Step 4: Check for each remaining owner if the values would be valid as a single value
         for owner in remaining_owners:
-            for hook in owner.hooks:
+            for _, hook in owner.get_hook_dict().items():
                 # Check if this hook's hook_nexus is in the nexus_and_values
                 if hook.hook_nexus in nexus_and_values:
                     success, msg = hook.is_valid_value(nexus_and_values[hook.hook_nexus])
@@ -122,12 +128,16 @@ class HookNexus(Generic[T]):
         # Step 6: If all values are valid, invalidate the hooks
         for owner in owners:
             if isinstance(owner, CarriesCollectiveHooks):
-                hooks_to_invalidate = owner._collective_hooks.intersection(nexus_and_values.keys()) # type: ignore
-                owner._invalidate_hooks(hooks_to_invalidate) # type: ignore
+                owner.invalidate_hooks()
                 
         return True, "Invalidation successful"
     
-    def submit_single_value(self, value: T, hooks_to_ignore: Optional[set["HookLike[T]"]] = None, hooks_to_consider: Optional[set["HookLike[T]"]] = None) -> tuple[bool, str]:
+    def submit_single_value(
+        self,
+        value: T,
+        hooks_not_to_invalidate: set["HookLike[T]"],
+        hooks_to_consider: Optional[set["HookLike[T]"]] = None,
+    ) -> tuple[bool, str]:
         """"
         Submit a value to the hook group.
         If the submission fails, the former values for the hooks are reset.
@@ -135,34 +145,40 @@ class HookNexus(Generic[T]):
         Args:
             value: The value to set for the hooks
             hooks_to_ignore: The hooks to ignore for submission. If None, all hooks in the group are considered.
-            hooks_to_consider: The hooks to consider for submission. If None, all hooks in the group are considered.
+            hooks_to_consider: The hooks to consider for submission. If empty, all hooks in the group are considered.
 
         Returns:
             A tuple containing a boolean indicating if the submission was successful and a string message
         """
-        
-        # Step 1: Check if the value is valid for each hook
-        hooks_to_invalidate: set["HookLike[T]"] = set()
-        for hook in self._hooks:
-            if hooks_to_ignore is not None and hook in hooks_to_ignore:
-                continue
-            if hooks_to_consider is not None and hook not in hooks_to_consider:
-                continue
+
+        # Step 1: Get all the hooks to look at
+        if hooks_to_consider is not None:
+            hooks_to_look_at = hooks_to_consider & self._hooks
+        else:
+            hooks_to_look_at = self._hooks
+
+        # Step 2: Check if the value is valid for each hook
+        for hook in hooks_to_look_at:
             success, msg = hook.is_valid_value(value)
-            if success:
-                hooks_to_invalidate.add(hook)
-            else:
+            if not success:
                 log(self, "submit_single_value", self._logger, False, msg)
                 return False, msg
-        
-        # Step 2: Update the HookNexus value after successful invalidation
+
+        # Step 3: Collect the hooks that should be invalidated
+        hooks_to_invalidate: set["HookLike[T]"] = set()
+        for hook in hooks_to_look_at:
+            if hook in hooks_not_to_invalidate:
+                continue
+            if hook.can_be_invalidated:
+                hooks_to_invalidate.add(hook)
+
+        # Step 4: Update the HookNexus value after successful invalidation
         self._previous_value = self._value
         self._value = value
 
-        # Step 3: Invalidate the hooks
+        # Step 5: Invalidate the hooks
         for hook in hooks_to_invalidate:
-            if hook.can_be_invalidated:
-                hook.invalidation_callback(hook) # type: ignore
+            hook.invalidate()
         
         log(self, "submit_single_value", self._logger, True, "Submission successful")
         return True, "Submission successful"
@@ -270,7 +286,10 @@ class HookNexus(Generic[T]):
         # Ensure that the value in both hook groups is the same
         # The source_hook's value becomes the source of truth
         source_hook.in_submission = True
-        success, msg = target_hook.hook_nexus.submit_single_value(source_hook.value, {source_hook}, {target_hook})
+        success, msg = target_hook.hook_nexus.submit_single_value(
+            value=source_hook.value,
+            hooks_not_to_invalidate=set(),
+            hooks_to_consider=None)
         source_hook.in_submission = False
         if not success:
             raise ValueError(msg)

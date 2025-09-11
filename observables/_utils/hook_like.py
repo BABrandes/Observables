@@ -1,5 +1,5 @@
 from threading import RLock
-from typing import Callable, TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any, Mapping
+from typing import TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any, Mapping
 from .initial_sync_mode import InitialSyncMode
 from .hook_nexus import HookNexus
 from .base_listening import BaseListeningLike
@@ -20,13 +20,6 @@ class HookLike(BaseListeningLike, Protocol[T]):
     def value(self) -> T:
         """
         Get the value behind this hook.
-        """
-        ...
-
-    @value.setter
-    def value(self, value: T) -> None:
-        """
-        Set the value behind this hook.
         """
         ...
 
@@ -52,17 +45,14 @@ class HookLike(BaseListeningLike, Protocol[T]):
         ...
 
     @property
-    def invalidation_callback(self) -> Callable[["HookLike[T]"], tuple[bool, str]]:
-        """
-        The callback to be called when the value is invalidated.
-        """
-        ...
-
-    @property
     def lock(self) -> RLock:
         """
         Get the lock for thread safety.
         """
+        ...
+
+    def invalidate(self) -> None:
+        """Invalidate this hook."""
         ...
     
     # State flags
@@ -144,20 +134,30 @@ class HookLike(BaseListeningLike, Protocol[T]):
         Check if this hook is active.
         """
         ...
+
+    def submit_single_value(self, value: T) -> tuple[bool, str]:
+        """
+        Submit a value to this hook.
+        """
+        ...
     
     @staticmethod
-    def set_multiple_values(values: Mapping[T, Any], hooks: Mapping[T, "HookLike[Any]"]) -> None:
+    def submit_multiple_values(
+        *hooks_and_values: tuple["HookLike[Any]", Any]) -> None:
         """
         Set the values of multiple hooks.
         """
+
+        if len(hooks_and_values) == 0:
+            return
+
         nexus_and_values: Mapping[HookNexus[Any], Any] = {}
-        for key, value in values.items():
-            nexus: HookNexus[Any] = hooks[key].hook_nexus
-            nexus_and_values[nexus] = value
+        for hook, value in hooks_and_values:
+            nexus_and_values[hook.hook_nexus] = value
 
         # Submit the values to the hook nexus
         HookNexus.submit_multiple_values(nexus_and_values)
 
         # Notify listeners of the hooks
-        for hook in hooks.values():
+        for hook, _ in hooks_and_values:
             hook._notify_listeners()

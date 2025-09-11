@@ -122,14 +122,14 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"]], Observa
             initial_value: set[T] = set()
             hook: Optional[HookLike[set[T]]] = None 
         elif isinstance(observable_or_hook_or_value, ObservableSetLike):
-            initial_value: set[T] = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value.value_hook # type: ignore
+            initial_value = observable_or_hook_or_value.value # type: ignore
+            hook = observable_or_hook_or_value.value_hook # type: ignore
         elif isinstance(observable_or_hook_or_value, HookLike):
-            initial_value: set[T] = observable_or_hook_or_value.value
-            hook: Optional[HookLike[set[T]]] = observable_or_hook_or_value
+            initial_value = observable_or_hook_or_value.value
+            hook = observable_or_hook_or_value
         else:
-            initial_value: set[T] = observable_or_hook_or_value.copy() # type: ignore
-            hook: Optional[HookLike[set[T]]] = None
+            initial_value = observable_or_hook_or_value.copy() # type: ignore
+            hook = None
         
         self._internal_construct_from_values(
             {"value": initial_value},

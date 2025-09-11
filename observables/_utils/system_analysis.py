@@ -7,7 +7,7 @@ def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]
 
     hook_nexuses: dict[HookNexus[Any], list[tuple[str, CarriesHooks[Any], HookLike[Any]]]] = {}
     for name, carries_hook in dict_of_carries_hooks.items():
-        for hook in carries_hook.hooks:
+        for hook in carries_hook.hook_dict.values():
             hook_nexus = hook.hook_nexus
             if hook_nexus not in hook_nexuses:
                 hook_nexuses[hook_nexus] = []
@@ -24,6 +24,10 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]) -> str:
     Returns:
         Formatted string report showing hook nexus usage and relationships
     """
+
+    if not dict_of_carries_hooks:
+        return "No observables provided.\n"
+
     hook_nexuses = collect_all_hook_nexuses(dict_of_carries_hooks)
     
     if not hook_nexuses:
@@ -113,12 +117,12 @@ def _get_hook_info(carries_hook: CarriesHooks[Any], hook: HookLike[Any]) -> str:
     """
     try:
         # Try to get the key for this hook
-        hook_key = carries_hook._get_key_for(hook)  # type: ignore
+        hook_key = carries_hook.get_hook_key(hook)  # type: ignore
         hook_type = "primary"
     except ValueError:
         try:
             # Try secondary hooks if primary fails
-            hook_key = carries_hook._get_key_for_secondary_hook(hook)  # type: ignore
+            hook_key = carries_hook.get_hook_key(hook)  # type: ignore
             hook_type = "secondary"
         except ValueError:
             # Fallback if neither works

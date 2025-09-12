@@ -2,45 +2,96 @@ from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Opt
 from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
-    from .hook_like import HookLike
+    from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
 
 HK = TypeVar("HK")
+HV = TypeVar("HV")
 
 @runtime_checkable
-class CarriesHooks(Protocol[HK]):
+class CarriesHooks(Protocol[HK, HV]):
     """
     Protocol for observables that carry a set of hooks.
     """
 
-    def get_hook(self, key: HK) -> "HookLike[Any]":
+    def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
+        """
+        Get a hook by its key.
+
+        Args:
+            key: The key of the hook to get
+
+        Returns:
+            The hook
+        """
         ...
 
-    def get_hook_value_as_reference(self, key: HK) -> Any:
+    def get_hook_value_as_reference(self, key: HK) -> HV:
+        """
+        Get a value as a reference by its key.
+
+        ** The returned value is a reference, so modifying it will modify the observable.
+
+        Args:
+            key: The key of the hook to get
+
+        Returns:
+            The value
+        """
         ...
 
     def get_hook_keys(self) -> set[HK]:
+        """
+        Get all keys of the hooks.
+        """
         ...
 
-    def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> HK:
+    def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
+        """
+        Get the key of a hook or nexus.
+        """
         ...
 
-    def connect(self, hook: "HookLike[Any]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect(self, hook: "OwnedHookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+        """
+        Connect a hook to another hook.
+        """
         ...
 
     def disconnect(self, key: Optional[HK]) -> None:
+        """
+        Disconnect a hook by its key.
+        """
         ...
 
-    def is_valid_hook_value(self, key: HK, value: Any) -> tuple[bool, str]:
+    def is_valid_hook_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
+        """
+        Check if a value is valid for a hook.
+
+        Args:
+            hook_key: The key of the hook to check
+            value: The value to check
+
+        Returns:
+            A tuple containing a boolean indicating if the value is valid and a string explaining why
+        """
         ...
 
     def invalidate_hooks(self) -> tuple[bool, str]:
+        """
+        Invalidate all hooks.
+        """
         ...
 
     #########################################################
 
     @final
-    def get_hook_value(self, key: HK) -> Any:
+    def get_hook_value(self, key: HK) -> HV:
+        """
+        Get a value as a copy by its key.
+
+        ** The returned value is a copy, so modifying it will not modify the observable.
+        """
         value_as_reference = self.get_hook_value_as_reference(key)
         if hasattr(value_as_reference, "copy"):
             return value_as_reference.copy() # type: ignore
@@ -48,21 +99,36 @@ class CarriesHooks(Protocol[HK]):
             return value_as_reference # type: ignore
 
     @final
-    def get_hook_dict(self) ->  "dict[HK, HookLike[Any]]":
-        hook_dict: dict[HK, "HookLike[Any]"] = {}
+    def get_hook_dict(self) ->  "dict[HK, OwnedHookLike[HV]]":
+        """
+        Get a dictionary of hooks.
+        """
+        hook_dict: dict[HK, "OwnedHookLike[Any]"] = {}
         for key in self.get_hook_keys():
             hook_dict[key] = self.get_hook(key)
         return hook_dict
 
     @final
-    def get_hook_value_dict(self) -> Any:
+    def get_hook_value_dict(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values.
+
+        ** The returned values are copies, so modifying them will not modify the observable.
+        """
         hook_value_dict: dict[HK, Any] = {}
         for key in self.get_hook_keys():
             hook_value_dict[key] = self.get_hook_value(key)
         return hook_value_dict
 
     @final
-    def get_hook_value_as_reference_dict(self) -> Any:
+    def get_hook_value_as_reference_dict(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values as references.
+
+        ** The returned values are references, so modifying them will modify the owner.
+        
+        ** Items can be added and removed without affecting the owner.
+        """
         hook_value_as_reference_dict: dict[HK, Any] = {}
         for key in self.get_hook_keys():
             hook_value_as_reference_dict[key] = self.get_hook_value_as_reference(key)
@@ -70,15 +136,28 @@ class CarriesHooks(Protocol[HK]):
 
     @property
     @final
-    def hook_dict(self) -> "dict[HK, HookLike[Any]]":
+    def hook_dict(self) -> "dict[HK, OwnedHookLike[HV]]":
+        """
+        Get a dictionary of hooks.
+        """
         return self.get_hook_dict()
 
     @property
     @final
-    def hook_value_dict(self) -> dict[HK, Any]:
+    def hook_value_dict(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values.
+
+        ** The returned values are copies, so modifying them will not modify the observable.
+        """
         return self.get_hook_value_dict()
 
     @property
     @final
-    def hook_value_as_reference_dict(self) -> dict[HK, Any]:
+    def hook_value_as_reference_dict(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values as references.
+
+        ** The returned values are references, so modifying them will modify the observable.
+        """
         return self.get_hook_value_as_reference_dict()

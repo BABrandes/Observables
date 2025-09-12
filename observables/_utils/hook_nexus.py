@@ -2,9 +2,10 @@ import logging
 from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any
 
 from .general import log
+from .._hooks.owned_hook_like import OwnedHookLike
 
 if TYPE_CHECKING:
-    from .hook import HookLike
+    from .._hooks.hook_like import HookLike
     
 T = TypeVar("T")
 
@@ -76,20 +77,21 @@ class HookNexus(Generic[T]):
             all_nexus_and_values[nexus] = value
 
         # Step 2: Collect all owners
-        owners: set[CarriesHooks[Any]] = set()
+        owners: set[CarriesHooks[Any, Any]] = set()
         for nexus in all_nexus_and_values:
             for hook in nexus.hooks:
-                owners.add(hook.owner)
+                if isinstance(hook, OwnedHookLike):
+                    owners.add(hook.owner)
 
         # Step 3: Check for each owner if the values would be valid as a collective
-        def nexus_intersection(carries_collective_hooks: CarriesCollectiveHooks[Any]) -> set["HookNexus[Any]"]:
+        def nexus_intersection(carries_collective_hooks: CarriesCollectiveHooks[Any, Any]) -> set["HookNexus[Any]"]:
             intersection: set["HookNexus[Any]"] = set()
             for nexus in all_nexus_and_values:
                 for collective_hook in carries_collective_hooks._collective_hooks: # type: ignore
                     if collective_hook.hook_nexus is nexus:
                         intersection.add(nexus)
             return intersection
-        remaining_owners: set[CarriesHooks[Any]] = owners.copy()
+        remaining_owners: set[CarriesHooks[Any, Any]] = owners.copy()
         for owner in owners:
             # Check if the hook is affected by the submission (if there is an overlap of at least 2 hooks)
             if isinstance(owner, CarriesCollectiveHooks):
@@ -208,13 +210,13 @@ class HookNexus(Generic[T]):
         # Get the first hook group's value as the reference
         reference_value = nexus[0]._value
         
-        hook_type: Optional[type["HookLike[T]"]] = None
+        value_type: Optional[type[T]] = None
         for hook_group in nexus:
             for hook in hook_group._hooks:
-                if hook_type is None:
-                    hook_type = type(hook)
-                elif type(hook) != hook_type:
-                    raise ValueError("The hooks in the hook groups must have the same type of T")
+                if value_type is None:
+                    value_type = type(hook.value)
+                elif type(hook.value) != value_type:
+                    raise ValueError("The hooks in the hook groups must have the same value type")
 
         # Check if any groups have overlapping hooks (not disjoint)
         for i, group1 in enumerate(nexus):

@@ -1,18 +1,19 @@
 import unittest
 from unittest.mock import Mock
 from typing import Any
-from observables._utils.hook import Hook, HookLike
+from observables._hooks.owned_hook import OwnedHook
+from observables._hooks.hook_like import HookLike
 from observables._utils.carries_hooks import CarriesHooks
 
 
-class MockCarriesHooks(CarriesHooks[Any]):
+class MockCarriesHooks(CarriesHooks[Any, Any]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):
         self.name = name
         self._hooks: dict[str, HookLike[Any]] = {}
     
-    def is_valid_hook_value(self, key: Any, value: Any) -> tuple[bool, str]:
+    def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
     def __repr__(self) -> str:
@@ -27,7 +28,7 @@ class TestHookListeners(unittest.TestCase):
         self.owner = MockCarriesHooks("TestOwner") # type: ignore
         # Create a mock invalidate callback for testing
         self.invalidate_callback = Mock()
-        self.hook = Hook(self.owner, "initial_value", self.invalidate_callback)
+        self.hook = OwnedHook(self.owner, "initial_value", self.invalidate_callback)
     
     def test_hook_inherits_from_base_listening(self):
         """Test that Hook inherits from BaseListening."""
@@ -238,11 +239,11 @@ class TestHookListeners(unittest.TestCase):
     
     def test_multiple_hooks_independent_listeners(self):
         """Test that different hooks have independent listener sets."""
-        owner1: CarriesHooks[str] = MockCarriesHooks("Owner1") # type: ignore
-        owner2: CarriesHooks[str] = MockCarriesHooks("Owner2") # type: ignore
+        owner1: CarriesHooks[str, Any] = MockCarriesHooks("Owner1") # type: ignore
+        owner2: CarriesHooks[str, Any] = MockCarriesHooks("Owner2") # type: ignore
         
-        hook1 = Hook(owner1, "value1")
-        hook2 = Hook(owner2, "value2")
+        hook1 = OwnedHook(owner1, "value1")
+        hook2 = OwnedHook(owner2, "value2")
         
         callback1 = Mock()
         callback2 = Mock()
@@ -268,7 +269,7 @@ class TestHookListeners(unittest.TestCase):
     def test_hook_with_invalidate_callback(self):
         """Test hook behavior with invalidate callback."""
         invalidate_callback = Mock()
-        hook = Hook(self.owner, "test_value", invalidate_callback)
+        hook = OwnedHook(self.owner, "test_value", invalidate_callback)
         
         callback = Mock()
         hook.add_listeners(callback)
@@ -284,7 +285,7 @@ class TestHookListeners(unittest.TestCase):
     
     def test_hook_without_invalidate_callback(self):
         """Test that calling invalidate without callback raises error."""
-        hook = Hook(self.owner, "test_value")  # No invalidate callback
+        hook = OwnedHook(self.owner, "test_value")  # No invalidate callback
         
         # Should raise ValueError when invalidate callback is accessed
         with self.assertRaises(ValueError):

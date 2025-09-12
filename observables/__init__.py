@@ -98,7 +98,10 @@ from ._other_observables.observable_transfer import ObservableTransfer
 from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
-from ._utils.hook import Hook, HookLike
+from ._hooks.owned_hook import OwnedHook
+from ._hooks.hook_like import HookLike
+from ._hooks.owned_hook_like import OwnedHookLike
+from ._hooks.floating_hook import FloatingHook
 from ._utils.system_analysis import write_report    
 
 # Alias for convenienc
@@ -131,8 +134,10 @@ __all__ = [
     'ObservableSelectionDict',
     'ObservableOptionalSelectionDict',
     'BaseObservable',
-    'Hook',
+    'OwnedHook',
     'HookLike',
+    'OwnedHookLike',
+    'FloatingHook',
     'CarriesCollectiveHooks',
     'InitialSyncMode',
     'ObservableSerializable',

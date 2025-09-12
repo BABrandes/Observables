@@ -1,11 +1,10 @@
 from threading import RLock
-from typing import TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any, Mapping
-from .initial_sync_mode import InitialSyncMode
-from .hook_nexus import HookNexus
-from .base_listening import BaseListeningLike
+from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING
+from .._utils.initial_sync_mode import InitialSyncMode
+from .._utils.base_listening import BaseListeningLike
 
 if TYPE_CHECKING:
-    from .carries_hooks import CarriesHooks
+    from .._utils.hook_nexus import HookNexus
 
 T = TypeVar("T")
 
@@ -27,13 +26,6 @@ class HookLike(BaseListeningLike, Protocol[T]):
     def previous_value(self) -> T:
         """
         Get the previous value behind this hook.
-        """
-        ...
-    
-    @property
-    def owner(self) -> "CarriesHooks[Any]":
-        """
-        Get the owner of this hook.
         """
         ...
     
@@ -140,24 +132,3 @@ class HookLike(BaseListeningLike, Protocol[T]):
         Submit a value to this hook.
         """
         ...
-    
-    @staticmethod
-    def submit_multiple_values(
-        *hooks_and_values: tuple["HookLike[Any]", Any]) -> None:
-        """
-        Set the values of multiple hooks.
-        """
-
-        if len(hooks_and_values) == 0:
-            return
-
-        nexus_and_values: Mapping[HookNexus[Any], Any] = {}
-        for hook, value in hooks_and_values:
-            nexus_and_values[hook.hook_nexus] = value
-
-        # Submit the values to the hook nexus
-        HookNexus.submit_multiple_values(nexus_and_values)
-
-        # Notify listeners of the hooks
-        for hook, _ in hooks_and_values:
-            hook._notify_listeners()

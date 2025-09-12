@@ -89,7 +89,8 @@ See Also:
 from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal, Mapping
 from logging import Logger
 
-from .._utils.hook import HookLike
+from .._hooks.hook_like import HookLike
+from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
@@ -98,7 +99,7 @@ from .._utils.observable_serializable import ObservableSerializable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSelectionOptionLikeBase(CarriesCollectiveHooks[Any], Protocol[T]):
+class ObservableSelectionOptionLikeBase(CarriesCollectiveHooks[Any, Optional[T]|set[T]|int], Protocol[T]):
 
     @property
     def available_options(self) -> set[T]:
@@ -127,7 +128,7 @@ class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protoc
         ...
 
     @property
-    def selected_option_hook(self) -> HookLike[T]:
+    def selected_option_hook(self) -> OwnedHookLike[T]:
         ...
 
     def change_selected_option(self, selected_option: T) -> None:
@@ -148,7 +149,7 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
         ...
 
     @property
-    def selected_option_hook(self) -> HookLike[Optional[T]]:
+    def selected_option_hook(self) -> OwnedHookLike[Optional[T]]:
         ...
 
     def change_selected_option(self, selected_option: Optional[T]) -> None:
@@ -157,11 +158,15 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         ...
 
-class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"]], ObservableSelectionOptionLikeBase[T], Generic[T]):
+class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int], ObservableSelectionOptionLikeBase[T], Generic[T]):
 
     @property
     def available_options(self) -> set[T]:
-        return self._primary_hooks["available_options"].value.copy()
+        value = self._primary_hooks["available_options"].value
+        if isinstance(value, set):
+            return value.copy() # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
     
     @available_options.setter
     def available_options(self, options: set[T]) -> None:
@@ -178,13 +183,18 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
 
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
-        return self._primary_hooks["available_options"]
+        return self._primary_hooks["available_options"] # type: ignore
 
     def _get_set_hook(self) -> HookLike[set[T]]:
-        return self._primary_hooks["available_options"]
+        return self._primary_hooks["available_options"] # type: ignore
 
     def add(self, item: T) -> None:
-        new_options: set[T] = self._primary_hooks["available_options"].value.copy()
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            new_options: set[T] = available_options.copy() # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
+
         if item not in new_options:
             new_options.add(item)
             self._set_component_values({"available_options": new_options}, notify_binding_system=True)
@@ -196,35 +206,56 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
         if item == self._primary_hooks["selected_option"].value:
             raise ValueError(f"Cannot remove {item} as it is the currently selected option")
         
-        new_options: set[T] = self._primary_hooks["available_options"].value.copy()
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            new_options: set[T] = available_options.copy() # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
+
         if item in new_options:
             new_options.remove(item)
             self._set_component_values({"available_options": new_options}, notify_binding_system=True)
     
     def __str__(self) -> str:
-        sorted_options = sorted(self._primary_hooks['available_options'].value)
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            sorted_options: list[T] = sorted(available_options) # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
+
         return f"OSO(selected_option={self._primary_hooks['selected_option'].value}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __repr__(self) -> str:
-        sorted_options = sorted(self._primary_hooks['available_options'].value)
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            sorted_options: list[T] = sorted(available_options) # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
+
         return f"OSO(selected_option={self._primary_hooks['selected_option'].value}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __len__(self) -> int:
-        return len(self._primary_hooks["available_options"].value)
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            return len(available_options) # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
     
     def __contains__(self, item: T) -> bool:
-        return item in self._primary_hooks["available_options"].value
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            return item in available_options # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
     
     def __iter__(self):
-        return iter(self._primary_hooks["available_options"].value)
-
-    def __ne__(self, other: Any) -> bool:
-        return not (self == other)
-
-    def __bool__(self) -> bool:
-        return bool(self._primary_hooks["selected_option"].value)
+        available_options = self._primary_hooks["available_options"].value
+        if isinstance(available_options, set):
+            return iter(available_options) # type: ignore
+        else:
+            raise ValueError("Available options is not a set")
     
-class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
+class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]): # type: ignore
 
     @overload
     def __init__(self, selected_option: HookLike[T], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
@@ -260,7 +291,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
             
             elif isinstance(selected_option, HookLike):
                 initial_selected_option: T = selected_option.value # type: ignore
-                hook_selected_option: Optional[HookLike[T]] = selected_option # type: ignore
+                hook_selected_option = selected_option # type: ignore
 
             else:
                 # selected_option is a T
@@ -288,9 +319,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         )
 
         if hook_selected_option is not None:
-            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_available_options is not None:
-            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -305,12 +336,16 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
             else:
-                selected_option = self._primary_hooks["selected_option"].value
+                selected_option = self._primary_hooks["selected_option"].value # type: ignore
                 
             if "available_options" in x:
                 available_options = x["available_options"]
             else:
-                available_options: set[T] = self._primary_hooks["available_options"].value
+                _available_options = self._primary_hooks["available_options"].value
+                if isinstance(_available_options, set):
+                    available_options: set[T] = _available_options # type: ignore
+                else:
+                    raise ValueError("Available options is not a set")
 
             if selected_option is None:
                 return False, "Selected option is None"
@@ -322,17 +357,17 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         super().__init__(
             initial_values,
             verification_method=is_valid_value,
-            secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
+            secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])}, # type: ignore
             logger=logger
         )
 
     @property
     def selected_option(self) -> T:
-        return self._primary_hooks["selected_option"].value
+        return self._primary_hooks["selected_option"].value # type: ignore
     
     @property
     def selected_option_not_none(self) -> T:
-        selected_option = self._primary_hooks["selected_option"].value
+        selected_option: T = self._primary_hooks["selected_option"].value # type: ignore
         return selected_option
     
     @selected_option.setter
@@ -343,8 +378,8 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
 
     @property
-    def selected_option_hook(self) -> HookLike[T]:
-        return self._primary_hooks["selected_option"]
+    def selected_option_hook(self) -> OwnedHookLike[T]:
+        return self._primary_hooks["selected_option"] # type: ignore
     
     def change_selected_option(self, selected_option: T) -> None:
         if selected_option == self._primary_hooks["selected_option"].value:
@@ -356,22 +391,16 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
 
     def _get_single_value_hook(self) -> HookLike[T]:
-        return self._primary_hooks["selected_option"]
+        return self._primary_hooks["selected_option"] # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, ObservableSelectionOption):
-            return (self._primary_hooks["available_options"].value == other._primary_hooks["available_options"].value and 
-                   self._primary_hooks["selected_option"].value == other._primary_hooks["selected_option"].value)
+            return (self._primary_hooks["available_options"].value == other._primary_hooks["available_options"].value and  # type: ignore
+                   self._primary_hooks["selected_option"].value == other._primary_hooks["selected_option"].value) # type: ignore
         return False
     
-    def __ne__(self, other: Any) -> bool:
-        return not (self == other)
-    
-    def __bool__(self) -> bool:
-        return bool(self._primary_hooks["selected_option"].value)
-    
     def __hash__(self) -> int:
-        return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value))
+        return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value)) # type: ignore
     
 class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
 
@@ -438,9 +467,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         )
 
         if hook_selected_option is not None:
-            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_available_options is not None:
-            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -455,12 +484,16 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
             else:
-                selected_option = self._primary_hooks["selected_option"].value
+                selected_option = self._primary_hooks["selected_option"].value # type: ignore
                 
             if "available_options" in x:
-                available_options: set[T] = x["available_options"]
+                available_options: set[T] = x["available_options"] # type: ignore
             else:
-                available_options = self._primary_hooks["available_options"].value
+                _available_options = self._primary_hooks["available_options"].value
+                if isinstance(_available_options, set):
+                    available_options: set[T] = _available_options # type: ignore
+                else:
+                    raise ValueError("Available options is not a set")
 
             if selected_option is None:
                 return True, "Verification method passed"
@@ -472,34 +505,34 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         super().__init__(
             initial_values,
             verification_method=is_valid_value,
-            secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])},
+            secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])}, # type: ignore
             logger=logger
         )
 
     @property
     def selected_option(self) -> Optional[T]:
-        return self._primary_hooks["selected_option"].value
+        return self.get_hook_value("selected_option") # type: ignore
     
     @property
     def selected_option_not_none(self) -> T:
-        selected_option = self._primary_hooks["selected_option"].value
+        selected_option: T = self.get_hook_value("selected_option") # type: ignore
         if selected_option is None:
             raise ValueError("Selected option is None")
         return selected_option
     
     @selected_option.setter
     def selected_option(self, selected_option: Optional[T]) -> None:
-        if selected_option == self._primary_hooks["selected_option"].value:
+        if selected_option == self.get_hook_value_as_reference("selected_option"):
             return
         
         self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
 
     @property
-    def selected_option_hook(self) -> HookLike[Optional[T]]:
-        return self._primary_hooks["selected_option"]
+    def selected_option_hook(self) -> OwnedHookLike[Optional[T]]:
+        return self.get_hook("selected_option") # type: ignore
     
     def change_selected_option(self, selected_option: Optional[T]) -> None:
-        if selected_option == self._primary_hooks["selected_option"].value:
+        if selected_option == self.get_hook_value_as_reference("selected_option"):
             return
         
         self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
@@ -507,20 +540,14 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
 
-    def _get_single_value_hook(self) -> HookLike[Optional[T]]:
-        return self._primary_hooks["selected_option"]
+    def _get_single_value_hook(self) -> OwnedHookLike[Optional[T]]:
+        return self._primary_hooks["selected_option"] # type: ignore
 
-    def add(self, item: T) -> None:
-        new_options: set[T] = self._primary_hooks["available_options"].value.copy()
-        if item not in new_options:
-            new_options.add(item)
-            self._set_component_values({"available_options": new_options}, notify_binding_system=True)
-    
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, ObservableSelectionOption):
-            return (self._primary_hooks["available_options"].value == other._primary_hooks["available_options"].value and 
-                   self._primary_hooks["selected_option"].value == other._primary_hooks["selected_option"].value)
+            return (self.get_hook_value_as_reference("available_options") == other.get_hook_value_as_reference("available_options") and  # type: ignore
+                   self.get_hook_value_as_reference("selected_option") == other.get_hook_value_as_reference("selected_option")) # type: ignore
         return False
     
     def __hash__(self) -> int:
-        return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value))
+        return hash((frozenset(self.get_hook_value_as_reference("available_options")), self.get_hook_value_as_reference("selected_option"))) # type: ignore

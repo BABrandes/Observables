@@ -1,11 +1,11 @@
 from typing import Any
 from .carries_hooks import CarriesHooks
 from .hook_nexus import HookNexus
-from .hook_like import HookLike
+from .._hooks.hook_like import HookLike
 
-def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]) -> dict[HookNexus[Any], list[tuple[str, CarriesHooks[Any], HookLike[Any]]]]:
+def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooks[Any, Any]]) -> dict[HookNexus[Any], list[tuple[str, CarriesHooks[Any, Any], HookLike[Any]]]]:
 
-    hook_nexuses: dict[HookNexus[Any], list[tuple[str, CarriesHooks[Any], HookLike[Any]]]] = {}
+    hook_nexuses: dict[HookNexus[Any], list[tuple[str, CarriesHooks[Any, Any], HookLike[Any]]]] = {}
     for name, carries_hook in dict_of_carries_hooks.items():
         for hook in carries_hook.hook_dict.values():
             hook_nexus = hook.hook_nexus
@@ -14,7 +14,7 @@ def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]
             hook_nexuses[hook_nexus].append((name, carries_hook, hook))
     return hook_nexuses
 
-def write_report(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]) -> str:
+def write_report(dict_of_carries_hooks: dict[str, CarriesHooks[Any, Any]]) -> str:
     """
     Generate a comprehensive report of hook nexuses and their usage across observables.
     
@@ -67,7 +67,7 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]) -> str:
         report += f"    Used by:\n"
         
         # Group by observable name for better organization
-        observable_groups: dict[str, list[tuple[CarriesHooks[Any], HookLike[Any]]]] = {}
+        observable_groups: dict[str, list[tuple[CarriesHooks[Any, Any], HookLike[Any]]]] = {}
         for owner_name, carries_hook, hook in owner_name_and_hooks:
             if owner_name not in observable_groups:
                 observable_groups[owner_name] = []
@@ -104,7 +104,7 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooks[Any]]) -> str:
     return report
 
 
-def _get_hook_info(carries_hook: CarriesHooks[Any], hook: HookLike[Any]) -> str:
+def _get_hook_info(carries_hook: CarriesHooks[Any, Any], hook: HookLike[Any]) -> str:
     """
     Get detailed information about a hook including its type and key.
     

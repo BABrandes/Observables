@@ -1,12 +1,13 @@
-from typing import Protocol, Any, runtime_checkable, Mapping, TypeVar, final
+from typing import Protocol, runtime_checkable, Mapping, TypeVar, final
 from .initial_sync_mode import InitialSyncMode
 from .carries_hooks import CarriesHooks
-from .hook import HookLike
+from .._hooks.owned_hook_like import OwnedHookLike
 
 HK = TypeVar("HK")
+HV = TypeVar("HV")
 
 @runtime_checkable
-class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
+class CarriesCollectiveHooks(CarriesHooks[HK, HV], Protocol[HK, HV]):
     """
     Protocol for observables that carry a set of hooks that can be used to synchronize their values.
     """ 
@@ -14,10 +15,10 @@ class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
     def get_collective_hook_keys(self) -> set[HK]:
         ...
 
-    def connect_multiple_hooks(self, hooks: Mapping[HK, HookLike[Any]], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_multiple_hooks(self, hooks: Mapping[HK, OwnedHookLike[HV]], initial_sync_mode: InitialSyncMode) -> None:
         ...
 
-    def is_valid_hook_values(self, values: Mapping[HK, Any]) -> tuple[bool, str]:
+    def is_valid_hook_values(self, values: Mapping[HK, HV]) -> tuple[bool, str]:
         ...
 
     #########################################################
@@ -29,5 +30,5 @@ class CarriesCollectiveHooks(CarriesHooks[HK], Protocol[HK]):
 
     @property
     @final
-    def _collective_hooks(self) -> set[HookLike[Any]]:
+    def _collective_hooks(self) -> set[OwnedHookLike[HV]]:
         return {self.get_hook(key) for key in self._collective_hook_keys}

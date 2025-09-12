@@ -58,13 +58,15 @@ Performance Characteristics:
 - Atomic updates using HookNexus.submit_multiple_values()
 """
 
-from typing import Any, Callable, Generic, Mapping, Optional, TypeVar
+from typing import Callable, Generic, Mapping, Optional, TypeVar
 from logging import Logger
 from threading import RLock
 
 from .._utils.initial_sync_mode import InitialSyncMode
 
-from .._utils.hook import Hook, HookLike
+from .._hooks.owned_hook import OwnedHook
+from .._hooks.hook_like import HookLike
+from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.base_listening import BaseListening
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.hook_nexus import HookNexus
@@ -74,9 +76,10 @@ from .._utils.general import log
 # Type variables for input and output hook names
 IHK = TypeVar("IHK")  # Input Hook Keys
 OHK = TypeVar("OHK")  # Output Hook Keys
+HV = TypeVar("HV")
 
 
-class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]):
+class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, HV], Generic[IHK, OHK, HV]):
     """
     An observable that transforms values between input and output hooks with automatic invalidation.
     
@@ -94,10 +97,10 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
 
     def __init__(
         self,
-        input_trigger_hooks: Mapping[IHK, HookLike[Any]|Any],
-        output_trigger_hooks: Mapping[OHK, HookLike[Any]|Any],
-        forward_callable: Callable[[Mapping[IHK, Any]], Mapping[OHK, Any]],
-        reverse_callable: Optional[Callable[[Mapping[OHK, Any]], Mapping[IHK, Any]]] = None,
+        input_trigger_hooks: Mapping[IHK, HookLike[HV]|HV],
+        output_trigger_hooks: Mapping[OHK, HookLike[HV]|HV],
+        forward_callable: Callable[[Mapping[IHK, HV]], Mapping[OHK, HV]],
+        reverse_callable: Optional[Callable[[Mapping[OHK, HV]], Mapping[IHK, HV]]] = None,
         logger: Optional[Logger] = None
     ):
         """
@@ -113,10 +116,10 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
                 Use value as value for keys that should be managed internally without external connection.
                 All keys that the forward_callable returns must be present in this dict.
             forward_callable: Function that transforms input values to output values.
-                Expected signature: (input_values: Mapping[IHK, Any]) -> Mapping[OHK, Any]
+                Expected signature: (input_values: Mapping[IHK, KV]) -> Mapping[OHK, KV]
                 Must return a dict with keys matching output_trigger_hooks keys.
             reverse_callable: Optional function that transforms output values to input values.
-                Expected signature: (output_values: Mapping[OHK, Any]) -> Mapping[IHK, Any]
+                Expected signature: (output_values: Mapping[OHK, KV]) -> Mapping[IHK, KV]
                 Must return a dict with keys matching input_trigger_hooks keys.
             logger: Optional logger for debugging and monitoring transformations.
         
@@ -149,15 +152,15 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         # Initialize base classes
         super().__init__(logger)
         
-        self._forward_callable: Callable[[Mapping[IHK, Any]], Mapping[OHK, Any]] = forward_callable
-        self._reverse_callable: Optional[Callable[[Mapping[OHK, Any]], Mapping[IHK, Any]]] = reverse_callable
+        self._forward_callable: Callable[[Mapping[IHK, HV]], Mapping[OHK, HV]] = forward_callable
+        self._reverse_callable: Optional[Callable[[Mapping[OHK, HV]], Mapping[IHK, HV]]] = reverse_callable
         self._lock: RLock = RLock()
         self._logger: Optional[Logger] = logger
         
         # Create internal hooks for all keys that will be used in transformations
         # These internal hooks will have invalidation callbacks that trigger our transformations
-        self._input_hooks: dict[IHK, Hook[Any]] = {}
-        self._output_hooks: dict[OHK, Hook[Any]] = {}
+        self._input_hooks: dict[IHK, OwnedHook[HV]] = {}
+        self._output_hooks: dict[OHK, OwnedHook[HV]] = {}
         
         # We need to determine all possible keys by analyzing the callable signatures
         # For now, we'll create hooks for the provided external hooks and connect them
@@ -166,7 +169,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         for key, external_hook_or_value in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
             initial_value: Any = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
-            internal_hook: Hook[Any] = Hook(
+            internal_hook: OwnedHook[HV] = OwnedHook(
                 owner=self,
                 value=initial_value, # type: ignore
                 invalidate_callback=lambda _, k=key: self._on_input_invalidated(k),
@@ -180,7 +183,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         for key, external_hook_or_value in output_trigger_hooks.items():
             # Create internal hook with invalidation callback
             initial_value: Any = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
-            internal_hook = Hook(
+            internal_hook = OwnedHook[HV](
                 owner=self,
                 value=initial_value, # type: ignore
                 invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
@@ -196,7 +199,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
     # CarriesHooks interface
     #########################################################################
 
-    def get_hook(self, key: IHK|OHK) -> "HookLike[Any]":
+    def get_hook(self, key: IHK|OHK) -> "OwnedHookLike[HV]":
         """Get a hook by its key (either input or output)."""
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore
@@ -205,7 +208,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def get_hook_value_as_reference(self, key: IHK|OHK) -> Any:
+    def get_hook_value_as_reference(self, key: IHK|OHK) -> HV:
         if key in self._input_hooks:
             return self._input_hooks[key].value # type: ignore
         elif key in self._output_hooks:
@@ -216,7 +219,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
     def get_hook_keys(self) -> set[IHK|OHK]:
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> IHK|OHK:
+    def get_hook_key(self, hook_or_nexus: "HookLike[HV]|HookNexus[HV]") -> IHK|OHK:
         for key, hook in self._input_hooks.items():
             if hook is hook_or_nexus:
                 return key
@@ -225,7 +228,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
                 return key
         raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
 
-    def connect(self, hook: "HookLike[Any]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect(self, hook: "HookLike[HV]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
         """Connect an external hook to one of this transfer's hooks."""
         if to_key in self._input_hooks:
             self._input_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
@@ -247,7 +250,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def is_valid_hook_value(self, key: IHK|OHK, value: Any) -> tuple[bool, str]:
+    def is_valid_hook_value(self, hook_key: IHK|OHK, value: HV) -> tuple[bool, str]:
         """Validate a value for a specific hook. Currently allows all values."""
         return True, "All values are always valid"
 
@@ -294,9 +297,9 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
     
     def _trigger_transformation(
             self, 
-            source_hooks: dict[IHK, Hook[Any]] | dict[OHK, Hook[Any]], 
-            target_hooks: dict[OHK, Hook[Any]] | dict[IHK, Hook[Any]],
-            transform_callable: Callable[[Mapping[IHK, Any]], Mapping[OHK, Any]] | Callable[[Mapping[OHK, Any]], Mapping[IHK, Any]],
+            source_hooks: dict[IHK, OwnedHook[HV]] | dict[OHK, OwnedHook[HV]], 
+            target_hooks: dict[OHK, OwnedHook[HV]] | dict[IHK, OwnedHook[HV]],
+            transform_callable: Callable[[Mapping[IHK, HV]], Mapping[OHK, HV]] | Callable[[Mapping[OHK, HV]], Mapping[IHK, HV]],
             direction: str) -> None:
         """
         Trigger transformation between source and target hooks.
@@ -309,10 +312,10 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
         """
         with self._lock:
             # Get current values from source hooks
-            source_values: dict[IHK, Any] | dict[OHK, Any] = {key: hook.value for key, hook in source_hooks.items()} # type: ignore
+            source_values: dict[IHK, HV] | dict[OHK, HV] = {key: hook.value for key, hook in source_hooks.items()} # type: ignore
             
             # Call transformation
-            target_values: Mapping[OHK, Any] | Mapping[IHK, Any] = transform_callable(source_values) # type: ignore
+            target_values: Mapping[OHK, HV] | Mapping[IHK, HV] = transform_callable(source_values) # type: ignore
             
             # Validate target keys
             if target_values.keys() != target_hooks.keys():
@@ -323,10 +326,10 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK], Generic[IHK, OHK]
                 key: OHK | IHK = next(iter(target_values.keys()))
                 target_hooks[key].submit_single_value(target_values[key]) # type: ignore
             else:
-                hooks_and_values: list[tuple[HookLike[Any], Any]] = []
+                hooks_and_values: list[tuple[OwnedHookLike[HV], HV]] = []
                 for key, value in target_values.items():
                     hooks_and_values.append((target_hooks[key], value)) # type: ignore
-                HookLike[Any].submit_multiple_values(*hooks_and_values)
+                OwnedHookLike[HV].submit_multiple_values(*hooks_and_values)
             
             # Notify listeners
             self._notify_listeners()

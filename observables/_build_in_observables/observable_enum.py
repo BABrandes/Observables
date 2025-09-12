@@ -1,7 +1,7 @@
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping
 from enum import Enum
 from logging import Logger
-from .._utils.hook import HookLike
+from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
@@ -10,7 +10,7 @@ from .._utils.observable_serializable import ObservableSerializable
 E = TypeVar("E", bound=Enum)
 
 @runtime_checkable
-class ObservableEnumLikeBase(CarriesCollectiveHooks[Any], Protocol[E]):
+class ObservableEnumLikeBase(CarriesCollectiveHooks[Any, Any], Protocol[E]):
     """
     Base protocol for observable enum objects.
     """
@@ -121,7 +121,7 @@ class ObservableEnumLike(ObservableEnumLikeBase[E], Protocol[E]):
         ...
 
 # ObservableEnum implements the Observable protocol for type safety and polymorphism
-class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], Any], ObservableEnumLikeBase[E], Generic[E]):
+class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], Any, set[E]|Optional[E], int], ObservableEnumLikeBase[E], Generic[E]):
 
     @property
     def enum_options(self) -> set[E]:
@@ -131,7 +131,7 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         Returns:
             A copy of the available enum options set to prevent external modification
         """
-        return self._primary_hooks["enum_options"].value.copy()
+        return self._primary_hooks["enum_options"].value.copy() # type: ignore
     
     @enum_options.setter
     def enum_options(self, value: set[E]) -> None:
@@ -144,14 +144,14 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         Args:
             value: New set of available enum options
         """
-        self._set_component_values({"enum_options": value}, notify_binding_system=True)
+        self._set_component_values({"enum_options": value}, notify_binding_system=True) # type: ignore
 
     @property
     def enum_options_hook(self) -> HookLike[set[E]]:
         """
         Get the hook for the enum options.
         """
-        return self._primary_hooks["enum_options"]
+        return self._primary_hooks["enum_options"] # type: ignore
     
     def change_enum_options(self, new_options: set[E]) -> None:
         """
@@ -170,11 +170,11 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
             option: The new enum option to add
         """
 
-        values: Mapping[Literal["enum_value", "enum_options"], Any] = self.hook_value_dict.copy()
+        _enum_options: set[E] = self.get_hook_value("enum_options") # type: ignore
 
-        if option not in values["enum_options"]:
-            values["enum_options"].add(option)
-            self._set_component_values({"enum_options": values["enum_options"]}, notify_binding_system=True)
+        if option not in _enum_options:
+            _enum_options.add(option)
+            self._set_component_values({"enum_options": _enum_options}, notify_binding_system=True)
 
     def remove_enum_option(self, option: E) -> None:
         """
@@ -195,16 +195,18 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
 
         if option == values["enum_value"]:
             raise ValueError(f"Cannot remove currently selected enum value {option}")
+
+        _enum_options: set[E] = self.get_hook_value("enum_options") # type: ignore
         
-        if option in values["enum_options"]:
-            values["enum_options"].remove(option)
-            self._set_component_values({"enum_options": values["enum_options"]}, notify_binding_system=True)
+        if option in _enum_options:
+            _enum_options.remove(option)
+            self._set_component_values({"enum_options": _enum_options}, notify_binding_system=True)
 
     def __str__(self) -> str:
         """String representation of the observable enum."""
         # Sort options for consistent string representation
-        sorted_options = sorted(self._primary_hooks['enum_options'].value, key=lambda x: x.value if x is not None else '')
-        return f"OE(enum_value={self._primary_hooks['enum_value'].value}, enum_options={{{', '.join(str(opt) for opt in sorted_options)}}})"
+        sorted_options: list[E] = sorted(self._primary_hooks['enum_options'].value, key=lambda x: x.value if x is not None else '') # type: ignore
+        return f"OE(enum_value={self._primary_hooks['enum_value'].value}, enum_options={{{', '.join(str(opt) for opt in sorted_options)}}})" # type: ignore
     
     def __repr__(self) -> str:
         """Detailed string representation of the observable enum."""
@@ -413,9 +415,9 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
 
         # Establish bindings if carriers were provided
         if hook_selected_enum is not None:
-            self.connect(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_enum_options is not None:
-            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -431,12 +433,12 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             if "enum_value" in x:
                 enum_value: Optional[E] = x["enum_value"] # type: ignore
             else:
-                enum_value = self._primary_hooks["enum_value"].value
+                enum_value = self._primary_hooks["enum_value"].value # type: ignore
             
             if "enum_options" in x:
                 enum_options: set[E] = x["enum_options"]
             else:
-                enum_options = self._primary_hooks["enum_options"].value
+                enum_options = self._primary_hooks["enum_options"].value # type: ignore
 
             if enum_value is not None and enum_value not in enum_options:
                 return False, f"Enum value {enum_value} not in options {enum_options}"
@@ -457,7 +459,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         Returns:
             The currently selected enum value
         """
-        return self._primary_hooks["enum_value"].value
+        return self._primary_hooks["enum_value"].value # type: ignore
     
     @enum_value.setter
     def enum_value(self, value: Optional[E]) -> None:
@@ -483,7 +485,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         """
         Get the hook for the enum value.
         """
-        return self._primary_hooks["enum_value"]
+        return self.get_hook("enum_value") # type: ignore
 
     def set_enum_value_and_options(self, enum_value: Optional[E], enum_options: set[E]) -> None:
         """
@@ -513,10 +515,10 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableOptionalEnumLike):
-            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and 
-                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options"))
+            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and # type: ignore
+                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options")) # type: ignore
         elif isinstance(other, Enum):
-            return self.get_hook_value("enum_value") == other
+            return self.get_hook_value("enum_value") == other # type: ignore
         return False
     
     def __hash__(self) -> int:
@@ -527,7 +529,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             Hash value of the stored enum value and options
         """
         try:
-            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options"))))
+            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options")))) # type: ignore
         except (AttributeError, KeyError):
             # Fallback to object identity if not fully initialized
             return id(self)
@@ -713,9 +715,9 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
 
         # Establish bindings if hooks were provided
         if hook_enum_value is not None:
-            self.connect(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_enum_options is not None:
-            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -731,12 +733,12 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             if "enum_value" in x:
                 enum_value: E = x["enum_value"] # type: ignore
             else:
-                enum_value: E = self._primary_hooks["enum_value"].value
+                enum_value: E = self.get_hook_value("enum_value") # type: ignore
             
             if "enum_options" in x:
                 enum_options: set[E] = x["enum_options"]
             else:
-                enum_options = self._primary_hooks["enum_options"].value
+                enum_options = self.get_hook_value("enum_options") # type: ignore
 
             if enum_value not in enum_options:
                 return False, f"Enum value {enum_value} not in options {enum_options}"
@@ -757,7 +759,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Returns:
             The currently selected enum value
         """
-        return self._primary_hooks["enum_value"].value
+        return self.get_hook_value("enum_value") # type: ignore
     
     @enum_value.setter
     def enum_value(self, value: E) -> None:
@@ -783,7 +785,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         """
         Get the hook for the enum value.
         """
-        return self._primary_hooks["enum_value"]
+        return self.get_hook("enum_value") # type: ignore
 
     def set_enum_value_and_options(self, enum_value: E, enum_options: set[E]) -> None:
         """
@@ -813,7 +815,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableEnumLike):
-            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and 
+            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and # type: ignore
                    self.get_hook_value("enum_options") == other.get_hook_value("enum_options"))
         elif isinstance(other, Enum):
             return self.get_hook_value("enum_value") == other
@@ -827,7 +829,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             Hash value of the stored enum value and options
         """
         try:
-            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options"))))
+            return hash((self.get_hook_value("enum_value"), frozenset(self.get_hook_value("enum_options")))) # type: ignore
         except (AttributeError, KeyError):
             # Fallback to object identity if not fully initialized
             return id(self)

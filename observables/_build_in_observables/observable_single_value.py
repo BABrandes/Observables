@@ -1,6 +1,6 @@
 from logging import Logger
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
-from .._utils.hook import HookLike
+from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
@@ -9,7 +9,7 @@ from .._utils.observable_serializable import ObservableSerializable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
+class ObservableSingleValueLike(CarriesHooks[Any, T], Protocol[T]):
     """
     Protocol for observable single value objects.
     """
@@ -42,7 +42,7 @@ class ObservableSingleValueLike(CarriesHooks[Any], Protocol[T]):
         ...
     
 
-class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSerializable[Literal["value"], "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], ObservableSerializable[Literal["value"], "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     
@@ -141,7 +141,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
 
         super().__init__(
             initial_values,
-            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
+            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]), # type: ignore
             secondary_hook_callbacks={},
             logger=logger
         )
@@ -232,7 +232,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is less than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._primary_hooks["value"].value < other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value < other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value < other
     
     def __le__(self, other: Any) -> bool:
@@ -246,7 +246,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value <= other
     
     def __gt__(self, other: Any) -> bool:
@@ -260,7 +260,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is greater than the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._primary_hooks["value"].value > other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value > other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value > other
     
     def __ge__(self, other: Any) -> bool:
@@ -274,7 +274,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any], ObservableSer
             True if this value is greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableSingleValue):
-            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value >= other
     
     def __bool__(self) -> bool:

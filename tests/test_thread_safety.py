@@ -393,7 +393,7 @@ class TestThreadSafetyEdgeCases:
     def test_stress_test_thread_safety(self):
         """Stress test with many concurrent operations."""
         errors: list[str] = []
-        observables: list[BaseObservable[Any, Any]] = []
+        observables: list[BaseObservable[Any, Any, Any, Any]] = []
         
         # Create shared observables
         for i in range(10):

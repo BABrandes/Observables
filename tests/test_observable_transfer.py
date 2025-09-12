@@ -1,32 +1,44 @@
 import unittest
 import threading
 import time
-from typing import Any, Literal, Mapping, Optional
+from typing import Any, Literal, Mapping, Optional, cast
 from logging import Logger
-from observables import ObservableTransfer, Hook, BaseObservable, InitialSyncMode, ObservableSingleValue
+from observables import ObservableTransfer, BaseObservable, InitialSyncMode, ObservableSingleValue, HookLike
+from observables._hooks.owned_hook import OwnedHook
 # Set up logging for tests
 import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-class MockObservable(BaseObservable[Literal["value"], Any]):
-    """Mock observable for testing purposes."""
+class MockObservable(BaseObservable[Any, Any, Any, Any]):
+    """Mock observable for testing purposes that can handle arbitrary hooks."""
     
     def __init__(self, name: str):
         self._internal_construct_from_values({"value": name})
+        # Store hooks that are created with this owner
+        self._registered_hooks: dict[Any, Any] = {}
     
     def _internal_construct_from_values(
         self,
-        initial_values: Mapping[Literal["value"], str],
+        initial_values: Mapping[Any, Any],
         logger: Optional[Logger] = None,
         **kwargs: Any) -> None:
         """Construct a MockObservable instance."""
         super().__init__(initial_component_values_or_hooks=initial_values)
     
-    def _act_on_invalidation(self, keys: set[Literal["value"]]) -> None:
+    def _act_on_invalidation(self, keys: set[Any]) -> None:
         """Act on invalidation - required by BaseObservable."""
         pass
+    
+    def get_hook_key(self, hook_or_nexus: Any) -> Any:
+        """Get the key for a hook - return a dummy key for any hook."""
+        # For testing purposes, return a dummy key
+        return "dummy_key"
+    
+    def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
+        """Check if the value is valid - always return True for testing."""
+        return True, "Mock validation always passes"
 
 
 class TestObservableTransfer(unittest.TestCase):
@@ -39,12 +51,12 @@ class TestObservableTransfer(unittest.TestCase):
     def test_basic_creation(self):
         """Test basic ObservableTransfer creation."""
         # Create input hooks
-        x_hook = Hook(owner=self.mock_owner, value=5, logger=logger)
-        y_hook = Hook(owner=self.mock_owner, value=3, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
+        y_hook = OwnedHook(owner=self.mock_owner, value=3, logger=logger)
         
         # Create output hooks
-        sum_hook = Hook(owner=self.mock_owner, value=0, logger=logger)
-        product_hook = Hook(owner=self.mock_owner, value=0, logger=logger)
+        sum_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
+        product_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
         
         # Create transfer
         transfer = ObservableTransfer(
@@ -84,9 +96,9 @@ class TestObservableTransfer(unittest.TestCase):
 
     def test_hook_access(self):
         """Test hook access methods."""
-        x_hook = Hook(owner=self.mock_owner, value=5, logger=logger)
-        y_hook = Hook(owner=self.mock_owner, value=3, logger=logger)
-        sum_hook = Hook(owner=self.mock_owner, value=0, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
+        y_hook = OwnedHook(owner=self.mock_owner, value=3, logger=logger)
+        sum_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook, "y": y_hook},
@@ -133,7 +145,7 @@ class TestObservableTransfer(unittest.TestCase):
         y_obs = ObservableSingleValue(3, logger=logger)
         sum_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"]](
+        ObservableTransfer[Literal["x", "y"], Literal["sum"], int](
             input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
             output_trigger_hooks={"sum": sum_obs.value_hook},
             forward_callable=forward_transform,
@@ -171,7 +183,7 @@ class TestObservableTransfer(unittest.TestCase):
         product_obs = ObservableSingleValue(0, logger=logger)
         diff_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"]](
+        ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"], int](
             input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
             output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "difference": diff_obs.value_hook},
             forward_callable=forward_transform,
@@ -211,7 +223,7 @@ class TestObservableTransfer(unittest.TestCase):
         x_obs = ObservableSingleValue(5, logger=logger)
         result_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x"], Literal["result"]](
+        ObservableTransfer[Literal["x"], Literal["result"], int](
             input_trigger_hooks={"x": x_obs.value_hook},
             output_trigger_hooks={"result": result_obs.value_hook},
             forward_callable=forward_transform,
@@ -243,7 +255,7 @@ class TestObservableTransfer(unittest.TestCase):
         def fahrenheit_to_celsius(outputs: Mapping[Literal["fahrenheit"], Any]) -> Mapping[Literal["celsius"], Any]:
             return {"celsius": (outputs["fahrenheit"] - 32) * 5/9}
         
-        ObservableTransfer[Literal["celsius"], Literal["fahrenheit"]](
+        ObservableTransfer[Literal["celsius"], Literal["fahrenheit"], float](
             input_trigger_hooks={"celsius": celsius_obs.value_hook},
             output_trigger_hooks={"fahrenheit": fahrenheit_obs.value_hook},
             forward_callable=celsius_to_fahrenheit,
@@ -261,9 +273,9 @@ class TestObservableTransfer(unittest.TestCase):
 
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
-        x_hook = Hook(owner=self.mock_owner, value=5, logger=logger)
-        result_hook = Hook(owner=self.mock_owner, value=0, logger=logger)
-        external_hook = Hook(owner=self.mock_owner, value=999, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
+        result_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
+        external_hook = OwnedHook(owner=self.mock_owner, value=999, logger=logger)
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook},
@@ -288,10 +300,10 @@ class TestObservableTransfer(unittest.TestCase):
     def test_dictionary_access_scenario(self):
         """Test dictionary access transformation scenario."""
         # Create observables for dictionary access pattern
-        dict_obs = ObservableSingleValue({"a": 1, "b": 2, "c": 3}, logger=logger)
-        key_obs = ObservableSingleValue("a", logger=logger)
-        value_obs = ObservableSingleValue(None, logger=logger)
-        exists_obs = ObservableSingleValue(False, logger=logger)
+        dict_obs = ObservableSingleValue[dict[str, int]]({"a": 1, "b": 2, "c": 3}, logger=logger)
+        key_obs: ObservableSingleValue[str] = ObservableSingleValue("a", logger=logger)
+        value_obs = ObservableSingleValue[Optional[int]](None, logger=logger)
+        exists_obs = ObservableSingleValue[bool](False, logger=logger)
         
         def dict_access_transform(inputs: Mapping[Literal["dict", "key"], Any]) -> Mapping[Literal["value", "exists"], Any]:
             d = inputs["dict"]
@@ -301,9 +313,15 @@ class TestObservableTransfer(unittest.TestCase):
                 "exists": k in d
             }
         
-        ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"]](
-            input_trigger_hooks={"dict": dict_obs.value_hook, "key": key_obs.value_hook},
-            output_trigger_hooks={"value": value_obs.value_hook, "exists": exists_obs.value_hook},
+        ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None](
+            input_trigger_hooks={
+                "dict": cast(HookLike[dict[str, int] | str | int | bool | None], dict_obs.value_hook),
+                "key": cast(HookLike[dict[str, int] | str | int | bool | None], key_obs.value_hook)
+            },
+            output_trigger_hooks={
+                "value": cast(HookLike[dict[str, int] | str | int | bool | None], value_obs.value_hook),
+                "exists": cast(HookLike[dict[str, int] | str | int | bool | None], exists_obs.value_hook)
+            },
             forward_callable=dict_access_transform,
             logger=logger
         )
@@ -342,7 +360,7 @@ class TestObservableTransfer(unittest.TestCase):
             transform_count.append(1)
             return {"sum": inputs["x"] + inputs["y"]}
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"]](
+        ObservableTransfer[Literal["x", "y"], Literal["sum"], int](
             input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
             output_trigger_hooks={"sum": sum_obs.value_hook},
             forward_callable=slow_transform,
@@ -402,7 +420,7 @@ class TestObservableTransfer(unittest.TestCase):
         def format_string(inputs: Mapping[Literal["template", "name"], Any]) -> Mapping[Literal["result"], Any]:
             return {"result": inputs["template"].format(name=inputs["name"])}
         
-        ObservableTransfer[Literal["template", "name"], Literal["result"]](
+        ObservableTransfer[Literal["template", "name"], Literal["result"], str](
             input_trigger_hooks={"template": template_obs.value_hook, "name": name_obs.value_hook},
             output_trigger_hooks={"result": result_obs.value_hook},
             forward_callable=format_string,
@@ -435,7 +453,7 @@ class TestObservableTransfer(unittest.TestCase):
                 "quotient": x / y if y != 0 else float('inf')
             }
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"]](
+        ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"], int|float](
             input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
             output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "quotient": quotient_obs.value_hook},
             forward_callable=math_operations,

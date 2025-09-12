@@ -3,7 +3,9 @@
 """
 
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any
-from .observable_transfer import HookLike, Hook
+from .._hooks.hook_like import HookLike
+from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.owned_hook import OwnedHook
 from logging import Logger
 from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -13,7 +15,7 @@ from .._utils.base_listening import BaseListening
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"]], BaseListening, Generic[K, V]):
+class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
 
     """
@@ -67,19 +69,26 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
                 self._ignore_invalidation_flag = False
             return True, "Successfully invalidated"
 
-        self._dict_hook: Hook[dict[K, V]] = Hook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
-        self._key_hook: Hook[K] = Hook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
-        self._value_hook: Hook[V] = Hook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
+        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
+        self._key_hook: OwnedHook[K] = OwnedHook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
+        self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
 
         def verification_method(x: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-            if "value" in x and x["value"] is None:
+
+            # All three keys must be present!
+            if "dict" not in x or "key" not in x or "value" not in x:
+                return False, "All three keys must be present"
+
+            if x["value"] is None:
                 return False, "Value is None"
-            if "key" in x and x["key"] is None:
+            if x["key"] is None:
                 return False, "Key is None"
-            if "dict" in x and x["dict"] is None:
+            if x["dict"] is None:
                 return False, "Dictionary is None"
-            if "key" in x and "dict" in x and x["key"] not in x["dict"]:
+
+            if x["key"] not in x["dict"]:
                 return False, "Key is not in dictionary"
+
             return True, "Verification method passed"
 
         self._verification_method = verification_method
@@ -91,11 +100,24 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         if isinstance(value_hook, HookLike):
             self._value_hook.connect(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
+    def verify_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        """
+        Verify the values.
+
+        Args:
+            values: The values to verify.
+
+        Returns:
+            A tuple containing a boolean indicating if the values are valid and a string describing the result.
+        """
+        values = {**self.get_hook_value_as_reference_dict(), **values}
+        return self._verification_method(values)
+
     ########################################################
     # CarriesHooks interface
     ########################################################
 
-    def get_hook(self, key: Literal["dict", "key", "value"]) -> "HookLike[Any]":
+    def get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -149,8 +171,10 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def is_valid_hook_value(self, key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
-        return self._verification_method({key: value})
+    def is_valid_hook_value(self, hook_key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
+        values = self.get_hook_value_as_reference_dict()
+        values[hook_key] = value
+        return self._verification_method(values)
 
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
@@ -169,6 +193,7 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         self._value_hook.connect(hooks["value"], initial_sync_mode)
 
     def is_valid_hook_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        values = {**self.get_hook_value_as_reference_dict(), **values}
         return self._verification_method(values)
 
 ########################################################
@@ -250,12 +275,12 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         if not success:
             raise ValueError(message)
         
-        HookLike[Any].submit_multiple_values(
+        OwnedHookLike[Any].submit_multiple_values(
             (self._dict_hook, dict_value),
             (self._key_hook, key_value)
         )
 
-class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"]], BaseListening, Generic[K, V]):
+class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
 
     """
@@ -319,18 +344,27 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
             self._ignore_invalidation_flag = False
             return True, "Successfully invalidated"
 
-        self._dict_hook: Hook[dict[K, V]] = Hook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
-        self._key_hook: Hook[Optional[K]] = Hook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
-        self._value_hook: Hook[Optional[V]] = Hook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
+        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
+        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
+        self._value_hook: OwnedHook[Optional[V]] = OwnedHook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
 
         def verification_method(x: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-            if "value" in x and x["value"] is None:
-                return False, "Value is None"
-            if "key" in x and x["key"] is None:
-                if "value" in x and x["value"] is not None:
-                    return False, "Key is None but value is not None"
-            if "key" in x and "dict" in x and x["key"] is not None and x["key"] not in x["dict"]:
+
+            # All three keys must be present!
+            if "dict" not in x or "key" not in x or "value" not in x:
+                return False, "All three keys must be present"
+
+            if x["dict"] is None:
+                return False, "Dictionary is None"
+            if x["key"] is None and x["value"] is None:
+                return True, "Verification method passed"
+            if x["key"] is None:
+                return False, "Key is None but value is not None"
+            if x["value"] is None:
+                return False, "Value is None but key is not None"
+            if x["key"] not in x["dict"]:
                 return False, "Key is not in dictionary"
+
             return True, "Verification method passed"
 
         self._verification_method = verification_method
@@ -360,7 +394,7 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def get_hook(self, key: Literal["dict", "key", "value"]) -> "HookLike[Any]":
+    def get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -400,8 +434,10 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def is_valid_hook_value(self, key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
-        return self._verification_method({key: value})
+    def is_valid_hook_value(self, hook_key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
+        values = self.get_hook_value_as_reference_dict()
+        values[hook_key] = value
+        return self._verification_method(values)
 
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
@@ -420,6 +456,7 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         self._value_hook.connect(hooks["value"], initial_sync_mode)
 
     def is_valid_hook_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        values = {**self.get_hook_value_as_reference_dict(), **values}
         return self._verification_method(values)
 
 ########################################################
@@ -497,11 +534,11 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         Set the dictionary and key behind this hook.
         """
 
-        success, msg = self._verification_method({"dict": dict_value, "key": key_value})
+        success, msg = self.is_valid_hook_values({"dict": dict_value, "key": key_value})
         if not success:
             raise ValueError(msg)
 
-        HookLike[Any].submit_multiple_values(
+        OwnedHookLike[Any].submit_multiple_values(
             (self._dict_hook, dict_value),
             (self._key_hook, key_value)
         )

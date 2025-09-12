@@ -1,7 +1,7 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
 from typing import Optional
-from .._utils.hook import HookLike
+from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks import CarriesHooks
 from .._utils.base_observable import BaseObservable
@@ -10,7 +10,7 @@ from .._utils.observable_serializable import ObservableSerializable
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
+class ObservableTupleLike(CarriesHooks[Any, Any], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -56,7 +56,7 @@ class ObservableTupleLike(CarriesHooks[Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], ObservableSerializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int], ObservableSerializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -138,7 +138,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         )
 
         if hook is not None:
-            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -155,7 +155,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         super().__init__(
             initial_values,
             verification_method=is_valid_value,
-            secondary_hook_callbacks={"length": lambda x: len(x["value"])},
+            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
 
@@ -167,14 +167,14 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Returns:
             A copy of the current tuple to prevent external modification
         """
-        return self._primary_hooks["value"].value
+        return self._primary_hooks["value"].value # type: ignore
     
     @value.setter
     def value(self, value: tuple[T, ...]) -> None:
         """
         Set the current tuple value.
         """
-        if value == self._primary_hooks["value"].value:
+        if value == self._primary_hooks["value"].value: # type: ignore
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
     
@@ -182,7 +182,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         """
         Change the tuple value (lambda-friendly method).
         """
-        if new_value == self._primary_hooks["value"].value:
+        if new_value == self._primary_hooks["value"].value: # type: ignore
             return
         self._set_component_values({"value": new_value}, notify_binding_system=True)
     
@@ -191,21 +191,21 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         """
         Get the hook for the tuple value.
         """
-        return self._primary_hooks["value"]
+        return self._primary_hooks["value"] # type: ignore
     
     @property
     def length(self) -> int:
         """
         Get the current length of the tuple.
         """
-        return len(self._primary_hooks["value"].value)
+        return len(self._primary_hooks["value"].value) # type: ignore
     
     @property
     def length_hook(self) -> HookLike[int]:
         """
         Get the hook for the tuple length.
         """
-        return self._secondary_hooks["length"]
+        return self._secondary_hooks["length"] # type: ignore
 
     def __str__(self) -> str:
         """String representation of the observable tuple."""
@@ -222,7 +222,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Returns:
             The number of items in the tuple
         """
-        return len(self._primary_hooks["value"].value)
+        return len(self._primary_hooks["value"].value) # type: ignore
     
     def __getitem__(self, index: int) -> T:
         """
@@ -237,7 +237,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Raises:
             IndexError: If the index is out of range
         """
-        return self._primary_hooks["value"].value[index]
+        return self._primary_hooks["value"].value[index] # type: ignore
     
     def __contains__(self, item: T) -> bool:
         """
@@ -249,16 +249,16 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Returns:
             True if the item is in the tuple, False otherwise
         """
-        return item in self._primary_hooks["value"].value
+        return item in self._primary_hooks["value"].value # type: ignore
     
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         """
         Get an iterator over the tuple items.
         
         Returns:
             An iterator that yields each item in the tuple
         """
-        return iter(self._primary_hooks["value"].value)
+        return iter(self._primary_hooks["value"].value) # type: ignore
     
     def __eq__(self, other: Any) -> bool:
         """
@@ -271,7 +271,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             True if the tuples contain the same items in the same order, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value == other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value == other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value == other
     
     def __ne__(self, other: Any) -> bool:
@@ -297,7 +297,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             True if this tuple is lexicographically less than the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value < other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value < other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value < other
     
     def __le__(self, other: Any) -> bool:
@@ -311,7 +311,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             True if this tuple is lexicographically less than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value <= other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value <= other
     
     def __gt__(self, other: Any) -> bool:
@@ -325,7 +325,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             True if this tuple is lexicographically greater than the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value > other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value > other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value > other
     
     def __ge__(self, other: Any) -> bool:
@@ -339,7 +339,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             True if this tuple is lexicographically greater than or equal to the other, False otherwise
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value >= other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value >= other
     
     def __add__(self, other: Any) -> tuple[T, ...]:
@@ -353,7 +353,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
             A new tuple containing all items from both tuples
         """
         if isinstance(other, ObservableTuple):
-            return self._primary_hooks["value"].value + other._primary_hooks["value"].value
+            return self._primary_hooks["value"].value + other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value + other
     
     def __mul__(self, other: int) -> tuple[T, ...]:
@@ -366,7 +366,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Returns:
             A new tuple with the original items repeated
         """
-        return self._primary_hooks["value"].value * other
+        return self._primary_hooks["value"].value * other # type: ignore
     
     def __rmul__(self, other: int) -> tuple[T, ...]:
         """
@@ -378,7 +378,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"]], Obser
         Returns:
             A new tuple with the original items repeated
         """
-        return other * self._primary_hooks["value"].value
+        return other * self._primary_hooks["value"].value # type: ignore
     
     def __hash__(self) -> int:
         """

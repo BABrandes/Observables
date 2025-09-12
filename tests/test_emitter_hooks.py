@@ -220,7 +220,7 @@ class TestEmitterHooksListeners:
         listener_calls: list[int] = []
         
         def length_listener():
-            listener_calls.append(obs_list.get_hook_value("length"))
+            listener_calls.append(obs_list.length)
         
         # Add listener to length hook
         length_hook = obs_list.length_hook
@@ -292,7 +292,7 @@ class TestSecondaryHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to secondary hook
-        obs_list.connect(target.value_hook, "length", InitialSyncMode.USE_CALLER_VALUE)
+        obs_list.connect(target.value_hook, "length", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Should sync immediately
         assert target.value == 3

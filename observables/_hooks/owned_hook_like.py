@@ -21,22 +21,33 @@ class OwnedHookLike(HookLike[T], Protocol[T]):
 
     @staticmethod
     def submit_multiple_values(
-        *hooks_and_values: tuple["OwnedHookLike[Any]", Any]) -> None:
+        *hooks_and_values: tuple["OwnedHookLike[Any]", Any]) -> tuple[bool, str]:
         """
         Set the values of multiple hooks.
+
+        Args:
+            *hooks_and_values: The hooks and values to set
+
+        Returns:
+            A tuple containing a boolean indicating if the submission was successful and a string message
+
+        Raises:
+            ValueError: If the submission fails
         """
         from .._utils.hook_nexus import HookNexus
 
         if len(hooks_and_values) == 0:
-            return
+            return True, "No hooks and values provided"
 
         nexus_and_values: Mapping[HookNexus[Any], Any] = {}
         for hook, value in hooks_and_values:
             nexus_and_values[hook.hook_nexus] = value
 
         # Submit the values to the hook nexus
-        HookNexus.submit_multiple_values(nexus_and_values)
+        success, msg = HookNexus.submit_multiple_values(nexus_and_values)
 
         # Notify listeners of the hooks
         for hook, _ in hooks_and_values:
             hook._notify_listeners()
+
+        return success, msg

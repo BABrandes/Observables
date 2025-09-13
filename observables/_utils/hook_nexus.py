@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any
+from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any, cast
 
 from .general import log
 from .._hooks.owned_hook_like import OwnedHookLike
@@ -46,6 +46,20 @@ class HookNexus(Generic[T]):
     def value(self) -> T:
         """
         Get the value of the hook group.
+
+        ** The returned value is a copy, so modifying is allowed.
+        """
+        value: T = self._value
+        if hasattr(value, "copy"):
+            value = cast(T, value.copy()) # type: ignore
+        return value
+
+    @property
+    def value_reference(self) -> T:
+        """
+        Get the value reference of the hook group.
+
+        ** The returned value is a reference, so modifying is not allowed.
         """
         return self._value
     

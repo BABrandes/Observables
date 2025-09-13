@@ -19,6 +19,20 @@ class HookLike(BaseListeningLike, Protocol[T]):
     def value(self) -> T:
         """
         Get the value behind this hook.
+
+        ** The returned value is a copy, so modifying is allowed.
+        """
+        ...
+
+    @property
+    def value_reference(self) -> T:
+        """
+        Get the value reference behind this hook.
+
+        *This is a reference to the value behind this hook, not a copy. Do not modify it!*
+
+        Returns:
+            The value reference behind this hook.
         """
         ...
 
@@ -26,6 +40,8 @@ class HookLike(BaseListeningLike, Protocol[T]):
     def previous_value(self) -> T:
         """
         Get the previous value behind this hook.
+
+        ** The returned value is a copy, so modifying is allowed.
         """
         ...
     

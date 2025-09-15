@@ -100,6 +100,7 @@ from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._hooks.owned_hook import OwnedHook
 from ._hooks.hook_like import HookLike
+from ._utils.hook_nexus import HookNexus
 from ._hooks.owned_hook_like import OwnedHookLike
 from ._hooks.floating_hook import FloatingHook
 from ._utils.system_analysis import write_report    
@@ -136,6 +137,7 @@ __all__ = [
     'BaseObservable',
     'OwnedHook',
     'HookLike',
+    'HookNexus',
     'OwnedHookLike',
     'FloatingHook',
     'CarriesCollectiveHooks',

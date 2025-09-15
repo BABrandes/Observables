@@ -99,8 +99,8 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
     def __init__(
         self,
         input_trigger_hooks: Mapping[IHK, HookLike[IHV]|IHV],
-        output_trigger_hooks: Mapping[OHK, HookLike[OHV]|OHV],
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
+        output_trigger_hooks: Mapping[OHK, HookLike[OHV]|OHV] = {},
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
         logger: Optional[Logger] = None
     ):
@@ -112,13 +112,13 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
                 When any of these hooks are invalidated, forward transformation is triggered.
                 Use value as value for keys that should be managed internally without external connection.
                 All keys that the forward_callable expects must be present in this dict.
+            forward_callable: Function that transforms input values to output values.
+                Expected signature: (input_values: Mapping[IHK, IHV]) -> Mapping[OHK, OHV]
+                Must return a dict with keys matching output_trigger_hooks keys.
             output_trigger_hooks: Dictionary mapping output names to their hooks or None.
                 When any of these hooks are invalidated, reverse transformation is triggered (if available).
                 Use value as value for keys that should be managed internally without external connection.
                 All keys that the forward_callable returns must be present in this dict.
-            forward_callable: Function that transforms input values to output values.
-                Expected signature: (input_values: Mapping[IHK, IHV]) -> Mapping[OHK, OHV]
-                Must return a dict with keys matching output_trigger_hooks keys.
             reverse_callable: Optional function that transforms output values to input values.
                 Expected signature: (output_values: Mapping[OHK, OHV]) -> Mapping[IHK, IHV]
                 If None, reverse transformation is not triggered.

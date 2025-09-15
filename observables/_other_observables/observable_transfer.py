@@ -210,6 +210,12 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
+    def get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
+        return self._input_hooks[key] # type: ignore
+    
+    def get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
+        return self._output_hooks[key] # type: ignore
+
     def get_hook_value_as_reference(self, key: IHK|OHK) -> IHV|OHV:
         if key in self._input_hooks:
             return self._input_hooks[key].value # type: ignore

@@ -164,7 +164,7 @@ class TestObservableSelectionDict(unittest.TestCase):
         external_hook = OwnedHook(owner=self.mock_owner, value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)
+        selection_dict.connect(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         self.assertEqual(selection_dict.key, "b")
         self.assertEqual(selection_dict.value, 2)
         

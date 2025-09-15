@@ -430,7 +430,7 @@ class TestObservableDict(unittest.TestCase):
         """Test that binding to None raises an error"""
         obs = ObservableDict({"key1": "value1"})
         with self.assertRaises(ValueError):
-            obs.connect(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore # type: ignore
+            obs.connect(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_dict_binding_with_same_values(self):
         """Test binding when observables already have the same value"""

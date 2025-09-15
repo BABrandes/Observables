@@ -28,14 +28,14 @@ class ObservableSingleValueLike(CarriesHooks[Any, T], Protocol[T]):
         """
         ...
 
-    def change_value(self, new_value: T) -> None:
+    def change_value(self, value: T) -> None:
         """
         Change the value (lambda-friendly method).
         """
         ...
 
     @property
-    def value_hook(self) -> HookLike[T]:
+    def hook(self) -> HookLike[T]:
         """
         Get the hook for the value.
         """
@@ -113,7 +113,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
             hook: Optional[HookLike[T]] = observable_or_hook_or_value #type: ignore
         elif isinstance(observable_or_hook_or_value, ObservableSingleValueLike):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook = observable_or_hook_or_value.value_hook # type: ignore
+            hook = observable_or_hook_or_value.hook # type: ignore
         else:
             # Assume the value is T
             initial_value: T = observable_or_hook_or_value
@@ -126,7 +126,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         )
         
         if hook is not None:
-            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -168,7 +168,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
             return
         self._set_component_values({"value": value}, notify_binding_system=True)
 
-    def change_value(self, new_value: T) -> None:
+    def change_value(self, value: T) -> None:
         """
         Change the value (lambda-friendly method).
         
@@ -178,12 +178,12 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         Args:
             new_value: The new value to set
         """
-        if new_value == self._primary_hooks["value"].value:
+        if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": new_value}, notify_binding_system=True)
+        self._set_component_values({"value": value}, notify_binding_system=True)
     
     @property
-    def value_hook(self) -> HookLike[T]:
+    def hook(self) -> HookLike[T]:
         """
         Get the hook for the value.
         

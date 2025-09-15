@@ -203,7 +203,7 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([20])
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change obs1, obs2 should update with obs1's value appended
         obs1.append(30)
@@ -219,13 +219,13 @@ class TestObservableList(unittest.TestCase):
         obs2 = ObservableList([200])
         
         # Test USE_CALLER_VALUE: use caller's value → target (obs2) gets caller's value
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         self.assertEqual(obs2.value, [100])
         
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         # USE_TARGET_VALUE means caller gets target's value
         self.assertEqual(obs3.value, [400])
     
@@ -234,7 +234,7 @@ class TestObservableList(unittest.TestCase):
         obs1 = ObservableList([10])
         obs2 = ObservableList([20])
         
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -246,7 +246,7 @@ class TestObservableList(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableList([10])
         with self.assertRaises(ValueError):
-            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -255,8 +255,8 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify chain works: values converge to caller on each bind
         obs1.append(100)
@@ -301,8 +301,8 @@ class TestObservableList(unittest.TestCase):
         obs3 = ObservableList([30])
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change obs1, both should update to obs1's value
         obs1.append(100)
@@ -427,7 +427,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding empty lists
         obs1: ObservableList[int] = ObservableList([])
         obs2: ObservableList[int] = ObservableList([])
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         obs1.append(1)
         self.assertEqual(obs2.value, [1])
@@ -435,7 +435,7 @@ class TestObservableList(unittest.TestCase):
         # Test binding lists with same initial values
         obs3 = ObservableList([42])
         obs4 = ObservableList([42])
-        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         obs3.append(100)
         self.assertEqual(obs4.value, [42, 100])
@@ -509,7 +509,7 @@ class TestObservableList(unittest.TestCase):
         obs1 = ObservableList([42])
         obs2 = ObservableList([42])
         
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         # Both should still have the same value
         self.assertEqual(obs1.value, [42])
         self.assertEqual(obs2.value, [42])

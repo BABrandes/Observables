@@ -31,7 +31,7 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs = ObservableSingleValue(f"value_{i}")
-            obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
             bound_observables.append(obs)
         
         # Now main_obs's hook nexus has many hooks
@@ -148,7 +148,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)
+                obs.connect(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -220,8 +220,8 @@ class TestScalabilityPerformance:
         obs_dict = ObservableDict({"key": "value"})
         
         # Bind them in a network
-        obs_single.connect(obs_list.length_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
-        obs_list.length_hook.connect(obs_dict.length_hook, InitialSyncMode.USE_CALLER_VALUE)
+        obs_single.connect(obs_list.length_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        obs_list.length_hook.connect(obs_dict.length_hook, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Time complex operations
         def complex_operation():

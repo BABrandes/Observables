@@ -12,8 +12,8 @@ from .general import log
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
-PHV = TypeVar("PHV")
-SHV = TypeVar("SHV")
+PHV = TypeVar("PHV", covariant=True)
+SHV = TypeVar("SHV", covariant=True)
 
 class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Generic[PHK, SHK, PHV,SHV]):
     """

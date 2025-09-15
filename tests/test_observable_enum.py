@@ -216,7 +216,7 @@ class TestObservableEnum(unittest.TestCase):
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Change obs1, obs2 should update
         obs1.enum_value = TestColor.GREEN
@@ -232,7 +232,7 @@ class TestObservableEnum(unittest.TestCase):
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Test default mode - binding establishes connection, then changes propagate
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         # After binding, target (obs2) takes caller's value
         self.assertEqual(obs2.enum_value, TestColor.RED)
         # But changes should now propagate
@@ -242,7 +242,7 @@ class TestObservableEnum(unittest.TestCase):
         # Test update_observable_from_self mode - this mode DOES update immediately
         obs3 = ObservableEnum(TestSize.SMALL, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
         obs4 = ObservableEnum(TestSize.LARGE, {TestSize.SMALL, TestSize.MEDIUM, TestSize.LARGE}, logger=logger)
-        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_TARGET_VALUE)
+        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         # USE_TARGET_VALUE mode updates the caller to target's value
         self.assertEqual(obs3.enum_value, TestSize.LARGE)
         # And changes continue to propagate
@@ -254,7 +254,7 @@ class TestObservableEnum(unittest.TestCase):
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.BLUE, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # After binding, obs2 should have obs1's value
         self.assertEqual(obs2.enum_value, TestColor.RED)
@@ -272,7 +272,7 @@ class TestObservableEnum(unittest.TestCase):
         """Test that binding to self raises an error"""
         obs = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN}, logger=logger)
         with self.assertRaises(ValueError):
-            obs.connect(obs.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+            obs.connect(obs.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -281,8 +281,8 @@ class TestObservableEnum(unittest.TestCase):
         obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
-        obs2.connect(obs3.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs2.connect(obs3.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Verify chain works
         obs1.enum_value = TestColor.GREEN
@@ -338,8 +338,8 @@ class TestObservableEnum(unittest.TestCase):
         obs3 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
-        obs3.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs2.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs3.connect(obs1.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Change obs1, both should update
         obs1.enum_value = TestColor.GREEN
@@ -396,7 +396,7 @@ class TestObservableEnum(unittest.TestCase):
         # Test binding enums with same initial values
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         obs1.enum_value = TestColor.GREEN
         self.assertEqual(obs2.enum_value, TestColor.GREEN)
@@ -404,7 +404,7 @@ class TestObservableEnum(unittest.TestCase):
         # Test binding enums with different options
         obs3 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs4 = ObservableEnum(TestColor.GREEN, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
-        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs3.connect(obs4.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         obs3.enum_value = TestColor.BLUE
         self.assertEqual(obs4.enum_value, TestColor.BLUE)
@@ -471,7 +471,7 @@ class TestObservableEnum(unittest.TestCase):
         obs1 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         obs2 = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         
-        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE)
+        obs1.connect(obs2.enum_value_hook, "enum_value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         # Both should still have the same value
         self.assertEqual(obs1.enum_value, TestColor.RED)
         self.assertEqual(obs2.enum_value, TestColor.RED)

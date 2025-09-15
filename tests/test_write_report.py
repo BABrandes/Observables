@@ -94,7 +94,7 @@ class TestWriteReport(unittest.TestCase):
         print("🔗 Creating bindings...")
         
         # Bind task count to list length
-        task_count.connect(task_list.length_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        task_count.connect(task_list.length_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
         # Bind some observables to demonstrate shared hook nexuses
         task_backup: ObservableList[Any] = ObservableList([])  # Will share nexus with task_list
@@ -106,7 +106,7 @@ class TestWriteReport(unittest.TestCase):
         
         # Connect age-related observables
         backup_age: ObservableSingleValue[Any] = ObservableSingleValue(0)
-        backup_age.connect(user_age.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        backup_age.connect(user_age.hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
         # Create observables that share nexus with the sets
         completed_backup: ObservableSet[Any] = ObservableSet(set())
@@ -244,7 +244,7 @@ class TestWriteReport(unittest.TestCase):
         
         # Create a backup that shares the name
         name_backup: ObservableSingleValue[Any] = ObservableSingleValue("")
-        name_backup.connect(name.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        name_backup.connect(name.hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
         observables: dict[str, CarriesHooks[Any, Any]] = {
             "name": name,

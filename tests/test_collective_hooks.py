@@ -50,20 +50,20 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_complex_binding_network(self):
         """Test a complex binding network with multiple observable types."""
         # Bind selector1 to selector2
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Bind value1 to selector1's selected_option
-        self.selector1.connect(self.value1.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.value1.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Bind set1 to selector1's available_options
-        self.selector1.connect(self.set1.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.set1.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Bind value2 to selector2's selected_option
-        self.selector2.connect(self.value2.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector2.connect(self.value2.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Bind set2 to selector2's available_options
-        self.selector2.connect(self.set2.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector2.connect(self.set2.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Now change selector1 and verify all propagate
         self.selector1.selected_option = "Green"
@@ -80,8 +80,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_removal_and_rebinding(self):
         """Test removing bindings and rebinding differently."""
         # Initial binding: selector1 -> selector2
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify initial binding works
         self.selector1.selected_option = "Blue"
@@ -95,8 +95,8 @@ class TestCollectiveHooks(unittest.TestCase):
         self.assertEqual(self.selector2.selected_option, "Blue")  # Should not change
         
         # Rebind with different sync mode
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
         # Verify new binding works - first update available options
         self.selector2.available_options = {"Red", "Green", "Blue", "Purple"}
@@ -135,10 +135,10 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_transitive_binding_behavior(self):
         """Test transitive binding behavior with multiple observables."""
         # Create a chain: selector1 -> selector2 -> value1 -> set1
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector2.connect(self.value1.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.set1.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector2.connect(self.value1.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.set1.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change the source (selector1) - first update available options
         self.selector1.available_options = {"Purple", "Pink", "Cyan", "Red", "Green", "Blue"}
@@ -161,8 +161,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_bidirectional_binding_with_collective_hooks(self):
         """Test bidirectional binding with collective hooks."""
         # Bind two selectors bidirectionally
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change selector1 - first update available options to include the new value
         self.selector1.available_options = {"Orange", "Red", "Yellow", "Green", "Blue"}
@@ -188,8 +188,8 @@ class TestCollectiveHooks(unittest.TestCase):
         
         # Bind both selectors to the same value
         # InitialSyncMode only affects initial binding - ongoing sync is bidirectional
-        self.selector1.connect(self.value1.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector2.connect(self.value1.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.value1.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector2.connect(self.value1.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change the target value
         self.value1.value = "NewValue"
@@ -220,8 +220,8 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.change_selected_option_and_available_options("Red", {"Red", "Green", "Blue", "Yellow"})
         
         # Bind both selectors' available_options to the shared set
-        self.selector1.connect(shared_set.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector2.connect(shared_set.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(shared_set.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector2.connect(shared_set.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change the shared set - include "Red" to maintain compatibility with current selected option
         shared_set.value = {"Purple", "Pink", "Cyan", "Red"}
@@ -245,7 +245,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.change_selected_option_and_available_options("Red", {"Red", "Green", "Blue"})
         
         # Bind selector2's available_options directly to selector1's available_options
-        self.selector2.connect(self.selector1.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector2.connect(self.selector1.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change selector1's available options - use atomic update to avoid validation issues
         self.selector1.change_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -267,7 +267,7 @@ class TestCollectiveHooks(unittest.TestCase):
         self.selector2.change_selected_option_and_available_options("Red", {"Red", "Green", "Blue"})
         
         # Bind selector2 directly to selector1
-        self.selector2.connect(self.selector1.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector2.connect(self.selector1.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change selector1's available options - use atomic update to avoid validation issues
         self.selector1.change_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -288,7 +288,7 @@ class TestCollectiveHooks(unittest.TestCase):
         strict_selector = ObservableSelectionOption("Red", {"Red", "Green"}, logger=logger)
         
         # Bind it to a regular selector
-        self.selector1.connect(strict_selector.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(strict_selector.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Try to set an invalid value in the source
         with self.assertRaises(ValueError):
@@ -301,8 +301,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_atomic_updates_with_collective_hooks(self):
         """Test atomic updates with collective hooks."""
         # Bind selector1 to selector2
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Use atomic update to change both values at once
         self.selector1.change_selected_option_and_available_options("Purple", {"Purple", "Pink", "Cyan"})
@@ -318,8 +318,8 @@ class TestCollectiveHooks(unittest.TestCase):
     def test_binding_chain_break_and_rebuild(self):
         """Test breaking and rebuilding binding chains."""
         # Create a simple binding: selector1 -> selector2
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify binding works
         self.selector1.available_options = {"TestValue", "Red", "Green", "Blue"}
@@ -336,8 +336,8 @@ class TestCollectiveHooks(unittest.TestCase):
         # Rebuild the binding
         # First make selector2 compatible with selector1's current state
         self.selector2.change_selected_option_and_available_options("NewValue", {"NewValue", "Red", "Green", "Blue"})
-        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        self.selector1.connect(self.selector2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        self.selector1.connect(self.selector2.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify binding works again
         self.selector1.change_selected_option_and_available_options("RebuiltValue", {"RebuiltValue", "Red", "Green", "Blue"})
@@ -352,8 +352,8 @@ class TestCollectiveHooks(unittest.TestCase):
         compatible_selector: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(None, set(), logger=logger)
         
         # Bind the compatible selector to the none_selector
-        compatible_selector.connect(none_selector.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        compatible_selector.connect(none_selector.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)
+        compatible_selector.connect(none_selector.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        compatible_selector.connect(none_selector.available_options_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Set empty options and None selection
         none_selector.change_selected_option_and_available_options(None, set())
@@ -375,7 +375,7 @@ class TestCollectiveHooks(unittest.TestCase):
         
         for i in range(0, len(observables) - 1):
             # Bind consecutive selectors together
-            observables[i].connect(observables[i + 1].selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+            observables[i].connect(observables[i + 1].selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change a value and measure propagation time - first update available options
         observables[0].available_options = {"NewValue", "Color0", "Option0", "Common"} # type: ignore
@@ -394,8 +394,8 @@ class TestCollectiveHooks(unittest.TestCase):
         selector_c = ObservableSelectionOption("C", {"C", "A"}, logger=logger)
         
         # Create a triangle binding - but avoid circular binding by using different sync modes
-        selector_a.connect(selector_b.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        selector_b.connect(selector_c.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+        selector_a.connect(selector_b.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        selector_b.connect(selector_c.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         # Don't create the circular binding - just test that the existing bindings work
         
         # Change one value
@@ -415,8 +415,8 @@ class TestCollectiveHooks(unittest.TestCase):
         value_b = ObservableSingleValue("ValueB", logger=logger)
         
         # Bind with different sync modes
-        selector_a.connect(selector_b.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
-        value_a.connect(value_b.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
+        selector_a.connect(selector_b.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        value_a.connect(value_b.hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
         # Change values and verify behavior
         selector_a.selected_option = "B"
@@ -433,7 +433,7 @@ class TestCollectiveHooks(unittest.TestCase):
         options: ObservableSet[str] = ObservableSet({"Test", "Other"}, logger=logger)
         
         # Bind them together
-        selector.connect(value.value_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        selector.connect(value.hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         selector.connect(options.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Disconnect all

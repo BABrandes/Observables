@@ -145,9 +145,9 @@ class TestObservableTransfer(unittest.TestCase):
         y_obs = ObservableSingleValue(3, logger=logger)
         sum_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"], int](
-            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
-            output_trigger_hooks={"sum": sum_obs.value_hook},
+        ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
+            input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
+            output_trigger_hooks={"sum": sum_obs.hook},
             forward_callable=forward_transform,
             logger=logger
         )
@@ -183,9 +183,9 @@ class TestObservableTransfer(unittest.TestCase):
         product_obs = ObservableSingleValue(0, logger=logger)
         diff_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"], int](
-            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
-            output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "difference": diff_obs.value_hook},
+        ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"], int, int](
+            input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
+            output_trigger_hooks={"sum": sum_obs.hook, "product": product_obs.hook, "difference": diff_obs.hook},
             forward_callable=forward_transform,
             logger=logger
         )
@@ -223,9 +223,9 @@ class TestObservableTransfer(unittest.TestCase):
         x_obs = ObservableSingleValue(5, logger=logger)
         result_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x"], Literal["result"], int](
-            input_trigger_hooks={"x": x_obs.value_hook},
-            output_trigger_hooks={"result": result_obs.value_hook},
+        ObservableTransfer[Literal["x"], Literal["result"], int, int](
+            input_trigger_hooks={"x": x_obs.hook},
+            output_trigger_hooks={"result": result_obs.hook},
             forward_callable=forward_transform,
             reverse_callable=reverse_transform,
             logger=logger
@@ -255,9 +255,9 @@ class TestObservableTransfer(unittest.TestCase):
         def fahrenheit_to_celsius(outputs: Mapping[Literal["fahrenheit"], Any]) -> Mapping[Literal["celsius"], Any]:
             return {"celsius": (outputs["fahrenheit"] - 32) * 5/9}
         
-        ObservableTransfer[Literal["celsius"], Literal["fahrenheit"], float](
-            input_trigger_hooks={"celsius": celsius_obs.value_hook},
-            output_trigger_hooks={"fahrenheit": fahrenheit_obs.value_hook},
+        ObservableTransfer[Literal["celsius"], Literal["fahrenheit"], float, float](
+            input_trigger_hooks={"celsius": celsius_obs.hook},
+            output_trigger_hooks={"fahrenheit": fahrenheit_obs.hook},
             forward_callable=celsius_to_fahrenheit,
             reverse_callable=fahrenheit_to_celsius,
             logger=logger
@@ -285,14 +285,14 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Test attach
-        transfer.connect(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Test detach
         transfer.disconnect("x")
         
         # Test invalid key for attach/detach
         with self.assertRaises(ValueError):
-            transfer.connect(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)
+            transfer.connect(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         with self.assertRaises(ValueError):
             transfer.disconnect("invalid")
@@ -313,14 +313,14 @@ class TestObservableTransfer(unittest.TestCase):
                 "exists": k in d
             }
         
-        ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None](
+        ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None, dict[str, int] | str | int | bool | None](
             input_trigger_hooks={
-                "dict": cast(HookLike[dict[str, int] | str | int | bool | None], dict_obs.value_hook),
-                "key": cast(HookLike[dict[str, int] | str | int | bool | None], key_obs.value_hook)
+                "dict": cast(HookLike[dict[str, int] | str | int | bool | None], dict_obs.hook),
+                "key": cast(HookLike[dict[str, int] | str | int | bool | None], key_obs.hook)
             },
             output_trigger_hooks={
-                "value": cast(HookLike[dict[str, int] | str | int | bool | None], value_obs.value_hook),
-                "exists": cast(HookLike[dict[str, int] | str | int | bool | None], exists_obs.value_hook)
+                "value": cast(HookLike[dict[str, int] | str | int | bool | None], value_obs.hook),
+                "exists": cast(HookLike[dict[str, int] | str | int | bool | None], exists_obs.hook)
             },
             forward_callable=dict_access_transform,
             logger=logger
@@ -360,9 +360,9 @@ class TestObservableTransfer(unittest.TestCase):
             transform_count.append(1)
             return {"sum": inputs["x"] + inputs["y"]}
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"], int](
-            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
-            output_trigger_hooks={"sum": sum_obs.value_hook},
+        ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
+            input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
+            output_trigger_hooks={"sum": sum_obs.hook},
             forward_callable=slow_transform,
             logger=logger
         )
@@ -394,8 +394,8 @@ class TestObservableTransfer(unittest.TestCase):
         result_obs = ObservableSingleValue(0, logger=logger)
         
         transfer = ObservableTransfer(
-            input_trigger_hooks={"x": x_obs.value_hook},
-            output_trigger_hooks={"result": result_obs.value_hook},
+            input_trigger_hooks={"x": x_obs.hook},
+            output_trigger_hooks={"result": result_obs.hook},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
@@ -420,9 +420,9 @@ class TestObservableTransfer(unittest.TestCase):
         def format_string(inputs: Mapping[Literal["template", "name"], Any]) -> Mapping[Literal["result"], Any]:
             return {"result": inputs["template"].format(name=inputs["name"])}
         
-        ObservableTransfer[Literal["template", "name"], Literal["result"], str](
-            input_trigger_hooks={"template": template_obs.value_hook, "name": name_obs.value_hook},
-            output_trigger_hooks={"result": result_obs.value_hook},
+        ObservableTransfer[Literal["template", "name"], Literal["result"], str, str](
+            input_trigger_hooks={"template": template_obs.hook, "name": name_obs.hook},
+            output_trigger_hooks={"result": result_obs.hook},
             forward_callable=format_string,
             logger=logger
         )
@@ -453,9 +453,9 @@ class TestObservableTransfer(unittest.TestCase):
                 "quotient": x / y if y != 0 else float('inf')
             }
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"], int|float](
-            input_trigger_hooks={"x": x_obs.value_hook, "y": y_obs.value_hook},
-            output_trigger_hooks={"sum": sum_obs.value_hook, "product": product_obs.value_hook, "quotient": quotient_obs.value_hook},
+        ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"], int|float, int|float](
+            input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
+            output_trigger_hooks={"sum": sum_obs.hook, "product": product_obs.hook, "quotient": quotient_obs.hook},
             forward_callable=math_operations,
             logger=logger
         )

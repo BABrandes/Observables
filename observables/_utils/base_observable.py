@@ -278,6 +278,23 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
         log(self, "invalidate", self._logger, True, "Successfully invalidated")
         return True, "Successfully invalidated"
 
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        
+        This method should be called before the observable is deleted to ensure proper
+        memory cleanup and prevent memory leaks. After calling this method, the observable
+        should not be used anymore as it will be in an invalid state.
+        
+        Example:
+            >>> obs = ObservableSingleValue("test")
+            >>> obs.cleanup()  # Properly clean up before deletion
+            >>> del obs
+        """
+        self.disconnect(None)
+        self.remove_all_listeners()
+        self.invalidate_hooks()
+
     #########################################################################
     # CarriesCollectiveHooks interface
     #########################################################################

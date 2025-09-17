@@ -61,6 +61,9 @@ class CarriesHooks(Protocol[HK, HV]):
     def disconnect(self, key: Optional[HK]) -> None:
         """
         Disconnect a hook by its key.
+
+        Args:
+            key: The key of the hook to disconnect. If None, all hooks will be disconnected.
         """
         ...
 
@@ -80,6 +83,12 @@ class CarriesHooks(Protocol[HK, HV]):
     def invalidate_hooks(self) -> tuple[bool, str]:
         """
         Invalidate all hooks.
+        """
+        ...
+
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
         """
         ...
 

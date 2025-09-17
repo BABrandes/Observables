@@ -180,6 +180,14 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         self._notify_listeners()
         return True, "Successfully invalidated"
 
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        """
+        self.disconnect(None)
+        self.remove_all_listeners()
+        self.invalidate_hooks()
+
 ########################################################
 # CarriesCollectiveHooks interface
 ########################################################
@@ -442,6 +450,14 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
         return True, "Successfully invalidated"
+
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        """
+        self.disconnect(None)
+        self.remove_all_listeners()
+        self.invalidate_hooks()
 
 ########################################################
 # CarriesCollectiveHooks interface
@@ -708,6 +724,14 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
         return True, "Successfully invalidated"
+
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        """
+        self.disconnect(None)
+        self.remove_all_listeners()
+        self.invalidate_hooks()
 
 ########################################################
 # CarriesCollectiveHooks interface

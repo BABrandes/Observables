@@ -273,6 +273,14 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         log(self, "invalidate_hook", self._logger, True, "Successfully invalidated")
         return True, "Successfully invalidated"
 
+    def destroy(self) -> None:
+        """
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        """
+        self.disconnect(None)
+        self.remove_all_listeners()
+        self.invalidate_hooks()
+
     #########################################################################
     # Other private methods
     #########################################################################

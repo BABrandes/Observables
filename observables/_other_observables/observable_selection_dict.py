@@ -186,7 +186,6 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         """
         self.disconnect(None)
         self.remove_all_listeners()
-        self.invalidate_hooks()
 
 ########################################################
 # CarriesCollectiveHooks interface
@@ -457,7 +456,6 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         """
         self.disconnect(None)
         self.remove_all_listeners()
-        self.invalidate_hooks()
 
 ########################################################
 # CarriesCollectiveHooks interface
@@ -731,7 +729,6 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         """
         self.disconnect(None)
         self.remove_all_listeners()
-        self.invalidate_hooks()
 
 ########################################################
 # CarriesCollectiveHooks interface

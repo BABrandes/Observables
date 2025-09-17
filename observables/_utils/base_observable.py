@@ -293,7 +293,6 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
         """
         self.disconnect(None)
         self.remove_all_listeners()
-        self.invalidate_hooks()
 
     #########################################################################
     # CarriesCollectiveHooks interface

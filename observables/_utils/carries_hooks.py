@@ -12,6 +12,45 @@ HV = TypeVar("HV")
 class CarriesHooks(Protocol[HK, HV]):
     """
     Protocol for observables that carry a set of hooks.
+
+    Must implement:
+
+        - def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
+        
+            Get a hook by its key.
+
+        - def get_hook_value_as_reference(self, key: HK) -> HV:
+        
+            Get a value as a reference by its key.
+            The returned value is a reference, so modifying it will modify the observable.
+
+        - def get_hook_keys(self) -> set[HK]:
+        
+            Get all keys of the hooks.
+
+        - def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
+        
+            Get the key of a hook or nexus.
+
+        - def connect(self, hook: "OwnedHookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+        
+            Connect a hook to another hook.
+
+        - def disconnect(self, key: Optional[HK]) -> None:
+        
+            Disconnect a hook by its key.
+        
+        - def is_valid_hook_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
+        
+            Check if a value is valid for a hook.
+
+        - def invalidate_hooks(self) -> tuple[bool, str]:
+        
+            Invalidate all hooks.
+
+        - destroy(self) -> None:
+        
+            Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
     """
 
     def get_hook(self, key: HK) -> "OwnedHookLike[HV]":

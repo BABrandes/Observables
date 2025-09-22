@@ -186,6 +186,18 @@ class OwnedHook(OwnedHookLike[T], BaseListening, Generic[T]):
         log(self, "submit_value", self._logger, success, msg)
         self._notify_listeners()
         return success, msg
+
+    def is_valid_value_for_submission(self, value: T) -> tuple[bool, str]:
+        """
+        Check if the value is valid for submission.
+
+        This method checks if the new value would be valid to be set in all connected hooks.
+        """
+        if not self.is_active:
+            raise ValueError("Hook is deactivated")
+        if self._hook_nexus is None:
+            raise ValueError("Hook nexus is not set")
+        return self._hook_nexus.validate_single_value(value)
     
     def is_connected_to(self, hook: "HookLike[T]") -> bool:
         """

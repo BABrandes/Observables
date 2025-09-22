@@ -51,3 +51,19 @@ class OwnedHookLike(HookLike[T], Protocol[T]):
             hook._notify_listeners()
 
         return success, msg
+
+    @staticmethod
+    def validate_multiple_values(
+        *hooks_and_values: tuple["OwnedHookLike[Any]", Any]) -> tuple[bool, str]:
+        """
+        Validate multiple values for a hook nexus.
+
+        This method checks if the new values would be valid to be set in all connected hooks.
+        """
+        from .._utils.hook_nexus import HookNexus
+
+        nexus_and_values: Mapping[HookNexus[Any], Any] = {}
+        for hook, value in hooks_and_values:
+            nexus_and_values[hook.hook_nexus] = value
+
+        return HookNexus.validate_multiple_values(nexus_and_values)

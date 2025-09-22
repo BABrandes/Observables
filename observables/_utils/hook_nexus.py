@@ -3,6 +3,7 @@ from typing import Generic, Mapping, Optional, TypeVar, TYPE_CHECKING, Any, cast
 
 from .general import log
 from .._hooks.owned_hook_like import OwnedHookLike
+from .carries_hooks import CarriesHooks
 
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
@@ -67,23 +68,14 @@ class HookNexus(Generic[T]):
     def previous_value(self) -> T:
         return self._previous_value
 
-    
     @staticmethod
-    def submit_multiple_values(
-        nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+    def _validate_multiple_values_helper(
+        nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str, Optional[set[CarriesHooks[Any, Any]]]]:
         """
-        This function submits multiple values to one or more hooks.
-
-        If multiple hook groups are provided, the values are submitted at once, so that complex states can be synchronized.
-
-        Args:
-            hooks_and_values: A mapping of hooks to their values
-
-        Returns:
-            A tuple containing a boolean indicating if the submission was successful and a string message
+        Validate multiple values for a hook nexus.
         """
+
         from .carries_collective_hooks import CarriesCollectiveHooks
-        from .carries_hooks import CarriesHooks
 
         # Step 1: Collect the source nexus and value for each hook group
         all_nexus_and_values: dict["HookNexus[Any]", Any] = {}
@@ -120,7 +112,7 @@ class HookNexus(Generic[T]):
                     if are_valid:
                         remaining_owners.remove(owner)
                     else:
-                        return False, msg
+                        return False, msg, None
                     
         # Step 4: Check for each remaining owner if the values would be valid as a single value
         for owner in remaining_owners:
@@ -129,12 +121,47 @@ class HookNexus(Generic[T]):
                 if hook.hook_nexus in nexus_and_values:
                     success, msg = hook.is_valid_value(nexus_and_values[hook.hook_nexus])
                     if not success:
-                        return False, msg
+                        return False, msg, None
                 # Also check if the hook itself is in nexus_and_values
                 elif hook in nexus_and_values:
                     success, msg = hook.is_valid_value(nexus_and_values[hook.hook_nexus])
                     if not success:
-                        return False, msg
+                        return False, msg, None
+
+        return True, "Values are valid", owners
+
+    @staticmethod
+    def validate_multiple_values(
+        nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+        """
+        Validate multiple values for a hook nexus.
+        """
+
+        is_valid, msg, _ = HookNexus._validate_multiple_values_helper(nexus_and_values)
+        return is_valid, msg
+
+    @staticmethod
+    def submit_multiple_values(
+        nexus_and_values: Mapping["HookNexus[Any]", Any]) -> tuple[bool, str]:
+        """
+        This function submits multiple values to one or more hooks.
+
+        If multiple hook groups are provided, the values are submitted at once, so that complex states can be synchronized.
+
+        Args:
+            hooks_and_values: A mapping of hooks to their values
+
+        Returns:
+            A tuple containing a boolean indicating if the submission was successful and a string message
+        """
+        from .carries_collective_hooks import CarriesCollectiveHooks
+
+        success, msg, owners = HookNexus._validate_multiple_values_helper(nexus_and_values)
+        if not success:
+            return False, msg
+
+        if owners is None:
+            raise RuntimeError("Owners is cannot be None!")
                 
         # Step 5: Update the HookNexus value after successful invalidation
         for nexus, value in nexus_and_values.items():
@@ -147,7 +174,43 @@ class HookNexus(Generic[T]):
                 owner.invalidate_hooks()
                 
         return True, "Invalidation successful"
-    
+
+    def _validate_single_value_helper(
+        self,
+        value: T,
+        hooks_to_consider: Optional[set["HookLike[T]"]] = None,
+    ) -> tuple[bool, str, Optional[set["HookLike[T]"]]]:
+        """
+        Validate a single value for a hook nexus.
+        """
+
+        # Step 1: Get all the hooks to look at
+        if hooks_to_consider is not None:
+            hooks_to_look_at = hooks_to_consider & self._hooks
+        else:
+            hooks_to_look_at = self._hooks
+
+        # Step 2: Check if the value is valid for each hook
+        for hook in hooks_to_look_at:
+            success, msg = hook.is_valid_value(value)
+            if not success:
+                log(self, "_validate_single_value_helper", self._logger, False, msg)
+                return False, msg, None
+
+        return True, "Value is valid", hooks_to_look_at
+
+    def validate_single_value(
+        self,
+        value: T,
+        hooks_to_consider: Optional[set["HookLike[T]"]] = None,
+    ) -> tuple[bool, str]:
+        """
+        Validate a single value for a hook nexus.
+        """
+
+        success, msg, _ = self._validate_single_value_helper(value, hooks_to_consider)
+        return success, msg
+
     def submit_single_value(
         self,
         value: T,
@@ -167,18 +230,12 @@ class HookNexus(Generic[T]):
             A tuple containing a boolean indicating if the submission was successful and a string message
         """
 
-        # Step 1: Get all the hooks to look at
-        if hooks_to_consider is not None:
-            hooks_to_look_at = hooks_to_consider & self._hooks
-        else:
-            hooks_to_look_at = self._hooks
+        success, msg, hooks_to_look_at = self._validate_single_value_helper(value, hooks_to_consider)
+        if not success:
+            return False, msg
 
-        # Step 2: Check if the value is valid for each hook
-        for hook in hooks_to_look_at:
-            success, msg = hook.is_valid_value(value)
-            if not success:
-                log(self, "submit_single_value", self._logger, False, msg)
-                return False, msg
+        if hooks_to_look_at is None:
+            raise RuntimeError("Hooks to look at cannot be None!")
 
         # Step 3: Collect the hooks that should be invalidated
         hooks_to_invalidate: set["HookLike[T]"] = set()

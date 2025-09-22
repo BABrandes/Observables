@@ -148,3 +148,11 @@ class HookLike(BaseListeningLike, Protocol[T]):
         Submit a value to this hook.
         """
         ...
+
+    def is_valid_value_for_submission(self, value: T) -> tuple[bool, str]:
+        """
+        Check if the value is valid for submission.
+
+        This method checks if the new value would be valid to be set in all connected hooks.
+        """
+        ...

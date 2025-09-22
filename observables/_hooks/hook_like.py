@@ -149,7 +149,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def is_valid_value_for_submission(self, value: T) -> tuple[bool, str]:
+    def validate_single_value_for_submit(self, value: T) -> tuple[bool, str]:
         """
         Check if the value is valid for submission.
 

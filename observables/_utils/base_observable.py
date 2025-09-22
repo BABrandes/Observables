@@ -419,6 +419,23 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
                 
         log(self, "update_secondary_hooks", self._logger, True, "Successfully updated secondary hooks")
 
+    def _valid_for_set_component_values(self, dict_of_values: dict[PHK, PHV]) -> tuple[bool, str]:
+        """
+        Check if the values are valid for setting the component values.
+        """
+
+        if len(dict_of_values) == 1:
+            key, value = next(iter(dict_of_values.items()))
+            hook = self._primary_hooks[key]
+            success, message = hook.validate_single_value_for_submit(value)
+            if not success:
+                return False, message
+        else:
+            success, message = OwnedHookLike[PHV|SHV].validate_multiple_values_for_submit(*list(zip(self._primary_hooks.values(), dict_of_values.values())))
+            if not success:
+                return False, message
+        return True, "Values are valid for setting the component values"
+
     def _set_component_values(self, dict_of_values: dict[PHK, PHV], notify_binding_system: bool) -> None:
         """
         Set the values of the component values.

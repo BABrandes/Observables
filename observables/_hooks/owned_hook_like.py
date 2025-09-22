@@ -53,7 +53,7 @@ class OwnedHookLike(HookLike[T], Protocol[T]):
         return success, msg
 
     @staticmethod
-    def validate_multiple_values(
+    def validate_multiple_values_for_submit(
         *hooks_and_values: tuple["OwnedHookLike[Any]", Any]) -> tuple[bool, str]:
         """
         Validate multiple values for a hook nexus.

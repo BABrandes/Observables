@@ -123,7 +123,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
 
     def deactivate(self) -> None:
         """
-        Deactivate this hook. The hook will also be detached.
+        Deactivate this hook. The hook will also be disconnected.
 
         No value can be submitted to this hook.
         No value can be received from this hook.

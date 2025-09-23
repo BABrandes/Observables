@@ -36,6 +36,15 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
                 raise ValueError("Hook is deactivated")
             assert self._hook_nexus is not None
             return self._hook_nexus.value
+
+    @property
+    def value_reference(self) -> T:
+        """Get the value reference behind this hook."""
+        with self._lock:
+            if not self.is_active:
+                raise ValueError("Hook is deactivated")
+            assert self._hook_nexus is not None
+            return self._hook_nexus.value_reference
     
     @property
     def previous_value(self) -> T:
@@ -132,7 +141,7 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
         self._notify_listeners()
         return success, msg
 
-    def is_valid_value_for_submission(self, value: T) -> tuple[bool, str]:
+    def validate_single_value_for_submit(self, value: T) -> tuple[bool, str]:
         """
         Check if the value is valid for submission.
         

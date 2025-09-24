@@ -571,6 +571,10 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
 
 class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
+    An observable that allows for a default value and a selection of a key and value.
+
+    This means, if the key is None, the value is the default value.
+    If the key is not None, the value is the value in the dictionary at the key.
 
     """
 
@@ -578,7 +582,7 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         self,
         dict_hook: dict[K, V] | HookLike[dict[K, V]],
         key_hook: Optional[K] | HookLike[Optional[K]],
-        value_hook: V | HookLike[V],
+        value_hook: Optional[HookLike[V]],
         default_value: V,
         logger: Optional[Logger] = None):
         """
@@ -599,10 +603,12 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         else:
             _initial_key_value = key_hook
 
-        if isinstance(value_hook, HookLike):
-            _initial_value_value: V = value_hook.value # type: ignore
+        if value_hook is None:
+            _initial_value_value: V = default_value
+        elif isinstance(value_hook, HookLike): # type: ignore
+            _initial_value_value = value_hook.value # type: ignore
         else:
-            _initial_value_value = value_hook
+            raise ValueError("value_hook parameter must either be None or a HookLike")
 
         self._ignore_invalidation_flag: bool = False
 

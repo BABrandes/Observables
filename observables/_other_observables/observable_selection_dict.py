@@ -654,16 +654,18 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
 
             if x["dict"] is None:
                 return False, "Dictionary is None"
-            if x["key"] is None and x["value"] == self._default_value:
-                return True, "Verification method passed"
-            if x["key"] is None:
-                return False, "Key is None but value is not the default value"
-            if x["value"] == self._default_value:
-                return False, "Value is default but key is not None"
-            if x["key"] not in x["dict"]:
-                return False, "Key is not in dictionary"
 
-            return True, "Verification method passed"
+            match (x["key"], x["value"]):
+                case (None, self._default_value):
+                    return True, "Verification method passed"
+                case (None, _):
+                    return False, "Key is None but value is not the default value"
+                case (_, _):
+                    if x["key"] not in x["dict"]:
+                        return False, "Key is not in dictionary"
+                    if x["value"] != x["dict"][x["key"]]:
+                        return False, "Value is not the value in the dictionary at the key"
+                    return True, "Verification method passed"
 
         self._verification_method = verification_method
 

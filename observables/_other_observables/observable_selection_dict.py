@@ -24,7 +24,7 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         self,
         dict_hook: dict[K, V] | HookLike[dict[K, V]],
         key_hook: K | HookLike[K],
-        value_hook: V | HookLike[V],
+        value_hook: Optional[HookLike[V]] = None,
         logger: Optional[Logger] = None):
         """
 
@@ -42,10 +42,11 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         else:
             _initial_key_value = key_hook
 
-        if isinstance(value_hook, HookLike):
-            _initial_value_value: V = value_hook.value # type: ignore
+        if value_hook is not None:
+            assert isinstance(value_hook, HookLike)
+            _initial_value_value: V = value_hook.value
         else:
-            _initial_value_value = value_hook
+            _initial_value_value = _initial_dict_value[_initial_key_value]
 
         self._ignore_invalidation_flag: bool = False
 
@@ -289,6 +290,9 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
 
 class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
+    An observable that allows for an optional key and value.
+
+    if the key is None, the value is None
 
     """
 
@@ -296,7 +300,7 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         self,
         dict_hook: dict[K, V] | HookLike[dict[K, V]],
         key_hook: Optional[K] | HookLike[Optional[K]] = None,
-        value_hook: Optional[V] | HookLike[Optional[V]] = None,
+        value_hook: Optional[HookLike[Optional[V]]] = None,
         logger: Optional[Logger] = None):
         """
 
@@ -309,15 +313,23 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         else:
             _initial_dict_value = dict_hook
 
-        if isinstance(key_hook, HookLike):
-            _initial_key_value: Optional[K] = key_hook.value # type: ignore
+        if key_hook is None:
+            _initial_key_value: Optional[K] = None
+        elif isinstance(key_hook, HookLike):
+            _initial_key_value = key_hook.value # type: ignore
         else:
+            # key_hook is a K
             _initial_key_value = key_hook
 
-        if isinstance(value_hook, HookLike):
-            _initial_value_value: Optional[V] = value_hook.value # type: ignore
+        if value_hook is None:
+            if _initial_key_value is None:
+                _initial_value_value: Optional[V] = None
+            else:
+                _initial_value_value = _initial_dict_value[_initial_key_value]
+        elif isinstance(value_hook, HookLike): # type: ignore
+            _initial_value_value = value_hook.value # type: ignore
         else:
-            _initial_value_value = value_hook
+            raise ValueError("value_hook parameter must either be None or a HookLike")
 
         self._ignore_invalidation_flag: bool = False
 

@@ -652,21 +652,25 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
             if "dict" not in x or "key" not in x or "value" not in x:
                 return False, "All three keys must be present"
 
-            if x["dict"] is None:
-                return False, "Dictionary is None"
-            if x["value"] is None and self._default_value is not None:
-                return False, "Value is None and the default value is also not None"
-            if x["key"] is not None and x["key"] not in x["dict"]:
-                return False, "Key is not None and not in dictionary"
+            dict_: Optional[dict[K, V]] = x["dict"]
+            key: Optional[K] = x["key"]
+            value: Optional[V] = x["value"]
 
-            match (x["key"], x["value"]):
+            if dict_ is None:
+                return False, "Dictionary is None"
+            if value is None and self._default_value is not None:
+                return False, "Value is None and the default value is also not None"
+            if key is not None and key not in dict_:
+                return False, f"Key {key} is not None and not in dictionary"
+
+            match (key, value):
                 case (None, self._default_value):
                     return True, "Verification method passed"
                 case (None, _):
-                    return False, "Key is None but value is not the default value"
+                    return False, f"Key is None but value is not the default value {self._default_value}"
                 case (_, _):
-                    if x["value"] != x["dict"][x["key"]]:
-                        return False, "Value is not the value in the dictionary at the key"
+                    if value != dict_[key]:
+                        return False, f"Value {value} is not the value in the dictionary at the key {key}"
                     return True, "Verification method passed"
 
         self._verification_method = verification_method

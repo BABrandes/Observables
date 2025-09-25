@@ -173,7 +173,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
             internal_hook_input: OwnedHook[IHV] = OwnedHook(
                 owner=self,
-                value=initial_value_input,
+                initial_value=initial_value_input,
                 invalidate_callback=lambda _, k=key: self._on_input_invalidated(k),
                 logger=logger
             )
@@ -187,7 +187,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             initial_value_output: OHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
             internal_hook_output = OwnedHook[OHV](
                 owner=self,
-                value=initial_value_output,
+                initial_value=initial_value_output,
                 invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
                 logger=logger
             )
@@ -258,10 +258,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def is_valid_hook_value(self, hook_key: IHK|OHK, value: IHV|OHV) -> tuple[bool, str]:
-        """Validate a value for a specific hook. Currently allows all values."""
-        return True, "All values are always valid"
-
     def invalidate_hooks(self) -> tuple[bool, str]:
         """
         Handle hook invalidation (required by CarriesHooks protocol).
@@ -272,6 +268,12 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         """
         log(self, "invalidate_hook", self._logger, True, "Successfully invalidated")
         return True, "Successfully invalidated"
+
+    def _internal_invalidate_hooks(self, submitted_values: dict[IHK|OHK, IHV|OHV]) -> None:
+        """
+        Internal invalidate for the nexus to use before the hooks are invalidated.
+        """
+        pass
 
     def destroy(self) -> None:
         """
@@ -346,9 +348,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
                 for key, value in target_values.items():
                     hooks_and_values.append((target_hooks[key], value)) # type: ignore
                 OwnedHookLike[IHV|OHV].submit_multiple_values(*hooks_and_values)
-            
-            # Notify listeners
-            self._notify_listeners()
     
     def _trigger_forward_transformation(self) -> None:
         """Trigger forward transformation (inputs → outputs)."""

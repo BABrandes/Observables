@@ -1,4 +1,4 @@
-from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Optional, final
+from typing import Protocol, TYPE_CHECKING, Any, runtime_checkable, TypeVar, Optional, final, Literal
 from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
@@ -39,11 +39,11 @@ class CarriesHooks(Protocol[HK, HV]):
         - def disconnect(self, key: Optional[HK]) -> None:
         
             Disconnect a hook by its key.
-        
-        - def is_valid_hook_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
-        
-            Check if a value is valid for a hook.
 
+        - def _internal_invalidate_hooks(self, submitted_values: dict[HK, HV]) -> None:
+        
+            Internal invalidate for the nexus to use before the hooks are invalidated.
+        
         - def invalidate_hooks(self) -> tuple[bool, str]:
         
             Invalidate all hooks.
@@ -106,16 +106,9 @@ class CarriesHooks(Protocol[HK, HV]):
         """
         ...
 
-    def is_valid_hook_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
+    def destroy(self) -> None:
         """
-        Check if a value is valid for a hook.
-
-        Args:
-            hook_key: The key of the hook to check
-            value: The value to check
-
-        Returns:
-            A tuple containing a boolean indicating if the value is valid and a string explaining why
+        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
         """
         ...
 
@@ -125,13 +118,37 @@ class CarriesHooks(Protocol[HK, HV]):
         """
         ...
 
-    def destroy(self) -> None:
+    def _internal_invalidate_hooks(self, submitted_values: dict[HK, HV]) -> None:
         """
-        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
+        Internal invalidate for the nexus to use before the hooks are invalidated.
         """
         ...
 
     #########################################################
+
+    @final
+    def _is_valid_value_as_part_of_owner(self, hook_key: HK, value: HV) -> tuple[Literal[True, False, "InternalInvalidationNeeded"], str]:
+        """
+        Check if a value is valid as part of the owner.
+        """
+
+        hook = self.get_hook(hook_key)
+        success, msg = hook._is_valid_value_as_part_of_owner(value) # type: ignore
+        return success, msg
+
+    @final
+    def is_valid_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
+        """
+        Check if a value is valid.
+        """
+
+        hook = self.get_hook(hook_key)
+
+        success, msg = hook.hook_nexus.validate_single_value(value)
+        if success == False:
+            return False, msg
+        else:
+            return True, "Value is valid"
 
     @final
     def get_hook_value(self, key: HK) -> HV:

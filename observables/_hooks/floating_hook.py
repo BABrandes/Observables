@@ -1,5 +1,5 @@
 from threading import RLock
-from typing import Generic, TypeVar, Optional, TYPE_CHECKING
+from typing import Generic, TypeVar, Optional, TYPE_CHECKING, Literal
 from logging import Logger
 from .hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -21,19 +21,16 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
         self._previous_value = value
         self._logger = logger
         self._lock = RLock()
-        self._hook_nexus: Optional["HookNexus[T]"] = None
         self._in_submission = False
         
         # Create a simple hook nexus for this floating hook
         from .._utils.hook_nexus import HookNexus
-        self._hook_nexus = HookNexus(value, self)
+        self._hook_nexus: "HookNexus[T]" = HookNexus(value, self)
 
     @property
     def value(self) -> T:
         """Get the value behind this hook."""
         with self._lock:
-            if not self.is_active:
-                raise ValueError("Hook is deactivated")
             assert self._hook_nexus is not None
             return self._hook_nexus.value
 
@@ -41,8 +38,6 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
     def value_reference(self) -> T:
         """Get the value reference behind this hook."""
         with self._lock:
-            if not self.is_active:
-                raise ValueError("Hook is deactivated")
             assert self._hook_nexus is not None
             return self._hook_nexus.value_reference
     
@@ -50,8 +45,6 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
     def previous_value(self) -> T:
         """Get the previous value behind this hook."""
         with self._lock:
-            if not self.is_active:
-                raise ValueError("Hook is deactivated")
             assert self._hook_nexus is not None
             return self._hook_nexus.previous_value
 
@@ -59,8 +52,6 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
     def hook_nexus(self) -> "HookNexus[T]":
         """Get the hook nexus that this hook belongs to."""
         with self._lock:
-            if not self.is_active:
-                raise ValueError("Hook is deactivated")
             assert self._hook_nexus is not None
             return self._hook_nexus
     
@@ -78,6 +69,10 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
         """Invalidate this hook."""
         raise ValueError("Floating hooks cannot be invalidated")
 
+    def _internal_invalidate(self, submitted_value: T) -> None:
+        """Internal invalidate for the nexus to use before the hook is invalidated."""
+        pass
+
     @property
     def in_submission(self) -> bool:
         """Check if this hook is currently being submitted."""
@@ -90,12 +85,8 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
 
     def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """Connect this hook to another hook."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
         if hook is None:  # type: ignore
             raise ValueError("Cannot connect to None hook")
-        if not hook.is_active:
-            raise ValueError("Hook is deactivated")
         
         from .._utils.hook_nexus import HookNexus
         if initial_sync_mode == InitialSyncMode.USE_CALLER_VALUE:
@@ -109,8 +100,6 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
     
     def disconnect(self) -> None:
         """Disconnect this hook from the hook nexus."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
         assert self._hook_nexus is not None
         if len(self._hook_nexus.hooks) <= 1:
             raise ValueError("Hook is already disconnected")
@@ -126,68 +115,37 @@ class FloatingHook(HookLike[T], BaseListening, Generic[T]):
         self._hook_nexus = new_group
     
     def submit_single_value(self, value: T) -> tuple[bool, str]:
-        """Submit a value to this hook."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
-        if self._hook_nexus is None:
-            raise ValueError("Hook nexus is not set")
+        """
+        Submit a value to this hook. This will not invalidate the hook!
+
+        Args:
+            value: The value to submit
+        """
         self.in_submission = True
-        success, msg = self._hook_nexus.submit_single_value(
-            value=value,
-            hooks_not_to_invalidate=set(),
-            hooks_to_consider=None,
-        )
+        success, msg = self._hook_nexus.submit_single_value(value=value)
+
         self.in_submission = False
         self._notify_listeners()
         return success, msg
-
-    def validate_single_value_for_submit(self, value: T) -> tuple[bool, str]:
-        """
-        Check if the value is valid for submission.
-        
-        This method checks if the new value would be valid to be set in all connected hooks.
-        """
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
-        if self._hook_nexus is None:
-            raise ValueError("Hook nexus is not set")
-        return self._hook_nexus.validate_single_value(value)
     
     def is_connected_to(self, hook: "HookLike[T]") -> bool:
         """Check if this hook is connected to another hook."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
         assert self._hook_nexus is not None
         return hook in self._hook_nexus._hooks  # type: ignore
     
     def is_valid_value(self, value: T) -> tuple[bool, str]:
         """Check if the value is valid."""
-        return True, "Floating hooks accept any value"  # Floating hooks don't validate
+
+        success, msg = self._hook_nexus.validate_single_value(value)
+        if not success:
+            return False, msg
+        else:
+            return True, "Value is valid"
+
+    def is_valid_value_in_isolation(self, value: T) -> tuple[Literal[True, False, "InternalInvalidationNeeded"], str]:
+        """Check if the value is valid in isolation."""
+        return True, "Floating hook is always valid in isolation"
     
     def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
         """Replace the hook nexus that this hook belongs to."""
-        if not self.is_active:
-            raise ValueError("Hook is deactivated")
         self._hook_nexus = hook_nexus
-
-    def deactivate(self) -> None:
-        """Deactivate this hook."""
-        with self._lock:
-            if not self.is_active:
-                raise ValueError("Hook is already deactivated")
-            assert self._hook_nexus is not None
-            self._hook_nexus.remove_hook(self)
-            self._hook_nexus = None
-    
-    def activate(self, initial_value: T) -> None:
-        """Activate this hook."""
-        with self._lock:
-            if self.is_active:
-                raise ValueError("Hook is already activated")
-            from .._utils.hook_nexus import HookNexus
-            self._hook_nexus = HookNexus(initial_value, self)
-
-    @property
-    def is_active(self) -> bool:
-        """Check if this hook is active."""
-        return self._hook_nexus is not None

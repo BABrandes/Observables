@@ -1,5 +1,5 @@
 import threading
-from typing import Callable, Generic, Mapping, Optional, TypeVar
+from typing import Callable, Generic, Mapping, Optional, TypeVar, Literal
 from logging import Logger
 from .base_listening import BaseListening
 from .._hooks.owned_hook_like import OwnedHookLike
@@ -9,6 +9,7 @@ from .carries_collective_hooks import CarriesCollectiveHooks
 from .hook_nexus import HookNexus
 from .initial_sync_mode import InitialSyncMode
 from .general import log
+
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
@@ -131,7 +132,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
         for key, _callback in secondary_hook_callbacks.items():
             self._secondary_hook_callbacks[key] = _callback
             value = _callback(initial_primary_hook_values)
-            secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, None, logger)
+            secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, None, None, logger)
             self._secondary_hooks[key] = secondary_hook
             
             # Populate secondary hook reverse lookup caches
@@ -237,46 +238,27 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
                 else:
                     raise
 
-    def is_valid_hook_value(self, hook_key: PHK|SHK, value: PHV|SHV) -> tuple[bool, str]:
+    def _is_valid_values_as_part_of_owner_impl(self, values: Mapping[PHK|SHK, PHV|SHV]) -> tuple[Literal[True, False, "InternalInvalidationNeeded"], str]:
         """
         Check if the value is valid.
 
         Args:
-            hook_key: The key of the hook to check
-            value: The value to check
+            values: The values to check
 
         Returns:
             A tuple containing a boolean indicating if the value is valid and a string explaining why
         """
+
         if self._verification_method is None:
             return True, "No verification method provided. Default is True"
         else:
-            # Check if the key corresponds to a secondary hook
-            if hook_key in self._secondary_hooks:
-                # Secondary hooks don't need validation since they're computed from component values
-                return True, "Secondary hooks are always valid as they're computed values"
-            
-            # Must be a primary hook
-            return self._verification_method({hook_key: value}) # type: ignore
-
-    def invalidate_hooks(self) -> tuple[bool, str]:
-        """
-        Invalidate the the values of the component hooks.
-
-        Args:
-            keys: The keys of the component hooks to invalidate.
-            hooks_not_to_invalidate: The hooks to not invalidate (The validity of the values will still be checked!)
-        """
-
-        if self._act_on_invalidation_callback is not None:
-            try:
-                self._act_on_invalidation_callback()
-            except Exception as e:
-                log(self, "invalidate", self._logger, False, f"Error in the act_on_invalidation_callback: {e}")
-                raise ValueError(f"Error in the act_on_invalidation_callback: {e}")
-        self._notify_listeners()
-        log(self, "invalidate", self._logger, True, "Successfully invalidated")
-        return True, "Successfully invalidated"
+            values_dict: dict[PHK, PHV] = {}
+            for key, value in self.primary_values.items():
+                if key in self._primary_hooks:
+                    values_dict[key] = value
+        
+            success, message = self._verification_method(values_dict)
+            return success, message
 
     def destroy(self) -> None:
         """
@@ -293,6 +275,31 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
         """
         self.disconnect(None)
         self.remove_all_listeners()
+
+
+    def _internal_invalidate_hooks(self, submitted_values: dict[PHK|SHK, PHV|SHV]) -> None:
+        """
+        Internal invalidate for the nexus to use before the hooks are invalidated.
+        """
+        pass
+
+    def invalidate_hooks(self) -> tuple[bool, str]:
+        """
+        Invalidate the the values of the component hooks.
+
+        Args:
+            keys: The keys of the component hooks to invalidate.
+            hooks_not_to_invalidate: The hooks to not invalidate (The validity of the values will still be checked!)
+        """
+
+        if self._act_on_invalidation_callback is not None:
+            try:
+                self._act_on_invalidation_callback()
+            except Exception as e:
+                log(self, "invalidate", self._logger, False, f"Error in the act_on_invalidation_callback: {e}")
+                raise ValueError(f"Error in the act_on_invalidation_callback: {e}")
+        log(self, "invalidate", self._logger, True, "Successfully invalidated")
+        return True, "Successfully invalidated"
 
     #########################################################################
     # CarriesCollectiveHooks interface
@@ -332,24 +339,6 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
                 case _: # type: ignore
                     raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
         HookNexus[PHV|SHV].connect_hook_pairs(*hook_pairs)
-
-    def is_valid_hook_values(self, values: Mapping[PHK|SHK, PHV|SHV]) -> tuple[bool, str]: # type: ignore
-        """
-        Check if the values are valid.
-        """
-        if self._verification_method is None:
-            return True, "No verification method provided. Default is True"
-        else:
-            dict_of_values: Mapping[PHK, PHV] = self._get_primary_values_as_references()
-            # Check if any of the keys correspond to secondary hooks
-            for key, value in values.items():
-                if key in self._secondary_hooks:
-                    # Secondary hooks don't need validation since they're computed from component values
-                    return True, "Secondary hooks are always valid as they're computed values"
-            
-            for key, value in values.items():
-                dict_of_values[key] = value # type: ignore
-            return self._verification_method(dict_of_values) # type: ignore
 
     #########################################################################
     # Other private methods
@@ -427,7 +416,7 @@ class BaseObservable(BaseListening, CarriesCollectiveHooks[PHK|SHK, PHV|SHV], Ge
         if len(dict_of_values) == 1:
             key, value = next(iter(dict_of_values.items()))
             hook = self._primary_hooks[key]
-            success, message = hook.validate_single_value_for_submit(value)
+            success, message = hook.is_valid_value(value)
             if not success:
                 return False, message
         else:

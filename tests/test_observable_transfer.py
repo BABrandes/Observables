@@ -51,12 +51,12 @@ class TestObservableTransfer(unittest.TestCase):
     def test_basic_creation(self):
         """Test basic ObservableTransfer creation."""
         # Create input hooks
-        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
-        y_hook = OwnedHook(owner=self.mock_owner, value=3, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, initial_value=5, logger=logger)
+        y_hook = OwnedHook(owner=self.mock_owner, initial_value=3, logger=logger)
         
         # Create output hooks
-        sum_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
-        product_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
+        sum_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
+        product_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
         
         # Create transfer
         transfer = ObservableTransfer(
@@ -96,9 +96,9 @@ class TestObservableTransfer(unittest.TestCase):
 
     def test_hook_access(self):
         """Test hook access methods."""
-        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
-        y_hook = OwnedHook(owner=self.mock_owner, value=3, logger=logger)
-        sum_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, initial_value=5, logger=logger)
+        y_hook = OwnedHook(owner=self.mock_owner, initial_value=3, logger=logger)
+        sum_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook, "y": y_hook},
@@ -273,9 +273,9 @@ class TestObservableTransfer(unittest.TestCase):
 
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
-        x_hook = OwnedHook(owner=self.mock_owner, value=5, logger=logger)
-        result_hook = OwnedHook(owner=self.mock_owner, value=0, logger=logger)
-        external_hook = OwnedHook(owner=self.mock_owner, value=999, logger=logger)
+        x_hook = OwnedHook(owner=self.mock_owner, initial_value=5, logger=logger)
+        result_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
+        external_hook = OwnedHook(owner=self.mock_owner, initial_value=999, logger=logger)
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook},

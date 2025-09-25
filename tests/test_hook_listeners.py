@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import Mock
 from typing import Any
-from observables._hooks.owned_hook import OwnedHook
-from observables._hooks.hook_like import HookLike
-from observables._utils.carries_hooks import CarriesHooks
+
+from observables import CarriesHooks, InitialSyncMode, HookLike, OwnedHook
+from observables._utils.hook_nexus import HookNexus
 
 
 class MockCarriesHooks(CarriesHooks[Any, Any]):
@@ -15,6 +15,38 @@ class MockCarriesHooks(CarriesHooks[Any, Any]):
     
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
+    
+    def get_hook_key(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> Any:
+        """Return a mock key for the hook."""
+        return "mock_key"
+    
+    def get_hook_keys(self) -> set[Any]:
+        """Return a set of mock keys."""
+        return {"mock_key"}
+    
+    def get_hook(self, key: Any) -> Any:
+        """Return a mock hook."""
+        return None
+    
+    def get_hook_value_as_reference(self, key: Any) -> Any:
+        """Return a mock value."""
+        return "mock_value"
+    
+    def connect(self, hook: Any, to_key: Any, initial_sync_mode: InitialSyncMode) -> None:
+        """Mock connect method."""
+        pass
+    
+    def disconnect(self, key: Any) -> None:
+        """Mock disconnect method."""
+        pass
+    
+    def invalidate_hooks(self) -> tuple[bool, str]:
+        """Mock invalidate method."""
+        return True, "Mock invalidation"
+    
+    def destroy(self) -> None:
+        """Mock destroy method."""
+        pass
     
     def __repr__(self) -> str:
         return f"MockCarriesHooks({self.name})"

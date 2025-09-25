@@ -5,7 +5,6 @@ from logging import Logger
 from observables import OwnedHook, BaseObservable, HookLike, InitialSyncMode
 from run_tests import console_logger as logger
 
-
 class MockObservable(BaseObservable[Any, Any, Any, Any]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
     
@@ -31,10 +30,6 @@ class MockObservable(BaseObservable[Any, Any, Any, Any]):
         # For testing purposes, return a dummy key
         return "dummy_key"
     
-    def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
-        """Check if the value is valid - always return True for testing."""
-        return True, "Mock validation always passes"
-
 class TestHookCapabilities(unittest.TestCase):
     """Test hooks with different capabilities in the new hook-based system."""
 
@@ -46,7 +41,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with invalidate callback
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="initial_value",
+            initial_value="initial_value",
             invalidate_callback=lambda _: (True, "invalidated"),
             logger=logger
         )
@@ -65,7 +60,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook without invalidate callback
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="initial_value",
+            initial_value="initial_value",
             invalidate_callback=None,
             logger=logger
         )
@@ -84,7 +79,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="test_value",
+            initial_value="test_value",
             invalidate_callback=lambda _: (True, "invalidated"),
             logger=logger
         )
@@ -103,7 +98,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "invalidated"),
             logger=logger
         )
@@ -122,7 +117,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "invalidated"),
             logger=logger
         )
@@ -144,7 +139,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -169,7 +164,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with invalidate callback
         hook_with_callback = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -177,7 +172,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook without invalidate callback
         hook_without_callback = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=None,
             logger=logger
         )
@@ -194,7 +189,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -218,14 +213,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create two hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value1",
+            initial_value="value1",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value2",
+            initial_value="value2",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -249,14 +244,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create two hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value1",
+            initial_value="value1",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value2",
+            initial_value="value2",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -275,7 +270,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -286,7 +281,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create another hook to connect with
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value",  # Same value as first hook
+            initial_value="value",  # Same value as first hook
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -310,7 +305,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -318,7 +313,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create another hook to connect with
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value",  # Same value as first hook
+            initial_value="value",  # Same value as first hook
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -348,7 +343,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="initial_value",
+            initial_value="initial_value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -368,7 +363,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook without invalidate callback
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="initial_value",
+            initial_value="initial_value",
             invalidate_callback=None,
             logger=logger
         )
@@ -385,14 +380,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create two hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value1",
+            initial_value="value1",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value2",
+            initial_value="value2",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -422,7 +417,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=invalidate_callback,
             logger=logger
         )
@@ -439,7 +434,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook without invalidate callback
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=None,
             logger=logger
         )
@@ -458,7 +453,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -477,7 +472,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -507,7 +502,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="initial",
+            initial_value="initial",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -554,7 +549,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -605,7 +600,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -652,13 +647,13 @@ class TestHookCapabilities(unittest.TestCase):
         # Create multiple hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value1",
+            initial_value="value1",
             invalidate_callback=lambda _: (True, "success")
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value2",
+            initial_value="value2",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -710,7 +705,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -721,7 +716,7 @@ class TestHookCapabilities(unittest.TestCase):
                     # Create another hook to connect with first
                     hook2 = OwnedHook[str](
                         owner=mock_owner,
-                        value="value",
+                        initial_value="value",
                         invalidate_callback=lambda _: (True, "success")
                     )
                     hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
@@ -764,7 +759,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -811,13 +806,13 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value1",
+            initial_value="value1",
             invalidate_callback=lambda _: (True, "success")
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value2",
+            initial_value="value2",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -864,7 +859,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -913,7 +908,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -962,7 +957,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success")
         )
         
@@ -1014,7 +1009,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=failing_invalidate_callback,
             logger=logger
         )
@@ -1030,7 +1025,7 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         int_hook = OwnedHook[int](
             owner=mock_owner,
-            value=42,
+            initial_value=42,
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1039,7 +1034,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Test with float
         float_hook = OwnedHook[float](
             owner=mock_owner,
-            value=3.14,
+            initial_value=3.14,
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1048,7 +1043,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Test with bool
         bool_hook = OwnedHook[bool](
             owner=mock_owner,
-            value=True,
+            initial_value=True,
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1057,7 +1052,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Test with list
         list_hook = OwnedHook[list[str]](
             owner=mock_owner,
-            value=["a", "b", "c"],
+            initial_value=["a", "b", "c"],
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1071,14 +1066,14 @@ class TestHookCapabilities(unittest.TestCase):
         # Create two identical hooks
         hook1 = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
         
         hook2 = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1102,7 +1097,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create a hook
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda _: (True, "success"),
             logger=logger
         )
@@ -1122,7 +1117,7 @@ class TestHookCapabilities(unittest.TestCase):
         try:
             hook = OwnedHook[str](
                 owner=None,  # type: ignore
-                value="value",
+                initial_value="value",
                 invalidate_callback=lambda _: (True, "success"),
                 logger=logger
             )
@@ -1146,7 +1141,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=invalidate_callback_with_side_effect,
             logger=logger
         )
@@ -1182,7 +1177,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with callable object
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=callable_obj,
             logger=logger
         )
@@ -1210,7 +1205,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with lambda callback
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=lambda_invalidate_callback
         )
         
@@ -1242,7 +1237,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with bound method
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=invalidate_method,
             logger=logger
         )
@@ -1277,7 +1272,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with class method
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=TestClass.class_invalidate,
             logger=logger
         )
@@ -1292,7 +1287,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Test with static method
         static_hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=TestClass.static_invalidate,
             logger=logger
         )
@@ -1319,7 +1314,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with decorated function
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=decorated_invalidate,
             logger=logger
         )
@@ -1347,7 +1342,7 @@ class TestHookCapabilities(unittest.TestCase):
         # Create hook with closure function
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=invalidate_closure,
             logger=logger
         )
@@ -1371,7 +1366,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         hook = OwnedHook[str](
             owner=mock_owner,
-            value="value",
+            initial_value="value",
             invalidate_callback=safe_invalidate_callback,
             logger=logger
         )

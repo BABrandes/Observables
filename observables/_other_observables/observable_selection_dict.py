@@ -50,49 +50,47 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
 
         self._ignore_invalidation_flag: bool = False
 
-        def dict_or_key_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            if self._key_hook.value in self._dict_hook.value:
-                self._ignore_invalidation_flag = True
-                self._value_hook.submit_single_value(self._dict_hook.value[self._key_hook.value])
-                self._ignore_invalidation_flag = False
-            return True, "Successfully invalidated"
+        def dict_invalidated(submitted_value: dict[K, V]) -> None:
+            """
+            This function is called when the dictionary is invalidated.
+            """
 
-        def value_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            if self._key_hook.value is not None:
-                dict_value: dict[K, V] = self._dict_hook.value
-                dict_value[self._key_hook.value] = self._value_hook.value
-                self._ignore_invalidation_flag = True
-                self._dict_hook.submit_single_value(dict_value)
-                self._ignore_invalidation_flag = False
-            return True, "Successfully invalidated"
+            # Check if the value_hook carries the correct value
+            if self._value_hook.value != submitted_value[self._key_hook.value]:
+                # Submit the correct value
+                self._value_hook.submit_single_value(submitted_value[self._key_hook.value])
 
-        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
-        self._key_hook: OwnedHook[K] = OwnedHook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
-        self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
+        def key_invalidated(submitted_value: K) -> None:
+            """
+            This function is called when the key is invalidated.
+            """
 
-        def verification_method(x: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+            current_dict: dict[K, V] = self._dict_hook.value
+            current_value: V = self._value_hook.value
 
-            # All three keys must be present!
-            if "dict" not in x or "key" not in x or "value" not in x:
-                return False, "All three keys must be present"
+            if current_value != current_dict[submitted_value]:
+                inferred_value: V = current_dict[submitted_value]
+                # Submit the correct value
+                self._value_hook.submit_single_value(inferred_value)
 
-            if x["value"] is None:
-                return False, "Value is None"
-            if x["key"] is None:
-                return False, "Key is None"
-            if x["dict"] is None:
-                return False, "Dictionary is None"
+        def value_invalidated(submitted_value: V) -> None:
+            """
+            This function is called when the value is invalidated.
+            """
 
-            if x["key"] not in x["dict"]:
-                return False, "Key is not in dictionary"
+            _key: Optional[K] = self._key_hook.value
 
-            return True, "Verification method passed"
+            # Check if the value_hook carries the correct value
+            if _key is not None:
+                if self._dict_hook.value[_key] != submitted_value:
+                    # Submit the correct value
+                    _new_dict_value: dict[K, V] = self._dict_hook.value.copy()
+                    _new_dict_value[_key] = submitted_value
+                    self._dict_hook.submit_single_value(_new_dict_value)
 
-        self._verification_method = verification_method
+        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, None, dict_invalidated, logger)
+        self._key_hook: OwnedHook[K] = OwnedHook[K](self, _initial_key_value, None, key_invalidated, logger) # type: ignore
+        self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, None, value_invalidated, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
             self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
@@ -100,19 +98,6 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
             self._key_hook.connect(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if isinstance(value_hook, HookLike):
             self._value_hook.connect(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def verify_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-        """
-        Verify the values.
-
-        Args:
-            values: The values to verify.
-
-        Returns:
-            A tuple containing a boolean indicating if the values are valid and a string describing the result.
-        """
-        values = {**self.get_hook_value_as_reference_dict(), **values}
-        return self._verification_method(values)
 
     ########################################################
     # CarriesHooks interface
@@ -143,11 +128,12 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         return {"dict", "key", "value"}
 
     def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
-        if hook_or_nexus == self._dict_hook:
+        # Handle both hooks and their associated nexuses
+        if hook_or_nexus == self._dict_hook or (hasattr(self._dict_hook, 'hook_nexus') and hook_or_nexus == self._dict_hook.hook_nexus):
             return "dict"
-        elif hook_or_nexus == self._key_hook:
+        elif hook_or_nexus == self._key_hook or (hasattr(self._key_hook, 'hook_nexus') and hook_or_nexus == self._key_hook.hook_nexus):
             return "key"
-        elif hook_or_nexus == self._value_hook:
+        elif hook_or_nexus == self._value_hook or (hasattr(self._value_hook, 'hook_nexus') and hook_or_nexus == self._value_hook.hook_nexus):
             return "value"
         else:
             raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
@@ -172,14 +158,14 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def is_valid_hook_value(self, hook_key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
-        values = self.get_hook_value_as_reference_dict()
-        values[hook_key] = value
-        return self._verification_method(values)
-
     def invalidate_hooks(self) -> tuple[bool, str]:
-        self._notify_listeners()
-        return True, "Successfully invalidated"
+        return True, "No invalidation needed"
+
+    def _internal_invalidate_hooks(self, submitted_values: dict[Literal["dict", "key", "value"], Any]) -> None:
+        """
+        Internal invalidate for the nexus to use before the hooks are invalidated.
+        """
+        pass
 
     def destroy(self) -> None:
         """
@@ -200,9 +186,104 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         self._key_hook.connect(hooks["key"], initial_sync_mode)
         self._value_hook.connect(hooks["value"], initial_sync_mode)
 
-    def is_valid_hook_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-        values = {**self.get_hook_value_as_reference_dict(), **values}
-        return self._verification_method(values)
+    def _is_valid_values_as_part_of_owner_impl(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[Literal[True, False, "InternalInvalidationNeeded"], str]:
+        """
+        Check if the values can be accepted, so that a subsequent invalidation will result in a valid state.
+        """
+
+        if len(values) == 3:
+            _dict = values["dict"]
+            _key = values["key"]
+            _value = values["value"]
+
+            if _dict is None:
+                return False, "Dictionary is None"
+            if _key not in _dict:
+                return False, f"Key {_key} is not in dictionary"
+            if _dict[_key] != _value:
+                return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_key]}"
+            return True, "Everything is valid"
+
+        elif len(values) == 2:
+
+            if "dict" in values and "key" in values:
+                _dict = values["dict"]
+                _key = values["key"]
+                if _dict is None:
+                    return False, "Dictionary is None"
+                if _key not in _dict:
+                    return False, f"Key {_key} is not in dictionary"
+                inferred_value: V = _dict[_key]
+                if inferred_value != self._value_hook.value:
+                    return "InternalInvalidationNeeded", f"Inferred value {inferred_value} is not the same as the value currently carried by the value hook {self._value_hook.value}"
+                return True, "Everything is valid"
+
+            elif "dict" in values and "value" in values:
+                _dict = values["dict"]
+                _value = values["value"]
+                _current_key: K = self._key_hook.value
+
+                if _dict is None:
+                    return False, "Dictionary is None"
+                if _dict[_current_key] != _value:
+                    return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_current_key]}"
+                return True, "Everything is valid"
+
+            elif "key" in values and "value" in values:
+                _key = values["key"]
+                _value = values["value"]
+                _current_dict = self._dict_hook.value
+                if _key not in _current_dict:
+                    return False, f"Key {_key} is not in dictionary"
+                if _current_dict[_key] != _value:
+                    return "InternalInvalidationNeeded", f"Value {_value} is not the same as the value in the dictionary {_current_dict[_key]}"
+                return True, "Everything is valid"
+
+            else:
+                return False, "Invalid number of keys"
+
+        elif len(values) == 1:
+            if "dict" in values:
+                _dict = values["dict"]
+                _current_key = self._key_hook.value
+                _inferred_value = _dict[_current_key]
+
+                if _dict is None:
+                    return False, "Dictionary is None"
+                if _current_key not in _dict:
+                    return False, f"Key {_current_key} is not in dictionary"
+                inferred_value = _dict[_current_key]
+                if inferred_value != self._value_hook.value:
+                    return "InternalInvalidationNeeded", f"Inferred value {inferred_value} is not the same as the value currently carried by the value hook {self._value_hook.value}"
+                return True, "Everything is valid"
+
+            elif "key" in values:
+                _key = values["key"]
+                _current_dict = self._dict_hook.value
+                _inferred_value = _current_dict[_key]
+
+                if _key not in _current_dict:
+                    return False, f"Key {_key} is not in dictionary"
+                if _inferred_value != self._value_hook.value:
+                    return "InternalInvalidationNeeded", f"Inferred value {_inferred_value} is not the same as the value currently carried by the value hook {self._value_hook.value}"
+                return True, "Everything is valid"
+
+            elif "value" in values:
+                _value = values["value"]
+                _current_dict = self._dict_hook.value
+                _current_key = self._key_hook.value
+                if _current_key not in _current_dict:
+                    return False, f"Key {_current_key} is not in dictionary"
+                if _value != _current_dict[_current_key]:
+                    return "InternalInvalidationNeeded", f"Value {_value} is not the same as the value in the dictionary {_current_dict[_current_key]}"
+                return True, "Everything is valid"
+
+            else:
+                return False, "Invalid number of keys"
+        else:
+            return False, "Invalid number of keys"
+
+        return True, "Everything is valid"
 
 ########################################################
 # Specific properties
@@ -278,14 +359,12 @@ class ObservableSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "val
         """
         Set the dictionary and key behind this hook.
         """
-        
-        success, message = self._verification_method({"dict": dict_value, "key": key_value})
-        if not success:
-            raise ValueError(message)
-        
+
+        _inferred_value = dict_value[key_value]
         OwnedHookLike[Any].submit_multiple_values(
             (self._dict_hook, dict_value),
-            (self._key_hook, key_value)
+            (self._key_hook, key_value),
+            (self._value_hook, _inferred_value)
         )
 
 class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
@@ -333,60 +412,63 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
 
         self._ignore_invalidation_flag: bool = False
 
-        def dict_or_key_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            key_value: Optional[K] = self._key_hook.value
-            if key_value is None:
-                self._ignore_invalidation_flag = True
-                self._value_hook.submit_single_value(None)
-                self._ignore_invalidation_flag = False
+        def dict_invalidated() -> tuple[bool, str]:
+            """
+            This function is called when the dictionary is invalidated.
+            """
+
+            _key = self._key_hook.value
+
+            # Check if the value_hook carries the correct value
+            if _key is not None:
+                if self._value_hook.value != self._dict_hook.value[_key]:
+                    # Submit the correct value
+                    success, msg = self._value_hook.submit_single_value(self._dict_hook.value[_key])
+                    if not success:
+                        raise ValueError(msg)
+                    return True, "Successfully invalidated"
+                else:
+                    self._notify_listeners()
+                    return True, "Successfully invalidated"
             else:
-                if key_value in self._dict_hook.value:
-                    self._ignore_invalidation_flag = True
-                    self._value_hook.submit_single_value(self._dict_hook.value[key_value])
-                    self._ignore_invalidation_flag = False
+                self._notify_listeners()
+                return True, "Successfully invalidated"
+
+        def key_invalidated() -> tuple[bool, str]:
+            """
+            This function is called when the key is invalidated.
+            """
+
+            self._notify_listeners()
             return True, "Successfully invalidated"
 
         def value_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            dict_value: dict[K, V] = self._dict_hook.value
-            key_value: Optional[K] = self._key_hook.value
-            if key_value is None:
-                if self._value_hook.value is not None:
-                    raise ValueError("Cannot set value when key is None")
+            """
+            This function is called when the value is invalidated.
+            """
+
+            _key: Optional[K] = self._key_hook.value
+
+            # Check if the value_hook carries the correct value
+            if _key is not None:
+                if self._dict_hook.value[_key] != self._value_hook.value:
+                    # Submit the correct value
+                    _new_dict_value: dict[K, V] = self._dict_hook.value.copy()
+                    _new_dict_value[_key] = self._value_hook.value # type: ignore
+                    success, msg = self._dict_hook.submit_single_value(_new_dict_value)
+                    if not success:
+                        raise ValueError(msg)
+                    return True, "Successfully invalidated"
+                else:
+                    self._notify_listeners()
+                    return True, "Successfully invalidated"
             else:
-                dict_value[key_value] = self._value_hook.value # type: ignore
-            self._ignore_invalidation_flag = True
-            self._dict_hook.submit_single_value(dict_value)
-            self._ignore_invalidation_flag = False
-            return True, "Successfully invalidated"
+                self._notify_listeners()
+                return True, "Successfully invalidated"
 
-        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
-        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
+        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_invalidated(), logger)
+        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[K](self, _initial_key_value, lambda _: key_invalidated(), logger) # type: ignore
         self._value_hook: OwnedHook[Optional[V]] = OwnedHook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
-
-        def verification_method(x: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-
-            # All three keys must be present!
-            if "dict" not in x or "key" not in x or "value" not in x:
-                return False, "All three keys must be present"
-
-            if x["dict"] is None:
-                return False, "Dictionary is None"
-            if x["key"] is None and x["value"] is None:
-                return True, "Verification method passed"
-            if x["key"] is None:
-                return False, "Key is None but value is not None"
-            if x["value"] is None:
-                return False, "Value is None but key is not None"
-            if x["key"] not in x["dict"]:
-                return False, "Key is not in dictionary"
-
-            return True, "Verification method passed"
-
-        self._verification_method = verification_method
 
         if isinstance(dict_hook, HookLike):
             self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
@@ -424,11 +506,12 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
             raise ValueError(f"Invalid key: {key}")
 
     def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
-        if hook_or_nexus == self._dict_hook:
+        # Handle both hooks and their associated nexuses
+        if hook_or_nexus == self._dict_hook or (hasattr(self._dict_hook, 'hook_nexus') and hook_or_nexus == self._dict_hook.hook_nexus):
             return "dict"
-        elif hook_or_nexus == self._key_hook:
+        elif hook_or_nexus == self._key_hook or (hasattr(self._key_hook, 'hook_nexus') and hook_or_nexus == self._key_hook.hook_nexus):
             return "key"
-        elif hook_or_nexus == self._value_hook:
+        elif hook_or_nexus == self._value_hook or (hasattr(self._value_hook, 'hook_nexus') and hook_or_nexus == self._value_hook.hook_nexus):
             return "value"
         else:
             raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
@@ -453,10 +536,8 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def is_valid_hook_value(self, hook_key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
-        values = self.get_hook_value_as_reference_dict()
-        values[hook_key] = value
-        return self._verification_method(values)
+    def is_valid_value(self, hook_key: Literal["dict", "key", "value"], value: Any, value_check_mode: set[ValueCheckMode] = {ValueCheckMode.THIS_OWNER, ValueCheckMode.CONNECTED_HOOKS}) -> tuple[bool, str]:
+        return self.is_valid_values({hook_key: value}, value_check_mode)
 
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
@@ -481,9 +562,157 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         self._key_hook.connect(hooks["key"], initial_sync_mode)
         self._value_hook.connect(hooks["value"], initial_sync_mode)
 
-    def is_valid_hook_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-        values = {**self.get_hook_value_as_reference_dict(), **values}
-        return self._verification_method(values)
+    def is_valid_values(self, values: Mapping[Literal["dict", "key", "value"], Any], value_check_mode: set[ValueCheckMode] = {ValueCheckMode.THIS_OWNER, ValueCheckMode.CONNECTED_HOOKS}) -> tuple[bool, str]:
+        """
+        Check if the values can be accepted, so that a subsequent invalidation will result in a valid state.
+        """
+
+        from .._utils.hook_nexus import ValueCheckMode as HookNexusValueCheckMode
+
+        if ValueCheckMode.CONNECTED_HOOKS in value_check_mode:
+            for hook_key in values:
+                hook = self.get_hook(hook_key)
+                value = values[hook_key]
+                success, message = hook.is_valid_value(value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                if not success:
+                    return False, message
+
+        if ValueCheckMode.THIS_OWNER in value_check_mode:
+
+            if len(values) == 3:
+                _dict = values["dict"]
+                _key = values["key"]
+                _value = values["value"]
+
+                if _dict is None:
+                    return False, "Dictionary is None"
+                if not _key is None:
+                    if _key not in _dict:
+                        return False, f"Key {_key} is not in dictionary"
+                    if _dict[_key] != _value:
+                        return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_key]}"
+                else:
+                    if _value is not None:
+                        return False, "Key is None but value is not None"
+
+            elif len(values) == 2:
+
+                if "dict" in values and "key" in values:
+                    _dict = values["dict"]
+                    _key = values["key"]
+                    inferred_value = _dict[_key]
+
+                    if _dict is None:
+                        return False, "Dictionary is None"
+                    if not _key is None:
+                        if _key not in _dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(inferred_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(None, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+
+                elif "dict" in values and "value" in values:
+                    _dict = values["dict"]
+                    _value = values["value"]
+                    _current_key = self._key_hook.value
+
+                    if not _current_key is None:
+                        if _dict is None:
+                            return False, "Dictionary is None"
+                        if _dict[_current_key] != _value:
+                            return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_current_key]}"
+                    else:
+                        if _value is not None:
+                            return False, "Key is None but value is not None"
+
+                elif "key" in values and "value" in values:
+                    _key = values["key"]
+                    _value = values["value"]
+                    _current_dict = self._dict_hook.value
+
+                    if not _key is None:
+                        if _key not in _current_dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        if _current_dict[_key] != _value:
+                            return False, f"Value {_value} is not the same as the value in the dictionary {_current_dict[_key]}"
+                    else:
+                        if _value is not None:
+                            return False, "Key is None but value is not None"
+
+                else:
+                    return False, "Invalid number of keys"
+
+            elif len(values) == 1:
+                if "dict" in values:
+                    _dict = values["dict"]
+                    _current_key = self._key_hook.value
+                    _inferred_value = _dict[_current_key]
+
+                    if _dict is None:
+                        return False, "Dictionary is None"
+                    if not _current_key is None:
+                        if _current_key not in _dict:
+                            return False, f"Key {_current_key} is not in dictionary"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(_inferred_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(None, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+
+                elif "key" in values:
+                    _key = values["key"]
+                    _current_dict = self._dict_hook.value
+                    _current_value = self._value_hook.value
+
+                    if not _key is None:
+                        if _key not in _current_dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        # For Optional dict: if setting key to non-None, current value must not be None
+                        if _current_value is None:
+                            return False, f"Cannot set key to {_key} when current value is None"
+                    else:
+                        # For Optional dict: if setting key to None, current value must be None  
+                        if _current_value is not None:
+                            return False, f"Cannot set key to None when current value is {_current_value}"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(None, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+
+                elif "value" in values:
+                    _value = values["value"]
+                    _current_dict = self._dict_hook.value
+                    _current_key = self._key_hook.value
+
+                    if not _current_key is None:
+                        if _current_key not in _current_dict:
+                            return False, f"Key {_current_key} is not in dictionary"
+                        # For Optional dict: if key is not None, value cannot be None
+                        if _value is None:
+                            return False, f"Cannot set value to None when current key is {_current_key}"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if _value is not None:
+                            return False, "Key is None but value is not None"
+
+                else:
+                    return False, "Invalid number of keys"
+
+        return True, "Everything is valid"
+
 
 ########################################################
 # Specific properties
@@ -560,13 +789,15 @@ class ObservableOptionalSelectionDict(CarriesCollectiveHooks[Literal["dict", "ke
         Set the dictionary and key behind this hook.
         """
 
-        success, msg = self.is_valid_hook_values({"dict": dict_value, "key": key_value})
-        if not success:
-            raise ValueError(msg)
+        if key_value is None:
+            _inferred_value = None
+        else:
+            _inferred_value = dict_value[key_value]
 
         OwnedHookLike[Any].submit_multiple_values(
             (self._dict_hook, dict_value),
-            (self._key_hook, key_value)
+            (self._key_hook, key_value),
+            (self._value_hook, _inferred_value)
         )
 
 class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
@@ -604,7 +835,10 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
             _initial_key_value = key_hook
 
         if value_hook is None:
-            _initial_value_value: V = default_value
+            if _initial_key_value is None:
+                _initial_value_value: V = default_value
+            else:
+                _initial_value_value = _initial_dict_value[_initial_key_value]
         elif isinstance(value_hook, HookLike): # type: ignore
             _initial_value_value = value_hook.value # type: ignore
         else:
@@ -612,68 +846,60 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
 
         self._ignore_invalidation_flag: bool = False
 
-        def dict_or_key_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            key_value: Optional[K] = self._key_hook.value
-            if key_value is None:
-                self._ignore_invalidation_flag = True
-                self._value_hook.submit_single_value(self._default_value)
-                self._ignore_invalidation_flag = False
+        def dict_invalidated() -> tuple[bool, str]:
+            """
+            This function is called when the dictionary is invalidated.
+            """
+
+            _key: Optional[K] = self._key_hook.value
+            if _key is not None:
+                if self._dict_hook.value[_key] != self._value_hook.value:
+                    # Submit the correct value
+                    _new_value_value: V = self._dict_hook.value[_key]
+                    success, msg = self._value_hook.submit_single_value(_new_value_value)
+                    if not success:
+                        raise ValueError(msg)
+                    return True, "Successfully invalidated"
+                else:
+                    self._notify_listeners()
+                    return True, "Successfully invalidated"
             else:
-                if key_value in self._dict_hook.value:
-                    self._ignore_invalidation_flag = True
-                    self._value_hook.submit_single_value(self._dict_hook.value[key_value])
-                    self._ignore_invalidation_flag = False
+                self._notify_listeners()
+                return True, "Successfully invalidated"
+
+        def key_invalidated() -> tuple[bool, str]:
+            """
+            This function is called when the key is invalidated.
+            """
+            self._notify_listeners()
             return True, "Successfully invalidated"
 
         def value_invalidated() -> tuple[bool, str]:
-            if self._ignore_invalidation_flag:
-                return True, "Invalidation already on its way"
-            dict_value: dict[K, V] = self._dict_hook.value
-            key_value: Optional[K] = self._key_hook.value
-            if key_value is None:
-                if self._value_hook.value != self._default_value:
-                    raise ValueError("Cannot set value when key is None and value is not the default value")
+            """
+            This function is called when the value is invalidated.
+            """
+
+            _key: Optional[K] = self._key_hook.value
+
+            if _key is not None:
+                if self._dict_hook.value[_key] != self._value_hook.value:
+                    # Submit the correct value
+                    _new_dict_value: dict[K, V] = self._dict_hook.value.copy()
+                    _new_dict_value[_key] = self._value_hook.value # type: ignore
+                    success, msg = self._dict_hook.submit_single_value(_new_dict_value)
+                    if not success:
+                        raise ValueError(msg)
+                    return True, "Successfully invalidated"
+                else:
+                    self._notify_listeners()
+                    return True, "Successfully invalidated"
             else:
-                dict_value[key_value] = self._value_hook.value # type: ignore
-            self._ignore_invalidation_flag = True
-            self._dict_hook.submit_single_value(dict_value)
-            self._ignore_invalidation_flag = False
-            return True, "Successfully invalidated"
+                self._notify_listeners()
+                return True, "Successfully invalidated"
 
-        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_or_key_invalidated(), logger)
-        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[K](self, _initial_key_value, lambda _: dict_or_key_invalidated(), logger) # type: ignore
+        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, lambda _: dict_invalidated(), logger)
+        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[Optional[K]](self, _initial_key_value, lambda _: key_invalidated(), logger) # type: ignore
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, lambda _: value_invalidated(), logger) # type: ignore
-
-        def verification_method(x: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-
-            # All three keys must be present!
-            if "dict" not in x or "key" not in x or "value" not in x:
-                return False, "All three keys must be present"
-
-            dict_: Optional[dict[K, V]] = x["dict"]
-            key: Optional[K] = x["key"]
-            value: Optional[V] = x["value"]
-
-            if dict_ is None:
-                return False, "Dictionary is None"
-            if value is None and self._default_value is not None:
-                return False, f"Value {value} is None and the default value {self._default_value} is also not None"
-            if key is not None and key not in dict_:
-                return False, f"Key {key} is not None and not in dictionary"
-
-            match (key, value):
-                case (None, self._default_value):
-                    return True, "Verification method passed"
-                case (None, _):
-                    return False, f"Key {key} is None but value {value} is not the default value {self._default_value}"
-                case (_, _):
-                    if value != dict_[key]:
-                        return False, f"Value {value} is not the value in the dictionary at the key {key}, it is {dict_[key]}"
-                    return True, "Verification method passed"
-
-        self._verification_method = verification_method
 
         if isinstance(dict_hook, HookLike):
             self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
@@ -711,12 +937,24 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
             raise ValueError(f"Invalid key: {key}")
 
     def get_hook_key(self, hook_or_nexus: "HookLike[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
-        if hook_or_nexus == self._dict_hook:
-            return "dict"
-        elif hook_or_nexus == self._key_hook:
-            return "key"
-        elif hook_or_nexus == self._value_hook:
-            return "value"
+        if isinstance(hook_or_nexus, HookNexus):
+            if hook_or_nexus == self._dict_hook.hook_nexus:
+                return "dict"
+            elif hook_or_nexus == self._key_hook.hook_nexus:
+                return "key"
+            elif hook_or_nexus == self._value_hook.hook_nexus:
+                return "value"
+            else:
+                raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
+        elif isinstance(hook_or_nexus, HookLike): # type: ignore
+            if hook_or_nexus == self._dict_hook:
+                return "dict"
+            elif hook_or_nexus == self._key_hook:
+                return "key"
+            elif hook_or_nexus == self._value_hook:
+                return "value"
+            else:
+                raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
         else:
             raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
 
@@ -740,10 +978,8 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def is_valid_hook_value(self, hook_key: Literal["dict", "key", "value"], value: Any) -> tuple[bool, str]:
-        values = self.get_hook_value_as_reference_dict()
-        values[hook_key] = value
-        return self._verification_method(values)
+    def is_valid_value(self, hook_key: Literal["dict", "key", "value"], value: Any, value_check_mode: set[ValueCheckMode] = {ValueCheckMode.THIS_OWNER, ValueCheckMode.CONNECTED_HOOKS}) -> tuple[bool, str]:
+        return self.is_valid_values({hook_key: value}, value_check_mode)
 
     def invalidate_hooks(self) -> tuple[bool, str]:
         self._notify_listeners()
@@ -768,9 +1004,165 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         self._key_hook.connect(hooks["key"], initial_sync_mode)
         self._value_hook.connect(hooks["value"], initial_sync_mode)
 
-    def is_valid_hook_values(self, values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
-        values = {**self.get_hook_value_as_reference_dict(), **values}
-        return self._verification_method(values)
+    def is_valid_values(self, values: Mapping[Literal["dict", "key", "value"], Any], value_check_mode: set[ValueCheckMode] = {ValueCheckMode.THIS_OWNER, ValueCheckMode.CONNECTED_HOOKS}) -> tuple[bool, str]:
+        """
+        Check if the values can be accepted, so that a subsequent invalidation will result in a valid state.
+        """
+
+        from .._utils.hook_nexus import ValueCheckMode as HookNexusValueCheckMode
+
+        if ValueCheckMode.CONNECTED_HOOKS in value_check_mode:
+            for hook_key in values:
+                hook = self.get_hook(hook_key)
+                value = values[hook_key]
+                success, message = hook.is_valid_value(value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                if not success:
+                    return False, message
+
+        if ValueCheckMode.THIS_OWNER in value_check_mode:
+
+            if len(values) == 3:
+                _dict = values["dict"]
+                _key = values["key"]
+                _value = values["value"]
+
+                if _dict is None:
+                    return False, "Dictionary is None"
+                if not _key is None:
+                    if _key not in _dict:
+                        return False, f"Key {_key} is not in dictionary"
+                    if _dict[_key] != _value:
+                        return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_key]}"
+                else:
+                    if _value is not self._default_value:
+                        return False, f"Key is None but value is not the default value {self._default_value}"
+
+            elif len(values) == 2:
+
+                if "dict" in values and "key" in values:
+                    _dict = values["dict"]
+                    _key = values["key"]
+                    inferred_value = _dict[_key]
+
+                    if _dict is None:
+                        return False, "Dictionary is None"
+                    if not _key is None:
+                        if _key not in _dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(inferred_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(self._default_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                        return True, "Everything is valid"
+
+
+                elif "dict" in values and "value" in values:
+                    _dict = values["dict"]
+                    _value = values["value"]
+                    _current_key = self._key_hook.value
+
+                    if not _current_key is None:
+                        if _dict is None:
+                            return False, "Dictionary is None"
+                        if _dict[_current_key] != _value:
+                            return False, f"Value {_value} is not the same as the value in the dictionary {_dict[_current_key]}"
+                    else:
+                        if _value is not self._default_value:
+                            return False, f"Key is None but value is not the default value {self._default_value}"
+
+                elif "key" in values and "value" in values:
+                    _key = values["key"]
+                    _value = values["value"]
+                    _current_dict = self._dict_hook.value
+
+                    if not _key is None:
+                        if _key not in _current_dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        if _current_dict[_key] != _value:
+                            return False, f"Value {_value} is not the same as the value in the dictionary {_current_dict[_key]}"
+                        _current_dict = _current_dict.copy()
+                        _current_dict[_key] = _value
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._dict_hook.is_valid_value(_current_dict, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if _value is not self._default_value:
+                            return False, f"Key is None but value is not the default value {self._default_value}"
+
+                else:
+                    return False, "Invalid number of keys"
+
+            elif len(values) == 1:
+                if "dict" in values:
+                    _dict = values["dict"]
+                    _current_key = self._key_hook.value
+                    _inferred_value = _dict[_current_key]
+
+                    if _dict is None:
+                        return False, "Dictionary is None"
+                    if not _current_key is None:
+                        if _current_key not in _dict:
+                            return False, f"Key {_current_key} is not in dictionary"
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(_inferred_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._value_hook.is_valid_value(self._default_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+
+                elif "key" in values:
+                    _key = values["key"]
+                    _current_dict = self._dict_hook.value
+                    _current_value = self._value_hook.value
+
+                    if not _key is None:
+                        if _key not in _current_dict:
+                            return False, f"Key {_key} is not in dictionary"
+                        # For Optional dict: if setting key to non-None, current value must not be None
+                        if _current_value is None:
+                            return False, f"Cannot set key to {_key} when current value is None"
+                    else:
+                        # For Default dict: if setting key to None, current value must be None  
+                        if _current_value != self._default_value:
+                            if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                                success, message = self._value_hook.is_valid_value(self._default_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                                if not success:
+                                    return False, message
+                    return True, "Everything is valid"
+
+                elif "value" in values:
+                    _value = values["value"]
+                    _current_dict = self._dict_hook.value
+                    _current_key = self._key_hook.value
+
+                    if not _current_key is None:
+                        if _current_key not in _current_dict:
+                            return False, f"Key {_current_key} is not in dictionary"
+                        _new_dict_value: dict[K, V] = _current_dict.copy()
+                        _new_dict_value[_current_key] = _value
+                        if value_check_mode == {ValueCheckMode.CONNECTED_HOOKS}:
+                            success, message = self._dict_hook.is_valid_value(_new_dict_value, {HookNexusValueCheckMode.CONNECTED_HOOKS})
+                            if not success:
+                                return False, message
+                    else:
+                        if _value != self._default_value:
+                            return False, f"Key is None but value is not the default value {self._default_value}"
+
+                else:
+                    return False, "Invalid number of keys"
+            else:
+                return False, "Invalid number of keys"
+
+        return True, "Everything is valid"
 
 ########################################################
 # Specific properties
@@ -847,11 +1239,13 @@ class ObservableDefaultSelectionDict(CarriesCollectiveHooks[Literal["dict", "key
         Set the dictionary and key behind this hook.
         """
 
-        success, msg = self.is_valid_hook_values({"dict": dict_value, "key": key_value})
-        if not success:
-            raise ValueError(msg)
+        if key_value is None:
+            inferred_value = self._default_value
+        else:
+            inferred_value = dict_value[key_value]
 
         OwnedHookLike[Any].submit_multiple_values(
             (self._dict_hook, dict_value),
-            (self._key_hook, key_value)
+            (self._key_hook, key_value),
+            (self._value_hook, inferred_value)
         )

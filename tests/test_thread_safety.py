@@ -55,54 +55,6 @@ class TestThreadSafety:
         assert isinstance(final_value, str)
         assert "thread_" in final_value
 
-    def test_hook_activation_deactivation_race_conditions(self):
-        """Test thread safety of hook activation/deactivation."""
-        obs = ObservableSingleValue("initial_value")
-        hook = obs.get_hook("value")
-        
-        errors: list[str] = []
-        iterations = 200
-        
-        def value_setter_thread():
-            """Thread that continuously sets values."""
-            for i in range(iterations):
-                try:
-                    hook.submit_single_value(f"value_{i}")
-                    time.sleep(0.001)  # Small delay to increase race window
-                except ValueError as e:
-                    # "Hook is deactivated" is expected and safe when hook is deactivated
-                    if "Hook is deactivated" not in str(e):
-                        errors.append(f"Unexpected setter error: {e}")
-                except Exception as e:
-                    errors.append(f"Setter error: {e}")
-        
-        def activation_toggle_thread():
-            """Thread that toggles activation."""
-            for i in range(iterations // 20):
-                try:
-                    # Deactivate
-                    hook.deactivate()
-                    time.sleep(0.005)
-                    
-                    # Reactivate
-                    hook.activate(f"reactivated_{i}")
-                    time.sleep(0.005)
-                except Exception as e:
-                    errors.append(f"Activation error: {e}")
-        
-        # Start threads
-        setter_thread = threading.Thread(target=value_setter_thread)
-        activation_thread = threading.Thread(target=activation_toggle_thread)
-        
-        setter_thread.start()
-        activation_thread.start()
-        
-        setter_thread.join()
-        activation_thread.join()
-        
-        # Only non-deactivation errors are concerning
-        assert len(errors) == 0, f"Thread safety issues: {errors}"
-
     def test_concurrent_binding_operations(self):
         """Test thread safety of binding operations."""
         errors: list[str] = []

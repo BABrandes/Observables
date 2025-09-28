@@ -92,14 +92,14 @@ from logging import Logger
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_collective_hooks import CarriesCollectiveHooks
 from .._utils.base_observable import BaseObservable
+from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSelectionOptionLikeBase(CarriesCollectiveHooks[Any, Optional[T]|set[T]|int], Protocol[T]):
+class ObservableSelectionOptionLikeBase(CarriesHooksLike[Any, Optional[T]|set[T]|int], Protocol[T]):
 
     @property
     def available_options(self) -> set[T]:
@@ -173,13 +173,13 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
         if options == self._primary_hooks["available_options"].value:
             return
 
-        self._set_component_values({"available_options": options}, notify_binding_system=True)
+        self.submit_values({"available_options": options})
     
     def change_available_options(self, available_options: set[T]) -> None:
         if available_options == self._primary_hooks["available_options"].value:
             return
         
-        self._set_component_values({"available_options": available_options}, notify_binding_system=True)
+        self.submit_values({"available_options": available_options})
 
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
@@ -197,7 +197,7 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
 
         if item not in new_options:
             new_options.add(item)
-            self._set_component_values({"available_options": new_options}, notify_binding_system=True)
+            self.submit_values({"available_options": new_options})
     
     def add_available_option(self, item: T) -> None:
         self.add(item)
@@ -214,7 +214,7 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
 
         if item in new_options:
             new_options.remove(item)
-            self._set_component_values({"available_options": new_options}, notify_binding_system=True)
+            self.submit_values({"available_options": new_options})
     
     def __str__(self) -> str:
         available_options = self._primary_hooks["available_options"].value
@@ -375,7 +375,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         if selected_option == self._primary_hooks["selected_option"].value:
             return
         
-        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option})
 
     @property
     def selected_option_hook(self) -> OwnedHookLike[T]:
@@ -385,10 +385,10 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         if selected_option == self._primary_hooks["selected_option"].value:
             return
         
-        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option})
  
     def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
-        self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option, "available_options": available_options})
 
     def _get_single_value_hook(self) -> HookLike[T]:
         return self._primary_hooks["selected_option"] # type: ignore
@@ -525,7 +525,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         if selected_option == self.get_hook_value_as_reference("selected_option"):
             return
         
-        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option})
 
     @property
     def selected_option_hook(self) -> OwnedHookLike[Optional[T]]:
@@ -535,10 +535,10 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         if selected_option == self.get_hook_value_as_reference("selected_option"):
             return
         
-        self._set_component_values({"selected_option": selected_option}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option})
     
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
-        self._set_component_values({"selected_option": selected_option, "available_options": available_options}, notify_binding_system=True)
+        self.submit_values({"selected_option": selected_option, "available_options": available_options})
 
     def _get_single_value_hook(self) -> OwnedHookLike[Optional[T]]:
         return self._primary_hooks["selected_option"] # type: ignore

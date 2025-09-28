@@ -105,7 +105,7 @@ class TestCachePerformance:
         
         def operation2():
             hook = obs.get_hook("value")
-            hook.submit_single_value("modified2")
+            hook.submit_value("modified2")
             return hook.value
         
         def operation3():

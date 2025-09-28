@@ -3,14 +3,14 @@ from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable,
 from typing import Optional
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_hooks import CarriesHooks
+from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesHooks[Any, Any], Protocol[T]):
+class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -176,7 +176,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         if value == self._primary_hooks["value"].value: # type: ignore
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
     
     def change_value(self, new_value: tuple[T, ...]) -> None:
         """
@@ -184,7 +184,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         if new_value == self._primary_hooks["value"].value: # type: ignore
             return
-        self._set_component_values({"value": new_value}, notify_binding_system=True)
+        self.submit_values({"value": new_value})
     
     @property
     def value_hook(self) -> HookLike[tuple[T, ...]]:

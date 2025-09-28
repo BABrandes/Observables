@@ -108,24 +108,6 @@ class TestObservableSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.get_hook_key(key_hook), "key")
         self.assertEqual(selection_dict.get_hook_key(value_hook), "value")
 
-    def test_collective_hooks_interface(self):
-        """Test CarriesCollectiveHooks interface implementation."""
-        test_dict = {"a": 1, "b": 2}
-        selection_dict = ObservableSelectionDict(
-            dict_hook=test_dict,
-            key_hook="a",
-            value_hook=None,
-            logger=logger
-        )
-        
-        # Test get_collective_hook_keys
-        collective_keys = selection_dict.get_collective_hook_keys()
-        self.assertEqual(collective_keys, {"dict", "key", "value"})
-        
-        # Test that the interface is properly implemented
-        # The connect_multiple_hooks functionality is tested elsewhere
-        self.assertTrue(hasattr(selection_dict, 'connect_multiple_hooks'))
-
     def test_value_properties(self):
         """Test value and key properties."""
         test_dict = {"a": 1, "b": 2, "c": 3}
@@ -182,17 +164,17 @@ class TestObservableSelectionDict(unittest.TestCase):
         )
         
         # Test valid values
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}})
         self.assertTrue(success)
         
-        success, msg = selection_dict.is_valid_values({"key": "a"})
+        success, msg = selection_dict.validate_values({"key": "a"})
         self.assertTrue(success)
         
-        success, msg = selection_dict.is_valid_values({"value": 1})
+        success, msg = selection_dict.validate_values({"value": 1})
         self.assertTrue(success)
         
         # Test invalid values - need to test with both key and dict context
-        success, msg = selection_dict.is_valid_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
+        success, msg = selection_dict.validate_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
         self.assertFalse(success)
         self.assertIn("not in dictionary", msg)
 
@@ -207,7 +189,7 @@ class TestObservableSelectionDict(unittest.TestCase):
         )
         
         # Test invalidation
-        success, msg = selection_dict.invalidate_hooks()
+        success, msg = selection_dict.invalidate()
         self.assertTrue(success)
         self.assertEqual(msg, "Successfully invalidated")
 
@@ -343,21 +325,21 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         )
         
         # Test valid values
-        success, msg = selection_dict.is_valid_values({"key": "a"})
+        success, msg = selection_dict.validate_values({"key": "a"})
         self.assertTrue(success)
         
-        success, msg = selection_dict.is_valid_values({"value": 1})
+        success, msg = selection_dict.validate_values({"value": 1})
         self.assertTrue(success)
         
         # Test None key with current value 1 (should be invalid)
-        success, msg = selection_dict.is_valid_values({"key": None})
+        success, msg = selection_dict.validate_values({"key": None})
         self.assertFalse(success)
         
         # Test None key with non-None value (should be invalid)
         with self.assertRaises(ValueError):
             selection_dict.key = None
         # Don't set value directly as it will raise ValueError, just test verification
-        success, msg = selection_dict.is_valid_values({"key": None, "value": 999})
+        success, msg = selection_dict.validate_values({"key": None, "value": 999})
         self.assertFalse(success)
         self.assertIn("Key is None but value is not None", msg)
 
@@ -411,7 +393,7 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         )
         
         # Test get_collective_hook_keys
-        collective_keys = selection_dict.get_collective_hook_keys()
+        collective_keys = selection_dict.get_hook_keys()
         self.assertEqual(collective_keys, {"dict", "key", "value"})
         
         # Test that the interface is properly implemented
@@ -576,7 +558,7 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         )
         
         # Test validation with all three values
-        success, msg = selection_dict.is_valid_values({
+        success, msg = selection_dict.validate_values({
             "dict": {"x": 10, "y": 20},
             "key": "x",
             "value": 10
@@ -584,7 +566,7 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         self.assertTrue(success)
         
         # Test validation with mismatched dict and value
-        success, msg = selection_dict.is_valid_values({
+        success, msg = selection_dict.validate_values({
             "dict": {"x": 10, "y": 20},
             "key": "x",
             "value": 999  # Wrong value
@@ -592,7 +574,7 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         self.assertFalse(success)
         
         # Test validation with None dict
-        success, msg = selection_dict.is_valid_values({
+        success, msg = selection_dict.validate_values({
             "dict": None,
             "key": "x",
             "value": 10

@@ -1,11 +1,13 @@
 import unittest
 
 from observables import ObservableTuple, ObservableSingleValue, ObservableSet, ObservableSelectionOption, InitialSyncMode
+from .test_base import ObservableTestCase
 
-class TestObservableTuple(unittest.TestCase):
+class TestObservableTuple(ObservableTestCase):
     """Test cases for ObservableTuple"""
     
     def setUp(self):
+        super().setUp()
         self.observable = ObservableTuple((1, 2, 3))
         self.notification_count = 0
     

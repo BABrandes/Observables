@@ -1,7 +1,9 @@
 import unittest
 from enum import Enum
 from observables import ObservableEnum, InitialSyncMode, ObservableOptionalEnum
-from run_tests import console_logger as logger
+import logging
+logger = logging.getLogger(__name__)
+from .test_base import ObservableTestCase
 
 class TestColor(Enum):
     RED = "red"
@@ -13,10 +15,11 @@ class TestSize(Enum):
     MEDIUM = "medium"
     LARGE = "large"
 
-class TestObservableEnum(unittest.TestCase):
+class TestObservableEnum(ObservableTestCase):
     """Test cases for ObservableEnum"""
     
     def setUp(self):
+        super().setUp()
         self.observable = ObservableEnum(TestColor.RED, {TestColor.RED, TestColor.GREEN, TestColor.BLUE}, logger=logger)
         self.notification_count = 0
     

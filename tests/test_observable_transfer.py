@@ -27,19 +27,10 @@ class MockObservable(BaseObservable[Any, Any, Any, Any]):
         """Construct a MockObservable instance."""
         super().__init__(initial_component_values_or_hooks=initial_values)
     
-    def _act_on_invalidation(self, keys: set[Any]) -> None:
-        """Act on invalidation - required by BaseObservable."""
-        pass
-    
-    def get_hook_key(self, hook_or_nexus: Any) -> Any:
+    def _get_hook_key(self, hook_or_nexus: Any) -> Any:
         """Get the key for a hook - return a dummy key for any hook."""
         # For testing purposes, return a dummy key
         return "dummy_key"
-    
-    def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
-        """Check if the value is valid - always return True for testing."""
-        return True, "Mock validation always passes"
-
 
 class TestObservableTransfer(unittest.TestCase):
     """Test ObservableTransfer functionality."""

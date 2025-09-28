@@ -106,8 +106,7 @@ from ._hooks.floating_hook import FloatingHook
 from ._utils.system_analysis import write_report    
 
 # Alias for convenienc
-from ._utils.carries_hooks import CarriesHooks
-from ._utils.carries_collective_hooks import CarriesCollectiveHooks
+from ._utils.base_carries_hooks import BaseCarriesHooks
 from ._utils.observable_serializable import ObservableSerializable
 
 __all__ = [
@@ -142,8 +141,7 @@ __all__ = [
     'HookNexus',
     'OwnedHookLike',
     'FloatingHook',
-    'CarriesHooks',
-    'CarriesCollectiveHooks',
+    'BaseCarriesHooks',
     'InitialSyncMode',
     'ObservableSerializable',
     'write_report',

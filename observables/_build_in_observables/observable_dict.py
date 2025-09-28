@@ -4,14 +4,14 @@ from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
-from .._utils.carries_hooks import CarriesHooks
 from .._utils.observable_serializable import ObservableSerializable
+from .._utils.carries_hooks_like import CarriesHooksLike
 
 K = TypeVar("K")
 V = TypeVar("V")
 
 @runtime_checkable
-class ObservableDictLike(CarriesHooks[Any, Any], Protocol[K, V]):
+class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
     """
     Protocol for observable dictionary objects.
     """
@@ -57,7 +57,6 @@ class ObservableDictLike(CarriesHooks[Any, Any], Protocol[K, V]):
         """
         ...
     
-
 class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dict[K, V], int], ObservableSerializable[Literal["value"], "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
@@ -178,7 +177,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
         """
         if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
     
     def change_value(self, new_dict: dict[K, V]) -> None:
         """
@@ -192,7 +191,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
         """
         if new_dict == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": new_dict}, notify_binding_system=True)
+        self.submit_values({"value": new_dict})
 
     @property
     def value_hook(self) -> OwnedHookLike[dict[K, V]]:
@@ -235,7 +234,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
             return  # No change
         new_dict = self.value.copy()
         new_dict[key] = value
-        self._set_component_values({"value": new_dict}, notify_binding_system=True)
+        self.submit_values({"value": new_dict})
     
     def get_item(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """
@@ -276,7 +275,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
             return  # No change
         new_dict: dict[K, V] = self._primary_hooks["value"].value.copy() # type: ignore
         del new_dict[key]
-        self._set_component_values({"value": new_dict}, notify_binding_system=True)
+        self.submit_values({"value": new_dict}) # type: ignore
     
     def clear(self) -> None:
         """
@@ -288,7 +287,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
         if not self._primary_hooks["value"].value: # type: ignore
             return  # No change
         new_dict: dict[K, V] = {}
-        self._set_component_values({"value": new_dict}, notify_binding_system=True)
+        self.submit_values({"value": new_dict})
     
     def update(self, other_dict: dict[K, V]) -> None:
         """
@@ -314,7 +313,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
         
         new_dict = self._primary_hooks["value"].value.copy() # type: ignore
         new_dict.update(other_dict) # type: ignore
-        self._set_component_values({"value": new_dict}, notify_binding_system=True)
+        self.submit_values({"value": new_dict}) # type: ignore
     
     def keys(self) -> set[K]:
         """

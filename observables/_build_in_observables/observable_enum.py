@@ -4,13 +4,13 @@ from logging import Logger
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
-from .._utils.carries_collective_hooks import CarriesCollectiveHooks
+from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.observable_serializable import ObservableSerializable
 
 E = TypeVar("E", bound=Enum)
 
 @runtime_checkable
-class ObservableEnumLikeBase(CarriesCollectiveHooks[Any, Any], Protocol[E]):
+class ObservableEnumLikeBase(CarriesHooksLike[Any, Any], Protocol[E]):
     """
     Base protocol for observable enum objects.
     """
@@ -157,7 +157,7 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         """
         Change the enum options.
         """
-        self._set_component_values({"enum_options": new_options}, notify_binding_system=True)
+        self.submit_values({"enum_options": new_options})
 
     def add_enum_option(self, option: E) -> None:
         """
@@ -174,7 +174,7 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
 
         if option not in _enum_options:
             _enum_options.add(option)
-            self._set_component_values({"enum_options": _enum_options}, notify_binding_system=True)
+            self.submit_values({"enum_options": _enum_options})
 
     def remove_enum_option(self, option: E) -> None:
         """
@@ -200,7 +200,7 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         
         if option in _enum_options:
             _enum_options.remove(option)
-            self._set_component_values({"enum_options": _enum_options}, notify_binding_system=True)
+            self.submit_values({"enum_options": _enum_options})
 
     def __str__(self) -> str:
         """String representation of the observable enum."""
@@ -472,13 +472,13 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         Args:
             value: New selected enum value
         """
-        self._set_component_values({"enum_value": value}, notify_binding_system=True)
+        self.submit_values({"enum_value": value})
 
     def change_enum_value(self, new_value: Optional[E]) -> None:
         """
         Change the enum value.
         """
-        self._set_component_values({"enum_value": new_value}, notify_binding_system=True)
+        self.submit_values({"enum_value": new_value})
 
     @property
     def enum_value_hook(self) -> HookLike[Optional[E]]:
@@ -502,7 +502,7 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         Raises:
             ValueError: If the enum value is not in the options set
         """
-        self._set_component_values({"enum_value": enum_value, "enum_options": enum_options}, notify_binding_system=True)
+        self.submit_values({"enum_value": enum_value, "enum_options": enum_options}) # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         """
@@ -772,13 +772,13 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Args:
             value: New selected enum value
         """
-        self._set_component_values({"enum_value": value}, notify_binding_system=True)
+        self.submit_values({"enum_value": value})
 
     def change_enum_value(self, new_value: E) -> None:
         """
         Change the enum value.
         """
-        self._set_component_values({"enum_value": new_value}, notify_binding_system=True)
+        self.submit_values({"enum_value": new_value})
 
     @property
     def enum_value_hook(self) -> HookLike[E]:
@@ -802,7 +802,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Raises:
             ValueError: If the enum value is not in the options set
         """
-        self._set_component_values({"enum_value": enum_value, "enum_options": enum_options}, notify_binding_system=True)
+        self.submit_values({"enum_value": enum_value, "enum_options": enum_options}) # type: ignore
 
     def __eq__(self, other: Any) -> bool:
         """

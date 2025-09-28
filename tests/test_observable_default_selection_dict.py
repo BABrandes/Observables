@@ -200,25 +200,6 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.get_hook_key(key_hook), "key")
         self.assertEqual(selection_dict.get_hook_key(value_hook), "value")
 
-    def test_collective_hooks_interface(self):
-        """Test CarriesCollectiveHooks interface implementation."""
-        test_dict = {"a": 1, "b": 2}
-        default_value = 999
-        selection_dict = ObservableDefaultSelectionDict(
-            dict_hook=test_dict,
-            key_hook="a",
-            value_hook=None,
-            default_value=default_value,
-            logger=logger
-        )
-        
-        # Test get_collective_hook_keys
-        collective_keys = selection_dict.get_collective_hook_keys()
-        self.assertEqual(collective_keys, {"dict", "key", "value"})
-        
-        # Test that the interface is properly implemented
-        self.assertTrue(hasattr(selection_dict, 'connect_multiple_hooks'))
-
     def test_verification_method(self):
         """Test the verification method."""
         test_dict = {"a": 1, "b": 2}
@@ -232,25 +213,25 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Test valid values with key
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
         self.assertTrue(success)
         
         # Test valid values with None key and default value
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}, "key": None, "value": default_value})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": default_value})
         self.assertTrue(success)
         
         # Test invalid - None key with non-default value
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}, "key": None, "value": 123})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": 123})
         self.assertFalse(success)
         self.assertIn("not the default value", msg)
         
         # Test invalid - key not in dict
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
         self.assertFalse(success)
         self.assertIn("not in dictionary", msg)
         
         # Test valid - any value is allowed with valid key (will be updated by invalidation)
-        success, msg = selection_dict.is_valid_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
+        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
         self.assertTrue(success)  # Should be valid - invalidation will sync the dict
         self.assertIn("invalidation will sync", msg)
 
@@ -275,7 +256,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.value, default_value)
         
         # Change dict and then set key
-        selection_dict.dict_hook.submit_single_value({"b": 200, "x": 100, "y": 300})
+        selection_dict.dict_hook.submit_value({"b": 200, "x": 100, "y": 300})
         selection_dict.key = "x"
         self.assertEqual(selection_dict.value, 100)
 
@@ -333,7 +314,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Test invalidation
-        success, msg = selection_dict.invalidate_hooks()
+        success, msg = selection_dict.invalidate()
         self.assertTrue(success)
         self.assertEqual(msg, "Successfully invalidated")
 
@@ -469,7 +450,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         selection_dict.remove_all_listeners()
         
         # Trigger invalidation - listener should not be called
-        selection_dict.invalidate_hooks()
+        selection_dict.invalidate()
         self.assertFalse(listener_called)
 
 

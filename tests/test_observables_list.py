@@ -1,11 +1,13 @@
 import unittest
 from observables import ObservableList
 from observables._utils.initial_sync_mode import InitialSyncMode
+from tests.test_base import ObservableTestCase
 
-class TestObservableList(unittest.TestCase):
+class TestObservableList(ObservableTestCase):
     """Test cases for ObservableList (concrete implementation)"""
     
     def setUp(self):
+        super().setUp()
         self.observable = ObservableList([1, 2, 3])
         self.notification_count = 0
     

@@ -296,16 +296,3 @@ class TestSecondaryHooksEdgeCases:
         
         # Should sync immediately
         assert target.value == 3
-    
-    def test_detach_secondary_hook(self):
-        """Test that secondary hooks cannot be detached since they are computed values."""
-        obs_list = ObservableList([1, 2, 3])
-        
-        # Emitter hooks should not be detachable since they're computed from component values
-        # They remain active as long as the observable exists
-        length_hook = obs_list.length_hook
-        assert length_hook.is_active
-        
-        # Calling detach on an secondary hook should not change its active state
-        obs_list.disconnect("length")
-        assert length_hook.is_active, "Emitter hooks should remain active even after detach attempt"

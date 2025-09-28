@@ -2,11 +2,11 @@ import unittest
 from unittest.mock import Mock
 from typing import Any
 
-from observables import CarriesHooks, InitialSyncMode, HookLike, OwnedHook
+from observables import BaseCarriesHooks, HookLike, OwnedHook
 from observables._utils.hook_nexus import HookNexus
 
 
-class MockCarriesHooks(CarriesHooks[Any, Any]):
+class MockCarriesHooks(BaseCarriesHooks[Any, Any]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):
@@ -16,41 +16,21 @@ class MockCarriesHooks(CarriesHooks[Any, Any]):
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
-    def get_hook_key(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> Any:
+    def _get_hook_key(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> Any:
         """Return a mock key for the hook."""
         return "mock_key"
     
-    def get_hook_keys(self) -> set[Any]:
+    def _get_hook_keys(self) -> set[Any]:
         """Return a set of mock keys."""
         return {"mock_key"}
     
-    def get_hook(self, key: Any) -> Any:
+    def _get_hook(self, key: Any) -> Any:
         """Return a mock hook."""
         return None
     
-    def get_hook_value_as_reference(self, key: Any) -> Any:
+    def _get_hook_value_as_reference(self, key: Any) -> Any:
         """Return a mock value."""
         return "mock_value"
-    
-    def connect(self, hook: Any, to_key: Any, initial_sync_mode: InitialSyncMode) -> None:
-        """Mock connect method."""
-        pass
-    
-    def disconnect(self, key: Any) -> None:
-        """Mock disconnect method."""
-        pass
-    
-    def invalidate_hooks(self) -> tuple[bool, str]:
-        """Mock invalidate method."""
-        return True, "Mock invalidation"
-    
-    def destroy(self) -> None:
-        """Mock destroy method."""
-        pass
-    
-    def __repr__(self) -> str:
-        return f"MockCarriesHooks({self.name})"
-
 
 class TestHookListeners(unittest.TestCase):
     """Test the listener functionality of the Hook class."""
@@ -195,7 +175,7 @@ class TestHookListeners(unittest.TestCase):
         self.hook.add_listeners(callback)
         
         # Change the value through the proper HookNexus process
-        self.hook.submit_single_value("new_value")
+        self.hook.submit_value("new_value")
         
         # Verify value was changed
         self.assertEqual(self.hook.value, "new_value")
@@ -271,8 +251,8 @@ class TestHookListeners(unittest.TestCase):
     
     def test_multiple_hooks_independent_listeners(self):
         """Test that different hooks have independent listener sets."""
-        owner1: CarriesHooks[str, Any] = MockCarriesHooks("Owner1") # type: ignore
-        owner2: CarriesHooks[str, Any] = MockCarriesHooks("Owner2") # type: ignore
+        owner1: BaseCarriesHooks[str, Any] = MockCarriesHooks("Owner1") # type: ignore
+        owner2: BaseCarriesHooks[str, Any] = MockCarriesHooks("Owner2") # type: ignore
         
         hook1 = OwnedHook(owner1, "value1")
         hook2 = OwnedHook(owner2, "value2")

@@ -1,10 +1,12 @@
 from threading import RLock
-from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Literal
+from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_listening import BaseListeningLike
+from logging import Logger
 
 if TYPE_CHECKING:
     from .._utils.hook_nexus import HookNexus
+    from .._utils.nexus_manager import NexusManager
 
 T = TypeVar("T")
 
@@ -15,6 +17,14 @@ class HookLike(BaseListeningLike, Protocol[T]):
     """
     
     # Properties
+
+    @property
+    def nexus_manager(self) -> "NexusManager":
+        """
+        Get the nexus manager that this hook belongs to.
+        """
+        ...
+
     @property
     def value(self) -> T:
         """
@@ -59,38 +69,6 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def invalidate(self) -> None:
-        """Invalidate this hook."""
-        ...
-
-    def _internal_invalidate(self, submitted_value: T) -> None:
-        """
-        Internal invalidate for the nexus to use before the hook is invalidated.
-        """
-        ...
-    
-    # State flags
-    @property
-    def can_be_invalidated(self) -> bool:
-        """
-        Check if this hook can be invalidated.
-        """
-        ...
-
-    @property
-    def in_submission(self) -> bool:
-        """
-        Check if this hook is currently being submitted.
-        """
-        ...
-
-    @in_submission.setter
-    def in_submission(self, value: bool) -> None:
-        """
-        Set if this hook is currently being submitted.
-        """
-        ...
-
     def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
@@ -115,30 +93,73 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
+    def validate_value_in_isolation(self, value: T) -> tuple[bool, str]:
         """
-        Replace the hook nexus that this hook belongs to.
+        Check if the value is valid for submission in isolation.
         """
         ...
 
-    def submit_single_value(self, value: T) -> tuple[bool, str]:
+    #########################################################
+    # Final methods
+    #########################################################
+
+    @final
+    def submit_value(self, value: T, not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit a value to this hook. This will not invalidate the hook!
 
         Args:
             value: The value to submit
+            not_notifying_listeners_after_submission: Whether to not notify listeners on certain objects after submission
+            logger: The logger to use
         """
-        ...
 
-    def is_valid_value(self, value: T, ) -> tuple[bool, str]:
+        return self.nexus_manager.submit_values({self.hook_nexus: value}, False, not_notifying_listeners_after_submission, logger)
+
+
+    @final
+    @staticmethod
+    def submit_values(values: Mapping["HookLike[Any]", Any], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+        """
+        Submit values to this hook. This will not invalidate the hook!
+
+        Args:
+            values: The values to submit
+            not_notifying_listeners_after_submission: Whether to not notify listeners on certain objects after submission
+            logger: The logger to use
+        """
+
+        if len(values) == 0:
+            return True, "No values provided"
+        hook_manager: "NexusManager" = next(iter(values.keys())).nexus_manager
+        hook_nexus_and_values: Mapping[HookNexus[Any], Any] = {}
+        for hook, value in values.items():
+            if hook.nexus_manager != hook_manager:
+                raise ValueError("The nexus managers must be the same")
+            hook_nexus_and_values[hook.hook_nexus] = value
+        return hook_manager.submit_values(hook_nexus_and_values, False, not_notifying_listeners_after_submission, logger)
+
+    @final
+    def validate_value(self, value: T, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Check if the value is valid for submission.
         """
 
-        ...
+        return self.nexus_manager.submit_values({self.hook_nexus: value}, only_check_values=True, logger=logger)
 
-    def is_valid_value_in_isolation(self, value: T) -> tuple[Literal[True, False, "InternalInvalidationNeeded"], str]:
+    @staticmethod
+    @final
+    def validate_values(values: Mapping["HookLike[Any]", Any], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
-        Check if the value is valid for submission in isolation.
+        Check if the values are valid for submission.
         """
-        ...
+
+        if len(values) == 0:
+            return True, "No values provided"
+        hook_manager: "NexusManager" = next(iter(values.keys())).nexus_manager
+        hook_nexus_and_values: Mapping[HookNexus[Any], Any] = {}
+        for hook, value in values.items():
+            if hook.nexus_manager != hook_manager:
+                raise ValueError("The nexus managers must be the same")
+            hook_nexus_and_values[hook.hook_nexus] = value
+        return hook_manager.submit_values(hook_nexus_and_values, only_check_values=True, logger=logger)

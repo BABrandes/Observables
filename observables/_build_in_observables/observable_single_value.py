@@ -2,14 +2,14 @@ from logging import Logger
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_hooks import CarriesHooks
+from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesHooks[Any, T], Protocol[T]):
+class ObservableSingleValueLike(CarriesHooksLike[Any, T], Protocol[T]):
     """
     Protocol for observable single value objects.
     """
@@ -166,7 +166,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         """
         if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
 
     def change_value(self, value: T) -> None:
         """
@@ -180,7 +180,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         """
         if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
     
     @property
     def hook(self) -> HookLike[T]:

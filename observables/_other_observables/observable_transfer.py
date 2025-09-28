@@ -68,7 +68,7 @@ from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.base_listening import BaseListening
-from .._utils.carries_hooks import CarriesHooks
+from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.hook_nexus import HookNexus
 from .._utils.general import log
 
@@ -80,7 +80,7 @@ IHV = TypeVar("IHV")
 OHV = TypeVar("OHV")
 
 
-class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[IHK, OHK, IHV, OHV]):
+class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Generic[IHK, OHK, IHV, OHV]):
     """
     An observable that transforms values between input and output hooks with automatic invalidation.
     
@@ -174,7 +174,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             internal_hook_input: OwnedHook[IHV] = OwnedHook(
                 owner=self,
                 initial_value=initial_value_input,
-                invalidate_callback=lambda _, k=key: self._on_input_invalidated(k),
                 logger=logger
             )
             self._input_hooks[key] = internal_hook_input
@@ -188,7 +187,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             internal_hook_output = OwnedHook[OHV](
                 owner=self,
                 initial_value=initial_value_output,
-                invalidate_callback=lambda _, k=key: self._on_output_invalidated(k),
                 logger=logger
             )
             self._output_hooks[key] = internal_hook_output
@@ -201,7 +199,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
     # CarriesHooks interface
     #########################################################################
 
-    def get_hook(self, key: IHK|OHK) -> "OwnedHookLike[IHV|OHV]":
+    def _get_hook(self, key: IHK|OHK) -> "OwnedHookLike[IHV|OHV]":
         """Get a hook by its key (either input or output)."""
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore
@@ -210,13 +208,13 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
+    def _get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
         return self._input_hooks[key] # type: ignore
     
-    def get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
+    def _get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
         return self._output_hooks[key] # type: ignore
 
-    def get_hook_value_as_reference(self, key: IHK|OHK) -> IHV|OHV:
+    def _get_hook_value_as_reference(self, key: IHK|OHK) -> IHV|OHV:
         if key in self._input_hooks:
             return self._input_hooks[key].value # type: ignore
         elif key in self._output_hooks:
@@ -224,10 +222,10 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def get_hook_keys(self) -> set[IHK|OHK]:
+    def _get_hook_keys(self) -> set[IHK|OHK]:
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def get_hook_key(self, hook_or_nexus: "HookLike[IHV|OHV]|HookNexus[IHV|OHV]") -> IHK|OHK:
+    def _get_hook_key(self, hook_or_nexus: "HookLike[IHV|OHV]|HookNexus[IHV|OHV]") -> IHK|OHK:
         for key, hook in self._input_hooks.items():
             if hook is hook_or_nexus:
                 return key
@@ -235,53 +233,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             if hook is hook_or_nexus:
                 return key
         raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
-
-    def connect(self, hook: "HookLike[IHV|OHV]", to_key: IHK|OHK, initial_sync_mode: InitialSyncMode) -> None:
-        """Connect an external hook to one of this transfer's hooks."""
-        if to_key in self._input_hooks:
-            self._input_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        elif to_key in self._output_hooks:
-            self._output_hooks[to_key].connect(hook, initial_sync_mode) # type: ignore
-        else:
-            raise ValueError(f"Key {to_key} not found in hooks")
-
-    def disconnect(self, key: Optional[IHK|OHK]) -> None:
-        """Disconnect a hook from this transfer by its key."""
-        if key is None:
-            # Disconnect all hooks
-            for hook in list(self._input_hooks.values()) + list(self._output_hooks.values()):
-                hook.disconnect()
-        elif key in self._input_hooks:
-            self._input_hooks[key].disconnect() # type: ignore
-        elif key in self._output_hooks:
-            self._output_hooks[key].disconnect() # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in hooks")
-
-    def invalidate_hooks(self) -> tuple[bool, str]:
-        """
-        Handle hook invalidation (required by CarriesHooks protocol).
-        
-        This method is called by the hook system when any of our internal hooks are invalidated.
-        Since we handle invalidation through our callback methods (_on_input_invalidated, 
-        _on_output_invalidated), this method just logs that it was called.
-        """
-        log(self, "invalidate_hook", self._logger, True, "Successfully invalidated")
-        return True, "Successfully invalidated"
-
-    def _internal_invalidate_hooks(self, submitted_values: dict[IHK|OHK, IHV|OHV]) -> None:
-        """
-        Internal invalidate for the nexus to use before the hooks are invalidated.
-        """
-        pass
-
-    def destroy(self) -> None:
-        """
-        Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
-        """
-        self.disconnect(None)
-        self.remove_all_listeners()
-        self.invalidate_hooks()
 
     #########################################################################
     # Other private methods
@@ -297,8 +248,6 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
             log(self, "_on_input_invalidated", self._logger, False, f"Error in forward transformation: {e}")
             return False, f"Error in forward transformation: {e}"
     
-
-
     def _on_output_invalidated(self, key: OHK) -> tuple[bool, str]:
         """Called when an output hook is invalidated. Triggers reverse transformation if available."""
         if self._reverse_callable is None:
@@ -347,7 +296,7 @@ class ObservableTransfer(BaseListening, CarriesHooks[IHK|OHK, IHV|OHV], Generic[
                 hooks_and_values: list[tuple[OwnedHookLike[IHV|OHV], IHV|OHV]] = []
                 for key, value in target_values.items():
                     hooks_and_values.append((target_hooks[key], value)) # type: ignore
-                OwnedHookLike[IHV|OHV].submit_multiple_values(*hooks_and_values)
+                OwnedHookLike[IHV|OHV].submit_values(dict(hooks_and_values))
     
     def _trigger_forward_transformation(self) -> None:
         """Trigger forward transformation (inputs → outputs)."""

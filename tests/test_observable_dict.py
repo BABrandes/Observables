@@ -1,10 +1,12 @@
 import unittest
 from observables import ObservableDict, InitialSyncMode
+from .test_base import ObservableTestCase
 
-class TestObservableDict(unittest.TestCase):
+class TestObservableDict(ObservableTestCase):
     """Test cases for ObservableDict"""
     
     def setUp(self):
+        super().setUp()
         self.observable = ObservableDict({"a": 1, "b": 2, "c": 3})
         self.notification_count = 0
     

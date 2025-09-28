@@ -2,14 +2,14 @@ from logging import Logger
 from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Mapping, Iterator
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
-from .._utils.carries_hooks import CarriesHooks
+from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSetLike(CarriesHooks[Any, Any], Protocol[T]):
+class ObservableSetLike(CarriesHooksLike[Any, Any], Protocol[T]):
     """
     Protocol for observable set objects.
     """
@@ -172,7 +172,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         """
         if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
 
     def change_value(self, value: set[T]) -> None:
         """
@@ -186,7 +186,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         """
         if value == self._primary_hooks["value"].value:
             return
-        self._set_component_values({"value": value}, notify_binding_system=True)
+        self.submit_values({"value": value})
 
     @property
     def value_hook(self) -> HookLike[set[T]]:
@@ -228,7 +228,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         if item not in self._primary_hooks["value"].value: # type: ignore
             new_set = self._primary_hooks["value"].value.copy() # type: ignore
             new_set.add(item) # type: ignore
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def remove(self, item: T) -> None:
         """
@@ -248,7 +248,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         
         new_set = self._primary_hooks["value"].value.copy() # type: ignore
         new_set.remove(item) # type: ignore
-        self._set_component_values({"value": new_set}, notify_binding_system=True)
+        self.submit_values({"value": new_set})
     
     def discard(self, item: T) -> None:
         """
@@ -264,7 +264,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         if item in self._primary_hooks["value"].value: # type: ignore
             new_set = self._primary_hooks["value"].value.copy() # type: ignore
             new_set.discard(item) # type: ignore
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def pop(self) -> T:
         """
@@ -285,7 +285,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         item: T = next(iter(self._primary_hooks["value"].value)) # type: ignore
         new_set = self._primary_hooks["value"].value.copy() # type: ignore
         new_set.remove(item) # type: ignore
-        self._set_component_values({"value": new_set}, notify_binding_system=True)
+        self.submit_values({"value": new_set})
         return item 
     
     def clear(self) -> None:
@@ -297,7 +297,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         """
         if self._primary_hooks["value"].value:
             new_set: set[T] = set()
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def update(self, *others: Iterable[T]) -> None:
         """
@@ -313,7 +313,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         for other in others:
             new_set.update(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def intersection_update(self, *others: Iterable[T]) -> None:
         """
@@ -330,7 +330,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         for other in others:
             new_set.intersection_update(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def difference_update(self, *others: Iterable[T]) -> None:
         """
@@ -347,7 +347,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         for other in others:
             new_set.difference_update(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def symmetric_difference_update(self, other: Iterable[T]) -> None:
         """
@@ -366,7 +366,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         
         # Only update if there's an actual change
         if new_set != current_set:
-            self._set_component_values({"value": new_set}, notify_binding_system=True)
+            self.submit_values({"value": new_set})
     
     def __str__(self) -> str:
         return f"OS(options={self._primary_hooks['value'].value})"

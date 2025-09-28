@@ -24,8 +24,8 @@ from observables import (
 from observables._utils.system_analysis import write_report
 from observables._utils.initial_sync_mode import InitialSyncMode
 from enum import Enum
-from observables._utils.carries_hooks import CarriesHooks
-from observables._hooks.hook_like import HookLike
+from observables._utils.base_carries_hooks import BaseCarriesHooks
+from observables._hooks.owned_hook_like import OwnedHookLike
 from typing import Any, cast
 
 class UserRole(Enum):
@@ -49,7 +49,7 @@ class TestWriteReport(unittest.TestCase):
         print("="*80)
         
         # Create the complex system
-        observables: dict[str, CarriesHooks[Any, Any]] = self._create_complex_system()
+        observables: dict[str, BaseCarriesHooks[Any, Any]] = self._create_complex_system()
         
         # Analyze it with write_report
         self._analyze_system(observables)
@@ -61,7 +61,7 @@ class TestWriteReport(unittest.TestCase):
         print("✅ write_report test completed successfully!")
         print("="*80)
     
-    def _create_complex_system(self) -> dict[str, CarriesHooks[Any, Any]]:
+    def _create_complex_system(self) -> dict[str, BaseCarriesHooks[Any, Any]]:
         """Create a complex system with multiple observables and bindings"""
         
         print("🔧 Creating complex observable system...")
@@ -114,9 +114,9 @@ class TestWriteReport(unittest.TestCase):
         
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[TaskStatus] = ObservableMultiSelectionOption(set(), available_statuses)
-        status_backup.connect_multiple_hooks({
-            "selected_options": cast(HookLike[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
-            "available_options": cast(HookLike[set[TaskStatus] | int], current_task_statuses.available_options_hook)
+        status_backup.connect_hooks({
+            "selected_options": cast(OwnedHookLike[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
+            "available_options": cast(OwnedHookLike[set[TaskStatus] | int], current_task_statuses.available_options_hook)
         }, InitialSyncMode.USE_TARGET_VALUE)
         
         print("✅ Bindings created")
@@ -141,7 +141,7 @@ class TestWriteReport(unittest.TestCase):
             "status_backup": status_backup,
         }
     
-    def _analyze_system(self, observables_dict: dict[str, CarriesHooks[Any, Any]]):
+    def _analyze_system(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any]]):
         """Use write_report to analyze the complex system"""
         
         print("\n" + "="*80)
@@ -197,7 +197,7 @@ class TestWriteReport(unittest.TestCase):
             for name, count in sorted(observable_connection_counts.items(), key=lambda x: x[1], reverse=True):
                 print(f"  {name}: {count} shared connections")
     
-    def _demonstrate_changes(self, observables_dict: dict[str, CarriesHooks[Any, Any]]):
+    def _demonstrate_changes(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any]]):
         """Demonstrate how changes propagate through the system"""
         
         print("\n" + "="*80)
@@ -205,9 +205,9 @@ class TestWriteReport(unittest.TestCase):
         print("="*80)
         
         # Show current state
-        task_list: CarriesHooks[Any, Any] = observables_dict["task_list"]
-        task_backup: CarriesHooks[Any, Any] = observables_dict["task_backup"]
-        task_count: CarriesHooks[Any, Any] = observables_dict["task_count"]
+        task_list: BaseCarriesHooks[Any, Any] = observables_dict["task_list"]
+        task_backup: BaseCarriesHooks[Any, Any] = observables_dict["task_backup"]
+        task_count: BaseCarriesHooks[Any, Any] = observables_dict["task_count"]
         
         print(f"Original task list: {task_list.value}") # type: ignore
         print(f"Task backup: {task_backup.value}") # type: ignore
@@ -222,9 +222,9 @@ class TestWriteReport(unittest.TestCase):
         print(f"Task count: {task_count.value}") # type: ignore
         
         # Demonstrate user data binding
-        user_name: CarriesHooks[Any, Any] = observables_dict["user_name"] # type: ignore
-        backup_age: CarriesHooks[Any, Any] = observables_dict["backup_age"]
-        user_age: CarriesHooks[Any, Any] = observables_dict["user_age"]
+        user_name: BaseCarriesHooks[Any, Any] = observables_dict["user_name"] # type: ignore
+        backup_age: BaseCarriesHooks[Any, Any] = observables_dict["backup_age"]
+        user_age: BaseCarriesHooks[Any, Any] = observables_dict["user_age"]
         
         print(f"\nOriginal user age: {user_age.value}") # type: ignore
         print(f"Backup age: {backup_age.value}") # type: ignore
@@ -246,7 +246,7 @@ class TestWriteReport(unittest.TestCase):
         name_backup: ObservableSingleValue[Any] = ObservableSingleValue("")
         name_backup.connect(name.hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
-        observables: dict[str, CarriesHooks[Any, Any]] = {
+        observables: dict[str, BaseCarriesHooks[Any, Any]] = {
             "name": name,
             "age": age,
             "name_backup": name_backup

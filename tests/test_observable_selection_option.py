@@ -71,7 +71,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         source = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         
         # Create a new observable selection option initialized with the source
-        target = ObservableSelectionOption(source)
+        target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check that the target has the same initial value
         self.assertEqual(target.selected_option, "Red")
@@ -89,8 +89,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         """Test initialization with CarriesBindableSelectionOption in a chain"""
         # Create a chain of observable selection options
         obs1 = ObservableSelectionOption("Small", {"Small", "Medium"})
-        obs2 = ObservableSelectionOption(obs1)
-        obs3 = ObservableSelectionOption(obs2)
+        obs2: ObservableSelectionOption[str] = ObservableSelectionOption(obs1)
+        obs3: ObservableSelectionOption[str] = ObservableSelectionOption(obs2)
         
         # Check initial values
         self.assertEqual(obs1.selected_option, "Small")
@@ -112,7 +112,7 @@ class TestObservableSelectionOption(unittest.TestCase):
     def test_initialization_with_carries_bindable_selection_option_unbinding(self):
         """Test that initialization with CarriesBindableSelectionOption can be unbound"""
         source = ObservableSelectionOption("Red", {"Red", "Green"})
-        target = ObservableSelectionOption(source)
+        target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Verify they are bound
         self.assertEqual(target.selected_option, "Red")
@@ -134,9 +134,9 @@ class TestObservableSelectionOption(unittest.TestCase):
     def test_initialization_with_carries_bindable_selection_option_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source = ObservableSelectionOption("Red", {"Red", "Green"})
-        target1 = ObservableSelectionOption(source)
-        target2 = ObservableSelectionOption(source)
-        target3 = ObservableSelectionOption(source)
+        target1: ObservableSelectionOption[str] = ObservableSelectionOption(source)
+        target2: ObservableSelectionOption[str] = ObservableSelectionOption(source)
+        target3: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check initial values
         self.assertEqual(target1.selected_option, "Red")
@@ -165,14 +165,14 @@ class TestObservableSelectionOption(unittest.TestCase):
         
         # Test with single option in source
         source_single = ObservableSelectionOption("Red", {"Red"})
-        target_single = ObservableSelectionOption(source_single)
+        target_single: ObservableSelectionOption[str] = ObservableSelectionOption(source_single)
         self.assertEqual(target_single.selected_option, "Red")
         self.assertEqual(target_single.available_options, {"Red"})
     
     def test_initialization_with_carries_bindable_selection_option_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableSelectionOption"""
         source = ObservableSelectionOption("Red", {"Red", "Green"})
-        target = ObservableSelectionOption(source)
+        target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check binding consistency
         # Note: check_status_consistency() method no longer exists in new architecture
@@ -192,7 +192,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Measure initialization time
         start_time = time.time()
         for _ in range(1000):
-            target = ObservableSelectionOption(source)
+            target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)

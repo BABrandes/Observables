@@ -375,7 +375,7 @@ class TestThreadSafetyEdgeCases:
                     elif i % 4 == 2:
                         # Hook operations
                         hook = obs1.get_hook("value")
-                        hook.submit_single_value(f"worker_{worker_id}_hook_{i}")
+                        hook.submit_value(f"worker_{worker_id}_hook_{i}")
                     else:
                         # Direct value operations
                         obs1.value = f"worker_{worker_id}_direct_{i}"

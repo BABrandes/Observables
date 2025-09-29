@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final
 from .initial_sync_mode import InitialSyncMode
 
 if TYPE_CHECKING:
+    from .._hooks.hook_like import HookLike
     from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
     from .nexus_manager import NexusManager
@@ -142,7 +143,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
     # Methods to connect and disconnect hooks
     #########################################################################
 
-    def connect_hook(self, hook: "OwnedHookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
         """
         Connect a hook to the observable.
 
@@ -157,7 +158,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
 
         ...
 
-    def connect_hooks(self, hooks: Mapping[HK, "OwnedHookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
         """
         Connect a list of hooks to the observable.
 

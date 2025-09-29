@@ -11,6 +11,7 @@ from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 if TYPE_CHECKING:
     from .._hooks.owned_hook_like import OwnedHookLike
+    from .._hooks.hook_like import HookLike
     from .hook_nexus import HookNexus
 
 HK = TypeVar("HK")
@@ -279,7 +280,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
                 return {}
 
     @final
-    def connect_hook(self, hook: "OwnedHookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
         """
         Connect a hook to the observable.
 
@@ -302,7 +303,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
                 raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
 
     @final
-    def connect_hooks(self, hooks: Mapping[HK, "OwnedHookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
         """
         Connect a list of hooks to the observable.
 
@@ -315,7 +316,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         """
 
         with self._lock:
-            hook_pairs: list[tuple["OwnedHookLike[HV]", "OwnedHookLike[HV]"]] = []
+            hook_pairs: list[tuple["HookLike[HV]", "HookLike[HV]"]] = []
             for key, hook in hooks.items():
                 hook_of_observable = self._get_hook(key)
                 match initial_sync_mode:

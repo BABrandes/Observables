@@ -96,7 +96,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect_hook(self, hook: "HookLike[T]", key: str, initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect_hook(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook in the new architecture.
 
@@ -106,7 +106,6 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
         Args:
             hook: The hook to connect to
-            key: The key to connect to (ignored for hooks)
             initial_sync_mode: The initial synchronization mode
             
         Returns:
@@ -133,7 +132,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     
     def disconnect(self) -> None:
         """
-        Disconnect this hook from the hook group.
+        Disconnect this hook from the hook nexus.
 
         If this is the corresponding nexus has only this one hook, nothing will happen.
         """
@@ -147,24 +146,24 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
                 # If we're the last hook, we're already effectively disconnected
                 return
             
-            # Create a new isolated group for this hook
+            # Create a new isolated nexus for this hook
             from .._utils.hook_nexus import HookNexus
             new_group = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
             
-            # Remove this hook from the current group
+            # Remove this hook from the current nexus
             self._hook_nexus.remove_hook(self)
             
-            # Update this hook's group reference
+            # Update this hook's nexus reference
             self._hook_nexus = new_group
 
             log(self, "detach", self._logger, True, "Successfully detached hook")
             
-            # The remaining hooks in the old group will continue to be bound together
+            # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others
 
     def is_connected_to(self, hook: "HookLike[T]") -> bool:
         """
-        Check if this hook is attached to another hook.
+        Check if this hook is connected to another hook.
         """
 
         with self._lock:
@@ -173,6 +172,9 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
         """
         Replace the hook nexus that this hook belongs to.
+
+        Args:
+            hook_nexus: The new hook nexus to replace the current one
         """
         
         self._hook_nexus = hook_nexus
@@ -181,7 +183,14 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
     def validate_value_in_isolation(self, value: T) -> tuple[bool, str]:
         """
-        Validate the value in isolation.
+        Validate the value in isolation. This is used to validate the value of a hook
+        in isolation, without considering the value of other hooks in the same nexus.
+
+        Args:
+            value: The value to validate
+
+        Returns:
+            Tuple of (success: bool, message: str)
         """
 
         if self._validate_value_in_isolation_callback is not None:

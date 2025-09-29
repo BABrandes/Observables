@@ -34,8 +34,8 @@ class TestSimpleMemoryLeaks(unittest.TestCase):
     def test_hook_with_callback_gc(self):
         """Test hook with callback garbage collection."""
         # Create a callback that might hold a reference
-        def callback():
-            pass
+        def callback(value: str) -> tuple[bool, str]:
+            return True, "Successfully validated"
         
         # Create a hook with callback
         hook = Hook("test_value", validate_value_in_isolation_callback=callback)

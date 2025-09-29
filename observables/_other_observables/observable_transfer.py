@@ -242,7 +242,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             )
             self._input_hooks[key] = internal_hook_input
             if isinstance(external_hook_or_value, HookLike):
-                internal_hook_input.connect_hook(external_hook_or_value, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Create output hooks for all keys, connecting to external hooks when provided
         for key, external_hook_or_value in output_trigger_hooks.items():
@@ -257,7 +257,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             
             # Connect our internal hook to external hook if external hook is provided
             if isinstance(external_hook_or_value, HookLike):
-                internal_hook_output.connect_hook(external_hook_or_value, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+                internal_hook_output.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
 
     #########################################################################
     # CarriesHooks interface

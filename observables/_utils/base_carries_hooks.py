@@ -220,7 +220,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         with self._lock:
             if to_key in self._get_hook_keys():
                 hook_of_observable: "OwnedHookLike[HV]" = self.get_hook(to_key)
-                success, msg = hook_of_observable.connect_hook(hook, "value", initial_sync_mode)
+                success, msg = hook_of_observable.connect_hook(hook, initial_sync_mode)
                 if not success:
                     raise ValueError(msg)
             else:

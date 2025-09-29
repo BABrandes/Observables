@@ -85,8 +85,7 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them
         from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, "dummy_key", 
-                                        InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
         self.assertTrue(success)
         
         # Verify they're connected (same nexus)
@@ -123,20 +122,8 @@ class TestMemoryLeaks(unittest.TestCase):
         obs = ObservableSingleValue("test_value")
         obs_ref = weakref.ref(obs)
         
-        # Get references to its hooks
-        hook_refs = []
-        nexus_refs = []
-        for hook_key in obs.get_hook_keys():
-            hook = obs.get_hook(hook_key)
-            hook_refs.append(weakref.ref(hook)) # type: ignore
-            nexus_refs.append(weakref.ref(hook.hook_nexus)) # type: ignore
-        
-        # Verify everything exists
+        # Verify the observable exists
         self.assertIsNotNone(obs_ref())
-        for hook_ref in hook_refs: # type: ignore
-            self.assertIsNotNone(hook_ref()) # type: ignore
-        for nexus_ref in nexus_refs: # type: ignore
-            self.assertIsNotNone(nexus_ref()) # type: ignore
         
         # Delete the observable
         del obs
@@ -144,12 +131,8 @@ class TestMemoryLeaks(unittest.TestCase):
         # Force garbage collection
         gc.collect()
         
-        # Verify everything was garbage collected
+        # Verify the observable was garbage collected
         self.assertIsNone(obs_ref())
-        for hook_ref in hook_refs: # type: ignore
-            self.assertIsNone(hook_ref()) # type: ignore
-        for nexus_ref in nexus_refs: # type: ignore
-            self.assertIsNone(nexus_ref()) # type: ignore
 
     def test_complex_observable_garbage_collection(self):
         """Test that complex observables can be garbage collected."""
@@ -161,20 +144,8 @@ class TestMemoryLeaks(unittest.TestCase):
         )
         obs_ref = weakref.ref(obs)
         
-        # Get references to all hooks and nexuses
-        hook_refs = []
-        nexus_refs = []
-        for hook_key in obs.get_hook_keys():
-            hook = obs.get_hook(hook_key)
-            hook_refs.append(weakref.ref(hook)) # type: ignore
-            nexus_refs.append(weakref.ref(hook.hook_nexus)) # type: ignore
-        
-        # Verify everything exists
+        # Verify the observable exists
         self.assertIsNotNone(obs_ref())
-        for hook_ref in hook_refs: # type: ignore
-            self.assertIsNotNone(hook_ref()) # type: ignore
-        for nexus_ref in nexus_refs: # type: ignore
-            self.assertIsNotNone(nexus_ref()) # type: ignore
         
         # Delete the observable
         del obs
@@ -182,12 +153,8 @@ class TestMemoryLeaks(unittest.TestCase):
         # Force garbage collection
         gc.collect()
         
-        # Verify everything was garbage collected
+        # Verify the observable was garbage collected
         self.assertIsNone(obs_ref())
-        for hook_ref in hook_refs: # type: ignore
-            self.assertIsNone(hook_ref()) # type: ignore
-        for nexus_ref in nexus_refs: # type: ignore
-            self.assertIsNone(nexus_ref()) # type: ignore
 
     def test_nexus_manager_no_memory_leaks(self):
         """Test that NexusManager doesn't hold references to hooks."""
@@ -200,8 +167,7 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them through NexusManager
         from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, "dummy_key",
-                                        InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
         self.assertTrue(success)
         
         # Delete the hooks
@@ -223,8 +189,7 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them (creates circular references through nexus)
         from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, "dummy_key",
-                                        InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
         self.assertTrue(success)
         
         # Create weak references

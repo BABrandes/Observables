@@ -8,7 +8,7 @@ from .._utils.nexus_manager import NexusManager
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 if TYPE_CHECKING:
-    from .._utils.base_carries_hooks import BaseCarriesHooks
+    from .._utils.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 
@@ -26,7 +26,7 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
 
     def __init__(
             self,
-            owner: "BaseCarriesHooks[Any, Any]",
+            owner: "CarriesHooksLike[Any, Any]",
             initial_value: T,
             logger: Optional[logging.Logger] = None,
             nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER
@@ -51,14 +51,14 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             logger=logger
         )
 
-        self._owner: "BaseCarriesHooks[Any, T]" = owner
+        self._owner: "CarriesHooksLike[Any, T]" = owner
 
     @property
-    def owner(self) -> "BaseCarriesHooks[Any, T]":
+    def owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
         return self._owner
 
-    def _get_owner(self) -> "BaseCarriesHooks[Any, T]":
+    def _get_owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
 
         with self._lock:

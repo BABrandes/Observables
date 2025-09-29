@@ -2,7 +2,7 @@ from typing import TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
 from .hook_like import HookLike
 
 if TYPE_CHECKING:
-    from .._utils.base_carries_hooks import BaseCarriesHooks
+    from .._utils.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 
@@ -13,7 +13,7 @@ class OwnedHookLike(HookLike[T], Protocol[T]):
     """
     
     @property
-    def owner(self) -> "BaseCarriesHooks[Any, Any]":
+    def owner(self) -> "CarriesHooksLike[Any, Any]":
         """
         Get the owner of this hook.
         """

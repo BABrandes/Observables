@@ -4,6 +4,7 @@ from .initial_sync_mode import InitialSyncMode
 if TYPE_CHECKING:
     from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
+    from .nexus_manager import NexusManager
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
@@ -85,7 +86,6 @@ class CarriesHooksLike(Protocol[HK, HV]):
         Returns:
             A dictionary of keys to values
         """
-
         ...
 
     def get_dict_of_value_references(self) -> dict[HK, HV]:
@@ -104,6 +104,12 @@ class CarriesHooksLike(Protocol[HK, HV]):
     #########################################################################
     # Methods to invalidate and validate
     #########################################################################
+
+    def get_nexus_manager(self) -> "NexusManager":
+        """
+        Get the nexus manager that this observable belongs to.
+        """
+        ...
 
     def invalidate(self) -> tuple[bool, str]:
         """
@@ -204,6 +210,14 @@ class CarriesHooksLike(Protocol[HK, HV]):
     #########################################################################
     # Final Properties
     #########################################################################
+
+    @property
+    @final
+    def nexus_manager(self) -> "NexusManager":
+        """
+        Get the nexus manager that this observable belongs to.
+        """
+        return self.get_nexus_manager()
 
     @property
     @final

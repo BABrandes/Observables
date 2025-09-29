@@ -5,15 +5,13 @@ from .initial_sync_mode import InitialSyncMode
 from .base_listening import BaseListeningLike
 from threading import RLock
 from .carries_hooks_like import CarriesHooksLike
-
+from .nexus_manager import NexusManager
+from .hook_nexus import HookNexus
+from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 if TYPE_CHECKING:
     from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
-
-from .nexus_manager import NexusManager
-from .hook_nexus import HookNexus
-from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
@@ -71,6 +69,12 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         self._nexus_manager: NexusManager = nexus_manager
 
         self._lock = RLock()
+
+    def get_nexus_manager(self) -> NexusManager:
+        """
+        Get the nexus manager that this observable belongs to.
+        """
+        return self._nexus_manager
 
     @abstractmethod
     def _get_hook(self, key: HK) -> "OwnedHookLike[HV]":

@@ -105,6 +105,8 @@ from ._hooks.owned_hook_like import OwnedHookLike
 from ._hooks.floating_hook import FloatingHook
 from ._utils.system_analysis import write_report    
 from ._utils.base_carries_hooks import CarriesHooksLike
+from ._utils.nexus_manager import NexusManager
+from ._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 # Alias for convenienc
 from ._utils.base_carries_hooks import BaseCarriesHooks
@@ -147,6 +149,8 @@ __all__ = [
     'InitialSyncMode',
     'ObservableSerializable',
     'write_report',
+    'NexusManager',
+    'DEFAULT_NEXUS_MANAGER',
 ]
 
 # Package metadata

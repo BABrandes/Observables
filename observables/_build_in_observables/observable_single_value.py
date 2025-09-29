@@ -126,7 +126,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         )
         
         if hook is not None:
-            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -166,7 +166,9 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
         """
         if value == self._primary_hooks["value"].value:
             return
-        self.submit_values({"value": value})
+        success, msg = self.submit_values({"value": value})
+        if not success:
+            raise ValueError(msg)
 
     def change_value(self, value: T) -> None:
         """

@@ -1,7 +1,6 @@
 import logging
 from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any, cast
 from .general import log
-
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
     from .nexus_manager import NexusManager
@@ -10,18 +9,32 @@ T = TypeVar("T")
 
 class HookNexus(Generic[T]):
     """
-    A nexus of hooks that can be used to manage a group of hooks.
+    A nexus of hooks in the new hook-based architecture.
 
-    A nexus is a group of hooks that are connected to each other.
-    It is used to manage a group of hooks that are connected to each other.
+    A HookNexus represents a group of hooks that share the same value and are
+    synchronized together. This is the core concept of the new architecture,
+    replacing the old binding system.
+    
+    Key features:
+    - Groups hooks that should have the same value
+    - Manages value synchronization between connected hooks
+    - Handles hook connection and disconnection
+    - Provides thread-safe operations
+    
+    When hooks are connected, their nexuses are merged, allowing them to
+    share values and stay synchronized. When disconnected, hooks get their
+    own isolated nexus.
     """
 
     def __init__(
         self,
-        nexus_manager: "NexusManager",
         value: T,
-        *hooks: "HookLike[T]",
-        logger: Optional[logging.Logger] = None):
+        hooks: set["HookLike[T]"] = set(),
+        logger: Optional[logging.Logger] = None,
+        nexus_manager: Optional["NexusManager"] = None):
+        from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
+        if nexus_manager is None:
+            nexus_manager = DEFAULT_NEXUS_MANAGER
 
         self._nexus_manager: "NexusManager" = nexus_manager
         self._hooks: set["HookLike[T]"] = set(hooks)
@@ -121,7 +134,7 @@ class HookNexus(Generic[T]):
                     raise ValueError("The hook groups must be disjoint")
         
         # Create new merged group with the reference value
-        merged_group: HookNexus[T] = HookNexus[T](nexus_manager, reference_value)
+        merged_group: HookNexus[T] = HookNexus[T](reference_value, nexus_manager=nexus_manager)
         
         # Add all hooks to the merged group
         for hook_group in nexus:
@@ -148,7 +161,7 @@ class HookNexus(Generic[T]):
         for hook_pair in hook_pairs:
             if hook_pair[0].hook_nexus._nexus_manager != hook_pair[1].hook_nexus._nexus_manager:
                 raise ValueError("The nexus managers must be the same")
-        nexus_manager: "NexusManager" = hook_pairs[0][0].hook_nexus._nexus_manager
+        nexus_manager = hook_pairs[0][0].hook_nexus._nexus_manager
 
         nexus_and_values: dict["HookNexus[Any]", Any] = {}
         for hook_pair in hook_pairs:
@@ -167,7 +180,11 @@ class HookNexus(Generic[T]):
     @staticmethod
     def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]") -> tuple[bool, str]:
         """
-        Connect two hooks together.
+        Connect two hooks together in the new architecture.
+
+        This method merges the hook nexuses of both hooks, allowing them to share
+        the same value and be synchronized together. This replaces the old binding
+        system with a more flexible hook-based approach.
 
         Args:
             source_hook: The hook to take the value from upon initialization
@@ -175,6 +192,9 @@ class HookNexus(Generic[T]):
 
         Raises:
             ValueError: If the hooks are not of the same type
+            
+        Returns:
+            Tuple of (success: bool, message: str)
         """
         
         # Check that all nexus managers are the same
@@ -185,6 +205,10 @@ class HookNexus(Generic[T]):
         # Validate that both hooks are not None
         if source_hook is None or target_hook is None: # type: ignore
             raise ValueError("Cannot connect None hooks")
+        
+        # Check if the hooks are already connected
+        if source_hook.hook_nexus == target_hook.hook_nexus:
+            return True, "Hooks are already connected"
         
         # Ensure that the value in both hook groups is the same
         # The source_hook's value becomes the source of truth

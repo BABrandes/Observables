@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Protocol, runtime_checkable
+from typing import Callable, Optional, Protocol, runtime_checkable, Any
 from logging import Logger
 
 @runtime_checkable
@@ -92,7 +92,7 @@ class BaseListening(BaseListeningLike):
         New value: 20
     """
 
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Optional[Logger] = None, **kwargs: Any):
         """
         Initialize the ListeningBase with an empty set of listeners.
         """

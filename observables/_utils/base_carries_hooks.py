@@ -5,19 +5,33 @@ from .initial_sync_mode import InitialSyncMode
 from .base_listening import BaseListeningLike
 from threading import RLock
 from .carries_hooks_like import CarriesHooksLike
-from .nexus_manager import DEFAULT_NEXUS_MANAGER
+
 
 if TYPE_CHECKING:
     from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
-    from .nexus_manager import NexusManager
+
+from .nexus_manager import NexusManager
+from .hook_nexus import HookNexus
+from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
 
 class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     """
-    A base class for observables that carry a set of hooks.
+    Base class for observables in the new hook-based architecture.
+    
+    This class provides the core functionality for observables that manage multiple
+    hooks and participate in the sync system. It replaces the old binding system
+    with a more flexible approach where observables define their own logic for:
+    
+    - Value completion (add_values_to_be_updated_callback)
+    - Value validation (validation_of_complete_value_set_in_isolation_callback)  
+    - Invalidation (invalidate_callback)
+    
+    The new architecture allows observables to define custom behavior for how
+    values are synchronized and validated, making the system more extensible.
 
     Must implement:
 
@@ -45,7 +59,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         validation_of_complete_value_set_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = None,
         add_values_to_be_updated_callback: Optional[Callable[[Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = None,
         logger: Optional[Logger] = None,
-        nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER
+        nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER, 
         ) -> None:
         """
         Initialize the CarriesHooksBase.
@@ -96,7 +110,16 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     @abstractmethod
     def _get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
         """
-        Get the key of a hook or nexus.
+        Get the key for a hook or nexus.
+
+        Args:
+            hook_or_nexus: The hook or nexus to get the key for
+
+        Returns:
+            The key for the hook or nexus
+
+        Raises:
+            ValueError: If the hook or nexus is not found in component_hooks or secondary_hooks
         """
         ...
 
@@ -143,8 +166,13 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         """
         with self._lock:
             if self._invalidate_callback is not None:
-                self._invalidate_callback()
-            return True, "Successfully invalidated"
+                success, msg = self._invalidate_callback()
+                if success == False:
+                    return False, msg
+                else:
+                    return True, msg
+            else:
+                return True, "No invalidate callback provided"
 
     @final
     def validate_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
@@ -192,7 +220,9 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         with self._lock:
             if to_key in self._get_hook_keys():
                 hook_of_observable: "OwnedHookLike[HV]" = self.get_hook(to_key)
-                hook_of_observable.connect(hook, initial_sync_mode)
+                success, msg = hook_of_observable.connect_hook(hook, "value", initial_sync_mode)
+                if not success:
+                    raise ValueError(msg)
             else:
                 raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
 
@@ -283,7 +313,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
             if len(values) == 0:
                 return True, "No values provided"
 
-            nexus_and_values: Mapping[HookNexus[Any], Any] = NexusManager.get_nexus_and_values(set(self._get_hook_dict().values()))
+            nexus_and_values: Mapping[HookNexus[Any], Any] = self.get_nexus_and_values(values)
             success, msg = self._nexus_manager.submit_values(nexus_and_values, only_check_values=True)
             if success == True:
                 return True, msg
@@ -304,10 +334,28 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     @final
     def submit_values(self, values: Mapping[HK, HV], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
-        Submit values to the observable.
+        Submit values to the observable using the new hook-based sync system.
+        
+        This method is the main entry point for value submissions in the new architecture.
+        It converts the submitted values into nexus-and-values format and delegates to
+        the NexusManager for processing.
+        
+        The NexusManager will:
+        1. Complete missing values using add_values_to_be_updated_callback
+        2. Validate all values using validation callbacks
+        3. Update hook nexuses with new values
+        4. Trigger invalidation and listener notifications
+        
+        Args:
+            values: Mapping of hook keys to their new values
+            not_notifying_listeners_after_submission: Set of listeners to skip notification
+            logger: Optional logger for debugging
+            
+        Returns:
+            Tuple of (success: bool, message: str)
         """
         with self._lock:
-            nexus_and_values: dict[HookNexus[Any], Any] = NexusManager.get_nexus_and_values(set(self._get_hook_dict().values()))
+            nexus_and_values: dict[HookNexus[Any], Any] = self.get_nexus_and_values(values)
             return self._nexus_manager.submit_values(
                 nexus_and_values,
                 not_notifying_listeners_after_submission=not_notifying_listeners_after_submission,
@@ -412,3 +460,13 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         ** The returned values are references, so modifying them will modify the observable.
         """
         return self.get_hook_value_as_reference_dict()
+
+
+    def get_nexus_and_values(self, values: Mapping[HK, HV]) -> dict[HookNexus[Any], Any]:
+        """
+        Get a dictionary of nexuses and values.
+        """
+        nexus_and_values: dict[HookNexus[Any], Any] = {}
+        for key, value in values.items():
+            nexus_and_values[self._get_hook(key).hook_nexus] = value
+        return nexus_and_values

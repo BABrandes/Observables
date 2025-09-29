@@ -1,7 +1,7 @@
 import unittest
 
 from observables import ObservableTuple, ObservableSingleValue, ObservableSet, ObservableSelectionOption, InitialSyncMode
-from .test_base import ObservableTestCase
+from tests.test_base import ObservableTestCase
 
 class TestObservableTuple(ObservableTestCase):
     """Test cases for ObservableTuple"""
@@ -205,7 +205,7 @@ class TestObservableTuple(ObservableTestCase):
         obs2 = ObservableTuple((20,))
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change obs1, obs2 should update
         obs1.value = (30, 40)
@@ -221,13 +221,13 @@ class TestObservableTuple(ObservableTestCase):
         obs2 = ObservableTuple((200,))
         
         # USE_CALLER_VALUE: target (obs2) gets caller's value
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         self.assertEqual(obs2.value, (100,))
         
         # Test update_observable_from_self mode
         obs3 = ObservableTuple((300,))
         obs4 = ObservableTuple((400,))
-        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        obs3.connect_hook(obs4.value_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         # USE_TARGET_VALUE means caller gets target's value
         self.assertEqual(obs3.value, (400,))
     
@@ -236,7 +236,7 @@ class TestObservableTuple(ObservableTestCase):
         obs1 = ObservableTuple((10,))
         obs2 = ObservableTuple((20,))
         
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -247,7 +247,7 @@ class TestObservableTuple(ObservableTestCase):
         """Test that binding to self raises an error"""
         obs = ObservableTuple((10,))
         with self.assertRaises(ValueError):
-            obs.connect(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect_hook(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -256,8 +256,8 @@ class TestObservableTuple(ObservableTestCase):
         obs3 = ObservableTuple((30,))
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-        obs2.connect(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs2.connect_hook(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify chain works
         obs1.value = (100, 200)
@@ -272,7 +272,7 @@ class TestObservableTuple(ObservableTestCase):
         self.assertEqual(obs2.value, (100, 200))  # obs2 is isolated
         self.assertEqual(obs3.value, (300, 400))  # obs3 gets updated since obs1 and obs3 remain bound
         
-        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect()
+        # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect_hook()
         obs3.value = (500, 600)
         self.assertEqual(obs1.value, (500, 600))  # obs1 gets updated since obs1 and obs3 remain bound
         self.assertEqual(obs2.value, (100, 200))  # obs2 is isolated
@@ -302,8 +302,8 @@ class TestObservableTuple(ObservableTestCase):
         obs3 = ObservableTuple((30,))
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-        obs3.connect(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs2.connect_hook(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs3.connect_hook(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change obs1, both should update
         obs1.value = (100, 200)
@@ -355,7 +355,7 @@ class TestObservableTuple(ObservableTestCase):
         # Test binding empty tuples
         obs1 = ObservableTuple(())
         obs2 = ObservableTuple(())
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         obs1.value = (1,)
         self.assertEqual(obs2.value, (1,))
@@ -363,7 +363,7 @@ class TestObservableTuple(ObservableTestCase):
         # Test binding tuples with same initial values
         obs3 = ObservableTuple((42,))
         obs4 = ObservableTuple((42,))
-        obs3.connect(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs3.connect_hook(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         obs3.value = (100, 200)
         self.assertEqual(obs4.value, (100, 200))
@@ -424,14 +424,14 @@ class TestObservableTuple(ObservableTestCase):
         """Test that binding to None raises an error"""
         obs = ObservableTuple((10,))
         with self.assertRaises(ValueError):
-            obs.connect(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect_hook(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
     
     def test_tuple_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableTuple((42,))
         obs2 = ObservableTuple((42,))
         
-        obs1.connect(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         # Both should still have the same value
         self.assertEqual(obs1.value, (42,))
         self.assertEqual(obs2.value, (42,))
@@ -471,7 +471,7 @@ class TestObservableIntegration(unittest.TestCase):
         selection_obs: ObservableSelectionOption[int|None] = ObservableSelectionOption(41, {40, 41, 42, 43})
         
         # Bind single value to selection option
-        single_obs.connect(selection_obs.selected_option_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        single_obs.connect_hook(selection_obs.selected_option_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Change single value, selection should update
         single_obs.value = 43
@@ -489,9 +489,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs_c = ObservableSingleValue(30)
         
         # Bind A to B
-        obs_a.connect(obs_b.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_a.connect_hook(obs_b.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         # Bind B to C
-        obs_b.connect(obs_c.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_b.connect_hook(obs_c.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change A, should propagate to B and C
         obs_a.value = 100
@@ -512,9 +512,9 @@ class TestObservableIntegration(unittest.TestCase):
         set_obs: ObservableSet[int|None] = ObservableSet({3, 4, 5, 6})  # Start with compatible options
         
         # Bind single value to selection option
-        single_obs.connect(selection_obs.selected_option_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        single_obs.connect_hook(selection_obs.selected_option_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         # Bind selection option to set (through options)
-        selection_obs.connect(set_obs.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        selection_obs.connect_hook(set_obs.value_hook, "available_options", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change single value, should propagate through chain
         single_obs.value = (6)
@@ -529,9 +529,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs_c = ObservableSingleValue(30)
         
         # Bind A to B
-        obs_a.connect(obs_b.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_a.connect_hook(obs_b.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         # Bind B to C
-        obs_b.connect(obs_c.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_b.connect_hook(obs_c.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Verify chain works
         obs_a.value = 100
@@ -558,11 +558,11 @@ class TestObservableIntegration(unittest.TestCase):
         obs2 = ObservableSingleValue(20)
         
         # Bind obs1 to obs2
-        obs1.connect(obs2.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(obs2.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Try to bind obs2 back to obs1 (should raise ValueError about hook groups not being disjoint)
         with self.assertRaises(ValueError) as context:
-            obs2.connect(obs1.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs2.connect_hook(obs1.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         self.assertIn("hook groups must be disjoint", str(context.exception))
         
         # The first binding still exists and is bidirectional, so changing obs1 should affect obs2
@@ -581,9 +581,9 @@ class TestObservableIntegration(unittest.TestCase):
         obs3 = ObservableSingleValue(30)
         
         # Bind all three to the target
-        obs1.connect(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-        obs2.connect(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-        obs3.connect(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs1.connect_hook(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs2.connect_hook(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs3.connect_hook(target.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Change target, all should update
         target.value = 100

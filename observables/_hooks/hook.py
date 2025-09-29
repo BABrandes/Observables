@@ -1,23 +1,32 @@
-from typing import Generic, TypeVar, TYPE_CHECKING, Optional, Callable
+from typing import Generic, TypeVar, Optional, Callable
 import logging
 from .hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.general import log
 from threading import RLock
+from .._utils.base_listening import BaseListening
 
-if TYPE_CHECKING:
-    from .._utils.nexus_manager import NexusManager
-    from .._utils.hook_nexus import HookNexus
+from .._utils.nexus_manager import NexusManager
+from .._utils.hook_nexus import HookNexus
+from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 T = TypeVar("T")
 
 
-class Hook(HookLike[T], Generic[T]):
+class Hook(HookLike[T], BaseListening, Generic[T]):
     """
-    A hook that can be used to store a value that is not owned by any observable.
+    A standalone hook in the new hook-based architecture.
+    
+    This represents a single value that can participate in the sync system without
+    being owned by a specific observable. Hooks are grouped into HookNexus instances
+    that share the same value and can be synchronized together.
+    
+    In the new architecture, hooks replace the old binding system and provide:
+    - Value storage and retrieval
+    - Validation through callbacks
+    - Listener notification support
+    - Connection to other hooks via HookNexus
     """
-
-    from .._utils.nexus_manager import DEFAULT_NEXUS_MANAGER
 
     def __init__(
         self,
@@ -29,12 +38,12 @@ class Hook(HookLike[T], Generic[T]):
 
         from .._utils.hook_nexus import HookNexus
 
+        BaseListening.__init__(self, logger)
         self._value = value
         self._validate_value_in_isolation_callback = validate_value_in_isolation_callback
-        self._logger = logger
         self._nexus_manager = nexus_manager
 
-        self._hook_nexus = HookNexus(nexus_manager, value, self)
+        self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
         self._lock = RLock()
 
     @property
@@ -87,13 +96,21 @@ class Hook(HookLike[T], Generic[T]):
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect_hook(self, hook: "HookLike[T]", key: str, initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
-        Connect this hook to another hook.
+        Connect this hook to another hook in the new architecture.
+
+        This method merges the hook nexuses of both hooks, allowing them to share
+        the same value and be synchronized together. This replaces the old binding
+        system with a more flexible hook-based approach.
 
         Args:
             hook: The hook to connect to
+            key: The key to connect to (ignored for hooks)
             initial_sync_mode: The initial synchronization mode
+            
+        Returns:
+            Tuple of (success: bool, message: str)
         """
 
         with self._lock:
@@ -103,10 +120,10 @@ class Hook(HookLike[T], Generic[T]):
             
             if initial_sync_mode == InitialSyncMode.USE_CALLER_VALUE:
                 from .._utils.hook_nexus import HookNexus
-                success, msg = HookNexus[T].connect_hooks(self, hook)
+                success, msg = HookNexus[T].connect_hook_pairs((self, hook))
             elif initial_sync_mode == InitialSyncMode.USE_TARGET_VALUE:
                 from .._utils.hook_nexus import HookNexus
-                success, msg = HookNexus[T].connect_hooks(hook, self)
+                success, msg = HookNexus[T].connect_hook_pairs((hook, self))
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 
@@ -116,17 +133,23 @@ class Hook(HookLike[T], Generic[T]):
     
     def disconnect(self) -> None:
         """
-        Detach this hook from the hook group.
+        Disconnect this hook from the hook group.
+
+        If this is the corresponding nexus has only this one hook, nothing will happen.
         """
 
         with self._lock:
 
-            if len(self._hook_nexus.hooks) <= 1:
+            if self not in self._hook_nexus.hooks:
                 raise ValueError("Hook is already disconnected")
+            
+            if len(self._hook_nexus.hooks) <= 1:
+                # If we're the last hook, we're already effectively disconnected
+                return
             
             # Create a new isolated group for this hook
             from .._utils.hook_nexus import HookNexus
-            new_group = HookNexus(self._nexus_manager, self.value, self)
+            new_group = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
             
             # Remove this hook from the current group
             self._hook_nexus.remove_hook(self)

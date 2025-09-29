@@ -1,8 +1,9 @@
 """
-ObservableTransfer Module
+ObservableTransfer Module - New Hook-Based Architecture
 
 This module provides the ObservableTransfer class, a powerful observable that acts as a 
-transformation layer between multiple input and output hooks with automatic invalidation.
+transformation layer between multiple input and output hooks using the new hook-based
+sync system.
 
 The ObservableTransfer is designed for scenarios where you need to:
 - Transform values from multiple input sources to multiple output destinations
@@ -10,23 +11,29 @@ The ObservableTransfer is designed for scenarios where you need to:
 - Create derived values that automatically update when their dependencies change
 - Implement bidirectional transformations with optional reverse computation
 
+**New Architecture Features:**
+- Uses add_values_to_be_updated_callback instead of listeners for transformation triggering
+- Integrates with NexusManager for value submission and synchronization
+- Supports custom validation and completion logic
+- Replaces old invalidation-based system with more flexible hook-based approach
+
 Key Features:
 - Multiple input trigger hooks for dependency management
 - Multiple output trigger hooks for result distribution
 - Forward transformation (inputs → outputs) via callable
 - Optional reverse transformation (outputs → inputs) via callable
-- Automatic transformation triggering through hook invalidation system
+- Automatic transformation triggering through add_values_to_be_updated_callback
 - Type-safe generic implementation with named components
 - Thread-safe operations with RLock protection
-- Full CarriesHooks interface with attach/detach support
+- Full BaseCarriesHooks interface with hook management support
 
 Architecture:
-The class extends BaseListening and CarriesHooks[IHK|OHK] and manages:
-- Input trigger hooks: Named hooks that trigger forward transformation when invalidated
-- Output trigger hooks: Named hooks that trigger reverse transformation when invalidated
+The class extends BaseListening and BaseCarriesHooks[IHK|OHK] and manages:
+- Input trigger hooks: Named hooks that trigger forward transformation when changed
+- Output trigger hooks: Named hooks that trigger reverse transformation when changed
 - Forward callable: Function that computes outputs from inputs
 - Reverse callable: Optional function that computes inputs from outputs
-- Automatic invalidation detection and transformation triggering
+- add_values_to_be_updated_callback: Handles transformation logic in the new architecture
 
 Use Cases:
 1. **Dictionary Access**: dict + key → value transformation
@@ -47,7 +54,7 @@ Example Usage:
     ...     forward_callable=lambda inputs: {"value": inputs["dict"].get(inputs["key"], 0)}
     ... )
     >>> 
-    >>> # When input hooks are invalidated, output hooks are automatically updated
+    >>> # When input hooks change, output hooks are automatically updated via the new sync system
     >>> key_obs.single_value = "b"  # Triggers forward transformation automatically
 
 Performance Characteristics:
@@ -82,18 +89,21 @@ OHV = TypeVar("OHV")
 
 class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Generic[IHK, OHK, IHV, OHV]):
     """
-    An observable that transforms values between input and output hooks with automatic invalidation.
+    An observable that transforms values between input and output hooks using the new hook-based architecture.
     
     This class acts as a transformation layer that:
     - Manages multiple named input trigger hooks
     - Manages multiple named output trigger hooks  
-    - Automatically triggers forward transformation when input hooks are invalidated
-    - Automatically triggers reverse transformation when output hooks are invalidated (if reverse callable provided)
-    - Ensures atomic updates using HookNexus for consistency
+    - Automatically triggers forward transformation when input hooks change
+    - Automatically triggers reverse transformation when output hooks change (if reverse callable provided)
+    - Uses add_values_to_be_updated_callback for transformation logic
+    - Integrates with NexusManager for value submission and synchronization
     - Provides thread-safe operations with RLock protection
     
-    The transformation is triggered automatically through the hook invalidation system,
-    ensuring that dependent values are always consistent without manual intervention.
+    **New Architecture Integration:**
+    The transformation is triggered automatically through the add_values_to_be_updated_callback,
+    which is called by the NexusManager during value submission. This replaces the old
+    invalidation-based system with a more flexible hook-based approach.
     """
 
     def __init__(
@@ -152,7 +162,61 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
         """
         
         # Initialize base classes
-        super().__init__(logger)
+        BaseListening.__init__(self, logger)
+        
+        def add_values_to_be_updated_callback(
+            current_values: Mapping[IHK|OHK, IHV|OHV],
+            submitted_values: Mapping[IHK|OHK, IHV|OHV]
+        ) -> Mapping[IHK|OHK, IHV|OHV]:
+            """
+            Add values to be updated by triggering transformations.
+            This callback is called when any hook value changes.
+            """
+            # Check if any input values changed - if so, trigger forward transformation
+            input_keys = set(input_trigger_hooks.keys())
+            if any(key in submitted_values for key in input_keys):
+                # Trigger forward transformation
+                try:
+                    # Use submitted values for changed keys, current values for unchanged keys
+                    input_values: Mapping[IHK, IHV] = {}
+                    for key in input_keys:
+                        if key in submitted_values:
+                            input_values[key] = submitted_values[key] # type: ignore
+                        else:
+                            input_values[key] = current_values[key] # type: ignore
+                    output_values: Mapping[OHK, OHV] = forward_callable(input_values)
+                    return output_values # type: ignore
+                except Exception as e:
+                    log(self, "add_values_to_be_updated_callback", logger, False, f"Forward transformation failed: {e}")
+                    return {}
+            
+            # Check if any output values changed - if so, trigger reverse transformation
+            if reverse_callable is not None:
+                output_keys = set(output_trigger_hooks.keys())
+                if any(key in submitted_values for key in output_keys):
+                    try:
+                        # Use submitted values for changed keys, current values for unchanged keys
+                        output_values = {}
+                        for key in output_keys:
+                            if key in submitted_values:
+                                output_values[key] = submitted_values[key] # type: ignore
+                            else:
+                                output_values[key] = current_values[key] # type: ignore
+                        input_values = reverse_callable(output_values)
+                        return input_values # type: ignore
+                    except Exception as e:
+                        log(self, "add_values_to_be_updated_callback", logger, False, f"Reverse transformation failed: {e}")
+                        return {}
+            
+            return {}
+        
+        BaseCarriesHooks.__init__( # type: ignore
+            self,
+            logger=logger,
+            invalidate_callback=None,
+            validation_of_complete_value_set_in_isolation_callback=None,
+            add_values_to_be_updated_callback=add_values_to_be_updated_callback
+        )
         
         self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
         self._reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = reverse_callable
@@ -178,7 +242,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             )
             self._input_hooks[key] = internal_hook_input
             if isinstance(external_hook_or_value, HookLike):
-                internal_hook_input.connect(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+                internal_hook_input.connect_hook(external_hook_or_value, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Create output hooks for all keys, connecting to external hooks when provided
         for key, external_hook_or_value in output_trigger_hooks.items():
@@ -193,7 +257,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             
             # Connect our internal hook to external hook if external hook is provided
             if isinstance(external_hook_or_value, HookLike):
-                internal_hook_output.connect(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+                internal_hook_output.connect_hook(external_hook_or_value, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
 
     #########################################################################
     # CarriesHooks interface
@@ -207,12 +271,6 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             return self._output_hooks[key] # type: ignore
         else:
             raise ValueError(f"Key {key} not found in hooks")
-
-    def _get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
-        return self._input_hooks[key] # type: ignore
-    
-    def _get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
-        return self._output_hooks[key] # type: ignore
 
     def _get_hook_value_as_reference(self, key: IHK|OHK) -> IHV|OHV:
         if key in self._input_hooks:
@@ -238,84 +296,9 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
     # Other private methods
     #########################################################################
 
-    def _on_input_invalidated(self, key: IHK) -> tuple[bool, str]:
-        """Called when an input hook is invalidated. Triggers forward transformation."""
-        try:
-            log(self, "_on_input_invalidated", self._logger, True, f"Input hook {key} invalidated, triggering forward transformation")
-            self._trigger_forward_transformation()
-            return True, "Forward transformation triggered successfully"
-        except Exception as e:
-            log(self, "_on_input_invalidated", self._logger, False, f"Error in forward transformation: {e}")
-            return False, f"Error in forward transformation: {e}"
-    
-    def _on_output_invalidated(self, key: OHK) -> tuple[bool, str]:
-        """Called when an output hook is invalidated. Triggers reverse transformation if available."""
-        if self._reverse_callable is None:
-            log(self, "_on_output_invalidated", self._logger, False, "Output hook invalidated but no reverse callable provided")
-            return False, "No reverse callable available"
-        
-        try:
-            log(self, "_on_output_invalidated", self._logger, True, f"Output hook {key} invalidated, triggering reverse transformation")
-            self._trigger_reverse_transformation()
-            return True, "Reverse transformation triggered successfully"
-        except Exception as e:
-            log(self, "_on_output_invalidated", self._logger, False, f"Error in reverse transformation: {e}")
-            return False, f"Error in reverse transformation: {e}"
-    
-    def _trigger_transformation(
-            self, 
-            source_hooks: dict[IHK, OwnedHook[IHV]] | dict[OHK, OwnedHook[OHV]], 
-            target_hooks: dict[OHK, OwnedHook[OHV]] | dict[IHK, OwnedHook[IHV]],
-            transform_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] | Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]],
-            direction: str) -> None:
-        """
-        Trigger transformation between source and target hooks.
-        
-        Args:
-            source_hooks: The hooks to read values from
-            target_hooks: The hooks to write values to
-            transform_callable: The function to transform values
-            direction: Description for logging/errors ("forward" or "reverse")
-        """
-        with self._lock:
-            # Get current values from source hooks
-            source_values: dict[IHK, IHV] | dict[OHK, OHV] = {key: hook.value for key, hook in source_hooks.items()} # type: ignore
-            
-            # Call transformation
-            target_values: Mapping[OHK, OHV] | Mapping[IHK, IHV] = transform_callable(source_values) # type: ignore
-            
-            # Validate target keys
-            if target_values.keys() != target_hooks.keys():
-                raise ValueError(f"{direction.capitalize()} callable returned incompatible keys")
-            
-            # Update target hooks
-            if len(target_values) == 1:
-                key: OHK | IHK = next(iter(target_values.keys()))
-                target_hooks[key].submit_single_value(target_values[key]) # type: ignore
-            else:
-                hooks_and_values: list[tuple[OwnedHookLike[IHV|OHV], IHV|OHV]] = []
-                for key, value in target_values.items():
-                    hooks_and_values.append((target_hooks[key], value)) # type: ignore
-                OwnedHookLike[IHV|OHV].submit_values(dict(hooks_and_values))
-    
-    def _trigger_forward_transformation(self) -> None:
-        """Trigger forward transformation (inputs → outputs)."""
-        self._trigger_transformation(
-            source_hooks=self._input_hooks,
-            target_hooks=self._output_hooks, 
-            transform_callable=self._forward_callable,
-            direction="forward"
-        )
-    
-    def _trigger_reverse_transformation(self) -> None:
-        """Trigger reverse transformation (outputs → inputs)."""
-        if self._reverse_callable is None:
-            raise ValueError("No reverse callable available")
-        
-        self._trigger_transformation(
-            source_hooks=self._output_hooks,
-            target_hooks=self._input_hooks,
-            transform_callable=self._reverse_callable,
-            direction="reverse"
-        )
 
+    def _get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
+        return self._input_hooks[key] # type: ignore
+    
+    def _get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
+        return self._output_hooks[key] # type: ignore

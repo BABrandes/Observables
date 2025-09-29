@@ -67,7 +67,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -263,8 +263,8 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-                    obs2.connect(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    obs2.connect_hook(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
@@ -363,7 +363,7 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.connect(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                        obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
                         obs1.disconnect("value")
                     elif i % 4 == 1:

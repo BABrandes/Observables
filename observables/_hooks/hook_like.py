@@ -69,7 +69,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def connect(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect_hook(self, hook: "HookLike[T]", key: str, initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
         """
         Connect this hook to another hook.
 

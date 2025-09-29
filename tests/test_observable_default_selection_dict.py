@@ -230,10 +230,10 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("not in dictionary", msg)
         
-        # Test valid - any value is allowed with valid key (will be updated by invalidation)
+        # Test invalid - value doesn't match dictionary value
         success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
-        self.assertTrue(success)  # Should be valid - invalidation will sync the dict
-        self.assertIn("invalidation will sync", msg)
+        self.assertFalse(success)  # Should be invalid - value doesn't match dictionary
+        self.assertIn("not equal to value in dictionary", msg)
 
     def test_dict_key_change_propagation(self):
         """Test that changing dict or key updates the value."""
@@ -293,7 +293,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        selection_dict.connect_hook(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         self.assertEqual(selection_dict.key, "b")
         self.assertEqual(selection_dict.value, 2)
         
@@ -316,7 +316,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         # Test invalidation
         success, msg = selection_dict.invalidate()
         self.assertTrue(success)
-        self.assertEqual(msg, "Successfully invalidated")
+        self.assertEqual(msg, "No invalidate callback provided")
 
     def test_set_dict_and_key(self):
         """Test set_dict_and_key method."""

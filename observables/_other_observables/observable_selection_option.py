@@ -173,13 +173,17 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
         if options == self._primary_hooks["available_options"].value:
             return
 
-        self.submit_values({"available_options": options})
+        success, msg = self.submit_values({"available_options": options})
+        if not success:
+            raise ValueError(msg)
     
     def change_available_options(self, available_options: set[T]) -> None:
         if available_options == self._primary_hooks["available_options"].value:
             return
         
-        self.submit_values({"available_options": available_options})
+        success, msg = self.submit_values({"available_options": available_options})
+        if not success:
+            raise ValueError(msg)
 
     @property
     def available_options_hook(self) -> HookLike[set[T]]:
@@ -319,9 +323,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         )
 
         if hook_selected_option is not None:
-            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_available_options is not None:
-            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -375,7 +379,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         if selected_option == self._primary_hooks["selected_option"].value:
             return
         
-        self.submit_values({"selected_option": selected_option})
+        success, msg = self.submit_values({"selected_option": selected_option})
+        if not success:
+            raise ValueError(msg)
 
     @property
     def selected_option_hook(self) -> OwnedHookLike[T]:
@@ -385,7 +391,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
         if selected_option == self._primary_hooks["selected_option"].value:
             return
         
-        self.submit_values({"selected_option": selected_option})
+        success, msg = self.submit_values({"selected_option": selected_option})
+        if not success:
+            raise ValueError(msg)
  
     def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
         self.submit_values({"selected_option": selected_option, "available_options": available_options})
@@ -467,9 +475,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         )
 
         if hook_selected_option is not None:
-            self.connect(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_available_options is not None:
-            self.connect(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,

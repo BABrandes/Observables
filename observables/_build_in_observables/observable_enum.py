@@ -144,7 +144,9 @@ class ObservableEnumBase(BaseObservable[Literal["enum_value", "enum_options"], A
         Args:
             value: New set of available enum options
         """
-        self._set_component_values({"enum_options": value}, notify_binding_system=True) # type: ignore
+        success, msg = self.submit_values({"enum_options": value})
+        if not success:
+            raise ValueError(msg)
 
     @property
     def enum_options_hook(self) -> HookLike[set[E]]:
@@ -415,9 +417,9 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
 
         # Establish bindings if carriers were provided
         if hook_selected_enum is not None:
-            self.connect(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_selected_enum, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_enum_options is not None:
-            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -472,13 +474,17 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
         Args:
             value: New selected enum value
         """
-        self.submit_values({"enum_value": value})
+        success, msg = self.submit_values({"enum_value": value})
+        if not success:
+            raise ValueError(msg)
 
     def change_enum_value(self, new_value: Optional[E]) -> None:
         """
         Change the enum value.
         """
-        self.submit_values({"enum_value": new_value})
+        success, msg = self.submit_values({"enum_value": new_value})
+        if not success:
+            raise ValueError(msg)
 
     @property
     def enum_value_hook(self) -> HookLike[Optional[E]]:
@@ -715,9 +721,9 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
 
         # Establish bindings if hooks were provided
         if hook_enum_value is not None:
-            self.connect(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_enum_value, "enum_value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if hook_enum_options is not None:
-            self.connect(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_enum_options, "enum_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -772,7 +778,9 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Args:
             value: New selected enum value
         """
-        self.submit_values({"enum_value": value})
+        success, msg = self.submit_values({"enum_value": value})
+        if not success:
+            raise ValueError(msg)
 
     def change_enum_value(self, new_value: E) -> None:
         """
@@ -802,7 +810,9 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Raises:
             ValueError: If the enum value is not in the options set
         """
-        self.submit_values({"enum_value": enum_value, "enum_options": enum_options}) # type: ignore
+        success, msg = self.submit_values({"enum_value": enum_value, "enum_options": enum_options}) # type: ignore
+        if not success:
+            raise ValueError(msg)
 
     def __eq__(self, other: Any) -> bool:
         """

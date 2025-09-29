@@ -4,10 +4,11 @@ from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any
 from .._utils.base_listening import BaseListening
 from .owned_hook_like import OwnedHookLike
 from .hook import Hook
+from .._utils.nexus_manager import NexusManager
+from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 if TYPE_CHECKING:
     from .._utils.base_carries_hooks import BaseCarriesHooks
-    from .._utils.nexus_manager import NexusManager
 
 T = TypeVar("T")
 
@@ -22,8 +23,6 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
     
     Complex binding logic is delegated to the BindingSystem class.
     """
-    
-    from .._utils.nexus_manager import DEFAULT_NEXUS_MANAGER
 
     def __init__(
             self,
@@ -38,9 +37,7 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             hook_key = owner.get_hook_key(self)
             return self._owner.validate_values_in_isolation({hook_key: value})
 
-        BaseListening.__init__(self, logger)
-        Hook[T].__init__(
-            self,
+        super().__init__(
             value=initial_value,
             validate_value_in_isolation_callback=validate_value_in_isolation_callback,
             nexus_manager=nexus_manager,

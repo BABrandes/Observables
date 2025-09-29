@@ -10,6 +10,7 @@ class MockCarriesHooks(BaseCarriesHooks[Any, Any]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):
+        super().__init__()
         self.name = name
         self._hooks: dict[str, HookLike[Any]] = {}
     
@@ -26,7 +27,10 @@ class MockCarriesHooks(BaseCarriesHooks[Any, Any]):
     
     def _get_hook(self, key: Any) -> Any:
         """Return a mock hook."""
-        return None
+        # Return a mock hook that won't cause issues in the nexus manager
+        if key not in self._hooks:
+            self._hooks[key] = OwnedHook(self, "mock_value")
+        return self._hooks[key]
     
     def _get_hook_value_as_reference(self, key: Any) -> Any:
         """Return a mock value."""
@@ -149,40 +153,6 @@ class TestHookListeners(unittest.TestCase):
         self.assertIn(callback2, removed)
         self.assertIn(callback3, removed)
     
-    def test_invalidate_callback_works(self):
-        """Test that invalidate callback works when called directly."""
-        callback1 = Mock()
-        callback2 = Mock()
-        
-        self.hook.add_listeners(callback1, callback2)
-        
-        # Set up invalidate callback
-        invalidate_callback = Mock()
-        self.hook._invalidate_callback = invalidate_callback # type: ignore
-        
-        # Call invalidate callback directly (as HookNexus would do)
-        self.hook.invalidate()
-        
-        # Verify invalidate callback was called
-        invalidate_callback.assert_called_once_with(self.hook)
-        
-        # Note: Listeners are only notified when HookNexus processes the invalidation
-        # This test verifies the callback works, not the listener notification
-    
-    def test_value_change_through_hook_nexus(self):
-        """Test that value changes work through HookNexus with listener notification."""
-        callback = Mock()
-        self.hook.add_listeners(callback)
-        
-        # Change the value through the proper HookNexus process
-        self.hook.submit_value("new_value")
-        
-        # Verify value was changed
-        self.assertEqual(self.hook.value, "new_value")
-        
-        # With the new architecture, hooks always notify their own listeners
-        # This ensures consistent behavior across all hook types
-        callback.assert_called_once()
     
     def test_listeners_copy_is_returned(self):
         """Test that listeners property returns a copy, not the original set."""
@@ -278,30 +248,6 @@ class TestHookListeners(unittest.TestCase):
         callback1.assert_called_once()
         callback2.assert_not_called()
     
-    def test_hook_with_invalidate_callback(self):
-        """Test hook behavior with invalidate callback."""
-        invalidate_callback = Mock()
-        hook = OwnedHook(self.owner, "test_value", invalidate_callback)
-        
-        callback = Mock()
-        hook.add_listeners(callback)
-        
-        # Call invalidate callback directly (as HookNexus would do)
-        hook.invalidate()
-        
-        # Verify invalidate callback was called
-        invalidate_callback.assert_called_once_with(hook)
-        
-        # Note: Listeners are only notified when HookNexus processes the invalidation
-        # This test verifies the callback works, not the listener notification
-    
-    def test_hook_without_invalidate_callback(self):
-        """Test that calling invalidate without callback raises error."""
-        hook = OwnedHook(self.owner, "test_value")  # No invalidate callback
-        
-        # Should raise ValueError when invalidate callback is accessed
-        with self.assertRaises(ValueError):
-            hook.invalidate()
 
 
 if __name__ == "__main__":

@@ -2,9 +2,8 @@ import unittest
 import threading
 from typing import Any, Mapping, Optional
 from logging import Logger
-from observables import OwnedHook, BaseObservable, HookLike, InitialSyncMode
-from run_tests import console_logger as logger
-from observables._utils.nexus_manager import DEFAULT_NEXUS_MANAGER
+from observables import OwnedHook, BaseObservable, InitialSyncMode
+from tests.run_tests import console_logger as logger
 
 class MockObservable(BaseObservable[Any, Any, Any, Any]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
@@ -49,7 +48,6 @@ class TestHookCapabilities(unittest.TestCase):
         # Verify the hook is created correctly
         self.assertEqual(hook.value, "initial_value")
         self.assertEqual(hook.owner, mock_owner)
-        self.assertTrue(hook.can_be_invalidated)
         self.assertIsNotNone(hook.hook_nexus)
 
     def test_hook_creation_without_invalidate_callback(self):
@@ -67,7 +65,6 @@ class TestHookCapabilities(unittest.TestCase):
         # Verify the hook is created correctly
         self.assertEqual(hook.value, "initial_value")
         self.assertEqual(hook.owner, mock_owner)
-        self.assertFalse(hook.can_be_invalidated)
         self.assertIsNotNone(hook.hook_nexus)
 
     def test_value_hook_property(self):
@@ -151,29 +148,6 @@ class TestHookCapabilities(unittest.TestCase):
             # This should not raise an error
             pass
 
-    def test_hook_can_receive_property(self):
-        """Test the can_receive property of hooks."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create hook with invalidate callback
-        hook_with_callback = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Create hook without invalidate callback
-        hook_without_callback = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Test can_receive property
-        self.assertTrue(hook_with_callback.can_be_invalidated)
-        self.assertFalse(hook_without_callback.can_be_invalidated)
-
     def test_hook_connect_to(self):
         """Test the connect_to method of hooks."""
         # Create mock observable for owner
@@ -196,7 +170,7 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
         
         # Connect hook1 to hook2
-        hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        hook1.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Now they should be in the same hook nexus
         self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
@@ -223,7 +197,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test with invalid sync mode
         with self.assertRaises(ValueError) as cm:
-            hook1.connect(hook2, "invalid_mode")  # type: ignore
+            hook1.connect_hook(hook2, "dummy_key", "invalid_mode")  # type: ignore
         
         self.assertIn("Invalid sync mode", str(cm.exception))
 
@@ -250,7 +224,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same hook nexus
-        hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        hook.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Now disconnect the first hook
         hook.disconnect()
@@ -280,21 +254,25 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Connect them so they're in the same group
-        hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        hook.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
-        # Detach multiple times - should fail after first detach
-        with self.assertRaises(ValueError) as cm:
-            for _ in range(5):
-                original_nexus = hook.hook_nexus
-                hook.disconnect()
-                
-                # Should always create a new hook nexus
-                self.assertNotEqual(hook.hook_nexus, original_nexus)
-                self.assertIn(hook, hook.hook_nexus.hooks)
-                self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        # First disconnect should work and create a new nexus
+        original_nexus = hook.hook_nexus
+        hook.disconnect()
         
-        # Verify the error message
-        self.assertIn("Hook is already disconnected", str(cm.exception))
+        # Should create a new hook nexus
+        self.assertNotEqual(hook.hook_nexus, original_nexus)
+        self.assertIn(hook, hook.hook_nexus.hooks)
+        self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        
+        # Second disconnect should do nothing since hook is already isolated
+        nexus_after_first_disconnect = hook.hook_nexus
+        hook.disconnect()
+        
+        # Should still be the same nexus
+        self.assertEqual(hook.hook_nexus, nexus_after_first_disconnect)
+        self.assertIn(hook, hook.hook_nexus.hooks)
+        self.assertEqual(len(hook.hook_nexus.hooks), 1)
 
     def test_hook_submit_value(self):
         """Test the submit_value method of hooks."""
@@ -354,29 +332,11 @@ class TestHookCapabilities(unittest.TestCase):
         self.assertFalse(hook2.is_connected_to(hook1))
         
         # Connect them
-        hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        hook1.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
         
         # Now they should be attached
         self.assertTrue(hook1.is_connected_to(hook2))
         self.assertTrue(hook2.is_connected_to(hook1))
-
-    def test_hook_invalidate_without_callback(self):
-        """Test invalidating a hook without invalidate callback."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a hook without invalidate callback
-        hook = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Test invalidate callback access should fail
-        with self.assertRaises(ValueError) as cm:
-            hook.invalidate()
-        
-        self.assertIn("Invalidate callback is None", str(cm.exception))
 
     def test_hook_is_valid_value(self):
         """Test the is_valid_value method of hooks."""
@@ -413,7 +373,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Create a new hook nexus
         from observables._utils.hook_nexus import HookNexus
-        new_nexus = HookNexus(DEFAULT_NEXUS_MANAGER, "new_value", hook)
+        new_nexus = HookNexus[str]("new_value", hooks={hook})
         
         # Replace the hook nexus
         hook._replace_hook_nexus(new_nexus) #type: ignore
@@ -487,7 +447,6 @@ class TestHookCapabilities(unittest.TestCase):
         def property_reader():
             for _ in range(200):
                 try:
-                    _ = hook.can_be_invalidated
                     _ = hook.owner
                     _ = hook.hook_nexus
                     _ = hook.lock
@@ -640,7 +599,7 @@ class TestHookCapabilities(unittest.TestCase):
                         owner=mock_owner,
                         initial_value="value",
                     )
-                    hook.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    hook.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                     hook.disconnect()
                     time.sleep(0.003)
                 except Exception:
@@ -695,7 +654,6 @@ class TestHookCapabilities(unittest.TestCase):
         def state_accessor():
             for _ in range(200):
                 try:
-                    _ = hook.can_be_invalidated
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -737,7 +695,7 @@ class TestHookCapabilities(unittest.TestCase):
         def connect_caller():
             for _ in range(50):
                 try:
-                    hook1.connect(hook2, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    hook1.connect_hook(hook2, "dummy_key", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -787,8 +745,6 @@ class TestHookCapabilities(unittest.TestCase):
                     if i % 5 == 0:
                         hook.submit_value(f"value_{worker_id}_{i}")
                     elif i % 5 == 2:
-                        _ = hook.can_be_invalidated
-                    elif i % 5 == 3:
                         _ = hook.hook_nexus
                         _ = len(hook.hook_nexus.hooks)
                     else:
@@ -840,8 +796,7 @@ class TestHookCapabilities(unittest.TestCase):
             for _ in range(100):
                 try:
                     with hook.lock:
-                        _ = hook.can_be_invalidated
-                        _ = hook.can_be_invalidated
+                        time.sleep(0.001)
                 except Exception:
                     pass
         
@@ -868,7 +823,7 @@ class TestHookCapabilities(unittest.TestCase):
         mock_owner = MockObservable("test_owner")
         
         # Create a hook
-        hook = OwnedHook[str](
+        _ = OwnedHook[str](
             owner=mock_owner,
             initial_value="value",
         )
@@ -885,8 +840,7 @@ class TestHookCapabilities(unittest.TestCase):
         def race_condition_observer():
             for _ in range(200):
                 try:
-                    # Rapidly check state
-                    _ = hook.can_be_invalidated
+                    # Rapidly check state   
                     time.sleep(0.0005)
                 except Exception:
                     pass
@@ -1006,111 +960,6 @@ class TestHookCapabilities(unittest.TestCase):
             # If an exception is raised, that's also acceptable
             self.assertIsInstance(e, Exception)
 
-    def test_hook_with_callable_objects(self):
-        """Test hooks with callable objects (not just functions)."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a callable class
-        class CallableClass:
-            def __init__(self):
-                self.call_count = 0
-            
-            def __call__(self, hook: HookLike[str]) -> tuple[bool, str]:
-                self.call_count += 1
-                return True, "callable_success"
-        
-        # Create a callable object
-        callable_obj = CallableClass()
-        
-        # Create hook with callable object
-        hook = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Test that it works
-        hook.invalidate()
-        self.assertEqual(callable_obj.call_count, 1)
-        
-        hook.invalidate()
-        self.assertEqual(callable_obj.call_count, 2)
-
-    def test_hook_with_method_objects(self):
-        """Test hooks with bound method objects."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a class with methods
-        class MethodClass:
-            def __init__(self):
-                self.call_count = 0
-            
-            def invalidate_method(self, hook: HookLike[str]) -> tuple[bool, str]:
-                self.call_count += 1
-                return True, "method_success"
-        
-        # Create instance and get bound method
-        method_obj = MethodClass()
-
-        # Create hook with bound method
-        hook = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Test that bound method works
-        hook.invalidate()
-        self.assertEqual(method_obj.call_count, 1)
-        
-        hook.invalidate()
-        self.assertEqual(method_obj.call_count, 2)
-
-    def test_hook_with_class_methods(self):
-        """Test hooks with class methods and static methods."""
-        # Create mock observable for owner
-        mock_owner = MockObservable("test_owner")
-        
-        # Create a class with class and static methods
-        class TestClass:
-            class_call_count = 0
-            static_call_count = 0
-            
-            @classmethod
-            def class_invalidate(cls, hook: HookLike[str]) -> tuple[bool, str]:
-                cls.class_call_count += 1
-                return True, "class_success"
-            
-            @staticmethod
-            def static_invalidate(hook: HookLike[str]) -> tuple[bool, str]:
-                TestClass.static_call_count += 1
-                return True, "static_success"
-        
-        # Create hook with class method
-        hook = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        # Test that class method works
-        hook.invalidate()
-        self.assertEqual(TestClass.class_call_count, 1)
-        
-        hook.invalidate()
-        self.assertEqual(TestClass.class_call_count, 2)
-        
-        # Test with static method
-        static_hook = OwnedHook[str](
-            owner=mock_owner,
-            initial_value="value",
-            logger=logger
-        )
-        
-        static_hook.invalidate()
-        self.assertEqual(TestClass.static_call_count, 1)
 
     def test_hook_with_exception_handling_callbacks(self):
         """Test hooks with callbacks that handle exceptions."""
@@ -1124,7 +973,7 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test that safe callback works
-        hook.invalidate()  # Should not raise error
+        hook.invalidate_owner()  # Should not raise error
 
 
 if __name__ == '__main__':

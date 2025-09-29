@@ -19,11 +19,6 @@ class OwnedHookLike(HookLike[T], Protocol[T]):
         """
         ...
 
-    @property
-    def can_be_invalidated(self) -> bool:
-        """Check if this hook can be invalidated."""
-        return True
-
-    def invalidate(self) -> None:
-        """Invalidate this hook."""
+    def invalidate_owner(self) -> None:
+        """Invalidate the owner of this hook."""
         self.owner.invalidate()

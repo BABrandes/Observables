@@ -2,7 +2,7 @@
 
 """
 
-from typing import Literal, TypeVar, Generic, Optional, Mapping, Any
+from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._hooks.owned_hook import OwnedHook
@@ -17,7 +17,23 @@ V = TypeVar("V")
 
 class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
-
+    An observable that manages a selection from a dictionary in the new hook-based architecture.
+    
+    This observable maintains three components:
+    - dict: The dictionary to select from
+    - key: The selected key in the dictionary
+    - value: The value at the selected key
+    
+    The observable ensures that these three components stay synchronized:
+    - When dict or key changes, value is automatically updated
+    - When value changes, the dictionary is updated at the current key
+    - When key changes, value is updated to match the new key
+    
+    **New Architecture Features:**
+    - Uses add_values_to_be_updated_callback to complete missing values
+    - Uses validation callbacks to ensure consistency
+    - Integrates with NexusManager for value submission
+    - Supports custom invalidation callbacks
     """
 
     def __init__(
@@ -25,7 +41,8 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         dict_hook: dict[K, V] | HookLike[dict[K, V]],
         key_hook: K | HookLike[K],
         value_hook: Optional[HookLike[V]] = None,
-        logger: Optional[Logger] = None):
+        logger: Optional[Logger] = None,
+        invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = None):
         """
 
         """
@@ -41,14 +58,17 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
                 case (True, True, True):
                     return {}
                 case (True, True, False):
-                    return {
-                        "value": submitted_values["dict"][submitted_values["key"]]}
+                    # Dict and key provided - get value from dict
+                    if submitted_values["key"] not in submitted_values["dict"]:
+                        raise ValueError(f"Key {submitted_values['key']} not in dictionary")
+                    return {"value": submitted_values["dict"][submitted_values["key"]]}
                 case (True, False, True):
                     if submitted_values["value"] != submitted_values["dict"][current_values["key"]]:
-                        raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][self._key_hook.value]}")
+                        raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][current_values['key']]}")
+                    return {}
                 case (True, False, False):
-                    return {
-                    "value": submitted_values["dict"][current_values["key"]]}
+                    # Dict provided - get value for current key
+                    return {"value": submitted_values["dict"][current_values["key"]]}
                 case (False, True, True):
                     _dict = current_values["dict"].copy()
                     _dict[submitted_values["key"]] = submitted_values["value"]
@@ -72,17 +92,32 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
             Validate the values in isolation.
             """
 
+            # Check that all three values are in the values
+            if "dict" not in values:
+                return False, "Dict not in values"
+            if "key" not in values:
+                return False, "Key not in values"
+            if "value" not in values:
+                return False, "Value not in values"
+
+            # Check that the dictionary is not None
+            if values["dict"] is None:
+                return False, "Dictionary is None"
+
+            # Check that the key is in the dictionary
             if values["key"] not in values["dict"]:
-                return False, "Key not in dictionary"
+                raise KeyError(f"Key {values['key']} not in dictionary")
+
+            # Check that the value is equal to the value in the dictionary
             if values["value"] != values["dict"][values["key"]]:
                 return False, "Value not equal to value in dictionary"
 
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        BaseCarriesHooks[Literal["dict", "key", "value"], Any].__init__(
+        BaseCarriesHooks.__init__( # type: ignore
             self,
-            invalidate_callback=None,
+            invalidate_callback=invalidate_callback,
             validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger)
@@ -110,11 +145,11 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -204,7 +239,6 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         success, msg = self._value_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._value_hook.invalidate()
 
     @property
     def key(self) -> K:
@@ -218,10 +252,11 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         """
         Set the key behind this hook.
         """
+        if value not in self._dict_hook.value:
+            raise KeyError(f"Key {value} not in dictionary")
         success, msg = self._key_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._key_hook.invalidate()
 
     ################################################################################
 
@@ -241,10 +276,23 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
 
 class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
-    An observable that allows for an optional key and value.
-
-    if the key is None, the value is None
-
+    An observable that manages an optional selection from a dictionary in the new hook-based architecture.
+    
+    This observable extends ObservableSelectionDict to allow None values:
+    - dict: The dictionary to select from
+    - key: The selected key in the dictionary (can be None)
+    - value: The value at the selected key (can be None)
+    
+    **Optional Behavior:**
+    - If key is None, then value must be None
+    - If key is not None, then value must match the dictionary value at that key
+    - Allows setting value to None even when key is not None (for flexibility)
+    
+    **New Architecture Features:**
+    - Uses add_values_to_be_updated_callback to complete missing values
+    - Uses validation callbacks to ensure consistency with None handling
+    - Integrates with NexusManager for value submission
+    - Supports custom invalidation callbacks
     """
 
     def __init__(
@@ -266,38 +314,51 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
 
             match ("dict" in submitted_values, "key" in submitted_values, "value" in submitted_values):
                 case (True, True, True):
+                    # All three values provided
                     return {}
                 case (True, True, False):
+                    # Dict and key provided - get value from dict
                     if submitted_values["key"] is None:
                         return {"value": None}
                     else:
+                        if submitted_values["key"] not in submitted_values["dict"]:
+                            raise KeyError(f"Key {submitted_values['key']} not in dictionary")
                         return {"value": submitted_values["dict"][submitted_values["key"]]}
                 case (True, False, True):
+                    # Dict and value provided - validate value matches key
                     if current_values["key"] is None:
                         if submitted_values["value"] != None:
                             raise ValueError(f"Value {submitted_values['value']} is not None when key is None")
+                        return {}
                     else:
                         if submitted_values["value"] != submitted_values["dict"][current_values["key"]]:
-                            raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][self._key_hook.value]}")
+                            raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][current_values['key']]}")
+                        return {}
                 case (True, False, False):
+                    # Dict provided - get value for current key
                     if current_values["key"] is None:
                         return {"value": None}
                     else:
                         return {"value": submitted_values["dict"][current_values["key"]]}
                 case (False, True, True):
+                    # Key and value provided - update dict with new value
                     if submitted_values["key"] is None:
                         return {}
                     else:
                         _dict = current_values["dict"].copy()
                         _dict[submitted_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                        return {"dict": _dict}
                 case (False, True, False):
+                    # Key provided - get value from current dict
                     if submitted_values["key"] is None:
                         return {"value": None}
                     else:
+                        if submitted_values["key"] not in current_values["dict"]:
+                            raise KeyError(f"Key {submitted_values['key']} not in dictionary")
                         return {"value": current_values["dict"][submitted_values["key"]]}
                 case (False, False, True):
-                    if submitted_values["key"] is None:
+                    # Value provided - if current key is None, value must be None, otherwise update dict
+                    if current_values["key"] is None:
                         if submitted_values["value"] != None:
                             raise ValueError(f"Value {submitted_values['value']} is not None when key is None")
                         else:
@@ -305,8 +366,9 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
                     else:
                         _dict = current_values["dict"].copy()
                         _dict[current_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                        return {"dict": _dict}
                 case (False, False, False):
+                    # Nothing provided - no updates needed
                     return {}
 
             raise ValueError("Invalid keys")
@@ -316,19 +378,36 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
             Validate the values in isolation.
             """
 
-            if values["key"] not in values["dict"]:
-                return False, "Key not in dictionary"
+            # Check that all three values are in the values
+            if "dict" not in values:
+                return False, "Dict not in values"
+            if "key" not in values:
+                return False, "Key not in values"
+            if "value" not in values:
+                return False, "Value not in values"
+
+            
+            # Check that the dictionary is not None
+            if values["dict"] is None:
+                return False, "Dictionary is None"
+
             if values["key"] is None:
-                if not values["value"] is None:
+                # Check that the value is None when the key is None
+                if values["value"] is not None:
                     return False, "Value is not None when key is None"
             else:
+                # Check that the key is in the dictionary
+                if values["key"] not in values["dict"]:
+                    return False, "Key not in dictionary"
+
+                # Check that the value is equal to the value in the dictionary
                 if values["value"] != values["dict"][values["key"]]:
                     return False, "Value not equal to value in dictionary"
 
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        BaseCarriesHooks[Literal["dict", "key", "value"], Any].__init__(
+        BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
             validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
@@ -366,11 +445,11 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         self._value_hook: OwnedHook[Optional[V]] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -460,7 +539,6 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         success, msg = self._value_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._value_hook.invalidate()
 
     @property
     def key(self) -> Optional[K]:
@@ -474,10 +552,11 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         """
         Set the key behind this hook.
         """
+        if value is not None and value not in self._dict_hook.value:
+            raise KeyError(f"Key {value} not in dictionary")
         success, msg = self._key_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._key_hook.invalidate()
 
     ######################################################################
 
@@ -501,11 +580,24 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
 
 class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
     """
-    An observable that allows for a default value and a selection of a key and value.
-
-    This means, if the key is None, the value is the default value.
-    If the key is not None, the value is the value in the dictionary at the key.
-
+    An observable that manages a selection from a dictionary with a default value in the new hook-based architecture.
+    
+    This observable extends ObservableSelectionDict to support a default value:
+    - dict: The dictionary to select from
+    - key: The selected key in the dictionary (can be None)
+    - value: The value at the selected key or the default value
+    - default_value: The value to use when key is None
+    
+    **Default Value Behavior:**
+    - If key is None, then value must be the default_value
+    - If key is not None, then value must match the dictionary value at that key
+    - Provides a fallback when no key is selected
+    
+    **New Architecture Features:**
+    - Uses add_values_to_be_updated_callback to complete missing values
+    - Uses validation callbacks to ensure consistency with default value handling
+    - Integrates with NexusManager for value submission
+    - Supports custom invalidation callbacks
     """
 
     def __init__(
@@ -538,9 +630,11 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
                     if current_values["key"] is None:
                         if submitted_values["value"] != default_value:
                             raise ValueError(f"Value {submitted_values['value']} is not the default value {default_value} when key is None")
+                        return {}
                     else:
                         if submitted_values["value"] != submitted_values["dict"][current_values["key"]]:
-                            raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][self._key_hook.value]}")
+                            raise ValueError(f"Value {submitted_values['value']} is not the same as the value in the dictionary {submitted_values['dict'][current_values['key']]}")
+                        return {}
                 case (True, False, False):
                     if current_values["key"] is None:
                         return {"value": default_value}
@@ -552,22 +646,22 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
                     else:
                         _dict = current_values["dict"].copy()
                         _dict[submitted_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                        return {"dict": _dict}
                 case (False, True, False):
                     if submitted_values["key"] is None:
                         return {"value": default_value}
                     else:
                         return {"value": current_values["dict"][submitted_values["key"]]}
                 case (False, False, True):
-                    if submitted_values["key"] is None:
+                    if current_values["key"] is None:
                         if submitted_values["value"] != default_value:
-                            raise ValueError(f"Value {submitted_values['value']} is not None when key is None")
+                            raise ValueError(f"Value {submitted_values['value']} is not the default value when key is None")
                         else:
                             return {}
                     else:
                         _dict = current_values["dict"].copy()
                         _dict[current_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                        return {"dict": _dict}
                 case (False, False, False):
                     return {}
 
@@ -578,19 +672,35 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
             Validate the values in isolation.
             """
 
-            if values["key"] not in values["dict"]:
-                return False, "Key not in dictionary"
+            # Check that all three values are in the values
+            if "dict" not in values:
+                return False, "Dict not in values"
+            if "key" not in values:
+                return False, "Key not in values"
+            if "value" not in values:
+                return False, "Value not in values"
+
+            # Check that the dictionary is not None
+            if values["dict"] is None:
+                return False, "Dictionary is None"
+            
             if values["key"] is None:
-                if values["value"] != default_value:
-                    return False, f"Value is not the default value {default_value} when key is None"
+                # Check that the value is the default value when the key is None
+                if values["value"] is not default_value:
+                    return False, f"Value {values['value']} is not the default value when key is None"
             else:
+                # Check that the key is in the dictionary
+                if values["key"] not in values["dict"]:
+                    return False, "Key not in dictionary"
+
+                # Check that the value is equal to the value in the dictionary
                 if values["value"] != values["dict"][values["key"]]:
                     return False, "Value not equal to value in dictionary"
 
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        BaseCarriesHooks[Literal["dict", "key", "value"], Any].__init__(
+        BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
             validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
@@ -625,11 +735,11 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "value", InitialSyncMode.USE_TARGET_VALUE)
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -730,7 +840,6 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         success, msg = self._value_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._value_hook.invalidate()
 
     @property
     def key(self) -> Optional[K]:
@@ -747,7 +856,6 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         success, msg = self._key_hook.submit_value(value)
         if not success:
             raise ValueError(msg)
-        self._key_hook.invalidate()
 
     ######################################################################
 

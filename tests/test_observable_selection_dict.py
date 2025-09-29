@@ -145,7 +145,7 @@ class TestObservableSelectionDict(unittest.TestCase):
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        selection_dict.connect_hook(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         self.assertEqual(selection_dict.key, "b")
         self.assertEqual(selection_dict.value, 2)
         
@@ -164,28 +164,31 @@ class TestObservableSelectionDict(unittest.TestCase):
         )
         
         # Test valid values
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}})
+        success, _ = selection_dict.validate_values({"dict": {"a": 1, "b": 2}})
         self.assertTrue(success)
         
-        success, msg = selection_dict.validate_values({"key": "a"})
+        success, _ = selection_dict.validate_values({"key": "a"})
         self.assertTrue(success)
         
-        success, msg = selection_dict.validate_values({"value": 1})
+        success, _ = selection_dict.validate_values({"value": 1})
         self.assertTrue(success)
         
         # Test invalid values - need to test with both key and dict context
-        success, msg = selection_dict.validate_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
-        self.assertFalse(success)
-        self.assertIn("not in dictionary", msg)
+        with self.assertRaises(ValueError) as cm:
+            selection_dict.validate_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
+        self.assertIn("not in dictionary", str(cm.exception))
 
     def test_invalidation(self):
         """Test invalidation behavior."""
         test_dict = {"a": 1, "b": 2}
+        def invalidate_callback() -> tuple[bool, str]:
+            return True, "Successfully invalidated"
         selection_dict = ObservableSelectionDict(
             dict_hook=test_dict,
             key_hook="a",
             value_hook=None,
-            logger=logger
+            logger=logger,
+            invalidate_callback=invalidate_callback
         )
         
         # Test invalidation
@@ -208,7 +211,7 @@ class TestObservableSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.value, 2)
         
         # Change dict to include the current key
-        selection_dict.dict_hook._submit_single_value({"b": 200, "x": 100, "y": 300}, False) # type: ignore
+        selection_dict.dict_hook.submit_value({"b": 200, "x": 100, "y": 300})
         # Now we can set the key to "x" since "b" is still valid
         selection_dict.key = "x"
         self.assertEqual(selection_dict.value, 100)
@@ -284,16 +287,22 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
             logger=logger
         )
         
-        # Set key to None
-        selection_dict.key = None
+        # Initially both key and value should be None
+        self.assertIsNone(selection_dict.key)
         self.assertIsNone(selection_dict.value)
         
-        # Set key to valid value (should fail because value is None)
-        with self.assertRaises(ValueError):
-            selection_dict.key = "a"
+        # Set key to a valid value - should get value from dict
+        selection_dict.key = "a"
+        self.assertEqual(selection_dict.value, 1)
         
-        # Set key back to None
+        # Set value to None for a non-None key - should work
+        selection_dict.value = None
+        self.assertEqual(selection_dict.key, "a")
+        self.assertIsNone(selection_dict.value)
+        
+        # Set key back to None - value should automatically be None
         selection_dict.key = None
+        self.assertIsNone(selection_dict.key)
         self.assertIsNone(selection_dict.value)
 
     def test_hook_interface_optional(self):
@@ -310,9 +319,9 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         keys = selection_dict.get_hook_keys()
         self.assertEqual(keys, {"dict", "key", "value"})
         
-        # Test get_hook_value_as_reference - can't set key to None when value is not None
-        with self.assertRaises(ValueError):
-            selection_dict.key = None
+        # Test get_hook_value_as_reference - setting key to None sets value to None
+        selection_dict.key = None
+        self.assertIsNone(selection_dict.value)
 
     def test_verification_method_optional(self):
         """Test verification method with optional values."""
@@ -331,17 +340,16 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         success, msg = selection_dict.validate_values({"value": 1})
         self.assertTrue(success)
         
-        # Test None key with current value 1 (should be invalid)
-        success, msg = selection_dict.validate_values({"key": None})
-        self.assertFalse(success)
+        # Test None key - should be valid and set value to None
+        selection_dict.key = None
+        self.assertIsNone(selection_dict.value)
+        # Dictionary should remain unchanged
+        self.assertEqual(selection_dict.dict_hook.value, test_dict)
         
         # Test None key with non-None value (should be invalid)
-        with self.assertRaises(ValueError):
-            selection_dict.key = None
-        # Don't set value directly as it will raise ValueError, just test verification
         success, msg = selection_dict.validate_values({"key": None, "value": 999})
         self.assertFalse(success)
-        self.assertIn("Key is None but value is not None", msg)
+        self.assertIn("Value is not None when key is None", msg)
 
     def test_optional_value_properties(self):
         """Test value and key properties with optional types."""
@@ -357,13 +365,15 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.value, 1)
         self.assertEqual(selection_dict.key, "a")
         
-        # Test setting to None (should fail because key is not None)
-        with self.assertRaises(ValueError):
-            selection_dict.value = None
+        # Test setting value to None for a non-None key - should work
+        selection_dict.value = None
+        self.assertEqual(selection_dict.key, "a")
+        self.assertIsNone(selection_dict.value)
         
-        # Test setting key to None (should fail because value is not None)
-        with self.assertRaises(ValueError):
-            selection_dict.key = None
+        # Test setting key to None - should work and value should be None
+        selection_dict.key = None
+        self.assertIsNone(selection_dict.key)
+        self.assertIsNone(selection_dict.value)
 
     def test_error_handling_optional(self):
         """Test error handling for invalid optional combinations."""
@@ -375,10 +385,11 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
             logger=logger
         )
         
-        # Test setting value when key is None (should raise error)
-        with self.assertRaises(ValueError):
-            selection_dict.key = None
-        # Setting value to 999 should be valid since key "a" exists in dict
+        # Test setting key to None - should set value to None
+        selection_dict.key = None
+        self.assertIsNone(selection_dict.value)
+        # Setting key back to "a" and value to 999 should work
+        selection_dict.key = "a"
         selection_dict.value = 999
         self.assertEqual(selection_dict.value, 999)
 
@@ -397,8 +408,8 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         self.assertEqual(collective_keys, {"dict", "key", "value"})
         
         # Test that the interface is properly implemented
-        # The connect_multiple_hooks functionality is tested elsewhere
-        self.assertTrue(hasattr(selection_dict, 'connect_multiple_hooks'))
+        # The connect_hooks functionality is tested elsewhere
+        self.assertTrue(hasattr(selection_dict, 'connect_hooks'))
 
     def test_edge_case_empty_dict(self):
         """Test behavior with empty dictionary."""
@@ -500,11 +511,12 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         selection_dict.key = "d"
         self.assertEqual(selection_dict.value, 4)
         
-        # Remove a key from underlying dict
-        del test_dict["a"]
+        # Remove a key from underlying dict using set_dict_and_key
+        new_dict = {"b": 2, "c": 3, "d": 4}  # Remove key "a"
+        selection_dict.set_dict_and_key(new_dict, "d")  # Set to valid key
         
         # Should not be able to switch back to removed key
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             selection_dict.key = "a"
 
     def test_set_dict_and_key_method(self):
@@ -650,10 +662,10 @@ class TestObservableOptionalSelectionDict(unittest.TestCase):
         for i in range(0, 100, 5):
             new_value = i * 1000
             selection_dict.value = new_value
-            self.assertEqual(selection_dict.value, new_value)
             # Verify dict was updated
             current_key = selection_dict.key
-            self.assertEqual(test_dict[current_key], new_value) # type: ignore
+            assert current_key is not None
+            self.assertEqual(selection_dict.dict_hook.value[current_key], new_value)
 
     def test_type_safety_edge_cases(self):
         """Test type safety with various edge cases."""

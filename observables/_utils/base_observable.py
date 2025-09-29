@@ -1,6 +1,5 @@
 from typing import Callable, Generic, Mapping, Optional, TypeVar
 from logging import Logger
-from .base_listening import BaseListening
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
@@ -8,6 +7,9 @@ from .hook_nexus import HookNexus
 from .initial_sync_mode import InitialSyncMode
 from .base_carries_hooks import BaseCarriesHooks
 from .general import log
+from .nexus_manager import NexusManager
+from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .base_listening import BaseListening
 
 
 PHK = TypeVar("PHK")
@@ -17,11 +19,17 @@ SHV = TypeVar("SHV", covariant=True)
 
 class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[PHK, SHK, PHV,SHV]):
     """
-    Base class defining the interface for all observable objects in the library.
+    Base class for all observable objects in the new hook-based architecture.
 
-    This class serves as a contract that ensures all observable classes implement
-    a consistent set of methods and behaviors. It enables type safety, polymorphism,
-    and enables the creation of generic utilities that work with any observable type.
+    This class combines BaseListening and BaseCarriesHooks to provide the complete
+    interface for observables in the new architecture. It replaces the old binding
+    system with a more flexible hook-based approach.
+    
+    **New Architecture Features:**
+    - **Hook Management**: Manages primary and secondary hooks for different purposes
+    - **Value Submission**: Uses submit_values() with NexusManager for synchronization
+    - **Custom Logic**: Supports add_values_to_be_updated_callback and validation callbacks
+    - **Listener Support**: Integrates with BaseListening for change notifications
     
     **Purpose:**
     The BaseObservable class provides a standardized interface that allows different
@@ -84,7 +92,8 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             verification_method: Optional[Callable[[Mapping[PHK, PHV]], tuple[bool, str]]] = None,
             secondary_hook_callbacks: Mapping[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {},
             act_on_invalidation_callback: Optional[Callable[[], None]] = None,
-            logger: Optional[Logger] = None):
+            logger: Optional[Logger] = None,
+            nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER):
         """
         Initialize the BaseObservable.
 
@@ -136,15 +145,15 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             # Step 3: Return the additional values
             return additional_values
 
-        BaseCarriesHooks[PHK|SHK, PHV|SHV].__init__(
+        BaseListening.__init__(self, logger)
+        BaseCarriesHooks.__init__( # type: ignore
             self,
             logger=logger,
             invalidate_callback=invalidate_callback,
             validation_of_complete_value_set_in_isolation_callback=validation_in_isolation_callback,
-            add_values_to_be_updated_callback=add_values_to_be_updated_callback
+            add_values_to_be_updated_callback=add_values_to_be_updated_callback,
+            nexus_manager=nexus_manager
         )
-
-        BaseListening.__init__(self, logger)
 
         self._primary_hooks: dict[PHK, OwnedHookLike[PHV]] = {}
         self._secondary_hooks: dict[SHK, OwnedHookLike[SHV]] = {}
@@ -158,18 +167,18 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
                 initial_value = value
 
             initial_primary_hook_values[key] = initial_value
-            hook: OwnedHookLike[PHV] = OwnedHook(self, initial_value, logger) # type: ignore
+            hook: OwnedHookLike[PHV] = OwnedHook(self, initial_value, logger, nexus_manager) # type: ignore
             self._primary_hooks[key] = hook
             
             if isinstance(value, OwnedHookLike):
-                value.connect(hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+                value.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
 
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
         for key, _callback in secondary_hook_callbacks.items():
             self._secondary_hook_callbacks[key] = _callback
             value = _callback(initial_primary_hook_values)
-            secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, logger)
+            secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, logger, nexus_manager)
             self._secondary_hooks[key] = secondary_hook
 
     #########################################################################
@@ -198,15 +207,34 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
 
     def _get_hook_key(self, hook_or_nexus: "OwnedHookLike[PHV|SHV]|HookNexus[PHV|SHV]") -> PHK|SHK:
         """
-        Get the key for a hook using O(1) cache lookup with lazy population.
+        Get the key for a hook or nexus.
+
+        Args:
+            hook_or_nexus: The hook or nexus to get the key for
+
+        Returns:
+            The key for the hook or nexus
+
+        Raises:
+            ValueError: If the hook or nexus is not found in component_hooks or secondary_hooks
         """
-        try:
-            return self._get_key_for_primary_hook(hook_or_nexus)
-        except ValueError:
-            pass
-        try:
-            return self._get_key_for_secondary_hook(hook_or_nexus)
-        except ValueError:
+        if isinstance(hook_or_nexus, HookNexus):
+            for key, hook in self._primary_hooks.items():
+                if hook.hook_nexus == hook_or_nexus:
+                    return key
+            for key, hook in self._secondary_hooks.items():
+                if hook.hook_nexus == hook_or_nexus:
+                    return key
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
+        elif isinstance(hook_or_nexus, OwnedHookLike): # type: ignore
+            for key, hook in self._primary_hooks.items():
+                if hook == hook_or_nexus:
+                    return key
+            for key, hook in self._secondary_hooks.items():
+                if hook == hook_or_nexus:
+                    return key
+            raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
+        else:
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
 
     #########################################################################
@@ -217,25 +245,19 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
         """
         Get the key for a hook using O(1) cache lookup with lazy population.
         """
-
-        hook_key = self._get_hook_key(hook_or_nexus)
-
-        if hook_key in self._primary_hooks:
-            return hook_key # type: ignore
-        else:
-            raise ValueError(f"Hook {hook_or_nexus} is not a primary hook!")
+        for key, hook in self._primary_hooks.items():
+            if hook == hook_or_nexus or hook.hook_nexus == hook_or_nexus:
+                return key
+        raise ValueError(f"Hook {hook_or_nexus} is not a primary hook!")
 
     def _get_key_for_secondary_hook(self, hook_or_nexus: OwnedHookLike[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
         """
         Get the key for an secondary hook using O(1) cache lookup with lazy population.
         """
-
-        hook_key = self._get_hook_key(hook_or_nexus)
-
-        if hook_key in self._secondary_hooks:
-            return hook_key # type: ignore
-        else:
-            raise ValueError(f"Hook {hook_or_nexus} is not a secondary hook!")
+        for key, hook in self._secondary_hooks.items():
+            if hook == hook_or_nexus or hook.hook_nexus == hook_or_nexus:
+                return key
+        raise ValueError(f"Hook {hook_or_nexus} is not a secondary hook!")
 
     def _get_primary_values_as_references(self) -> Mapping[PHK, PHV]:
         """

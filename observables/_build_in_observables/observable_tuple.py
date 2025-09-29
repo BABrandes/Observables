@@ -138,7 +138,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         )
 
         if hook is not None:
-            self.connect(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     def _internal_construct_from_values(
         self,
@@ -176,7 +176,9 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         if value == self._primary_hooks["value"].value: # type: ignore
             return
-        self.submit_values({"value": value})
+        success, msg = self.submit_values({"value": value})
+        if not success:
+            raise ValueError(msg)
     
     def change_value(self, new_value: tuple[T, ...]) -> None:
         """
@@ -184,7 +186,9 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         if new_value == self._primary_hooks["value"].value: # type: ignore
             return
-        self.submit_values({"value": new_value})
+        success, msg = self.submit_values({"value": new_value})
+        if not success:
+            raise ValueError(msg)
     
     @property
     def value_hook(self) -> HookLike[tuple[T, ...]]:

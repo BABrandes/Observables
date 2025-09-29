@@ -1,17 +1,29 @@
-from typing import Mapping, Any, Optional
+from typing import Mapping, Any, Optional, TYPE_CHECKING
 
 from logging import Logger
 
-from .base_listening import BaseListeningLike
-from .base_carries_hooks import BaseCarriesHooks
+
+if TYPE_CHECKING:
+    from .base_carries_hooks import BaseCarriesHooks
+
 from .._hooks.hook_like import HookLike
-from .._hooks.owned_hook_like import OwnedHookLike
-from .._utils.hook_nexus import HookNexus
-from .._hooks.floating_hook_like import FloatingHookLike
+from .base_listening import BaseListeningLike
+from .hook_nexus import HookNexus
+
 
 class NexusManager:
     """
-    Manager for nexuses.
+    Central coordinator for the observable sync system.
+    
+    The NexusManager handles the complete value submission flow in the new architecture:
+    1. Receives value submissions from observables
+    2. Completes missing values using add_values_to_be_updated_callback
+    3. Validates all values using validation callbacks
+    4. Updates hook nexuses with new values
+    5. Triggers invalidation and listener notifications
+    
+    This replaces the old binding system with a more flexible hook-based approach
+    where observables can define custom logic for value completion and validation.
     """
 
     def __init__(self):
@@ -22,7 +34,7 @@ class NexusManager:
         pass
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: BaseCarriesHooks[Any, Any]) -> tuple[dict[Any, Any], dict[Any, HookLike[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "BaseCarriesHooks[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookLike[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -34,12 +46,16 @@ class NexusManager:
         Returns:
             A tuple containing the value and hook dict corresponding to the owner
         """
+
+        from .._hooks.owned_hook_like import OwnedHookLike
+        from .._hooks.hook_like import HookLike
+
         key_and_value_dict: dict[Any, Any] = {}
         key_and_hook_dict: dict[Any, HookLike[Any]] = {}
         for nexus, value in nexus_and_values.items():
             for hook in nexus.hooks:
                 if isinstance(hook, OwnedHookLike):
-                    if hook.owner == owner:
+                    if hook.owner is owner:
                         hook_key: Any = owner.get_hook_key(hook)
                         key_and_value_dict[hook_key] = value
                         key_and_hook_dict[hook_key] = hook
@@ -47,10 +63,14 @@ class NexusManager:
 
     def _complete_nexus_and_values_dict(self, nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[bool, str]:
         """
-        This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owners.
-
-        e.g. if a value of a dict is updated, the dict must be updated as well. It will therefore add another entry for the dict nexus with the new dict.
-
+        Complete the nexus and values dictionary using add_values_to_be_updated_callback.
+        
+        This method iteratively calls the add_values_to_be_updated_callback on all
+        affected observables to complete missing values. For example, if a dictionary
+        value is updated, the dictionary itself must be updated as well.
+        
+        The process continues until no more values need to be added, ensuring all
+        related values are synchronized.
         """
 
         def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, HookLike[Any]]) -> tuple[bool, str]:
@@ -69,7 +89,7 @@ class NexusManager:
                 nexus_and_values[hook_nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 
-        def update_nexus_and_value_dict(owner: BaseCarriesHooks[Any, Any], nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
+        def update_nexus_and_value_dict(owner: "BaseCarriesHooks[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
             """
             This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owner.
             """
@@ -95,11 +115,14 @@ class NexusManager:
 
             # Step 5: Return the nexus and values
             return number_of_inserted_items, "Successfully updated nexus and values"
+
+        from .._hooks.owned_hook_like import OwnedHookLike
+        from .._hooks.floating_hook_like import FloatingHookLike
             
         while True:
 
             # Step 1: Collect the all the owners that need to be checked for additional nexus and values
-            owners_to_check_for_additional_nexus_and_values: set[BaseCarriesHooks[Any, Any]] = set()
+            owners_to_check_for_additional_nexus_and_values: set["BaseCarriesHooks[Any, Any]"] = set()
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     match hook:
@@ -133,8 +156,30 @@ class NexusManager:
         logger: Optional[Logger] = None
         ) -> tuple[bool, str]:
         """
-        Submit values to the nexuses.
+        Submit values to the hook nexuses in the new architecture.
+        
+        This is the main entry point for value submissions. It orchestrates the complete
+        submission flow:
+        
+        1. **Value Completion**: Uses add_values_to_be_updated_callback to complete
+           missing values based on submitted values
+        2. **Validation**: Validates all values using validation callbacks
+        3. **Value Update**: Updates hook nexuses with new values
+        4. **Invalidation**: Triggers invalidation of affected observables
+        5. **Notification**: Notifies listeners of changes
+        
+        Args:
+            nexus_and_values: Mapping of hook nexuses to their new values
+            only_check_values: If True, only validates without updating values
+            not_notifying_listeners_after_submission: Set of listeners to skip notification
+            logger: Optional logger for debugging
+            
+        Returns:
+            Tuple of (success: bool, message: str)
         """
+
+        from .._hooks.owned_hook_like import OwnedHookLike
+        from .._hooks.floating_hook_like import FloatingHookLike
 
         # Step 1: Update the nexus and values
         complete_nexus_and_values: dict["HookNexus[Any]", Any] = {}
@@ -144,7 +189,7 @@ class NexusManager:
             return False, msg
 
         # Step 2: Collect the owners and floating hooks to validate
-        owners_to_validate: set[BaseCarriesHooks[Any, Any]] = set()
+        owners_to_validate: set["BaseCarriesHooks[Any, Any]"] = set()
         floating_hooks_to_validate: set[FloatingHookLike[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
@@ -187,6 +232,11 @@ class NexusManager:
                 if isinstance(owner, BaseListeningLike):
                     if owner not in not_notifying_listeners_after_submission:
                         owner._notify_listeners() # type: ignore
+                for hook in owner.get_hook_dict().values():
+                    if hook is None: # type: ignore
+                        raise RuntimeError("Hook is None. This should not happen.")
+                    if hook not in not_notifying_listeners_after_submission:
+                        hook._notify_listeners() # type: ignore
             for floating_hook in floating_hooks_to_validate:
                 if floating_hook not in not_notifying_listeners_after_submission:
                     floating_hook._notify_listeners() # type: ignore
@@ -202,5 +252,3 @@ class NexusManager:
         for hook in hooks:
             nexus_and_values[hook.hook_nexus] = hook.value
         return nexus_and_values
-
-DEFAULT_NEXUS_MANAGER: "NexusManager" = NexusManager()

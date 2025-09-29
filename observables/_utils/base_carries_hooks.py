@@ -86,7 +86,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         ...
 
     @abstractmethod
-    def _get_hook_value_as_reference(self, key: HK) -> HV:
+    def _get_value_reference_of_hook(self, key: HK) -> HV:
         """
         Get a value as a reference by its key.
 
@@ -136,12 +136,12 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
             return self._get_hook(key)
 
     @final
-    def get_hook_value_as_reference(self, key: HK) -> HV:
+    def get_value_reference_of_hook(self, key: HK) -> HV:
         """
         Get a value as a reference by its key.
         """
         with self._lock:
-            return self._get_hook_value_as_reference(key)
+            return self._get_value_reference_of_hook(key)
     
     @final
     def get_hook_keys(self) -> set[HK]:
@@ -191,6 +191,77 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
                 return self._validation_of_complete_value_set_in_isolation_callback(complete_values)
             else:
                 return True, "No validation in isolation callback provided"
+
+    @final
+    def get_value_of_hook(self, key: HK) -> HV:
+        """
+        Get a value as a copy by its key.
+
+        ** The returned value is a copy, so modifying it will not modify the observable.
+        """
+
+        with self._lock:
+            value_as_reference = self._get_value_reference_of_hook(key)
+            if hasattr(value_as_reference, "copy"):
+                return value_as_reference.copy() # type: ignore
+            else:
+                return value_as_reference # type: ignore
+
+    @final
+    def _get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
+        """
+        Get a dictionary of hooks.
+        """
+        hook_dict: dict[HK, "OwnedHookLike[Any]"] = {}
+        for key in self._get_hook_keys():
+            hook_dict[key] = self._get_hook(key)
+        return hook_dict
+
+
+    @final
+    def get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
+        """
+        Get a dictionary of hooks.
+        """
+
+        with self._lock:
+            return self._get_dict_of_hooks()
+
+    @final
+    def get_dict_of_values(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values.
+
+        ** The returned values are copies, so modifying them will not modify the observable.
+
+        Returns:
+            A dictionary of keys to values
+        """
+
+        with self._lock:
+            hook_value_dict: dict[HK, Any] = {}
+            for key in self._get_hook_keys():
+                hook_value_dict[key] = self.get_value_of_hook(key)
+            return hook_value_dict
+
+    @final
+    def get_dict_of_value_references(self) -> dict[HK, HV]:
+        """
+        Get a dictionary of values as references.
+
+        ** The returned values are references, so modifying them will modify the owner.
+        
+        ** Items can be added and removed without affecting the owner.
+
+        Returns:
+            A dictionary of keys to values as references
+        """
+
+        with self._lock:
+            hook_value_as_reference_dict: dict[HK, Any] = {}
+            for key in self._get_hook_keys():
+                hook_value_as_reference_dict[key] = self._get_value_reference_of_hook(key)
+            return hook_value_as_reference_dict
 
     @final
     def _add_values_to_be_updated(self, current_values: Mapping[HK, HV], submitted_values: Mapping[HK, HV]) -> Mapping[HK, HV]:
@@ -263,7 +334,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         
         with self._lock:
             if key is None:
-                for hook in self._get_hook_dict().values():
+                for hook in self._get_dict_of_hooks().values():
                     hook.disconnect()
             else:
                 self._get_hook(key).disconnect()
@@ -361,106 +432,6 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
                 not_notifying_listeners_after_submission=not_notifying_listeners_after_submission,
                 logger=logger
             )
-
-    @final
-    def get_hook_value(self, key: HK) -> HV:
-        """
-        Get a value as a copy by its key.
-
-        ** The returned value is a copy, so modifying it will not modify the observable.
-        """
-
-        with self._lock:
-            value_as_reference = self.get_hook_value_as_reference(key)
-            if hasattr(value_as_reference, "copy"):
-                return value_as_reference.copy() # type: ignore
-            else:
-                return value_as_reference # type: ignore
-
-    @final
-    def _get_hook_dict(self) ->  "dict[HK, OwnedHookLike[HV]]":
-        """
-        Get a dictionary of hooks.
-        """
-        hook_dict: dict[HK, "OwnedHookLike[Any]"] = {}
-        for key in self._get_hook_keys():
-            hook_dict[key] = self._get_hook(key)
-        return hook_dict
-
-
-    @final
-    def get_hook_dict(self) ->  "dict[HK, OwnedHookLike[HV]]":
-        """
-        Get a dictionary of hooks.
-        """
-
-        with self._lock:
-            return self._get_hook_dict()
-
-    @final
-    def get_hook_value_dict(self) -> dict[HK, HV]:
-        """
-        Get a dictionary of values.
-
-        ** The returned values are copies, so modifying them will not modify the observable.
-
-        Returns:
-            A dictionary of keys to values
-        """
-
-        with self._lock:
-            hook_value_dict: dict[HK, Any] = {}
-            for key in self._get_hook_keys():
-                hook_value_dict[key] = self.get_hook_value(key)
-            return hook_value_dict
-
-    @final
-    def get_hook_value_as_reference_dict(self) -> dict[HK, HV]:
-        """
-        Get a dictionary of values as references.
-
-        ** The returned values are references, so modifying them will modify the owner.
-        
-        ** Items can be added and removed without affecting the owner.
-
-        Returns:
-            A dictionary of keys to values as references
-        """
-
-        with self._lock:
-            hook_value_as_reference_dict: dict[HK, Any] = {}
-            for key in self._get_hook_keys():
-                hook_value_as_reference_dict[key] = self.get_hook_value_as_reference(key)
-            return hook_value_as_reference_dict
-
-    @property
-    @final
-    def hook_dict(self) -> "dict[HK, OwnedHookLike[HV]]":
-        """
-        Get a dictionary of hooks.
-        """
-        return self.get_hook_dict()
-
-    @property
-    @final
-    def hook_value_dict(self) -> dict[HK, HV]:
-        """
-        Get a dictionary of values.
-
-        ** The returned values are copies, so modifying them will not modify the observable.
-        """
-        return self.get_hook_value_dict()
-
-    @property
-    @final
-    def hook_value_as_reference_dict(self) -> dict[HK, HV]:
-        """
-        Get a dictionary of values as references.
-
-        ** The returned values are references, so modifying them will modify the observable.
-        """
-        return self.get_hook_value_as_reference_dict()
-
 
     def get_nexus_and_values(self, values: Mapping[HK, HV]) -> dict[HookNexus[Any], Any]:
         """

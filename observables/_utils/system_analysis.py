@@ -7,7 +7,7 @@ def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, BaseCarriesHooks[A
 
     hook_nexuses: dict[HookNexus[Any], list[tuple[str, BaseCarriesHooks[Any, Any], HookLike[Any]]]] = {}
     for name, carries_hook in dict_of_carries_hooks.items():
-        for hook in carries_hook.hook_dict.values():
+        for hook in carries_hook.get_dict_of_hooks().values():
             hook_nexus = hook.hook_nexus
             if hook_nexus not in hook_nexuses:
                 hook_nexuses[hook_nexus] = []

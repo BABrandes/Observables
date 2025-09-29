@@ -32,7 +32,7 @@ class MockCarriesHooks(BaseCarriesHooks[Any, Any]):
             self._hooks[key] = OwnedHook(self, "mock_value")
         return self._hooks[key]
     
-    def _get_hook_value_as_reference(self, key: Any) -> Any:
+    def _get_value_reference_of_hook(self, key: Any) -> Any:
         """Return a mock value."""
         return "mock_value"
 

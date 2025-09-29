@@ -4,7 +4,7 @@ from logging import Logger
 
 
 if TYPE_CHECKING:
-    from .base_carries_hooks import BaseCarriesHooks
+    from .carries_hooks_like import CarriesHooksLike
 
 from .._hooks.hook_like import HookLike
 from .base_listening import BaseListeningLike
@@ -34,7 +34,7 @@ class NexusManager:
         pass
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "BaseCarriesHooks[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookLike[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksLike[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookLike[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -89,7 +89,7 @@ class NexusManager:
                 nexus_and_values[hook_nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 
-        def update_nexus_and_value_dict(owner: "BaseCarriesHooks[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
+        def update_nexus_and_value_dict(owner: "CarriesHooksLike[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
             """
             This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owner.
             """
@@ -98,7 +98,7 @@ class NexusManager:
             value_dict, hook_dict = NexusManager._filter_nexus_and_values_for_owner(nexus_and_values, owner)
 
             # Step 2: Get the additional values from the owner method
-            current_values_of_owner: Mapping[Any, Any] = owner.get_hook_value_as_reference_dict()
+            current_values_of_owner: Mapping[Any, Any] = owner.get_dict_of_value_references()
             additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(current_values_of_owner, value_dict) # type: ignore
 
             # Step 3: Add the additional values and hooks to the value and hook dict
@@ -122,7 +122,7 @@ class NexusManager:
         while True:
 
             # Step 1: Collect the all the owners that need to be checked for additional nexus and values
-            owners_to_check_for_additional_nexus_and_values: set["BaseCarriesHooks[Any, Any]"] = set()
+            owners_to_check_for_additional_nexus_and_values: set["CarriesHooksLike[Any, Any]"] = set()
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     match hook:
@@ -189,7 +189,7 @@ class NexusManager:
             return False, msg
 
         # Step 2: Collect the owners and floating hooks to validate
-        owners_to_validate: set["BaseCarriesHooks[Any, Any]"] = set()
+        owners_to_validate: set["CarriesHooksLike[Any, Any]"] = set()
         floating_hooks_to_validate: set[FloatingHookLike[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
@@ -232,7 +232,7 @@ class NexusManager:
                 if isinstance(owner, BaseListeningLike):
                     if owner not in not_notifying_listeners_after_submission:
                         owner._notify_listeners() # type: ignore
-                for hook in owner.get_hook_dict().values():
+                for hook in owner.get_dict_of_hooks().values():
                     if hook is None: # type: ignore
                         raise RuntimeError("Hook is None. This should not happen.")
                     if hook not in not_notifying_listeners_after_submission:

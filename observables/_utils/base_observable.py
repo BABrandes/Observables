@@ -194,7 +194,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
         else:
             raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
 
-    def _get_hook_value_as_reference(self, key: PHK|SHK) -> PHV|SHV:
+    def _get_value_reference_of_hook(self, key: PHK|SHK) -> PHV|SHV:
         if key in self._primary_hooks:
             return self._primary_hooks[key].value # type: ignore
         elif key in self._secondary_hooks:

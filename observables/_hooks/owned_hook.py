@@ -36,7 +36,7 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             """Validate the value in isolation."""
             key_of_this_hook = owner.get_hook_key(self)
             values: dict[Any, Any] = {}
-            for key, value_for_key in owner.hook_value_as_reference_dict.items():
+            for key, value_for_key in owner.dict_of_value_references.items():
                 if key == key_of_this_hook:
                     values[key] = value
                 else:

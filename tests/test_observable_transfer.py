@@ -66,7 +66,7 @@ class TestObservableTransfer(unittest.TestCase):
         
         # The transfer should have its own internal hooks, not the external ones
         # This is correct architecture - the transfer manages its own hooks
-        transfer_hooks = transfer.get_hook_dict().values()
+        transfer_hooks = transfer.get_dict_of_hooks().values()
         self.assertEqual(len(transfer_hooks), 4)
         
         # Verify we can access the hooks by key

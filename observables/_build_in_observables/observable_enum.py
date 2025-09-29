@@ -521,8 +521,8 @@ class ObservableOptionalEnum(ObservableEnumBase[E], ObservableSerializable[Liter
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableOptionalEnumLike):
-            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and # type: ignore
-                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options")) # type: ignore
+            return (self.get_hook_value("enum_value") == other.get_value_of_hook("enum_value") and # type: ignore
+                   self.get_hook_value("enum_options") == other.get_value_of_hook("enum_options")) # type: ignore
         elif isinstance(other, Enum):
             return self.get_hook_value("enum_value") == other # type: ignore
         return False
@@ -765,7 +765,7 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
         Returns:
             The currently selected enum value
         """
-        return self.get_hook_value("enum_value") # type: ignore
+        return self.get_value_of_hook("enum_value") # type: ignore
     
     @enum_value.setter
     def enum_value(self, value: E) -> None:
@@ -825,8 +825,8 @@ class ObservableEnum(ObservableEnumBase[E], ObservableSerializable[Literal["enum
             True if values are equal, False otherwise
         """
         if isinstance(other, ObservableEnumLike):
-            return (self.get_hook_value("enum_value") == other.get_hook_value("enum_value") and # type: ignore
-                   self.get_hook_value("enum_options") == other.get_hook_value("enum_options"))
+            return (self.get_hook_value("enum_value") == other.get_value_of_hook("enum_value") and # type: ignore
+                   self.get_hook_value("enum_options") == other.get_value_of_hook("enum_options"))
         elif isinstance(other, Enum):
             return self.get_hook_value("enum_value") == other
         return False

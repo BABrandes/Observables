@@ -165,7 +165,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def _get_hook_value_as_reference(self, key: Literal["dict", "key", "value"]) -> Any:
+    def _get_value_reference_of_hook(self, key: Literal["dict", "key", "value"]) -> Any:
         if key == "dict":
             return self._dict_hook.value
         elif key == "key":
@@ -455,7 +455,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
     # CarriesHooks interface
     ########################################################
 
-    def _get_hook_value_as_reference(self, key: Literal["dict", "key", "value"]) -> Any:
+    def _get_value_reference_of_hook(self, key: Literal["dict", "key", "value"]) -> Any:
         if key == "dict":
             return self._dict_hook.value
         elif key == "key":
@@ -745,7 +745,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
     # CarriesHooks interface
     ########################################################
 
-    def _get_hook_value_as_reference(self, key: Literal["dict", "key", "value"]) -> Any:
+    def _get_value_reference_of_hook(self, key: Literal["dict", "key", "value"]) -> Any:
         if key == "dict":
             return self._dict_hook.value
         elif key == "key":

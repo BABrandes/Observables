@@ -99,9 +99,9 @@ class TestObservableSelectionDict(unittest.TestCase):
         self.assertIsNotNone(value_hook)
         
         # Test get_hook_value_as_reference
-        self.assertEqual(selection_dict.get_hook_value_as_reference("dict"), test_dict)
-        self.assertEqual(selection_dict.get_hook_value_as_reference("key"), "a")
-        self.assertEqual(selection_dict.get_hook_value_as_reference("value"), 1)
+        self.assertEqual(selection_dict.get_value_reference_of_hook("dict"), test_dict)
+        self.assertEqual(selection_dict.get_value_reference_of_hook("key"), "a")
+        self.assertEqual(selection_dict.get_value_reference_of_hook("value"), 1)
         
         # Test get_hook_key
         self.assertEqual(selection_dict.get_hook_key(dict_hook), "dict")

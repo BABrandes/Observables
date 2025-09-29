@@ -519,18 +519,18 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
 
     @property
     def selected_option(self) -> Optional[T]:
-        return self.get_hook_value("selected_option") # type: ignore
+        return self.get_value_of_hook("selected_option") # type: ignore
     
     @property
     def selected_option_not_none(self) -> T:
-        selected_option: T = self.get_hook_value("selected_option") # type: ignore
+        selected_option: T = self.get_value_of_hook("selected_option") # type: ignore
         if selected_option is None:
             raise ValueError("Selected option is None")
         return selected_option
     
     @selected_option.setter
     def selected_option(self, selected_option: Optional[T]) -> None:
-        if selected_option == self.get_hook_value_as_reference("selected_option"):
+        if selected_option == self._get_value_reference_of_hook("selected_option"):
             return
         
         self.submit_values({"selected_option": selected_option})
@@ -540,7 +540,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
         return self.get_hook("selected_option") # type: ignore
     
     def change_selected_option(self, selected_option: Optional[T]) -> None:
-        if selected_option == self.get_hook_value_as_reference("selected_option"):
+        if selected_option == self._get_value_reference_of_hook("selected_option"):
             return
         
         self.submit_values({"selected_option": selected_option})
@@ -553,9 +553,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], Observ
 
     def __eq__(self, other: Any) -> bool:
         if isinstance(other, ObservableSelectionOption):
-            return (self.get_hook_value_as_reference("available_options") == other.get_hook_value_as_reference("available_options") and  # type: ignore
-                   self.get_hook_value_as_reference("selected_option") == other.get_hook_value_as_reference("selected_option")) # type: ignore
+            return (self._get_value_reference_of_hook("available_options") == other._get_value_reference_of_hook("available_options") and  # type: ignore
+                   self._get_value_reference_of_hook("selected_option") == other._get_value_reference_of_hook("selected_option")) # type: ignore
         return False
     
     def __hash__(self) -> int:
-        return hash((frozenset(self.get_hook_value_as_reference("available_options")), self.get_hook_value_as_reference("selected_option"))) # type: ignore
+        return hash((frozenset(self.get_value_reference_of_hook("available_options")), self.get_value_reference_of_hook("selected_option"))) # type: ignore

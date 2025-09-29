@@ -341,10 +341,10 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Raises:
             ValueError: If current selected options are not in the new available options set
         """
-        if available_options == self.get_hook_value("available_options"):
+        if available_options == self.get_value_of_hook("available_options"):
             return
         
-        self._raise_if_selected_options_not_in_available_options(self.get_hook_value("selected_options"), available_options) # type: ignore
+        self._raise_if_selected_options_not_in_available_options(self.get_value_of_hook("selected_options"), available_options) # type: ignore
 
         # Use the protocol method to set the values
         self.submit_values({"available_options": available_options})
@@ -365,7 +365,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         if selected_options == self._primary_hooks["selected_options"].value:
             return
         
-        self._raise_if_selected_options_not_in_available_options(selected_options, self.get_hook_value("available_options")) # type: ignore
+        self._raise_if_selected_options_not_in_available_options(selected_options, self.get_value_of_hook("available_options")) # type: ignore
 
         # Use the protocol method to set the values
         self.submit_values({"selected_options": selected_options})
@@ -390,14 +390,14 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
 
     def __str__(self) -> str:
         # Sort options for consistent string representation
-        sorted_selected = sorted(self.get_hook_value("selected_options")) # type: ignore
-        sorted_available = sorted(self.get_hook_value("available_options")) # type: ignore
+        sorted_selected = sorted(self.get_value_of_hook("selected_options")) # type: ignore
+        sorted_available = sorted(self.get_value_of_hook("available_options")) # type: ignore
         return f"OMSO(selected_options={{{', '.join(repr(opt) for opt in sorted_selected)}}}, available_options={{{', '.join(repr(opt) for opt in sorted_available)}}})" # type: ignore
     
     def __repr__(self) -> str:
         # Sort options for consistent string representation
-        sorted_selected = sorted(self.get_hook_value("selected_options")) # type: ignore
-        sorted_available = sorted(self.get_hook_value("available_options")) # type: ignore
+        sorted_selected = sorted(self.get_value_of_hook("selected_options")) # type: ignore
+        sorted_available = sorted(self.get_value_of_hook("available_options")) # type: ignore
         return f"ObservableMultiSelectionOption(selected_options={{{', '.join(repr(opt) for opt in sorted_selected)}}}, available_options={{{', '.join(repr(opt) for opt in sorted_available)}}})" # type: ignore
     
     def __len__(self) -> int:
@@ -407,7 +407,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Returns:
             The number of selected options
         """
-        return len(self.get_hook_value_as_reference("selected_options")) # type: ignore
+        return len(self.get_value_of_hook_as_reference("selected_options")) # type: ignore
     
     def __contains__(self, item: T) -> bool:
         """
@@ -419,7 +419,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Returns:
             True if the item is in the selected options set, False otherwise
         """
-        return item in self.get_hook_value("selected_options") # type: ignore
+        return item in self.get_value_of_hook("selected_options") # type: ignore
     
     def __iter__(self) -> Iterator[T]:
         """
@@ -428,7 +428,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Returns:
             An iterator that yields each selected option in the set
         """
-        return iter(self.get_hook_value("selected_options")) # type: ignore
+        return iter(self.get_value_of_hook("selected_options")) # type: ignore
     
     def add(self, item: T) -> None:
         """
@@ -440,7 +440,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             item: The item to add to the selected options set
         """
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         if item not in new_selected_options:
             new_selected_options.add(item)
             self.submit_values({"selected_options": new_selected_options})
@@ -458,7 +458,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Raises:
             KeyError: If the item is not in the selected options set
         """
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         if item not in new_selected_options:
             raise KeyError(f"Item {item} not in selected options")
         new_selected_options.remove(item)
@@ -474,7 +474,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             item: The item to remove from the selected options set
         """
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         new_selected_options.discard(item)
         self.submit_values({"selected_options": new_selected_options})
     
@@ -491,7 +491,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Raises:
             KeyError: If the selected options set is empty
         """
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         if not new_selected_options:
             raise KeyError("Selected options set is empty")
         item = new_selected_options.pop()
@@ -523,11 +523,11 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         """
 
 
-        available_options: set[T] = self.get_hook_value("available_options") # type: ignore
+        available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
         if item not in available_options:
             raise ValueError(f"Item {item} not in available options")
         
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         if item not in new_selected_options:
             new_selected_options.add(item)
             self.submit_values({"selected_options": new_selected_options})
@@ -542,7 +542,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             item: The item to remove from the selected options set
         """
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         if item in new_selected_options:
             new_selected_options.remove(item)
             self.submit_values({"selected_options": new_selected_options})
@@ -557,7 +557,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Args:
             item: The item to add to the available options set
         """
-        new_available_options: set[T] = self.get_hook_value("available_options") # type: ignore
+        new_available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
         if item not in new_available_options:
             new_available_options.add(item)
             self.submit_values({"available_options": new_available_options})
@@ -576,12 +576,12 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Raises:
             KeyError: If the item is not in the available options set
         """
-        new_available_options: set[T] = self.get_hook_value("available_options") # type: ignore
+        new_available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
         if item not in new_available_options:
             raise KeyError(f"Item {item} not in available options")
         new_available_options.remove(item)
         
-        new_selected_options: set[T] = self.get_hook_value("selected_options") # type: ignore
+        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
         new_selected_options.discard(item)
         
         self.submit_values({"selected_options": new_selected_options, "available_options": new_available_options})
@@ -597,8 +597,8 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             True if both options sets and selected options are equal, False otherwise
         """
         if isinstance(other, ObservableMultiSelectionOption):
-            return (self.get_hook_value("available_options") == other.get_hook_value("available_options") and 
-            self.get_hook_value("selected_options") == other.get_hook_value("selected_options")) # type: ignore
+            return (self.get_value_of_hook("available_options") == other.get_value_of_hook("available_options") and 
+            self.get_value_of_hook("selected_options") == other.get_value_of_hook("selected_options")) # type: ignore
         return False
     
     def __ne__(self, other: Any) -> bool:
@@ -620,7 +620,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Returns:
             Hash value based on the options set and selected options
         """
-        return hash((frozenset(self.get_hook_value("available_options")), frozenset(self.get_hook_value("selected_options")))) # type: ignore
+        return hash((frozenset(self.get_value_of_hook("available_options")), frozenset(self.get_value_of_hook("selected_options")))) # type: ignore
     
     def __bool__(self) -> bool:
         """
@@ -629,4 +629,4 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         Returns:
             True if there are selected options, False if selected_options is empty
         """
-        return bool(self.get_hook_value("selected_options")) # type: ignore
+        return bool(self.get_value_of_hook("selected_options")) # type: ignore

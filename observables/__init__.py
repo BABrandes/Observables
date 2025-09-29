@@ -104,6 +104,7 @@ from ._utils.hook_nexus import HookNexus
 from ._hooks.owned_hook_like import OwnedHookLike
 from ._hooks.floating_hook import FloatingHook
 from ._utils.system_analysis import write_report    
+from ._utils.base_carries_hooks import CarriesHooksLike
 
 # Alias for convenienc
 from ._utils.base_carries_hooks import BaseCarriesHooks
@@ -142,6 +143,7 @@ __all__ = [
     'OwnedHookLike',
     'FloatingHook',
     'BaseCarriesHooks',
+    'CarriesHooksLike',
     'InitialSyncMode',
     'ObservableSerializable',
     'write_report',

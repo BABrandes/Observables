@@ -91,7 +91,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     def __init__(
         self,
         invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = None,
-        validation_of_complete_value_set_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = None,
+        validate_complete_values_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = None,
         add_values_to_be_updated_callback: Optional[Callable[[Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = None,
         logger: Optional[Logger] = None,
         nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER, 
@@ -100,7 +100,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         Initialize the CarriesHooksBase.
         """
         self._invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = invalidate_callback
-        self._validation_of_complete_value_set_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = validation_of_complete_value_set_in_isolation_callback
+        self._validate_complete_values_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = validate_complete_values_in_isolation_callback
         self._add_values_to_be_updated_callback: Optional[Callable[[Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = add_values_to_be_updated_callback
         self._logger: Optional[Logger] = logger
         self._nexus_manager: NexusManager = nexus_manager
@@ -217,20 +217,16 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
                 return True, "No invalidate callback provided"
 
     @final
-    def validate_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
+    def validate_complete_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values are valid as part of the owner.
+        
+        Values are provided for all hooks according to get_hook_keys().
         """
 
         with self._lock:
-            complete_values: dict[HK, HV] = {}
-            if self._validation_of_complete_value_set_in_isolation_callback is not None:
-                for key in self._get_hook_keys():
-                    if key in values:
-                        complete_values[key] = values[key]
-                    else:
-                        complete_values[key] = self._get_hook(key).value
-                return self._validation_of_complete_value_set_in_isolation_callback(complete_values)
+            if self._validate_complete_values_in_isolation_callback is not None:
+                return self._validate_complete_values_in_isolation_callback(values)
             else:
                 return True, "No validation in isolation callback provided"
 

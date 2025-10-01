@@ -223,7 +223,7 @@ class NexusManager:
         for owner in owners_to_validate:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
             NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
-            success, msg = owner.validate_values_in_isolation(value_dict)
+            success, msg = owner.validate_complete_values_in_isolation(value_dict)
             if success == False:
                 return False, msg
         for floating_hook in floating_hooks_to_validate:

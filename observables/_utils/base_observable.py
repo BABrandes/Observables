@@ -150,7 +150,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             self,
             logger=logger,
             invalidate_callback=invalidate_callback,
-            validation_of_complete_value_set_in_isolation_callback=validation_in_isolation_callback,
+            validate_complete_values_in_isolation_callback=validation_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             nexus_manager=nexus_manager
         )

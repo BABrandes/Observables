@@ -97,7 +97,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
         """
         ...
 
-    def validate_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
+    def validate_complete_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values are valid as part of the owner.
         

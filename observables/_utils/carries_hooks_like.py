@@ -120,7 +120,9 @@ class CarriesHooksLike(Protocol[HK, HV]):
 
     def validate_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
         """
-        Check if the values are valid as part of the owner. Values must be provided for all hooks according to get_hook_keys().
+        Check if the values are valid as part of the owner.
+        
+        Values are provided for all hooks according to get_hook_keys().
         """
 
         ...

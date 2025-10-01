@@ -87,7 +87,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
 
             raise ValueError("Invalid keys")
 
-        def validation_of_complete_value_set_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -118,7 +118,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=invalidate_callback,
-            validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
+            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger)
 
@@ -373,7 +373,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
 
             raise ValueError("Invalid keys")
 
-        def validation_of_complete_value_set_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -410,7 +410,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
-            validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
+            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger
         )
@@ -667,7 +667,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
 
             raise ValueError("Invalid keys")
 
-        def validation_of_complete_value_set_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -703,7 +703,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
-            validation_of_complete_value_set_in_isolation_callback=validation_of_complete_value_set_in_isolation_callback,
+            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger
         )

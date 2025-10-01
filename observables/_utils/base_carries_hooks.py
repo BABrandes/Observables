@@ -71,12 +71,6 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
 
         self._lock = RLock()
 
-    def get_nexus_manager(self) -> NexusManager:
-        """
-        Get the nexus manager that this observable belongs to.
-        """
-        return self._nexus_manager
-
     @abstractmethod
     def _get_hook(self, key: HK) -> "OwnedHookLike[HV]":
         """
@@ -131,6 +125,13 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     #########################################################
     # Final methods
     #########################################################
+
+    @final
+    def get_nexus_manager(self) -> NexusManager:
+        """
+        Get the nexus manager that this observable belongs to.
+        """
+        return self._nexus_manager
 
     @final
     def get_hook(self, key: HK) -> "OwnedHookLike[HV]":

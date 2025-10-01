@@ -260,7 +260,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
                 internal_hook_output.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
 
     #########################################################################
-    # CarriesHooks interface
+    # BaseCarriesHooks abstract methods
     #########################################################################
 
     def _get_hook(self, key: IHK|OHK) -> "OwnedHookLike[IHV|OHV]":
@@ -296,9 +296,36 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
     # Other private methods
     #########################################################################
 
-
     def _get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
         return self._input_hooks[key] # type: ignore
     
     def _get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
+        return self._output_hooks[key] # type: ignore
+
+    #########################################################################
+    # Other public methods
+    #########################################################################
+
+    def get_input_hooks(self) -> dict[IHK, OwnedHook[IHV]]:
+        """
+        Get the input hooks as a copied dictionary.
+        """
+        return self._input_hooks.copy()
+    
+    def get_output_hooks(self) -> dict[OHK, OwnedHook[OHV]]:
+        """
+        Get the output hooks as a copied dictionary.
+        """
+        return self._output_hooks.copy()
+
+    def get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
+        """
+        Get the input hook by its key.
+        """
+        return self._input_hooks[key] # type: ignore
+    
+    def get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
+        """
+        Get the output hook by its key.
+        """
         return self._output_hooks[key] # type: ignore

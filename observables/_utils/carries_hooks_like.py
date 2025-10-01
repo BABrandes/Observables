@@ -13,25 +13,6 @@ HV = TypeVar("HV")
 class CarriesHooksLike(Protocol[HK, HV]):
     """
     A base class for observables that carry a set of hooks.
-
-    Must implement:
-
-        - def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
-        
-            Get a hook by its key.
-
-        - def get_hook_value_as_reference(self, key: HK) -> HV:
-        
-            Get a value as a reference by its key.
-            The returned value is a reference, so modifying it will modify the observable.
-
-        - def get_hook_keys(self) -> set[HK]:
-        
-            Get all keys of the hooks.
-
-        - def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
-        
-            Get the key of a hook or nexus.
     """
 
     #########################################################################
@@ -68,14 +49,12 @@ class CarriesHooksLike(Protocol[HK, HV]):
 
         ** The returned value is a copy, so modifying it will not modify the observable.
         """
-
         ...
 
     def get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
         """
         Get a dictionary of hooks.
         """
-
         ...
 
     def get_dict_of_values(self) -> dict[HK, HV]:
@@ -124,21 +103,18 @@ class CarriesHooksLike(Protocol[HK, HV]):
         
         Values are provided for all hooks according to get_hook_keys().
         """
-
         ...
 
     def validate_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
         """
         Check if a value is valid.
         """
-
         ...
 
     def validate_values(self, values: Mapping[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values can be accepted.
         """
-
         ...
 
     #########################################################################
@@ -157,7 +133,6 @@ class CarriesHooksLike(Protocol[HK, HV]):
         Raises:
             ValueError: If the key is not found in component_hooks or secondary_hooks
         """
-
         ...
 
     def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
@@ -171,7 +146,6 @@ class CarriesHooksLike(Protocol[HK, HV]):
         Raises:
             ValueError: If the key is not found in component_hooks or secondary_hooks
         """
-
         ...
 
     def disconnect(self, key: Optional[HK]) -> None:
@@ -181,7 +155,6 @@ class CarriesHooksLike(Protocol[HK, HV]):
         Args:
             key: The key of the hook to disconnect. If None, all hooks will be disconnected.
         """
-        
         ...
 
     def destroy(self) -> None:
@@ -197,7 +170,6 @@ class CarriesHooksLike(Protocol[HK, HV]):
             >>> obs.cleanup()  # Properly clean up before deletion
             >>> del obs
         """
-
         ...
 
     #########################################################################

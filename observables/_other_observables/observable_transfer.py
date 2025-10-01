@@ -214,7 +214,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
             self,
             logger=logger,
             invalidate_callback=None,
-            validation_of_complete_value_set_in_isolation_callback=None,
+            validate_complete_values_in_isolation_callback=None,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback
         )
         

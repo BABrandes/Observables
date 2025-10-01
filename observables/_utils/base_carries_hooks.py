@@ -32,24 +32,60 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     The new architecture allows observables to define custom behavior for how
     values are synchronized and validated, making the system more extensible.
 
-    Must implement:
+    Inheritance Structure:
+    - Inherits from: CarriesHooksLike[HK, HV] (Protocol), Generic[HK, HV], ABC
+    - Implements: Most CarriesHooksLike methods as @final methods with thread safety
+    - Provides: Core sync system functionality, validation, and hook management
 
-        - def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
-        
-            Get a hook by its key.
+    Abstract Methods (Must Implement):
+    Subclasses must implement these 4 abstract methods to define their specific behavior:
+    
+    1. _get_hook(key: HK) -> OwnedHookLike[HV]
+       - Get a hook by its key
+       - Must return the hook associated with the given key
+       
+    2. _get_value_reference_of_hook(key: HK) -> HV  
+       - Get a value as a reference by its key
+       - Must return a reference to the actual value (not a copy)
+       - Modifying the returned value should modify the observable
+       
+    3. _get_hook_keys() -> set[HK]
+       - Get all keys of the hooks managed by this observable
+       - Must return the complete set of hook keys
+       
+    4. _get_hook_key(hook_or_nexus: OwnedHookLike[HV]|HookNexus[HV]) -> HK
+       - Get the key for a given hook or nexus
+       - Must return the key that identifies the hook/nexus
+       - Should raise ValueError if hook/nexus not found
 
-        - def get_hook_value_as_reference(self, key: HK) -> HV:
-        
-            Get a value as a reference by its key.
-            The returned value is a reference, so modifying it will modify the observable.
-
-        - def get_hook_keys(self) -> set[HK]:
-        
-            Get all keys of the hooks.
-
-        - def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
-        
-            Get the key of a hook or nexus.
+    Provided Functionality:
+    - Thread-safe access to all methods via RLock
+    - Complete implementation of CarriesHooksLike protocol
+    - Hook connection/disconnection management
+    - Value submission and validation via NexusManager
+    - Memory management and cleanup via destroy()
+    - Callback-based customization for validation and value completion
+    
+    Example Implementation:
+        class MyObservable(BaseCarriesHooks[str, Any]):
+            def __init__(self):
+                super().__init__()
+                self._hooks = {"value": OwnedHook(self, "initial")}
+                
+            def _get_hook(self, key: str) -> OwnedHookLike[Any]:
+                return self._hooks[key]
+                
+            def _get_value_reference_of_hook(self, key: str) -> Any:
+                return self._hooks[key].value
+                
+            def _get_hook_keys(self) -> set[str]:
+                return set(self._hooks.keys())
+                
+            def _get_hook_key(self, hook_or_nexus: OwnedHookLike[Any]|HookNexus[Any]) -> str:
+                for key, hook in self._hooks.items():
+                    if hook is hook_or_nexus or hook.hook_nexus is hook_or_nexus:
+                        return key
+                raise ValueError("Hook not found")
     """
 
     def __init__(

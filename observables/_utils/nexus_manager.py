@@ -61,6 +61,24 @@ class NexusManager:
                         key_and_hook_dict[hook_key] = hook
         return key_and_value_dict, key_and_hook_dict
 
+    @staticmethod
+    def _complete_nexus_and_values_for_owner(value_dict: dict[Any, Any], owner: "CarriesHooksLike[Any, Any]", as_reference_values: bool = False) -> None:
+        """
+        Complete the value dict for an owner.
+
+        Args:
+            value_dict: The value dict to complete
+            owner: The owner to complete the value dict for
+            as_reference_values: If True, the values will be returned as reference values
+        """
+
+        for hook_key in owner.get_hook_keys():
+            if hook_key not in value_dict:
+                if as_reference_values:
+                    value_dict[hook_key] = owner.get_value_reference_of_hook(hook_key)
+                else:
+                    value_dict[hook_key] = owner.get_value_of_hook(hook_key)
+
     def _complete_nexus_and_values_dict(self, nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[bool, str]:
         """
         Complete the nexus and values dictionary using add_values_to_be_updated_callback.
@@ -204,6 +222,7 @@ class NexusManager:
         # Step 3: Validate the values
         for owner in owners_to_validate:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
+            NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
             success, msg = owner.validate_values_in_isolation(value_dict)
             if success == False:
                 return False, msg

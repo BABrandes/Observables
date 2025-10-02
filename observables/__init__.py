@@ -92,9 +92,11 @@ from ._build_in_observables.observable_set import ObservableSet, ObservableSetLi
 from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
 from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
+from ._other_observables.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._other_observables.observable_transfer import ObservableTransfer
 from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict
+from ._other_observables.observable_rooted_paths import ObservableRootedPaths
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._hooks.owned_hook import OwnedHook
@@ -133,6 +135,9 @@ __all__ = [
     'ObservableSelectionDict',
     'ObservableOptionalSelectionDict',
     'ObservableDefaultSelectionDict',
+    'ObservableRootedPaths',
+    'ObservableSelectionEnum',
+    'ObservableOptionalSelectionEnum',
     'BaseObservable',
     'OwnedHook',
     'HookLike',

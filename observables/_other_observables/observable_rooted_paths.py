@@ -1,0 +1,244 @@
+from observables import OwnedHook, OwnedHookLike, HookNexus, ObservableSerializable, BaseCarriesHooks
+from typing import Generic, TypeVar, Optional, Mapping
+from pathlib import Path
+from logging import Logger
+
+EK = TypeVar("EK", bound=str)
+
+ROOT_PATH_KEY: str = "root_path"
+
+class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], ObservableSerializable[str, "ObservableRootedPaths"], Generic[EK]):
+    """
+    Manages a root directory with associated elements (files or directories) and provides
+    observable hooks for path management.
+    
+    This class maintains a root directory path and a set of elements that are relative
+    to this root. It automatically computes absolute paths for each element based on the
+    root directory and the element's relative path. All paths are exposed through
+    observable hooks that can be connected to UI components or other systems.
+    
+    The class provides three types of hooks:
+    1. Root directory hook: Exposes the root directory path (Path or None)
+    2. Relative path hooks: Expose the relative path of each element (str or None)
+    3. Absolute path hooks: Expose the computed absolute path of each element (Path or None)
+    
+    When the root directory changes, all absolute path hooks are automatically updated
+    to reflect the new absolute paths. When a relative path changes, the corresponding
+    absolute path is recalculated.
+    
+    Args:
+        rooted_elements_keys: Set of string keys identifying the elements to manage.
+                              Each key will have corresponding relative and absolute path hooks.
+        logger: Optional logger for debugging and error reporting.
+    
+    Example:
+        >>> manager = RootedPathsManager({"data", "config", "logs"})
+        >>> manager.get_hook("root_path").submit_single_value(Path("/project"))
+        >>> manager.get_relative_path_hook("data").submit_single_value("data/")
+        >>> # Absolute path for "data" will automatically be "/project/data/"
+        
+    Attributes:
+        root_path: The root directory path (Path or None)
+    """
+
+    def element_key_to_absolute_path_key(self, key: EK) -> str:
+        return f"{key}_absolute_path"
+    def element_key_to_relative_path_key(self, key: EK) -> str:
+        return f"{key}_relative_path"
+
+    def __init__(
+        self,
+        root_path_initial_value: Optional[Path] = None,
+        rooted_elements_initial_relative_path_values: dict[EK, str|None] = {},
+        logger: Optional[Logger] = None,
+    ):
+
+        self._rooted_element_keys: set[EK] = set(rooted_elements_initial_relative_path_values.keys())
+        self._rooted_element_path_hooks: dict[str, OwnedHookLike[Optional[str|Path]]] = {}
+
+        # Initialize the hooks
+
+        # root
+        self._root_path_hook: OwnedHookLike[Optional[Path]] = OwnedHook[Optional[Path]](
+            self,
+            root_path_initial_value,
+            logger=logger,
+        )
+        
+        # elements paths
+        for key in self._rooted_element_keys:
+
+            # relative paths
+            relative_path_key: str = self.element_key_to_relative_path_key(key)
+            relative_path_initial_value: Optional[str] = rooted_elements_initial_relative_path_values[key]
+            relative_path_hook: OwnedHookLike[Optional[str]] = OwnedHook[Optional[str]](
+                self,
+                relative_path_initial_value,
+                logger=logger,
+            )
+            self._rooted_element_path_hooks[relative_path_key] = relative_path_hook # type: ignore
+
+            # absolute paths
+            absolute_path_key: str = self.element_key_to_absolute_path_key(key)
+            absolute_path_initial_value: Optional[Path] = root_path_initial_value / relative_path_initial_value if root_path_initial_value is not None and relative_path_initial_value is not None else None
+            absolute_path_hook: OwnedHookLike[Optional[Path]] = OwnedHook[Optional[Path]](
+                self,
+                absolute_path_initial_value,
+                logger=logger,
+            )
+            self._rooted_element_path_hooks[absolute_path_key] = absolute_path_hook # type: ignore
+
+        def validate_complete_values_in_isolation_callback(
+            self_ref: "ObservableRootedPaths[EK]",
+            values: Mapping[str, Path|str|None]) -> tuple[bool, str]:
+            """
+            Check if the values are valid as part of the owner.
+            
+            Values are provided for all hooks according to get_hook_keys().
+            """
+
+            root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
+            if root_path is not None and not isinstance(root_path, Path): # type: ignore
+                return False, "Value must be a path"
+
+            for key in self._rooted_element_keys:
+
+                # Check the relative path
+                relative_path: Optional[str] = values[self.element_key_to_relative_path_key(key)] # type: ignore
+                if relative_path is not None and not isinstance(relative_path, str): # type: ignore
+                    return False, "Value must be a string"
+                
+                # Check the absolute path
+                absolute_path: Optional[Path] = values[self.element_key_to_absolute_path_key(key)] # type: ignore
+                if root_path is not None:
+                    if absolute_path is None:
+                        return False, "The root path is set, so the absolute path must be set"
+                    # Check if the absolute path is a subpath of the root path
+                    if not absolute_path.is_relative_to(root_path):
+                        return False, "Absolute path must be a subpath of the root path"
+                    # Check if the root + relative path gives the absolute path
+                    assert isinstance(relative_path, str)
+                    if absolute_path != root_path / relative_path:
+                        return False, "The root + relative path must give the absolute path"
+                else:
+                    if not absolute_path:
+                        return False, "The root path is not set, so the absolute path must be None"
+            return True, "Valid"
+
+        def add_values_to_be_updated_callback(
+            self_ref: "ObservableRootedPaths[EK]",
+            current_values: Mapping[str, Path|str|None],
+            submitted_values: Mapping[str, Path|str|None]) -> Mapping[str, Path|str|None]:
+            """
+            Add values to be updated.
+            """
+
+            additional_values: Mapping[str, Path|str|None] = {}
+            if ROOT_PATH_KEY in submitted_values:
+                root_path: Optional[Path] = submitted_values[ROOT_PATH_KEY] # type: ignore
+            else:
+                root_path = current_values.get(ROOT_PATH_KEY) # type: ignore
+                additional_values[ROOT_PATH_KEY] = root_path
+
+            for key in self._rooted_element_keys:
+
+                # Take care of the relative path
+                relative_path_key: str = self.element_key_to_relative_path_key(key)
+                if relative_path_key in submitted_values:
+                    relative_path: Optional[str] = submitted_values[relative_path_key] # type: ignore
+                else:
+                    relative_path = current_values.get(relative_path_key) # type: ignore
+                    additional_values[relative_path_key] = relative_path
+
+                # Take care of the absolute path
+                absolute_path_key: str = self.element_key_to_absolute_path_key(key)
+                if absolute_path_key not in submitted_values:
+                    absolute_path: Optional[Path] = root_path / relative_path if root_path is not None and relative_path is not None else None
+                    additional_values[absolute_path_key] = absolute_path
+
+            return additional_values
+
+        ObservableSerializable[str, "ObservableRootedPaths[EK]"].__init__(
+            self,
+            get_primary_value_references_callback=lambda: {ROOT_PATH_KEY: self._root_path_hook.value, **{key: self._rooted_element_path_hooks[self.element_key_to_relative_path_key(key)].value for key in self._rooted_element_keys}})
+        BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths[EK]"].__init__(self,
+            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
+            add_values_to_be_updated_callback=add_values_to_be_updated_callback,
+            logger=logger)
+
+    @property
+    def root_path(self) -> Optional[Path]:
+        return self._root_path_hook.value
+
+    def get_relative_path_hook(self, key: EK) -> OwnedHookLike[Optional[str]]:
+        return self._get_hook(self.element_key_to_relative_path_key(key)) # type: ignore
+
+    def get_absolute_path_hook(self, key: EK) -> OwnedHookLike[Optional[Path]]:
+        return self._get_hook(self.element_key_to_absolute_path_key(key)) # type: ignore
+
+    def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
+        """Set the root path value."""
+        return self._root_path_hook.submit_value(path)
+
+    def set_relative_path(self, key: EK, path: Optional[str]) -> tuple[bool, str]:
+        """Set the relative path for a specific element."""
+        return self.get_relative_path_hook(key).submit_value(path)
+
+    def set_absolute_path(self, key: EK, path: Optional[Path]) -> tuple[bool, str]:
+        """Set the absolute path for a specific element (usually not recommended)."""
+        return self.get_absolute_path_hook(key).submit_value(path)
+
+    ##########################################
+    # CarriesHooks interface implementation
+    ##########################################
+
+    def _get_hook(self, key: str) -> OwnedHookLike[Path|str|None]:
+        """
+        Get a hook by its key.
+        """
+        if key == ROOT_PATH_KEY:
+            return self._root_path_hook # type: ignore
+        elif key in self._rooted_element_path_hooks:
+            return self._rooted_element_path_hooks[key] # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def _get_value_reference_of_hook(self, key: str) -> Path|str|None:
+        """
+        Get a value as a reference by its key.
+        """
+        if key == ROOT_PATH_KEY:
+            return self._root_path_hook.value
+        elif key in self._rooted_element_path_hooks:
+            return self._rooted_element_path_hooks[key].value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def _get_hook_keys(self) -> set[str]:
+        """
+        Get all keys of the hooks.
+        """
+        return set([ROOT_PATH_KEY] + list(self._elements_relative_path__hooks.keys()) + list(self._elements_absolute_path_keys.keys())) # type: ignore
+
+    def _get_hook_key(self, hook_or_nexus: OwnedHookLike[Path|str|None]|HookNexus[Path|str|None]) -> EK:
+        """
+        Get the key of a hook or nexus.
+        """
+        if isinstance(hook_or_nexus, OwnedHookLike):
+            if hook_or_nexus is self._root_path_hook:
+                return ROOT_PATH_KEY # type: ignore
+            else:
+                for hook_key, hook in self._rooted_element_path_hooks.items():
+                    if hook == hook_or_nexus:
+                        return hook_key # type: ignore
+                raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
+        elif isinstance(hook_or_nexus, HookNexus): # type: ignore
+            if hook_or_nexus is self._root_path_hook.hook_nexus:
+                return ROOT_PATH_KEY # type: ignore
+            else:
+                for hook_key, hook in self._rooted_element_path_hooks.items():
+                    if hook.hook_nexus is hook_or_nexus:
+                        return hook_key # type: ignore
+            raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
+        else:
+            raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")

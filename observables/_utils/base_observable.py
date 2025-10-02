@@ -1,4 +1,4 @@
-from typing import Callable, Generic, Mapping, Optional, TypeVar
+from typing import Callable, Generic, Mapping, Optional, TypeVar, Any
 from logging import Logger
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._hooks.owned_hook import OwnedHook
@@ -10,14 +10,16 @@ from .general import log
 from .nexus_manager import NexusManager
 from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .base_listening import BaseListening
+from .observable_serializable import ObservableSerializable
 
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
 PHV = TypeVar("PHV", covariant=True)
 SHV = TypeVar("SHV", covariant=True)
+O = TypeVar("O", bound="BaseObservable[Any, Any, Any, Any, Any]")
 
-class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[PHK, SHK, PHV,SHV]):
+class BaseObservable(BaseListening, ObservableSerializable[PHK, O], BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Generic[PHK, SHK, PHV, SHV, O]):
     """
     Base class for all observable objects in the new hook-based architecture.
 
@@ -102,35 +104,35 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             verification_method: A method to verify the component values.
         """
 
-        def invalidate_callback() -> tuple[bool, str]:
+        def invalidate_callback(self_ref: O) -> tuple[bool, str]:
             if act_on_invalidation_callback is not None:
                 try:
                     act_on_invalidation_callback()
                 except Exception as e:
-                    log(self, "invalidate", self._logger, False, f"Error in the act_on_invalidation_callback: {e}")
+                    log(self_ref, "invalidate", self_ref._logger, False, f"Error in the act_on_invalidation_callback: {e}")
                     raise ValueError(f"Error in the act_on_invalidation_callback: {e}")
-            log(self, "invalidate", self._logger, True, "Successfully invalidated")
+            log(self_ref, "invalidate", self_ref._logger, True, "Successfully invalidated")
             return True, "Successfully invalidated"
 
-        def validation_in_isolation_callback(values: Mapping[PHK|SHK, PHV|SHV]) -> tuple[bool, str]:
+        def validation_in_isolation_callback(self_ref: O, values: Mapping[PHK|SHK, PHV|SHV]) -> tuple[bool, str]:
             if verification_method is None:
                 return True, "No verification method provided. Default is True"
             else:
-                values_dict: dict[PHK, PHV] = self.primary_values.copy()
+                values_dict: dict[PHK, PHV] = self_ref.primary_values.copy()
                 for key, value in values.items():
-                    if key in self._primary_hooks:
+                    if key in self_ref._primary_hooks:
                         values_dict[key] = value # type: ignore
-                    elif key in self._secondary_hooks:
+                    elif key in self_ref._secondary_hooks:
                         continue
                     else:
                         raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
                 success, msg = verification_method(values_dict)
                 return success, msg
 
-        def add_values_to_be_updated_callback(current_values: Mapping[PHK|SHK, PHV|SHV], submitted_values: Mapping[PHK|SHK, PHV|SHV]) -> Mapping[PHK|SHK, PHV|SHV]:
+        def add_values_to_be_updated_callback(self_ref: O, current_values: Mapping[PHK|SHK, PHV|SHV], submitted_values: Mapping[PHK|SHK, PHV|SHV]) -> Mapping[PHK|SHK, PHV|SHV]:
             # Step 1: Complete the primary values
             primary_values: dict[PHK, PHV] = {}
-            for key, hook in self._primary_hooks.items():
+            for key, hook in self_ref._primary_hooks.items():
                 if key in submitted_values:
                     primary_values[key] = submitted_values[key] # type: ignore
                 else:
@@ -138,14 +140,20 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
 
             # Step 2: Generate the secondary values
             additional_values: dict[PHK|SHK, PHV|SHV] = {}
-            for key in self._secondary_hooks.keys():
-                value = self._secondary_hook_callbacks[key](primary_values)
+            for key in self_ref._secondary_hooks.keys():
+                value = self_ref._secondary_hook_callbacks[key](primary_values)
                 additional_values[key] = value
 
             # Step 3: Return the additional values
             return additional_values
 
         BaseListening.__init__(self, logger)
+        
+        # Initialize primary and secondary hooks first
+        self._primary_hooks: dict[PHK, OwnedHookLike[PHV]] = {}
+        self._secondary_hooks: dict[SHK, OwnedHookLike[SHV]] = {}
+        
+        # Initialize BaseCarriesHooks
         BaseCarriesHooks.__init__( # type: ignore
             self,
             logger=logger,
@@ -154,9 +162,6 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             nexus_manager=nexus_manager
         )
-
-        self._primary_hooks: dict[PHK, OwnedHookLike[PHV]] = {}
-        self._secondary_hooks: dict[SHK, OwnedHookLike[SHV]] = {}
 
         initial_primary_hook_values: dict[PHK, PHV] = {}
         for key, value in initial_component_values_or_hooks.items():
@@ -180,9 +185,13 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             value = _callback(initial_primary_hook_values)
             secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, logger, nexus_manager)
             self._secondary_hooks[key] = secondary_hook
+            
+        # Now initialize ObservableSerializable with access to _primary_hooks (after hooks are created)
+        # Use weak reference to avoid circular reference
+        ObservableSerializable.__init__(self, lambda self_ref: {key: hook.value for key, hook in self_ref._primary_hooks.items()}) # type: ignore
 
     #########################################################################
-    # CarriesHooks interface
+    # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
     def _get_hook(self, key: PHK|SHK) -> OwnedHookLike[PHV|SHV]:
@@ -258,19 +267,6 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV], Generic[
             if hook == hook_or_nexus or hook.hook_nexus == hook_or_nexus:
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a secondary hook!")
-
-    def _get_primary_values_as_references(self) -> Mapping[PHK, PHV]:
-        """
-        Get the values of the primary component hooks as references.
-
-        This method can be used for serializing the observable.
-
-        ** The returned values are references, so modifying them will modify the observable.
-        Use with caution.
-
-        Returns:
-            A dictionary of keys to values
-        """
 
         primary_values: dict[PHK, PHV] = {}
         for key, hook in self._primary_hooks.items():

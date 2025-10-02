@@ -1,10 +1,9 @@
 from logging import Logger
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -41,8 +40,7 @@ class ObservableSingleValueLike(CarriesHooksLike[Any, T], Protocol[T]):
         """
         ...
     
-
-class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], ObservableSerializable[Literal["value"], "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueLike[T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     
@@ -119,32 +117,18 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any], Obser
             initial_value: T = observable_or_hook_or_value
             hook = None
 
-        self._internal_construct_from_values(
-            initial_values={"value": initial_value}, # type: ignore
-            logger=logger,
-            validator=validator,
+        validator: Optional[Callable[[T], tuple[bool, str]]] = validator
+
+        initial_component_values_or_hooks: dict[Literal["value"], T] = {"value": initial_value}
+        super().__init__(
+            initial_component_values_or_hooks=initial_component_values_or_hooks,
+            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
+            secondary_hook_callbacks={},
+            logger=logger
         )
         
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["value"], T],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableSingleValue instance.
-        """
-
-        validator: Optional[Callable[[T], tuple[bool, str]]] = kwargs.get("validator")
-
-        super().__init__(
-            initial_values,
-            verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]), # type: ignore
-            secondary_hook_callbacks={},
-            logger=logger
-        )
 
     @property
     def value(self) -> T:

@@ -1,11 +1,13 @@
 from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final
 from .initial_sync_mode import InitialSyncMode
+from logging import Logger
 
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
     from .._hooks.owned_hook_like import OwnedHookLike
     from .hook_nexus import HookNexus
     from .nexus_manager import NexusManager
+    from .base_listening import BaseListeningLike
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
@@ -114,6 +116,18 @@ class CarriesHooksLike(Protocol[HK, HV]):
     def validate_values(self, values: Mapping[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values can be accepted.
+        """
+        ...
+
+    def submit_value(self, key: HK, value: HV, logger: Optional[Logger] = None) -> tuple[bool, str]:
+        """
+        Submit a value to the observable.
+        """
+        ...
+
+    def submit_values(self, values: Mapping[HK, HV], not_notifying_listeners_after_submission: set["BaseListeningLike"] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+        """
+        Submit values to the observable.
         """
         ...
 

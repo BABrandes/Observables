@@ -90,7 +90,6 @@ from ._build_in_observables.observable_dict import ObservableDict, ObservableDic
 from ._build_in_observables.observable_list import ObservableList, ObservableListLike
 from ._build_in_observables.observable_set import ObservableSet, ObservableSetLike
 from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
-from ._build_in_observables.observable_enum import ObservableOptionalEnumLike, ObservableEnumLike, ObservableOptionalEnum, ObservableEnum
 from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
@@ -116,10 +115,6 @@ __all__ = [
     'ObservableDict',
     'ObservableList',
     'ObservableSet',
-    'ObservableEnumLike',
-    'ObservableOptionalEnumLike',
-    'ObservableEnum',
-    'ObservableOptionalEnum',
     'ObservableSingleValue',
     'ObservableTuple',
     'ObservableSelectionOption',

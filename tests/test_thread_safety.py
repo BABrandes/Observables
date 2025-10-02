@@ -345,12 +345,12 @@ class TestThreadSafetyEdgeCases:
     def test_stress_test_thread_safety(self):
         """Stress test with many concurrent operations."""
         errors: list[str] = []
-        observables: list[BaseObservable[Any, Any, Any, Any]] = []
+        observables: list[BaseObservable[Any, Any, Any, Any, "BaseObservable[Any, Any, Any, Any, Any]"]] = []
         
         # Create shared observables
         for i in range(10):
-            obs = ObservableSingleValue(f"initial_{i}")
-            observables.append(obs)
+            obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"initial_{i}")
+            observables.append(obs) # type: ignore
         
         def stress_worker(worker_id: int):
             """Worker that performs many different operations."""

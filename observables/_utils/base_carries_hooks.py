@@ -8,6 +8,7 @@ from .carries_hooks_like import CarriesHooksLike
 from .nexus_manager import NexusManager
 from .hook_nexus import HookNexus
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+import weakref
 
 if TYPE_CHECKING:
     from .._hooks.owned_hook_like import OwnedHookLike
@@ -16,8 +17,9 @@ if TYPE_CHECKING:
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
+O = TypeVar("O", bound="BaseCarriesHooks[Any, Any, Any]")
 
-class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
+class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
     """
     Base class for observables in the new hook-based architecture.
     
@@ -26,7 +28,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
     with a more flexible approach where observables define their own logic for:
     
     - Value completion (add_values_to_be_updated_callback)
-    - Value validation (validation_of_complete_value_set_in_isolation_callback)  
+    - Value validation (validate_complete_values_in_isolation_callback)  
     - Invalidation (invalidate_callback)
     
     The new architecture allows observables to define custom behavior for how
@@ -90,18 +92,20 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
 
     def __init__(
         self,
-        invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = None,
-        validate_complete_values_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = None,
-        add_values_to_be_updated_callback: Optional[Callable[[Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = None,
+        invalidate_callback: Optional[Callable[[O], tuple[bool, str]]] = None,
+        validate_complete_values_in_isolation_callback: Optional[Callable[[O, Mapping[HK, HV]], tuple[bool, str]]] = None,
+        add_values_to_be_updated_callback: Optional[Callable[[O, Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = None,
         logger: Optional[Logger] = None,
         nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER, 
         ) -> None:
         """
         Initialize the CarriesHooksBase.
         """
-        self._invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = invalidate_callback
-        self._validate_complete_values_in_isolation_callback: Optional[Callable[[Mapping[HK, HV]], tuple[bool, str]]] = validate_complete_values_in_isolation_callback
-        self._add_values_to_be_updated_callback: Optional[Callable[[Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = add_values_to_be_updated_callback
+        # Store weak references to callbacks to avoid circular references
+        self._self_ref = weakref.ref(self)
+        self._invalidate_callback = invalidate_callback
+        self._validate_complete_values_in_isolation_callback = validate_complete_values_in_isolation_callback
+        self._add_values_to_be_updated_callback = add_values_to_be_updated_callback
         self._logger: Optional[Logger] = logger
         self._nexus_manager: NexusManager = nexus_manager
 
@@ -208,7 +212,10 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         """
         with self._lock:
             if self._invalidate_callback is not None:
-                success, msg = self._invalidate_callback()
+                if self._self_ref() is None:
+                    raise ValueError("Owner has been garbage collected")
+                self_ref: O = self._self_ref() # type: ignore
+                success, msg = self._invalidate_callback(self_ref)
                 if success == False:
                     return False, msg
                 else:
@@ -226,7 +233,10 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
 
         with self._lock:
             if self._validate_complete_values_in_isolation_callback is not None:
-                return self._validate_complete_values_in_isolation_callback(values)
+                if self._self_ref() is None:
+                    raise ValueError("Owner has been garbage collected")
+                self_ref: O = self._self_ref() # type: ignore
+                return self._validate_complete_values_in_isolation_callback(self_ref, values)
             else:
                 return True, "No validation in isolation callback provided"
 
@@ -308,7 +318,10 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV], ABC):
         """
         with self._lock:
             if self._add_values_to_be_updated_callback is not None:
-                return self._add_values_to_be_updated_callback(current_values, submitted_values)
+                if self._self_ref() is None:
+                    raise ValueError("Owner has been garbage collected")
+                self_ref: O = self._self_ref() # type: ignore
+                return self._add_values_to_be_updated_callback(self_ref, current_values, submitted_values)
             else:
                 return {}
 

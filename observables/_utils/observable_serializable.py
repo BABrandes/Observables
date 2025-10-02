@@ -1,51 +1,49 @@
-from typing import Any, Mapping, Optional, Generic, Protocol, runtime_checkable
+from typing import Any, Mapping, Optional, Generic, Callable
+import weakref
 from typing_extensions import final
 from logging import Logger
 from typing_extensions import TypeVar
+from .carries_hooks_like import CarriesHooksLike
 
 
 HK = TypeVar("HK")
-Obs = TypeVar("Obs", bound="ObservableSerializable[Any, Any]", covariant=True)
+O = TypeVar("O", bound="CarriesHooksLike[Any, Any]", covariant=True)
 
-@runtime_checkable
-class ObservableSerializable(Protocol, Generic[HK, Obs]):
+class ObservableSerializable(Generic[HK, O]):
     """
     A protocol for serializable observables.
     """
 
-    def _internal_construct_from_values(
+    def __init__(
         self,
-        initial_values: Mapping[HK, Any],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
+        get_primary_value_references_callback: Callable[[O], Mapping[HK, Any]],
+        ) -> None:
         """
-        Construct an Observable instance.
+        Initialize the ObservableSerializable.
         """
-        ...
-    
-    def _get_primary_values_as_references(self) -> Mapping[HK, Any]:
+        self._get_primary_value_references_callback = get_primary_value_references_callback
+
+    def get_primary_value_references_for_serialization(self) -> Mapping[HK, Any]:
         """
         Get the values of the primary component hooks as references, usefull for serializing the observable.
-
-        This method is used for serializing the observable.
-
-        ** The returned values are references, so modifying them will modify the observable.
-        Use with caution.
         """
-        ...
 
+        self_ref: O = weakref.ref(self)() # type: ignore
+
+        return self._get_primary_value_references_callback(self_ref)
+    
     @classmethod
     @final  
     def create_from_values(
         cls,
         values: Mapping[HK, Any],
         logger: Optional[Logger] = None,
-        **kwargs: Any) -> "Obs":
+        **kwargs: Any) -> "O":
         """
         Create an BaseObservable instance from a mapping of initial values.
 
         This is a factory method for creating an instance of the class, useful for serializing and deserializing.
         """
-        instance: Obs = cls.__new__(cls) # type: ignore
-        instance._internal_construct_from_values(values, logger, **kwargs)
+        instance: O = cls.__new__(cls) # type: ignore
+        instance.submit_values(values, logger=logger, **kwargs)
         return instance

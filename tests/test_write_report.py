@@ -49,7 +49,7 @@ class TestWriteReport(unittest.TestCase):
         print("="*80)
         
         # Create the complex system
-        observables: dict[str, BaseCarriesHooks[Any, Any]] = self._create_complex_system()
+        observables: dict[str, BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"]] = self._create_complex_system() # type: ignore
         
         # Analyze it with write_report
         self._analyze_system(observables)
@@ -61,7 +61,7 @@ class TestWriteReport(unittest.TestCase):
         print("✅ write_report test completed successfully!")
         print("="*80)
     
-    def _create_complex_system(self) -> dict[str, BaseCarriesHooks[Any, Any]]:
+    def _create_complex_system(self) -> dict[str, BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"]]:
         """Create a complex system with multiple observables and bindings"""
         
         print("🔧 Creating complex observable system...")
@@ -139,9 +139,9 @@ class TestWriteReport(unittest.TestCase):
             "backup_age": backup_age,
             "completed_backup": completed_backup,
             "status_backup": status_backup,
-        }
+        } # type: ignore
     
-    def _analyze_system(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any]]):
+    def _analyze_system(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"]]):
         """Use write_report to analyze the complex system"""
         
         print("\n" + "="*80)
@@ -149,7 +149,7 @@ class TestWriteReport(unittest.TestCase):
         print("="*80)
         
         # Generate the report
-        report = write_report(observables_dict)
+        report = write_report(observables_dict) # type: ignore
         
         print(report)
         
@@ -170,7 +170,7 @@ class TestWriteReport(unittest.TestCase):
         
         # Count shared nexuses (nexuses with multiple hooks)
         from observables._utils.system_analysis import collect_all_hook_nexuses
-        hook_nexuses = collect_all_hook_nexuses(observables_dict)
+        hook_nexuses = collect_all_hook_nexuses(observables_dict) # type: ignore
         
         shared_nexuses = 0
         unshared_nexuses = 0
@@ -197,7 +197,7 @@ class TestWriteReport(unittest.TestCase):
             for name, count in sorted(observable_connection_counts.items(), key=lambda x: x[1], reverse=True):
                 print(f"  {name}: {count} shared connections")
     
-    def _demonstrate_changes(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any]]):
+    def _demonstrate_changes(self, observables_dict: dict[str, BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"]]):
         """Demonstrate how changes propagate through the system"""
         
         print("\n" + "="*80)
@@ -205,9 +205,9 @@ class TestWriteReport(unittest.TestCase):
         print("="*80)
         
         # Show current state
-        task_list: BaseCarriesHooks[Any, Any] = observables_dict["task_list"]
-        task_backup: BaseCarriesHooks[Any, Any] = observables_dict["task_backup"]
-        task_count: BaseCarriesHooks[Any, Any] = observables_dict["task_count"]
+        task_list: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["task_list"]
+        task_backup: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["task_backup"]
+        task_count: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["task_count"]
         
         print(f"Original task list: {task_list.value}") # type: ignore
         print(f"Task backup: {task_backup.value}") # type: ignore
@@ -222,9 +222,9 @@ class TestWriteReport(unittest.TestCase):
         print(f"Task count: {task_count.value}") # type: ignore
         
         # Demonstrate user data binding
-        user_name: BaseCarriesHooks[Any, Any] = observables_dict["user_name"] # type: ignore
-        backup_age: BaseCarriesHooks[Any, Any] = observables_dict["backup_age"]
-        user_age: BaseCarriesHooks[Any, Any] = observables_dict["user_age"]
+        user_name: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["user_name"] # type: ignore
+        backup_age: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["backup_age"]
+        user_age: BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"] = observables_dict["user_age"]
         
         print(f"\nOriginal user age: {user_age.value}") # type: ignore
         print(f"Backup age: {backup_age.value}") # type: ignore
@@ -239,21 +239,21 @@ class TestWriteReport(unittest.TestCase):
         """Test write_report with a simple system to verify basic functionality"""
         
         # Create a simple system
-        name: ObservableSingleValue[Any] = ObservableSingleValue("John")
-        age: ObservableSingleValue[Any] = ObservableSingleValue(25)
+        name: ObservableSingleValue[Any] = ObservableSingleValue[Any]("John")
+        age: ObservableSingleValue[Any] = ObservableSingleValue[Any](25)
         
         # Create a backup that shares the name
-        name_backup: ObservableSingleValue[Any] = ObservableSingleValue("")
+        name_backup: ObservableSingleValue[Any] = ObservableSingleValue[Any]("")
         name_backup.connect_hook(name.hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
         
-        observables: dict[str, BaseCarriesHooks[Any, Any]] = {
+        observables: dict[str, BaseCarriesHooks[Any, Any, "BaseCarriesHooks[Any, Any, Any]"]] = {
             "name": name,
             "age": age,
             "name_backup": name_backup
-        }
+        } # type: ignore
         
         # Generate report
-        report: str = write_report(observables)
+        report: str = write_report(observables) # type: ignore
         
         # Verify the report contains expected information
         self.assertIn("John", report)
@@ -272,7 +272,7 @@ class TestWriteReport(unittest.TestCase):
     def test_write_report_empty_system(self):
         """Test write_report with an empty system"""
         
-        report: str = write_report({})
+        report: str = write_report({}) # type: ignore
         self.assertEqual(report, "No observables provided.\n")
         
         print("\nEmpty system report (should be empty):")

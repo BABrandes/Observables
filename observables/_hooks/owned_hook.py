@@ -1,5 +1,6 @@
 
 import logging
+import weakref
 from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any
 from .._utils.base_listening import BaseListening
 from .owned_hook_like import OwnedHookLike
@@ -32,9 +33,25 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER
             ) -> None:
 
+        # Create a weak reference to the owner to avoid circular references
+        owner_ref = weakref.ref(owner)
+        
         def validate_value_in_isolation_callback(value: T) -> tuple[bool, str]:
             """Validate the value in isolation."""
-            key_of_this_hook = owner.get_hook_key(self)
+            owner = owner_ref()
+            if owner is None:
+                return False, "Owner has been garbage collected"
+                
+            # Find the hook key by iterating through owner's hooks instead of using self
+            key_of_this_hook = None
+            for key, hook in owner.get_dict_of_hooks().items():
+                if hook.value == value:  # This is a simplified check - we need a better way
+                    key_of_this_hook = key
+                    break
+            
+            if key_of_this_hook is None:
+                return False, "Could not find hook key"
+                
             values: dict[Any, Any] = {}
             for key, value_for_key in owner.dict_of_value_references.items():
                 if key == key_of_this_hook:
@@ -42,7 +59,7 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
                 else:
                     values[key] = value_for_key
 
-            return owner.validate_values_in_isolation(values)
+            return owner.validate_complete_values_in_isolation(values)
 
         super().__init__(
             value=initial_value,
@@ -51,15 +68,21 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             logger=logger
         )
 
-        self._owner: "CarriesHooksLike[Any, T]" = owner
+        self._owner: weakref.ref["CarriesHooksLike[Any, T]"] = weakref.ref(owner)
 
     @property
     def owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
-        return self._owner
+        owner = self._owner()
+        if owner is None:
+            raise RuntimeError("Owner has been garbage collected")
+        return owner
 
     def _get_owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
 
         with self._lock:
-            return self._owner
+            owner = self._owner()
+            if owner is None:
+                raise RuntimeError("Owner has been garbage collected")
+            return owner

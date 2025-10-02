@@ -6,7 +6,7 @@ from observables import BaseCarriesHooks, HookLike, OwnedHook
 from observables._utils.hook_nexus import HookNexus
 
 
-class MockCarriesHooks(BaseCarriesHooks[Any, Any]):
+class MockCarriesHooks(BaseCarriesHooks[Any, Any, "MockCarriesHooks"]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):

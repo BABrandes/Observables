@@ -158,7 +158,9 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         ...
 
-class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int], ObservableSelectionOptionLikeBase[T], Generic[T]):
+O = TypeVar("O", bound="ObservableSelectionOptionBase[Any, Any]")
+
+class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int, O], ObservableSelectionOptionLikeBase[T], Generic[T, O]):
 
     @property
     def available_options(self) -> set[T]:
@@ -258,8 +260,11 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
             return iter(available_options) # type: ignore
         else:
             raise ValueError("Available options is not a set")
-    
-class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]): # type: ignore
+
+class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
+    """
+    An observable that manages a selection from a set of options.
+    """
 
     @overload
     def __init__(self, selected_option: HookLike[T], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
@@ -410,7 +415,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T], ObservableSeri
     def __hash__(self) -> int:
         return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value)) # type: ignore
     
-class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
+class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
 
     @overload
     def __init__(self, selected_option: HookLike[Optional[T]], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:

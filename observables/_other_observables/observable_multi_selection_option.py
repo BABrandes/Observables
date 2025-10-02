@@ -86,7 +86,7 @@ class ObservableMultiSelectionOptionLike(CarriesHooksLike[Any, Any], Protocol[T]
         """
         ...
 
-class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T],int], ObservableSerializable[Literal["selected_options", "available_options"], "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableSerializable[Literal["selected_options", "available_options"], "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     

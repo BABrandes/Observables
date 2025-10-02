@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-class MockObservable(BaseObservable[Literal["value"], Any, Any, Any]):
+class MockObservable(BaseObservable[Literal["value"], Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes."""
     
     def __init__(self, name: str):
@@ -181,7 +181,7 @@ class TestObservableSelectionDict(unittest.TestCase):
     def test_invalidation(self):
         """Test invalidation behavior."""
         test_dict = {"a": 1, "b": 2}
-        def invalidate_callback() -> tuple[bool, str]:
+        def invalidate_callback(self_ref: "ObservableSelectionDict[str, int]") -> tuple[bool, str]:
             return True, "Successfully invalidated"
         selection_dict = ObservableSelectionDict(
             dict_hook=test_dict,

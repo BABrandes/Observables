@@ -5,7 +5,7 @@ from logging import Logger
 from observables import OwnedHook, BaseObservable, InitialSyncMode
 from tests.run_tests import console_logger as logger
 
-class MockObservable(BaseObservable[Any, Any, Any, Any]):
+class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
     
     def __init__(self, name: str):

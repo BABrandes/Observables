@@ -4,7 +4,6 @@ from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable
 from .._utils.carries_hooks_like import CarriesHooksLike
 
 K = TypeVar("K")
@@ -57,7 +56,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         """
         ...
     
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dict[K, V], int], ObservableSerializable[Literal["value"], "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -391,7 +390,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
             key: The key to set or update
             value: The value to associate with the key
         """
-        self._set_component_values({"value": {**self._primary_hooks["value"].value, key: value}}, notify_binding_system=True) # type: ignore
+        self.submit_values({"value": {**self._primary_hooks["value"].value, key: value}}) # type: ignore
     
     def __delitem__(self, key: K) -> None:
         """
@@ -406,7 +405,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        self._set_component_values({"value": {k: v for k, v in self._primary_hooks["value"].value.items() if k != key}}, notify_binding_system=True) # type: ignore
+        self.submit_values({"value": {k: v for k, v in self._primary_hooks["value"].value.items() if k != key}}) # type: ignore
     
     def __str__(self) -> str:
         return f"OD(dict={self._primary_hooks['value'].value})"

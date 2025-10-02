@@ -1,4 +1,5 @@
 import logging
+import weakref
 from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any, cast
 from .general import log
 if TYPE_CHECKING:
@@ -37,7 +38,7 @@ class HookNexus(Generic[T]):
             nexus_manager = DEFAULT_NEXUS_MANAGER
 
         self._nexus_manager: "NexusManager" = nexus_manager
-        self._hooks: set["HookLike[T]"] = set(hooks)
+        self._hooks: set[weakref.ref["HookLike[T]"]] = {weakref.ref(hook) for hook in hooks}
         self._value: T = value
         self._previous_value: T = value
         self._logger: Optional[logging.Logger] = logger
@@ -46,22 +47,50 @@ class HookNexus(Generic[T]):
 
         log(self, "HookNexus.__init__", self._logger, True, "Successfully initialized hook nexus")
 
+    def _get_hooks(self) -> set["HookLike[T]"]:
+        """Get the actual hooks from weak references, filtering out dead references."""
+        alive_hooks: set["HookLike[T]"] = set()
+        dead_refs: set[weakref.ref["HookLike[T]"]] = set()
+        
+        for hook_ref in self._hooks:
+            hook = hook_ref()
+            if hook is not None:
+                alive_hooks.add(hook)
+            else:
+                dead_refs.add(hook_ref)
+        
+        # Remove dead references
+        self._hooks -= dead_refs
+        
+        return alive_hooks
+
     def add_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
-        self._hooks.add(hook)
+        self._hooks.add(weakref.ref(hook))
         log(self, "add_hook", self._logger, True, "Successfully added hook")
         return True, "Successfully added hook"
 
     def remove_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
         try:
-            self._hooks.remove(hook)
-            log(self, "remove_hook", self._logger, True, "Successfully removed hook")
-            return True, "Successfully removed hook"
+            # Find and remove the weak reference to this hook
+            hook_ref_to_remove = None
+            for hook_ref in self._hooks:
+                if hook_ref() is hook:
+                    hook_ref_to_remove = hook_ref
+                    break
+            
+            if hook_ref_to_remove is not None:
+                self._hooks.remove(hook_ref_to_remove)
+                log(self, "remove_hook", self._logger, True, "Successfully removed hook")
+                return True, "Successfully removed hook"
+            else:
+                log(self, "remove_hook", self._logger, False, "Hook not found")
+                return False, "Hook not found"
         except KeyError:
             return False, "Hook not found in nexus"
 
     @property
     def hooks(self) -> tuple["HookLike[T]", ...]:
-        return tuple(self._hooks)
+        return tuple(self._get_hooks())
     
     @property
     def value(self) -> T:
@@ -121,7 +150,7 @@ class HookNexus(Generic[T]):
         
         value_type: Optional[type[T]] = None
         for hook_group in nexus:
-            for hook in hook_group._hooks:
+            for hook in hook_group._get_hooks():
                 if value_type is None:
                     value_type = type(hook.value)
                 elif type(hook.value) != value_type:
@@ -130,7 +159,7 @@ class HookNexus(Generic[T]):
         # Check if any groups have overlapping hooks (not disjoint)
         for i, group1 in enumerate(nexus):
             for group2 in nexus[i+1:]:
-                if group1._hooks & group2._hooks:  # Check for intersection
+                if group1._get_hooks() & group2._get_hooks():  # Check for intersection
                     raise ValueError("The hook groups must be disjoint")
         
         # Create new merged group with the reference value
@@ -138,7 +167,7 @@ class HookNexus(Generic[T]):
         
         # Add all hooks to the merged group
         for hook_group in nexus:
-            for hook in hook_group._hooks:
+            for hook in hook_group._get_hooks():
                 merged_group.add_hook(hook)
         
         return merged_group
@@ -172,7 +201,7 @@ class HookNexus(Generic[T]):
         
         for hook_pair in hook_pairs:
             merged_nexus = HookNexus[T]._merge_nexus(hook_pair[0].hook_nexus, hook_pair[1].hook_nexus)
-            for hook in merged_nexus._hooks:
+            for hook in merged_nexus._get_hooks():
                 hook._replace_hook_nexus(merged_nexus) # type: ignore
 
         return True, "Successfully connected hook pairs"
@@ -221,7 +250,7 @@ class HookNexus(Generic[T]):
         merged_nexus: HookNexus[T] = HookNexus[T]._merge_nexus(source_hook.hook_nexus, target_hook.hook_nexus)
         
         # Replace all hooks' hook groups with the merged one
-        for hook in merged_nexus._hooks:
+        for hook in merged_nexus._get_hooks():
             hook._replace_hook_nexus(merged_nexus) # type: ignore
 
         return True, "Successfully connected hooks"

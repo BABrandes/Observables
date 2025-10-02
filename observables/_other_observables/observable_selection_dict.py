@@ -11,11 +11,12 @@ from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.hook_nexus import HookNexus
 from .._utils.base_listening import BaseListening
+from .._utils.observable_serializable import ObservableSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
+class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableSelectionDict"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableSelectionDict"], BaseListening, Generic[K, V]):
     """
     An observable that manages a selection from a dictionary in the new hook-based architecture.
     
@@ -42,12 +43,13 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         key_hook: K | HookLike[K],
         value_hook: Optional[HookLike[V]] = None,
         logger: Optional[Logger] = None,
-        invalidate_callback: Optional[Callable[[], tuple[bool, str]]] = None):
+        invalidate_callback: Optional[Callable[["ObservableSelectionDict[K, V]"], tuple[bool, str]]] = None):
         """
 
         """
 
         def add_values_to_be_updated_callback(
+            self_ref: "ObservableSelectionDict[K, V]",
             current_values: Mapping[Literal["dict", "key", "value"], Any],
             submitted_values: Mapping[Literal["dict", "key", "value"], Any]) -> Mapping[Literal["dict", "key", "value"], Any]:
             """
@@ -87,7 +89,9 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
 
             raise ValueError("Invalid keys")
 
-        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(
+            self_ref: "ObservableSelectionDict[K, V]",
+            values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -115,6 +119,9 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
+        ObservableSerializable.__init__( # type: ignore
+            self,
+            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=invalidate_callback,
@@ -190,9 +197,9 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         else:
             raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
 
-########################################################
-# Specific properties
-########################################################
+    ########################################################
+    # Specific properties
+    ########################################################
 
     @property
     def dict_hook(self) -> HookLike[dict[K, V]]:
@@ -274,7 +281,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
             }
         )
 
-class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
+class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableOptionalSelectionDict[K, V]"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableOptionalSelectionDict[K, V]"], BaseListening, Generic[K, V]):
     """
     An observable that manages an optional selection from a dictionary in the new hook-based architecture.
     
@@ -306,6 +313,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         """
 
         def add_values_to_be_updated_callback(
+            self_ref: "ObservableOptionalSelectionDict[K, V]",
             current_values: Mapping[Literal["dict", "key", "value"], Any],
             submitted_values: Mapping[Literal["dict", "key", "value"], Any]) -> Mapping[Literal["dict", "key", "value"], Any]:
             """
@@ -373,7 +381,9 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
 
             raise ValueError("Invalid keys")
 
-        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(
+            self_ref: "ObservableOptionalSelectionDict[K, V]",
+            values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -407,6 +417,9 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
+        ObservableSerializable.__init__( # type: ignore
+            self,
+            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
@@ -578,7 +591,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
             }
         )
 
-class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any], BaseListening, Generic[K, V]):
+class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableDefaultSelectionDict[K, V]"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableDefaultSelectionDict[K, V]"], BaseListening, Generic[K, V]):
     """
     An observable that manages a selection from a dictionary with a default value in the new hook-based architecture.
     
@@ -612,6 +625,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         """
 
         def add_values_to_be_updated_callback(
+            self_ref: "ObservableDefaultSelectionDict[K, V]",
             current_values: Mapping[Literal["dict", "key", "value"], Any],
             submitted_values: Mapping[Literal["dict", "key", "value"], Any]) -> Mapping[Literal["dict", "key", "value"], Any]:
             """
@@ -667,7 +681,9 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
 
             raise ValueError("Invalid keys")
 
-        def validate_complete_values_in_isolation_callback(values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
+        def validate_complete_values_in_isolation_callback(
+            self_ref: "ObservableDefaultSelectionDict[K, V]",
+            values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
             """
@@ -700,6 +716,9 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
+        ObservableSerializable.__init__( # type: ignore
+            self,
+            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,

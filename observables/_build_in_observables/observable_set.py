@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Mapping, Iterator
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
@@ -56,7 +56,7 @@ class ObservableSetLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int], ObservableSerializable[Literal["value"], "ObservableSet"], ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSerializable[Literal["value"], "ObservableSet"], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -131,30 +131,16 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
             initial_value = observable_or_hook_or_value.copy() # type: ignore
             hook = None
         
-        self._internal_construct_from_values(
-            {"value": initial_value},
+        super().__init__(
+            initial_component_values_or_hooks={"value": initial_value},
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"), # type: ignore
+            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["value"], set[T]],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableSet instance.
-        """
-
-        super().__init__(
-            initial_values,
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], set) else (False, "Value is not a set"), # type: ignore
-            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
-            logger=logger
-        )
-    
     @property
     def value(self) -> set[T]:
         """

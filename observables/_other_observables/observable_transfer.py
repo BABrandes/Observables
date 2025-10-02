@@ -87,7 +87,7 @@ IHV = TypeVar("IHV")
 OHV = TypeVar("OHV")
 
 
-class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Generic[IHK, OHK, IHV, OHV]):
+class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "ObservableTransfer"], Generic[IHK, OHK, IHV, OHV]):
     """
     An observable that transforms values between input and output hooks using the new hook-based architecture.
     
@@ -163,8 +163,9 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV], Gene
         
         # Initialize base classes
         BaseListening.__init__(self, logger)
-        
+
         def add_values_to_be_updated_callback(
+            self_ref: "ObservableTransfer[IHK, OHK, IHV, OHV]",
             current_values: Mapping[IHK|OHK, IHV|OHV],
             submitted_values: Mapping[IHK|OHK, IHV|OHV]
         ) -> Mapping[IHK|OHK, IHV|OHV]:

@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Iterator
 from typing import Optional
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -56,7 +56,7 @@ class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int], ObservableSerializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableSerializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -132,32 +132,15 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
             initial_value = observable_or_hook_or_value
             hook = None
 
-        self._internal_construct_from_values(
-            initial_values={"value": initial_value}, # type: ignore
+        super().__init__(
+            initial_component_values_or_hooks={"value": initial_value},
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"), # type: ignore
+            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["value"], tuple[T, ...]],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableTuple instance.
-        """
-
-        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
-            return (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple")
-
-        super().__init__(
-            initial_values,
-            verification_method=is_valid_value,
-            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
-            logger=logger
-        )
 
     @property
     def value(self) -> tuple[T, ...]:

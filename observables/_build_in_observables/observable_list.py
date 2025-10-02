@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Mapping, Optional, Iterator
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
@@ -56,7 +56,7 @@ class ObservableListLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int], ObservableSerializable[Literal["value"], "ObservableList"], ObservableListLike[T], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableSerializable[Literal["value"], "ObservableList"], ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -132,29 +132,15 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
             initial_value = observable_or_hook_or_value.copy()
             hook = None
 
-        self._internal_construct_from_values(
-            {"value": initial_value},
-            logger=logger,
-        )
-
-        if hook is not None:
-            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["value"], list[T]],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableList instance.
-        """
-
         super().__init__(
-            initial_component_values_or_hooks=initial_values,
+            initial_component_values_or_hooks={"value": initial_value},
             verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"), # type: ignore
             secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
+
+        if hook is not None:
+            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     @property
     def value(self) -> list[T]:

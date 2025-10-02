@@ -26,13 +26,13 @@ class TestCachePerformance:
         """Test that get_key operations use O(1) cache after first access."""
         # Create an observable with a moderate number of hooks via binding
         main_obs: ObservableSingleValue[Any] = ObservableSingleValue("main")
-        bound_observables: list[BaseObservable[Any, Any, Any, Any]] = []
+        bound_observables: list[BaseObservable[Any, Any, Any, Any, "BaseObservable[Any, Any, Any, Any, Any]"]] = []
         
         # Create bound observables to populate the hook nexus
         for i in range(50):
-            obs = ObservableSingleValue(f"value_{i}")
+            obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
             obs.connect_hook(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-            bound_observables.append(obs)
+            bound_observables.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
         hook = main_obs.get_hook("value")
@@ -61,12 +61,12 @@ class TestCachePerformance:
         assert all(t <= time1 * 2 for t in times), "Cached calls should not be slower than first call" # type: ignore
         
         # Clean up
-        for obs in bound_observables:
+        for obs in bound_observables: # type: ignore
             obs.disconnect("value")
 
     def test_secondary_hook_cache_performance(self):
         """Test that secondary hook lookups are cached."""
-        obs_list = ObservableList(list(range(100)))
+        obs_list: ObservableList[Any] = ObservableList[Any](list(range(100)))
         
         # Get the length secondary hook
         length_hook = obs_list.length_hook

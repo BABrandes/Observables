@@ -1,7 +1,12 @@
-from observables import OwnedHook, OwnedHookLike, HookNexus, ObservableSerializable, BaseCarriesHooks
 from typing import Generic, TypeVar, Optional, Mapping
 from pathlib import Path
 from logging import Logger
+
+from .._utils.base_carries_hooks import BaseCarriesHooks
+from .._utils.observable_serializable import ObservableSerializable
+from .._hooks.owned_hook import OwnedHook
+from .._hooks.owned_hook_like import OwnedHookLike
+from .._utils.hook_nexus import HookNexus
 
 EK = TypeVar("EK", bound=str)
 

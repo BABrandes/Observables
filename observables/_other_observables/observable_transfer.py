@@ -67,7 +67,6 @@ Performance Characteristics:
 
 from typing import Callable, Generic, Mapping, Optional, TypeVar
 from logging import Logger
-from threading import RLock
 
 from .._utils.initial_sync_mode import InitialSyncMode
 
@@ -110,7 +109,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         self,
         input_trigger_hooks: Mapping[IHK, HookLike[IHV]|IHV],
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
-        output_trigger_hooks: Mapping[OHK, HookLike[OHV]|OHV] = {},
+        output_trigger_hook_keys: set[OHK] = set(),
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
         logger: Optional[Logger] = None
     ):
@@ -124,15 +123,15 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
                 All keys that the forward_callable expects must be present in this dict.
             forward_callable: Function that transforms input values to output values.
                 Expected signature: (input_values: Mapping[IHK, IHV]) -> Mapping[OHK, OHV]
-                Must return a dict with keys matching output_trigger_hooks keys.
-            output_trigger_hooks: Dictionary mapping output names to their hooks or None.
+                Must return a dict with keys matching output_trigger_hook_keys.
+            output_trigger_hook_keys: Set of output hook keys.
                 When any of these hooks are invalidated, reverse transformation is triggered (if available).
-                Use value as value for keys that should be managed internally without external connection.
-                All keys that the forward_callable returns must be present in this dict.
+                All keys that the forward_callable returns must be present in this set.
             reverse_callable: Optional function that transforms output values to input values.
                 Expected signature: (output_values: Mapping[OHK, OHV]) -> Mapping[IHK, IHV]
                 If None, reverse transformation is not triggered.
                 Must return a dict with keys matching input_trigger_hooks keys.
+                It must be the inverse function of the forward callable.
             logger: Optional logger for debugging and monitoring transformations.
         
         Note:
@@ -145,12 +144,10 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             >>> # Mathematical transformation with mixed external/internal hooks
             >>> x_hook = Hook(owner=some_owner, value=5)
             >>> y_hook = Hook(owner=some_owner, value=3)
-            >>> sum_hook = Hook(owner=some_owner, value=0)
-            >>> product_value = 0
             >>> 
             >>> transfer = ObservableTransfer(
             ...     input_trigger_hooks={"x": x_hook, "y": y_hook},
-            ...     output_trigger_hooks={"sum": sum_hook, "product": product_value},  # product is internal-only
+            ...     output_trigger_hook_keys={"sum", "product"},
             ...     forward_callable=lambda inputs: {
             ...         "sum": inputs["x"] + inputs["y"],
             ...         "product": inputs["x"] * inputs["y"]
@@ -158,9 +155,45 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             ... )
             >>> 
             >>> # x_hook and y_hook changes trigger automatic updates
-            >>> # sum_hook gets external updates, product_hook remains internal
+            >>> # sum_hook and product_hook get updated automatically when x_hook or y_hook changes
         """
-        
+
+        self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
+        self._reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = reverse_callable
+
+        self._input_hooks: dict[IHK, HookLike[IHV]|IHV] = {}
+        self._output_hooks: dict[OHK, HookLike[OHV]|OHV] = {}
+
+        # Create input hooks for all keys, connecting to external hooks when provided
+        for key, external_hook_or_value in input_trigger_hooks.items():
+            # Create internal hook with invalidation callback
+            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
+            internal_hook_input: OwnedHook[IHV] = OwnedHook(
+                owner=self,
+                initial_value=initial_value_input,
+                logger=logger
+            )
+            self._input_hooks[key] = internal_hook_input
+            if isinstance(external_hook_or_value, HookLike):
+                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+
+        # Create output hooks for all keys, connecting to external hooks when provided
+        if isinstance(output_trigger_hook_keys, set): # type: ignore
+            output_values: dict[OHK, OHV] = self._forward_callable(self.get_input_values()) # type: ignore
+        else:
+            raise ValueError(f"Invalid output trigger hooks: {output_trigger_hooks}")
+        for key in output_trigger_hook_keys:
+            internal_hook_output: OwnedHook[OHV] = OwnedHook(
+                owner=self,
+                initial_value=output_values[key],
+                logger=logger
+            )
+            self._output_hooks[key] = internal_hook_output
+
+        # Check if the reverse callable returns a dict with all input keys and values
+        if not self.check_if_reverse_callable_is_the_inverse_of_the_forward_callable():
+            raise ValueError("It appears that the reverse callable is not the inverse function of the forward callable!")
+
         # Initialize base classes
         BaseListening.__init__(self, logger)
 
@@ -188,12 +221,12 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
                     output_values: Mapping[OHK, OHV] = forward_callable(input_values)
                     return output_values # type: ignore
                 except Exception as e:
-                    log(self, "add_values_to_be_updated_callback", logger, False, f"Forward transformation failed: {e}")
+                    log(self_ref, "add_values_to_be_updated_callback", logger, False, f"Forward transformation failed: {e}")
                     return {}
             
             # Check if any output values changed - if so, trigger reverse transformation
             if reverse_callable is not None:
-                output_keys = set(output_trigger_hooks.keys())
+                output_keys = set(output_trigger_hook_keys)
                 if any(key in submitted_values for key in output_keys):
                     try:
                         # Use submitted values for changed keys, current values for unchanged keys
@@ -206,9 +239,8 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
                         input_values = reverse_callable(output_values)
                         return input_values # type: ignore
                     except Exception as e:
-                        log(self, "add_values_to_be_updated_callback", logger, False, f"Reverse transformation failed: {e}")
+                        log(self_ref, "add_values_to_be_updated_callback", logger, False, f"Reverse transformation failed: {e}")
                         return {}
-            
             return {}
         
         BaseCarriesHooks.__init__( # type: ignore
@@ -218,47 +250,6 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             validate_complete_values_in_isolation_callback=None,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback
         )
-        
-        self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
-        self._reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = reverse_callable
-        self._lock: RLock = RLock()
-        self._logger: Optional[Logger] = logger
-        
-        # Create internal hooks for all keys that will be used in transformations
-        # These internal hooks will have invalidation callbacks that trigger our transformations
-        self._input_hooks: dict[IHK, OwnedHook[IHV]] = {}
-        self._output_hooks: dict[OHK, OwnedHook[OHV]] = {}
-        
-        # We need to determine all possible keys by analyzing the callable signatures
-        # For now, we'll create hooks for the provided external hooks and connect them
-        
-        # Create input hooks for all keys, connecting to external hooks when provided
-        for key, external_hook_or_value in input_trigger_hooks.items():
-            # Create internal hook with invalidation callback
-            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
-            internal_hook_input: OwnedHook[IHV] = OwnedHook(
-                owner=self,
-                initial_value=initial_value_input,
-                logger=logger
-            )
-            self._input_hooks[key] = internal_hook_input
-            if isinstance(external_hook_or_value, HookLike):
-                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
-        
-        # Create output hooks for all keys, connecting to external hooks when provided
-        for key, external_hook_or_value in output_trigger_hooks.items():
-            # Create internal hook with invalidation callback
-            initial_value_output: OHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
-            internal_hook_output = OwnedHook[OHV](
-                owner=self,
-                initial_value=initial_value_output,
-                logger=logger
-            )
-            self._output_hooks[key] = internal_hook_output
-            
-            # Connect our internal hook to external hook if external hook is provided
-            if isinstance(external_hook_or_value, HookLike):
-                internal_hook_output.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods
@@ -307,17 +298,31 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
     # Other public methods
     #########################################################################
 
+    @property
+    def forward_callable(self) -> Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]]:
+        """
+        Get the forward callable.
+        """
+        return self._forward_callable
+    
+    @property
+    def reverse_callable(self) -> Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]]:
+        """
+        Get the reverse callable.
+        """
+        return self._reverse_callable
+
     def get_input_hooks(self) -> dict[IHK, OwnedHook[IHV]]:
         """
         Get the input hooks as a copied dictionary.
         """
-        return self._input_hooks.copy()
+        return self._input_hooks.copy() # type: ignore
     
     def get_output_hooks(self) -> dict[OHK, OwnedHook[OHV]]:
         """
         Get the output hooks as a copied dictionary.
         """
-        return self._output_hooks.copy()
+        return self._output_hooks.copy() # type: ignore
 
     def get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
         """
@@ -330,3 +335,34 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         Get the output hook by its key.
         """
         return self._output_hooks[key] # type: ignore
+
+    def get_input_values(self) -> Mapping[IHK, IHV]:
+        """
+        Get the input values as a dictionary.
+        """
+        input_values: dict[IHK, IHV] = {}
+        for key, hook in self._input_hooks.items():
+            value: IHV = hook.value # type: ignore
+            input_values[key] = value
+
+        return input_values
+    
+    def get_output_values(self) -> Mapping[OHK, OHV]:
+        """
+        Get the output values as a dictionary.
+        """
+
+        output_values: dict[OHK, OHV] = {}
+        for key, hook in self._output_hooks.items():
+            value: OHV = hook.value # type: ignore
+            output_values[key] = value
+
+        return output_values
+
+    def check_if_reverse_callable_is_the_inverse_of_the_forward_callable(self) -> bool:
+        """
+        Check if the reverse callable is the inverse function of the forward callable.
+        """
+        if self._reverse_callable is None:
+            return True
+        return self._reverse_callable(self._forward_callable(self.get_input_values())) == self.get_input_values()

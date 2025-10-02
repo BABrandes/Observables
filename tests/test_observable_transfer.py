@@ -52,7 +52,7 @@ class TestObservableTransfer(unittest.TestCase):
         # Create transfer
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook, "y": y_hook},
-            output_trigger_hooks={"sum": sum_hook, "product": product_hook},
+            output_trigger_hook_keys={"sum", "product"},
             forward_callable=lambda inputs: {
                 "sum": inputs["x"] + inputs["y"],
                 "product": inputs["x"] * inputs["y"]
@@ -93,10 +93,13 @@ class TestObservableTransfer(unittest.TestCase):
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook, "y": y_hook},
-            output_trigger_hooks={"sum": sum_hook},
+            output_trigger_hook_keys={"sum"},
             forward_callable=lambda inputs: {"sum": inputs["x"] + inputs["y"]},
             logger=logger
         )
+        
+        # Connect the transfer's output hook to the external sum_hook
+        transfer.connect_hook(sum_hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test get_hook - should return transfer's internal hooks, not external ones
         x_internal_hook = transfer.get_hook("x")
@@ -136,15 +139,17 @@ class TestObservableTransfer(unittest.TestCase):
         y_obs = ObservableSingleValue(3, logger=logger)
         sum_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
+        # Create transfer and get its internal hooks
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
             input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
-            output_trigger_hooks={"sum": sum_obs.hook},
+            output_trigger_hook_keys={"sum"},
             forward_callable=forward_transform,
             logger=logger
         )
+        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
         
-        # Initially, sum should be 0
-        self.assertEqual(sum_obs.value, 0)
+        # Initially, sum should be calculated from initial values
+        self.assertEqual(sum_obs.value, 8)  # 5 + 3
         
         # Trigger transformation by changing input value
         transform_called.clear()
@@ -174,17 +179,20 @@ class TestObservableTransfer(unittest.TestCase):
         product_obs = ObservableSingleValue(0, logger=logger)
         diff_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"], int, int](
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum"]|Literal["product"]|Literal["difference"], int, int](
             input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
-            output_trigger_hooks={"sum": sum_obs.hook, "product": product_obs.hook, "difference": diff_obs.hook},
+            output_trigger_hook_keys={"sum", "product", "difference"},
             forward_callable=forward_transform,
             logger=logger
         )
+        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(product_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(diff_obs.hook, "difference", InitialSyncMode.USE_CALLER_VALUE)
         
-        # Initially, outputs should be 0
-        self.assertEqual(sum_obs.value, 0)
-        self.assertEqual(product_obs.value, 0)
-        self.assertEqual(diff_obs.value, 0)
+        # Initially, outputs should be calculated from initial values
+        self.assertEqual(sum_obs.value, 14)    # 10 + 4
+        self.assertEqual(product_obs.value, 40)  # 10 * 4
+        self.assertEqual(diff_obs.value, 6)     # 10 - 4
         
         # Trigger transformation by changing input
         transform_called.clear()
@@ -214,13 +222,14 @@ class TestObservableTransfer(unittest.TestCase):
         x_obs = ObservableSingleValue(5, logger=logger)
         result_obs = ObservableSingleValue(0, logger=logger)
         
-        ObservableTransfer[Literal["x"], Literal["result"], int, int](
+        transfer = ObservableTransfer[Literal["x"], Literal["result"], int, int](
             input_trigger_hooks={"x": x_obs.hook},
-            output_trigger_hooks={"result": result_obs.hook},
+            output_trigger_hook_keys={"result"},
             forward_callable=forward_transform,
             reverse_callable=reverse_transform,
             logger=logger
         )
+        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test forward transformation
         forward_called.clear()
@@ -246,13 +255,14 @@ class TestObservableTransfer(unittest.TestCase):
         def fahrenheit_to_celsius(outputs: Mapping[Literal["fahrenheit"], Any]) -> Mapping[Literal["celsius"], Any]:
             return {"celsius": (outputs["fahrenheit"] - 32) * 5/9}
         
-        ObservableTransfer[Literal["celsius"], Literal["fahrenheit"], float, float](
+        transfer = ObservableTransfer[Literal["celsius"], Literal["fahrenheit"], float, float](
             input_trigger_hooks={"celsius": celsius_obs.hook},
-            output_trigger_hooks={"fahrenheit": fahrenheit_obs.hook},
+            output_trigger_hook_keys={"fahrenheit"},
             forward_callable=celsius_to_fahrenheit,
             reverse_callable=fahrenheit_to_celsius,
             logger=logger
         )
+        transfer.connect_hook(fahrenheit_obs.hook, "fahrenheit", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test forward: Change Celsius, check Fahrenheit
         celsius_obs.value = 0.0  # Freezing point
@@ -265,12 +275,11 @@ class TestObservableTransfer(unittest.TestCase):
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
         x_hook = OwnedHook(owner=self.mock_owner, initial_value=5, logger=logger)
-        result_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
         external_hook = OwnedHook(owner=self.mock_owner, initial_value=999, logger=logger)
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_hook},
-            output_trigger_hooks={"result": result_hook},
+            output_trigger_hook_keys={"result"},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
@@ -304,22 +313,21 @@ class TestObservableTransfer(unittest.TestCase):
                 "exists": k in d
             }
         
-        ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None, dict[str, int] | str | int | bool | None](
+        transfer = ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None, dict[str, int] | str | int | bool | None](
             input_trigger_hooks={
                 "dict": cast(HookLike[dict[str, int] | str | int | bool | None], dict_obs.hook),
                 "key": cast(HookLike[dict[str, int] | str | int | bool | None], key_obs.hook)
             },
-            output_trigger_hooks={
-                "value": cast(HookLike[dict[str, int] | str | int | bool | None], value_obs.hook),
-                "exists": cast(HookLike[dict[str, int] | str | int | bool | None], exists_obs.hook)
-            },
+            output_trigger_hook_keys={"value", "exists"},
             forward_callable=dict_access_transform,
             logger=logger
         )
+        transfer.connect_hook(value_obs.hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        transfer.connect_hook(exists_obs.hook, "exists", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
         
         # Test initial state
-        self.assertIsNone(value_obs.value)
-        self.assertFalse(exists_obs.value)
+        self.assertEqual(value_obs.value, 1)      # dict["a"] = 1
+        self.assertTrue(exists_obs.value)         # "a" exists in dict
         
         # Trigger transformation by changing key
         key_obs.value = "b"
@@ -351,12 +359,13 @@ class TestObservableTransfer(unittest.TestCase):
             transform_count.append(1)
             return {"sum": inputs["x"] + inputs["y"]}
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
             input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
-            output_trigger_hooks={"sum": sum_obs.hook},
+            output_trigger_hook_keys={"sum"},
             forward_callable=slow_transform,
             logger=logger
         )
+        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
         
         def worker_thread(thread_id: int) -> None:
             """Worker thread that triggers transformations."""
@@ -386,10 +395,11 @@ class TestObservableTransfer(unittest.TestCase):
         
         transfer = ObservableTransfer(
             input_trigger_hooks={"x": x_obs.hook},
-            output_trigger_hooks={"result": result_obs.hook},
+            output_trigger_hook_keys={"result"},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
+        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
         
         # Add listener to transfer
         notifications: list[str] = []
@@ -411,12 +421,13 @@ class TestObservableTransfer(unittest.TestCase):
         def format_string(inputs: Mapping[Literal["template", "name"], Any]) -> Mapping[Literal["result"], Any]:
             return {"result": inputs["template"].format(name=inputs["name"])}
         
-        ObservableTransfer[Literal["template", "name"], Literal["result"], str, str](
+        transfer = ObservableTransfer[Literal["template", "name"], Literal["result"], str, str](
             input_trigger_hooks={"template": template_obs.hook, "name": name_obs.hook},
-            output_trigger_hooks={"result": result_obs.hook},
+            output_trigger_hook_keys={"result"},
             forward_callable=format_string,
             logger=logger
         )
+        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test initial transformation
         name_obs.value = "Alice"  # Trigger transformation
@@ -444,12 +455,15 @@ class TestObservableTransfer(unittest.TestCase):
                 "quotient": x / y if y != 0 else float('inf')
             }
         
-        ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"], int|float, int|float](
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum", "product", "quotient"], int|float, int|float](
             input_trigger_hooks={"x": x_obs.hook, "y": y_obs.hook},
-            output_trigger_hooks={"sum": sum_obs.hook, "product": product_obs.hook, "quotient": quotient_obs.hook},
+            output_trigger_hook_keys={"sum", "product", "quotient"},
             forward_callable=math_operations,
             logger=logger
         )
+        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(product_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(quotient_obs.hook, "quotient", InitialSyncMode.USE_CALLER_VALUE)
         
         # Test calculation by changing input
         x_obs.value = 12.0  # Trigger transformation

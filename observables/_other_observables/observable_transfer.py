@@ -65,7 +65,7 @@ Performance Characteristics:
 - Atomic updates using HookNexus.submit_multiple_values()
 """
 
-from typing import Callable, Generic, Mapping, Optional, TypeVar
+from typing import Callable, Generic, Mapping, Optional, TypeVar, Literal
 from logging import Logger
 
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -76,8 +76,6 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.base_listening import BaseListening
 from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.hook_nexus import HookNexus
-from .._utils.general import log
-
 
 # Type variables for input and output hook names
 IHK = TypeVar("IHK")  # Input Hook Keys
@@ -111,6 +109,8 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
         output_trigger_hook_keys: set[OHK] = set(),
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
+        assume_inverse_callable_is_always_valid: bool = False,
+        precision_threshold_for_inverse_callable_validation: float = 1e-6,
         logger: Optional[Logger] = None
     ):
         """
@@ -164,6 +164,9 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         self._input_hooks: dict[IHK, HookLike[IHV]|IHV] = {}
         self._output_hooks: dict[OHK, HookLike[OHV]|OHV] = {}
 
+        self._assume_inverse_callable_is_always_valid: bool = assume_inverse_callable_is_always_valid
+        self._precision_threshold_for_inverse_callable_validation: float = precision_threshold_for_inverse_callable_validation
+
         # Create input hooks for all keys, connecting to external hooks when provided
         for key, external_hook_or_value in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
@@ -190,11 +193,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             )
             self._output_hooks[key] = internal_hook_output
 
-        # Check if the reverse callable returns a dict with all input keys and values
-        if not self.check_if_reverse_callable_is_the_inverse_of_the_forward_callable():
-            raise ValueError("It appears that the reverse callable is not the inverse function of the forward callable!")
-
-        # Initialize base classes
+        # Initialize base classes first
         BaseListening.__init__(self, logger)
 
         def add_values_to_be_updated_callback(
@@ -206,43 +205,51 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             Add values to be updated by triggering transformations.
             This callback is called when any hook value changes.
             """
+
+            if reverse_callable is not None and not self_ref._assume_inverse_callable_is_always_valid:
+                is_inverse, msg = self_ref.check_if_reverse_callable_is_the_inverse_of_the_forward_callable()
+                if not is_inverse:
+                    raise ValueError(f"Reverse callable validation failed: {msg}")
+
+            values_to_be_added: dict[IHK|OHK, IHV|OHV] = {}
+
             # Check if any input values changed - if so, trigger forward transformation
             input_keys = set(input_trigger_hooks.keys())
             if any(key in submitted_values for key in input_keys):
                 # Trigger forward transformation
-                try:
-                    # Use submitted values for changed keys, current values for unchanged keys
-                    input_values: Mapping[IHK, IHV] = {}
-                    for key in input_keys:
-                        if key in submitted_values:
-                            input_values[key] = submitted_values[key] # type: ignore
-                        else:
-                            input_values[key] = current_values[key] # type: ignore
-                    output_values: Mapping[OHK, OHV] = forward_callable(input_values)
-                    return output_values # type: ignore
-                except Exception as e:
-                    log(self_ref, "add_values_to_be_updated_callback", logger, False, f"Forward transformation failed: {e}")
-                    return {}
+
+                # Use submitted values for changed keys, current values for unchanged keys
+                input_values: Mapping[IHK, IHV] = {}
+                for key in input_keys:
+                    if key in submitted_values:
+                        input_values[key] = submitted_values[key] # type: ignore
+                    else:
+                        input_values[key] = current_values[key] # type: ignore
+                output_values: Mapping[OHK, OHV] = forward_callable(input_values)
+                values_to_be_added.update(output_values) # type: ignore
             
             # Check if any output values changed - if so, trigger reverse transformation
             if reverse_callable is not None:
                 output_keys = set(output_trigger_hook_keys)
                 if any(key in submitted_values for key in output_keys):
-                    try:
-                        # Use submitted values for changed keys, current values for unchanged keys
-                        output_values = {}
-                        for key in output_keys:
-                            if key in submitted_values:
-                                output_values[key] = submitted_values[key] # type: ignore
-                            else:
-                                output_values[key] = current_values[key] # type: ignore
-                        input_values = reverse_callable(output_values)
-                        return input_values # type: ignore
-                    except Exception as e:
-                        log(self_ref, "add_values_to_be_updated_callback", logger, False, f"Reverse transformation failed: {e}")
-                        return {}
-            return {}
-        
+                    # Use submitted values for changed keys, current values for unchanged keys
+                    output_values = {}
+                    for key in output_keys:
+                        if key in submitted_values:
+                            output_values[key] = submitted_values[key] # type: ignore
+                        else:
+                            output_values[key] = current_values[key] # type: ignore
+                    input_values = reverse_callable(output_values)
+                    # For reverse transformation, we need to return the input values
+                    # but they should be applied to the input hooks, not output hooks
+                    values_to_be_added.update(input_values) # type: ignore
+
+            # Remove values that are already in the submitted values
+            for key in submitted_values:
+                values_to_be_added.pop(key, None)
+
+            return values_to_be_added
+
         BaseCarriesHooks.__init__( # type: ignore
             self,
             logger=logger,
@@ -250,6 +257,12 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             validate_complete_values_in_isolation_callback=None,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback
         )
+        
+        # Check if the reverse callable is valid (after initialization)
+        if reverse_callable is not None:
+            is_inverse, msg = self.check_if_reverse_callable_is_the_inverse_of_the_forward_callable()
+            if not is_inverse:
+                raise ValueError(f"Reverse callable validation failed: {msg}")
 
     #########################################################################
     # BaseCarriesHooks abstract methods
@@ -359,10 +372,75 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
 
         return output_values
 
-    def check_if_reverse_callable_is_the_inverse_of_the_forward_callable(self) -> bool:
+    def check_if_reverse_callable_is_the_inverse_of_the_forward_callable(self, check_for: Literal["input_values", "output_values"] = "input_values") -> tuple[bool, str]:
         """
-        Check if the reverse callable is the inverse function of the forward callable.
+        Check both callables are inverses of each other.
+
+        Args:
+            check_for: Whether to check if the reverse callable is the inverse of the forward callable or the forward callable is the inverse of the reverse callable.
+
+        Returns:
+            A tuple containing a boolean indicating if the callables are inverses of each other and a string describing the result.
         """
+
         if self._reverse_callable is None:
-            return True
-        return self._reverse_callable(self._forward_callable(self.get_input_values())) == self.get_input_values()
+            raise ValueError("Reverse callable is not set")
+
+        if check_for == "input_values":
+            start_values = self.get_input_values()
+            callable_1 = self._forward_callable
+            callable_2 = self._reverse_callable
+        else:
+            start_values = self.get_output_values()
+            callable_1 = self._reverse_callable
+            callable_2 = self._forward_callable
+        
+        # Test with current values to ensure reverse callable returns all input keys
+        try:
+            intermediate_result = callable_1(start_values) # type: ignore
+        except Exception as e:
+            if check_for == "input_values":
+                return False, f"Error when calling forward callable: {e}"
+            else:
+                return False, f"Error when calling reverse callable: {e}"
+
+        if not isinstance(intermediate_result, dict):
+            if check_for == "input_values":
+                return False, "Forward callable does not return a dictionary"
+            else:
+                return False, "Reverse callable does not return a dictionary"
+
+        try:
+            reverse_result = callable_2(intermediate_result) # type: ignore
+        except Exception as e:
+            if check_for == "input_values":
+                return False, f"Error when calling reverse callable: {e}"
+            else:
+                return False, f"Error when calling forward callable: {e}"
+        
+        # Check if it returns a dictionary
+        if not isinstance(reverse_result, dict):
+            if check_for == "input_values":
+                return False, "Reverse callable does not return a dictionary"
+            else:
+                return False, "Forward callable does not return a dictionary"
+        
+        # Check if the reverse result is equal to the original input values (with precision threshold for numeric types)
+        for key in reverse_result:
+
+            # Skip keys that are not in the start values (e.g. if reverse callable returns more keys than the forward callable)
+            if key not in start_values:
+                continue
+
+            start_values_value = start_values[key] # type: ignore
+            reverse_result_value = reverse_result[key] # type: ignore
+
+            # Check if the reverse result is equal to the original input values (with precision threshold for numeric types)
+            if hasattr(reverse_result_value, "__sub__") and hasattr(start_values_value, "__sub__"):
+                if abs(reverse_result_value - start_values_value) > self._precision_threshold_for_inverse_callable_validation: # type: ignore
+                    return False, f"Reverse callable is not the inverse of the forward callable for key {key}"
+            else:
+                if not reverse_result_value == start_values_value:
+                    return False, f"Reverse callable is not the inverse of the forward callable for key {key}"
+
+        return True, "Inverse callable is valid on the present input values"

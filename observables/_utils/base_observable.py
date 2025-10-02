@@ -178,7 +178,6 @@ class BaseObservable(BaseListening, ObservableSerializable[PHK, O], BaseCarriesH
             if isinstance(value, OwnedHookLike):
                 value.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
-
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
         for key, _callback in secondary_hook_callbacks.items():
             self._secondary_hook_callbacks[key] = _callback

@@ -121,7 +121,7 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
                     if absolute_path != root_path / relative_path:
                         return False, "The root + relative path must give the absolute path"
                 else:
-                    if not absolute_path:
+                    if absolute_path is not None:
                         return False, "The root path is not set, so the absolute path must be None"
             return True, "Valid"
 
@@ -153,18 +153,30 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
                 # Take care of the absolute path
                 absolute_path_key: str = self.element_key_to_absolute_path_key(key)
                 if absolute_path_key not in submitted_values:
-                    absolute_path: Optional[Path] = root_path / relative_path if root_path is not None and relative_path is not None else None
+                    if root_path is not None and relative_path is not None:
+                        # Ensure root_path is a Path object
+                        if isinstance(root_path, str):
+                            root_path = Path(root_path)
+                        absolute_path: Optional[Path] = root_path / relative_path
+                    else:
+                        absolute_path = None
                     additional_values[absolute_path_key] = absolute_path
 
             return additional_values
 
-        ObservableSerializable[str, "ObservableRootedPaths[EK]"].__init__(
+        BaseCarriesHooks.__init__( # type: ignore
             self,
-            get_primary_value_references_callback=lambda: {ROOT_PATH_KEY: self._root_path_hook.value, **{key: self._rooted_element_path_hooks[self.element_key_to_relative_path_key(key)].value for key in self._rooted_element_keys}})
-        BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths[EK]"].__init__(self,
             validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger)
+
+        ObservableSerializable.__init__( # type: ignore
+            self,
+            get_primary_value_references_callback=lambda self_ref: {ROOT_PATH_KEY: self_ref._root_path_hook.value, **{key: self_ref._rooted_element_path_hooks[self_ref.element_key_to_relative_path_key(key)].value for key in self_ref._rooted_element_keys}}) # type: ignore
+
+    ##########################################
+    # Conversion methods
+    ##########################################
 
     @property
     def root_path(self) -> Optional[Path]:
@@ -187,6 +199,28 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
     def set_absolute_path(self, key: EK, path: Optional[Path]) -> tuple[bool, str]:
         """Set the absolute path for a specific element (usually not recommended)."""
         return self.get_absolute_path_hook(key).submit_value(path)
+
+    @property
+    def rooted_element_keys(self) -> set[EK]:
+        return self._rooted_element_keys
+
+    @property
+    def rooted_element_relative_path_hooks(self) -> dict[str, OwnedHookLike[Optional[str]]]:
+        relative_path_hooks: dict[str, OwnedHookLike[Optional[str]]] = {}
+        for key in self._rooted_element_keys:
+            if key not in self._rooted_element_path_hooks:
+                raise ValueError(f"Key {key} not found in rooted_element_relative_path_hooks")
+            relative_path_hooks[key] = self._rooted_element_path_hooks[key] # type: ignore
+        return relative_path_hooks
+
+    @property
+    def rooted_element_absolute_path_hooks(self) -> dict[str, OwnedHookLike[Optional[Path]]]:
+        absolute_path_hooks: dict[str, OwnedHookLike[Optional[Path]]] = {}
+        for key in self._rooted_element_keys:
+            if key not in self._rooted_element_path_hooks:
+                raise ValueError(f"Key {key} not found in rooted_element_absolute_path_hooks")
+            absolute_path_hooks[key] = self._rooted_element_path_hooks[key] # type: ignore
+        return absolute_path_hooks
 
     ##########################################
     # CarriesHooks interface implementation
@@ -218,7 +252,11 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         """
         Get all keys of the hooks.
         """
-        return set([ROOT_PATH_KEY] + list(self._elements_relative_path__hooks.keys()) + list(self._elements_absolute_path_keys.keys())) # type: ignore
+        keys = {ROOT_PATH_KEY}
+        for key in self._rooted_element_keys:
+            keys.add(self.element_key_to_relative_path_key(key))
+            keys.add(self.element_key_to_absolute_path_key(key))
+        return keys
 
     def _get_hook_key(self, hook_or_nexus: OwnedHookLike[Path|str|None]|HookNexus[Path|str|None]) -> EK:
         """

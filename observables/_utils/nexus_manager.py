@@ -1,4 +1,4 @@
-from typing import Mapping, Any, Optional, TYPE_CHECKING
+from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable
 
 from logging import Logger
 
@@ -26,8 +26,16 @@ class NexusManager:
     where observables can define custom logic for value completion and validation.
     """
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        value_equality_callback: Callable[[Any, Any], bool] = lambda x, y: x == y
+        ):
+        self._value_equality_callback = value_equality_callback
+
+    @property
+    def value_equality_callback(self) -> Callable[[Any, Any], bool]:
+        """Get the value equality callback."""
+        return self._value_equality_callback
 
     def reset(self) -> None:
         """Reset the nexus manager state for testing purposes."""
@@ -102,8 +110,10 @@ class NexusManager:
                 hook_nexus: HookNexus[Any] = hook_dict[hook_key].hook_nexus
                 if hook_nexus in nexus_and_values:
                     # The nexus is already in the nexus and values, this is not good. But maybe the associated value is the same?
-                    if nexus_and_values[hook_nexus] != value:
-                        return False, f"Hook nexus already in nexus and values and the associated value is not the same! ({nexus_and_values[hook_nexus]} != {value})"
+                    current_value: Any = nexus_and_values[hook_nexus]
+                    # Use proper equality comparison that handles NaN values correctly
+                    if not self._value_equality_callback(current_value, value):
+                        return False, f"Hook nexus already in nexus and values and the associated value is not the same! ({current_value} != {value})"
                 nexus_and_values[hook_nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 

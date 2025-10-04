@@ -17,8 +17,8 @@ def _values_are_equal(value1: Any, value2: Any) -> bool:
     if isinstance(value1, RealUnitedScalar) and isinstance(value2, RealUnitedScalar):
         if value1.dimension != value2.dimension:
             return False
-        value1 = value1.value_in_canonical_unit
-        value2 = value2.value_in_canonical_unit
+        value1 = value1.value_in_canonical_unit()
+        value2 = value2.value_in_canonical_unit()
 
     # Handle NaN values specifically
     if isinstance(value1, float) and isinstance(value2, float):

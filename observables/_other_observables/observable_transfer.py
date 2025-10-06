@@ -372,6 +372,74 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
 
         return output_values
 
+    def submit_input_values(self, values: Mapping[IHK, IHV]) -> None:
+        """
+        Submit input values to the transfer.
+
+        Args:
+            values: Mapping of input hook keys to their new values
+        """
+
+        values_to_submit: dict[IHK, IHV] = {}
+        for key, value in values.items():
+            if key not in self._input_hooks:
+                raise ValueError(f"Key {key} not found in input hooks")
+            values_to_submit[key] = value # type: ignore
+        success, msg = self.submit_values(values_to_submit) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def submit_output_values(self, values: Mapping[OHK, OHV]) -> None:
+        """
+        Submit output values to the transfer.
+
+        Args:
+            values: Mapping of output hook keys to their new values
+        """
+        
+        values_to_submit: dict[OHK, OHV] = {}
+        for key, value in values.items():
+            if key not in self._output_hooks:
+                raise ValueError(f"Key {key} not found in output hooks")
+            values_to_submit[key] = value # type: ignore
+        success, msg = self.submit_values(values_to_submit) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def validate_input_values(self, values: Mapping[IHK, IHV]) -> None:
+        """
+        Submit input values to the transfer.
+
+        Args:
+            values: Mapping of input hook keys to their new values
+        """
+
+        values_to_validate: dict[IHK, IHV] = {}
+        for key, value in values.items():
+            if key not in self._input_hooks:
+                raise ValueError(f"Key {key} not found in input hooks")
+            values_to_validate[key] = value # type: ignore
+        success, msg = self.validate_values(values_to_validate) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def validate_output_values(self, values: Mapping[OHK, OHV]) -> None:
+        """
+        Submit output values to the transfer.
+
+        Args:
+            values: Mapping of output hook keys to their new values
+        """
+        
+        values_to_validate: dict[OHK, OHV] = {}
+        for key, value in values.items():
+            if key not in self._output_hooks:
+                raise ValueError(f"Key {key} not found in output hooks")
+            values_to_validate[key] = value # type: ignore
+        success, msg = self.validate_values(values_to_validate) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
     def check_if_reverse_callable_is_the_inverse_of_the_forward_callable(self, check_for: Literal["input_values", "output_values"] = "input_values") -> tuple[bool, str]:
         """
         Check both callables are inverses of each other.

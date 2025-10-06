@@ -96,9 +96,16 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK|OHK, SHV|OHV, "Observab
     def __init__(
         self,
         sync_values_initially_valid: Mapping[SHK, SHV],
-        sync_values_callback: Callable[[Mapping[SHK, SHV]], Mapping[SHK, SHV]],
+        sync_values_callback: Callable[[Mapping[SHK, SHV], Mapping[SHK, SHV]], Mapping[SHK, SHV]],
         output_values_callback: Optional[Callable[[Mapping[SHK, SHV]], Mapping[OHK, OHV]]] = None,
         logger: Optional[Logger] = None):
+        """
+        Args:
+            sync_values_initially_valid: The initial values for the sync hooks
+            sync_values_callback: The callback that defines the relationship between the sync hooks (It takes "current_values" and "submitted_values")
+            output_values_callback: The callback that defines the relationship between the sync hooks and the output hooks (It takes "synced_values")
+            logger: The logger to use
+        """
 
         self._sync_values_callback = sync_values_callback
         self._output_hook_callback = output_values_callback
@@ -162,7 +169,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK|OHK, SHV|OHV, "Observab
                     complete_values[key] = current_values[key] # type: ignore
 
             # First, perform the sync values callback with complete values
-            synced_values: Mapping[SHK, SHV] = self_ref._sync_values_callback(complete_values) # type: ignore
+            synced_values: Mapping[SHK, SHV] = self_ref._sync_values_callback(current_values, complete_values) # type: ignore
 
             # Check that ALL sync hook values are in the synced values
             if len(synced_values) != len(self_ref._sync_hooks):
@@ -211,7 +218,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK|OHK, SHV|OHV, "Observab
             for key, value in output_values.items():
                 self._output_hooks[key].submit_value(value)
 
-    def _validate_sync_callback_with_combinations(self, sync_values_initially_valid: Mapping[SHK, SHV], sync_values_callback: Callable[[Mapping[SHK, SHV]], Mapping[SHK, SHV]]) -> None:
+    def _validate_sync_callback_with_combinations(self, sync_values_initially_valid: Mapping[SHK, SHV], sync_values_callback: Callable[[Mapping[SHK, SHV], Mapping[SHK, SHV]], Mapping[SHK, SHV]]) -> None:
         """
         Validate the sync_values_callback with every combination of given values.
         For example, if 3 values are synced (A, B, C), it tests A, AB, AC, B, BC, C, ABC.
@@ -229,7 +236,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK|OHK, SHV|OHV, "Observab
                 
                 try:
                     # Test the sync callback with this combination
-                    result = sync_values_callback(test_values)
+                    result = sync_values_callback(sync_values_initially_valid, test_values)
                     
                     # Validate that the result has the same keys as input
                     if set(result.keys()) != set(test_values.keys()):

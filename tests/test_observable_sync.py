@@ -48,10 +48,10 @@ class TestObservableSync(unittest.TestCase):
 
     def test_basic_creation_with_values(self):
         """Test basic ObservableSync creation with initial values."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Simple sync callback that ensures all values are positive."""
             result: dict[str, int] = {}
-            for key, value in values.items():
+            for key, value in submitted_values.items():
                 result[key] = abs(value) if value is not None else 0 # type: ignore
             return result
 
@@ -72,9 +72,9 @@ class TestObservableSync(unittest.TestCase):
 
     def test_basic_creation_with_hooks(self):
         """Test basic ObservableSync creation with initial values (no longer supports hooks)."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Sync callback that doubles all values."""
-            return {key: value * 2 for key, value in values.items()}
+            return {key: value * 2 for key, value in submitted_values.items()}
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={"a": 10, "b": 20},
@@ -89,7 +89,7 @@ class TestObservableSync(unittest.TestCase):
 
     def test_sync_callback_validation(self):
         """Test that sync callback must return all required keys."""
-        def invalid_sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def invalid_sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Invalid callback that doesn't return all keys."""
             return {"a": 5}  # Missing "b" and "c"
 
@@ -104,9 +104,9 @@ class TestObservableSync(unittest.TestCase):
 
     def test_output_callback_basic(self):
         """Test basic output callback functionality."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Simple sync callback."""
-            return values
+            return submitted_values
 
         def output_callback(values: Mapping[str, int]) -> Mapping[str, str]:
             """Output callback that creates string representations."""
@@ -131,8 +131,8 @@ class TestObservableSync(unittest.TestCase):
 
     def test_output_callback_validation(self):
         """Test that output callback must return all required keys."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         def invalid_output_callback(values: Mapping[str, int]) -> Mapping[str, str]:
             """Invalid callback that raises an error."""
@@ -150,8 +150,8 @@ class TestObservableSync(unittest.TestCase):
 
     def test_hook_access_methods(self):
         """Test hook access methods."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={"a": 5, "b": 10},
@@ -180,8 +180,8 @@ class TestObservableSync(unittest.TestCase):
 
     def test_no_output_callback(self):
         """Test ObservableSync without output callback."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={"a": 5, "b": 10},
@@ -195,7 +195,7 @@ class TestObservableSync(unittest.TestCase):
 
     def test_error_handling_in_callbacks(self):
         """Test error handling when callbacks raise exceptions."""
-        def error_sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def error_sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Sync callback that raises an error."""
             raise ValueError("Sync callback error")
 
@@ -211,8 +211,8 @@ class TestObservableSync(unittest.TestCase):
     def test_edge_cases(self):
         """Test edge cases."""
         # Empty sync hooks
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={},
@@ -223,8 +223,8 @@ class TestObservableSync(unittest.TestCase):
         self.assertEqual(sync.get_hook_keys(), set())
 
         # None values
-        def sync_callback_with_none(values: Mapping[str, Optional[int]]) -> Mapping[str, Optional[int]]:
-            return values
+        def sync_callback_with_none(current_values: Mapping[str, Optional[int]], submitted_values: Mapping[str, Optional[int]]) -> Mapping[str, Optional[int]]:
+            return submitted_values
 
         sync_with_none = ObservableSync[str, str, Optional[int], str](
             sync_values_initially_valid={"a": None, "b": 5},
@@ -237,8 +237,8 @@ class TestObservableSync(unittest.TestCase):
 
     def test_complex_output_transformation(self):
         """Test complex output transformation with multiple outputs."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         def output_callback(values: Mapping[str, int]) -> Mapping[str, str]:
             """Complex output callback with multiple outputs."""
@@ -270,8 +270,8 @@ class TestObservableSync(unittest.TestCase):
 
     def test_listener_notification(self):
         """Test that listeners are notified when values change."""
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
-            return values
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
+            return submitted_values
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={"a": 5},
@@ -298,16 +298,16 @@ class TestObservableSync(unittest.TestCase):
         external_a = ObservableSingleValue[int](5, logger=logger)
         external_b = ObservableSingleValue[int](10, logger=logger)
 
-        def sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Sync callback that ensures sum is always 20."""
-            if not values:
-                return values  # Handle empty case
-            current_sum = sum(values.values())
+            if not submitted_values:
+                return submitted_values  # Handle empty case
+            current_sum = sum(submitted_values.values())
             if current_sum != 20:
                 # Adjust first value to make sum 20
-                first_key = next(iter(values.keys()))
-                return {**values, first_key: 20 - sum(v for k, v in values.items() if k != first_key)}
-            return values
+                first_key = next(iter(submitted_values.keys()))
+                return {**submitted_values, first_key: 20 - sum(v for k, v in submitted_values.items() if k != first_key)}
+            return submitted_values
 
         sync = ObservableSync[str, str, int, str](
             sync_values_initially_valid={"a": 5, "b": 10},
@@ -331,9 +331,9 @@ class TestObservableSync(unittest.TestCase):
 
     def test_combination_validation(self):
         """Test that sync callback is validated with every combination of given values."""
-        def valid_sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def valid_sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Valid callback that returns all input keys."""
-            return {key: value * 2 for key, value in values.items()}
+            return {key: value * 2 for key, value in submitted_values.items()}
 
         # This should work - callback handles all combinations correctly
         sync = ObservableSync[str, str, int, str](
@@ -350,11 +350,11 @@ class TestObservableSync(unittest.TestCase):
 
     def test_combination_validation_failure(self):
         """Test that sync callback validation fails when callback doesn't handle all combinations."""
-        def invalid_sync_callback(values: Mapping[str, int]) -> Mapping[str, int]:
+        def invalid_sync_callback(current_values: Mapping[str, int], submitted_values: Mapping[str, int]) -> Mapping[str, int]:
             """Invalid callback that only handles certain combinations."""
-            if len(values) == 3:
+            if len(submitted_values) == 3:
                 # Only handle full combination
-                return {key: value * 2 for key, value in values.items()}
+                return {key: value * 2 for key, value in submitted_values.items()}
             else:
                 # Fail for partial combinations
                 raise ValueError("Cannot handle partial combinations")

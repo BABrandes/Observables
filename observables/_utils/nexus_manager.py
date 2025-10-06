@@ -257,17 +257,23 @@ class NexusManager:
 
         # Step 6: Notify the listeners
         if not not_notifying_listeners_after_submission:
+            # Optimize: Only notify hooks that are actually affected by the value changes
+            affected_hooks: set[HookLike[Any]] = set()
+            for nexus, value in complete_nexus_and_values.items():
+                affected_hooks.update(nexus.hooks)
+            
             for owner in owners_to_validate:
                 if isinstance(owner, BaseListeningLike):
                     if owner not in not_notifying_listeners_after_submission:
                         owner._notify_listeners() # type: ignore
+                # Only notify hooks that are actually affected
                 for hook in owner.get_dict_of_hooks().values():
                     if hook is None: # type: ignore
                         raise RuntimeError("Hook is None. This should not happen.")
-                    if hook not in not_notifying_listeners_after_submission:
+                    if hook in affected_hooks and hook not in not_notifying_listeners_after_submission:
                         hook._notify_listeners() # type: ignore
             for floating_hook in floating_hooks_to_validate:
-                if floating_hook not in not_notifying_listeners_after_submission:
+                if floating_hook in affected_hooks and floating_hook not in not_notifying_listeners_after_submission:
                     floating_hook._notify_listeners() # type: ignore
 
         return True, "Values are submitted"

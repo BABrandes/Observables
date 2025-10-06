@@ -563,7 +563,7 @@ class TestObservableIntegration(unittest.TestCase):
         # Try to bind obs2 back to obs1 (should raise ValueError about hook groups not being disjoint)
         with self.assertRaises(ValueError) as context:
             obs2.connect_hook(obs1.hook, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-        self.assertIn("hook groups must be disjoint", str(context.exception))
+        self.assertIn("hook nexuses must be disjoint", str(context.exception))
         
         # The first binding still exists and is bidirectional, so changing obs1 should affect obs2
         obs1.value = 100

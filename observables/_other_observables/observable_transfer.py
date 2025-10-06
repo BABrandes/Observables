@@ -193,7 +193,6 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             )
             self._output_hooks[key] = internal_hook_output
 
-        # Initialize base classes first
         BaseListening.__init__(self, logger)
 
         def add_values_to_be_updated_callback(

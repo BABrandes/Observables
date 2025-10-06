@@ -118,59 +118,65 @@ class HookNexus(Generic[T]):
         return self._previous_value
 
     @staticmethod
-    def _merge_nexus(*nexus: "HookNexus[T]") -> "HookNexus[T]":
+    def _merge_nexus(*nexuses: "HookNexus[T]") -> "HookNexus[T]":
         """
-        Merge multiple hook groups into a single hook group.
+        Merge multiple hook nexuses into a single hook nexus.
 
-        - There must not be any overlapping hooks in the input groups
-        - The hooks in both groups must have the same type of T and be synced to the same value
-        - The hooks in both groups must be disjoint, if not something went wrong in the binding system
+        - There must not be any overlapping hooks in the input nexuses
+        - The hooks in both nexuses must have the same type of T and be synced to the same value
+        - The hooks in both nexuses must be disjoint, if not something went wrong in the binding system
 
         Args:
-            *hook_groups: The hook groups to merge
+            *hook_nexuses: The hook nexuses to merge
 
         Returns:
-            A new hook group that contains all the hooks from the input groups
+            A new hook nexus that contains all the hooks from the input nexuses
 
         Raises:
-            ValueError: If the hook groups are not disjoint
+            ValueError: If the hook nexuses are not disjoint
         """
         
-        if len(nexus) == 0:
-            raise ValueError("No hook groups provided")
+        if len(nexuses) == 0:
+            raise ValueError("No hook nexuses provided")
         
-        # Get the first hook group's value as the reference
-        reference_value = nexus[0]._value
+        # Get the first hook nexus's value as the reference
+        reference_value = nexuses[0]._value
 
         # Check that all nexus managers are the same
-        for nexus_group in nexus:
-            if nexus_group._nexus_manager != nexus[0]._nexus_manager:
+        for nexus in nexuses:
+            if nexus._nexus_manager != nexuses[0]._nexus_manager:
                 raise ValueError("The nexus managers must be the same")
-        nexus_manager: "NexusManager" = nexus[0]._nexus_manager
+        nexus_manager: "NexusManager" = nexuses[0]._nexus_manager
         
         value_type: Optional[type[T]] = None
-        for hook_group in nexus:
-            for hook in hook_group._get_hooks():
+        for hook_nexus in nexuses:
+            for hook in hook_nexus._get_hooks():
                 if value_type is None:
                     value_type = type(hook.value)
                 elif type(hook.value) != value_type:
-                    raise ValueError("The hooks in the hook groups must have the same value type")
+                    raise ValueError("The hooks in the hook nexuses must have the same value type")
 
-        # Check if any groups have overlapping hooks (not disjoint)
-        for i, group1 in enumerate(nexus):
-            for group2 in nexus[i+1:]:
-                if group1._get_hooks() & group2._get_hooks():  # Check for intersection
-                    raise ValueError("The hook groups must be disjoint")
+        # Check if any groups have overlapping hooks (not disjoint) and collect all hooks
+        # Optimize: Use a single set to track all hooks instead of O(n²) pairwise intersection
+        all_hooks: set["HookLike[T]"] = set()
+        list_of_hook_nexus: list[set["HookLike[T]"]] = []
         
-        # Create new merged group with the reference value
-        merged_group: HookNexus[T] = HookNexus[T](reference_value, nexus_manager=nexus_manager)
+        for hook_nexus in nexuses:
+            hook_nexus = hook_nexus._get_hooks()
+            if all_hooks & hook_nexus:  # Check for intersection with existing hooks
+                raise ValueError("The hook nexuses must be disjoint")
+            all_hooks.update(hook_nexus)
+            list_of_hook_nexus.append(hook_nexus)  # Store for later use
         
-        # Add all hooks to the merged group
-        for hook_group in nexus:
-            for hook in hook_group._get_hooks():
-                merged_group.add_hook(hook)
+        # Create new merged nexus with the reference value
+        merged_nexus: HookNexus[T] = HookNexus[T](reference_value, nexus_manager=nexus_manager)
         
-        return merged_group
+        # Add all hooks to the merged nexus (reuse the already computed hook sets)
+        for hook_nexus in list_of_hook_nexus:
+            for hook in hook_nexus:
+                merged_nexus.add_hook(hook)
+        
+        return merged_nexus
     
     @staticmethod
     def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"]) -> tuple[bool, str]:
@@ -239,17 +245,17 @@ class HookNexus(Generic[T]):
         if source_hook.hook_nexus == target_hook.hook_nexus:
             return True, "Hooks are already connected"
         
-        # Ensure that the value in both hook groups is the same
+        # Ensure that the value in both hook nexuses is the same
         # The source_hook's value becomes the source of truth
         success, msg = nexus_manager.submit_values({target_hook.hook_nexus: source_hook.value})
         if not success:
             raise ValueError(msg)
             
-        # Then merge the hook groups
+        # Then merge the hook nexuses
         # Use the synchronized value for the merged group
         merged_nexus: HookNexus[T] = HookNexus[T]._merge_nexus(source_hook.hook_nexus, target_hook.hook_nexus)
         
-        # Replace all hooks' hook groups with the merged one
+        # Replace all hooks' hook nexuses with the merged one
         for hook in merged_nexus._get_hooks():
             hook._replace_hook_nexus(merged_nexus) # type: ignore
 

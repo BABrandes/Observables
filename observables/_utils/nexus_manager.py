@@ -28,14 +28,50 @@ class NexusManager:
 
     def __init__(
         self,
-        value_equality_callback: Callable[[Any, Any], bool] = lambda x, y: x == y
+        value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
         ):
-        self._value_equality_callback = value_equality_callback
 
-    @property
-    def value_equality_callback(self) -> Callable[[Any, Any], bool]:
-        """Get the value equality callback."""
-        return self._value_equality_callback
+        self._value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
+        self._value_equality_callbacks.update(value_equality_callbacks)
+
+    def add_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
+        """Add a value equality callback for a specific value type."""
+
+        if value_type in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type} already exists")
+
+        self._value_equality_callbacks[value_type] = value_equality_callback
+
+    def remove_value_equality_callback(self, value_type: type[Any]) -> None:
+        """Remove a value equality callback for a specific value type."""
+        if value_type not in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type} does not exist")
+        del self._value_equality_callbacks[value_type]
+
+    def replace_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
+        """Replace a value equality callback for a specific value type."""
+        if value_type not in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type} does not exist")
+        self._value_equality_callbacks[value_type] = value_equality_callback
+
+    def exists_value_equality_callback(self, value_type: type[Any]) -> bool:
+        """Check if a value equality callback exists for a specific value type."""
+        return value_type in self._value_equality_callbacks
+
+    def types_of_value_equality_callbacks(self) -> set[type[Any]]:
+        """Get the types of value equality callbacks."""
+        return set(self._value_equality_callbacks.keys())
+
+    def _value_equality_callback(self, value1: Any, value2: Any) -> bool:
+
+        value_type: type[Any] = type(value1) # type: ignore
+
+        if value_type != type(value2):
+            return False
+
+        if value_type not in self._value_equality_callbacks:
+            return value1 == value2
+        return self._value_equality_callbacks[value_type](value1, value2)
 
     def reset(self) -> None:
         """Reset the nexus manager state for testing purposes."""

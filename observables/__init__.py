@@ -96,7 +96,7 @@ from ._other_observables.observable_selection_enum import ObservableSelectionEnu
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._other_observables.observable_transfer import ObservableTransfer
 from ._other_observables.observable_sync import ObservableSync
-from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict
+from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
 from ._other_observables.observable_rooted_paths import ObservableRootedPaths
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
@@ -136,6 +136,7 @@ __all__ = [
     'ObservableSelectionDict',
     'ObservableOptionalSelectionDict',
     'ObservableDefaultSelectionDict',
+    'ObservableOptionalDefaultSelectionDict',
     'ObservableRootedPaths',
     'ObservableSelectionEnum',
     'ObservableOptionalSelectionEnum',

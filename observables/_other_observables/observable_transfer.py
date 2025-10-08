@@ -107,7 +107,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         self,
         input_trigger_hooks: Mapping[IHK, HookLike[IHV]|IHV],
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
-        output_trigger_hook_keys: set[OHK] = set(),
+        output_trigger_hook_keys: set[OHK],
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
         assume_inverse_callable_is_always_valid: bool = False,
         precision_threshold_for_inverse_callable_validation: float = 1e-6,

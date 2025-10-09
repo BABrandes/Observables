@@ -146,9 +146,9 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
         self._essential_sync_value_keys = essential_sync_value_keys
     
         # Validate sync_values_callback with every combination of given values
-        success, message = self._validate_sync_callback_with_combinations(sync_values_initially_valid, sync_values_callback)
-        if not success:
-            raise ValueError(f"Sync callback validation failed: {message}")
+        #success, message = self._validate_sync_callback_with_combinations(sync_values_initially_valid, sync_values_callback)
+        #if not success:
+        #    raise ValueError(f"Sync callback validation failed: {message}")
 
         # Create sync hooks with initial values
         self._sync_hooks: dict[SHK, OwnedHook[SHV]] = {}

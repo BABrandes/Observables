@@ -1,11 +1,12 @@
 from typing import Generic, TypeVar, Optional, Callable
+from threading import RLock
 import logging
+import inspect
+
 from .hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.general import log
-from threading import RLock
 from .._utils.base_listening import BaseListening
-
 from .._utils.nexus_manager import NexusManager
 from .._utils.hook_nexus import HookNexus
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
@@ -141,6 +142,16 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
         with self._lock:
 
+            # Check if we're being called during garbage collection by inspecting the call stack
+            is_being_garbage_collected = any(frame.function == '__del__' for frame in inspect.stack())
+
+            # If we're being garbage collected and not in the nexus anymore,
+            # it means other hooks were already garbage collected and their weak
+            # references were cleaned up. This is fine - just skip the disconnect.
+            if is_being_garbage_collected and self not in self._hook_nexus.hooks:
+                log(self, "disconnect", self._logger, True, "Hook already removed during garbage collection, skipping disconnect")
+                return
+            
             if self not in self._hook_nexus.hooks:
                 raise ValueError("Hook was not found in its own hook nexus!")
             

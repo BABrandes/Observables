@@ -142,7 +142,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         with self._lock:
 
             if self not in self._hook_nexus.hooks:
-                raise ValueError("Hook is already disconnected")
+                raise ValueError("Hook was not found in its own hook nexus!")
             
             if len(self._hook_nexus.hooks) <= 1:
                 # If we're the last hook, we're already effectively disconnected
@@ -180,7 +180,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             hook_nexus: The new hook nexus to replace the current one
         """
         
-        self._hook_nexus = hook_nexus
+        with self._lock:
+            self._hook_nexus = hook_nexus
         
         log(self, "replace_hook_nexus", self._logger, True, "Successfully replaced hook nexus")
 

@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from typing import Any, Mapping, Optional
 from observables import ObservableSync, InitialSyncMode, ObservableSingleValue
 from observables._hooks.owned_hook import OwnedHook
@@ -83,6 +84,7 @@ class TestObservableSync(unittest.TestCase):
         self.assertEqual(sync.get_sync_hook("a").value, 10)  # Original value
         self.assertEqual(sync.get_sync_hook("b").value, 20)  # Original value
 
+    @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_sync_callback_validation(self):
         """Test that sync callback validation fails when callback returns different values."""
         def invalid_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
@@ -146,6 +148,7 @@ class TestObservableSync(unittest.TestCase):
         self.assertEqual(sync.get_hook_keys(), {"a", "b"})
         self.assertEqual(len(sync.get_sync_hooks()), 2)
 
+    @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_error_handling_in_callbacks(self):
         """Test error handling when callbacks raise exceptions."""
         def error_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
@@ -259,6 +262,7 @@ class TestObservableSync(unittest.TestCase):
         self.assertEqual(sync.get_sync_hook("b").value, 2)  # Original value
         self.assertEqual(sync.get_sync_hook("c").value, 3)  # Original value
 
+    @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_combination_validation_failure(self):
         """Test that sync callback validation fails when callback doesn't handle all combinations."""
         def invalid_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:

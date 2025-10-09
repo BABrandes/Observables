@@ -99,6 +99,12 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
+    def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
+        """
+        Replace the hook nexus that this hook belongs to.
+        """
+        ...
+
     #########################################################
     # Final methods
     #########################################################

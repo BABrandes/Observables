@@ -137,6 +137,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         If this is the corresponding nexus has only this one hook, nothing will happen.
         """
 
+        log(self, "disconnect", self._logger, True, "Disconnecting hook initiated")
+
         with self._lock:
 
             if self not in self._hook_nexus.hooks:
@@ -144,19 +146,20 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             
             if len(self._hook_nexus.hooks) <= 1:
                 # If we're the last hook, we're already effectively disconnected
+                log(self, "disconnect", self._logger, True, "Hook was the last in the nexus, so it is already 'disconnected'")
                 return
             
             # Create a new isolated nexus for this hook
             from .._utils.hook_nexus import HookNexus
-            new_group = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
+            new_hook_nexus = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
             
             # Remove this hook from the current nexus
             self._hook_nexus.remove_hook(self)
             
             # Update this hook's nexus reference
-            self._hook_nexus = new_group
+            self._hook_nexus = new_hook_nexus
 
-            log(self, "detach", self._logger, True, "Successfully detached hook")
+            log(self, "disconnect", self._logger, True, "Successfully disconnected hook")
             
             # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others

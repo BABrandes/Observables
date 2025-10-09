@@ -187,6 +187,12 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
     def root_path(self) -> Optional[Path]:
         return self._root_path_hook.value
 
+    @root_path.setter
+    def root_path(self, path: Optional[Path]) -> None:
+        success, msg = self._root_path_hook.submit_value(path)
+        if not success:
+            raise ValueError(msg)
+
     def get_relative_path_hook(self, key: EK) -> OwnedHookLike[Optional[str]]:
         return self._get_hook(self.element_key_to_relative_path_key(key)) # type: ignore
 

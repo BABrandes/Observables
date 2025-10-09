@@ -109,7 +109,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
         output_trigger_hook_keys: set[OHK],
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
-        reverse_callable_mode: Literal["check_is_inverse", "is_not_inverse", "is_inverse_but_dont_validate"] = "check_is_inverse",
+        assume_inverse_callable_is_always_valid: bool = False,
         precision_threshold_for_inverse_callable_validation: float = 1e-6,
         logger: Optional[Logger] = None
     ):
@@ -164,7 +164,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         self._input_hooks: dict[IHK, HookLike[IHV]|IHV] = {}
         self._output_hooks: dict[OHK, HookLike[OHV]|OHV] = {}
 
-        self._reverse_callable_mode: Literal["check_is_inverse", "is_not_inverse", "is_inverse_but_dont_validate"] = reverse_callable_mode
+        self._assume_inverse_callable_is_always_valid: bool = assume_inverse_callable_is_always_valid
         self._precision_threshold_for_inverse_callable_validation: float = precision_threshold_for_inverse_callable_validation
 
         # Create input hooks for all keys, connecting to external hooks when provided
@@ -205,7 +205,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             This callback is called when any hook value changes.
             """
 
-            if reverse_callable is not None and self_ref._reverse_callable_mode == "check_is_inverse":
+            if reverse_callable is not None and not self_ref._assume_inverse_callable_is_always_valid:
                 is_inverse, msg = self_ref.check_if_reverse_callable_is_the_inverse_of_the_forward_callable()
                 if not is_inverse:
                     raise ValueError(f"Reverse callable validation failed: {msg}")

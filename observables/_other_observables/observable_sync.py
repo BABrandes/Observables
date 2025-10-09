@@ -131,17 +131,20 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
     def __init__(
         self,
         sync_values_initially_valid: Mapping[SHK, SHV],
-        sync_values_callback: Callable[[Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]],
+        sync_values_callback: Callable[[Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]] | Callable[[Mapping[SHK, SHV], Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]],
+        essential_sync_value_keys: set[SHK] = set(),
         logger: Optional[Logger] = None):
         """
         Args:
             sync_values_initially_valid: The initial values for the sync hooks
             sync_values_callback: The callback that defines the relationship between the sync hooks (It takes "submitted_values"). It should return a tuple with a boolean indicating if the value combination is valid and a dict of synched values. It will be completed by the ObservableSync. If it is not valid, it should return (False, Any).
+            essential_sync_value_keys: The keys that are essential and will be also passed to the sync_values_callback.
             logger: The logger to use
         """
 
         self._sync_values_callback = sync_values_callback
-
+        self._essential_sync_value_keys = essential_sync_value_keys
+    
         # Validate sync_values_callback with every combination of given values
         success, message = self._validate_sync_callback_with_combinations(sync_values_initially_valid, sync_values_callback)
         if not success:
@@ -171,8 +174,15 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
 
             values_to_be_added: dict[SHK, SHV] = {}
 
+            #Collect the essential sync value keys
+            essential_sync_values = {key: current_values[key] for key in self._essential_sync_value_keys} if len(self._essential_sync_value_keys) > 0 else {}
+               
             # First, perform the sync values callback with submitted values
-            success, synced_values = self_ref._sync_values_callback(submitted_values) # type: ignore
+            if len(self_ref._essential_sync_value_keys) > 0:
+                success, synced_values = self_ref._sync_values_callback(submitted_values, essential_sync_values) # type: ignore
+            else:
+                success, synced_values = self_ref._sync_values_callback(submitted_values) # type: ignore
+
             if not success:
                 raise ValueError(f"Sync callback returned invalid values for combination {submitted_values}")
 
@@ -187,13 +197,16 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
                     completed_values[key] = current_values[key] # type: ignore
 
             # Now add all synced values to the values to be added, if they are not already in the submitted values
-            for key in synced_values:
+            for key in synced_values: # type: ignore
                 if not key in submitted_values:
                     values_to_be_added[key] = synced_values[key] # type: ignore
 
             # Call the sync values callback with the completed values to check if it is valid
             try:
-                success, _ = self_ref._sync_values_callback(completed_values)
+                if len(self_ref._essential_sync_value_keys) > 0:
+                    success, _ = self_ref._sync_values_callback(completed_values, essential_sync_values) # type: ignore
+                else:
+                    success, _ = self_ref._sync_values_callback(completed_values) # type: ignore
                 if not success:
                     raise ValueError(f"Sync callback returned invalid values for combination {completed_values}")
             except Exception as e:
@@ -209,7 +222,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
             add_values_to_be_updated_callback=add_values_to_be_updated_callback
         )
 
-    def _validate_sync_callback_with_combinations(self, sync_values_to_be_validated: Mapping[SHK, SHV], sync_values_callback: Callable[[Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]]) -> tuple[bool, str]:
+    def _validate_sync_callback_with_combinations(self, sync_values_to_be_validated: Mapping[SHK, SHV], sync_values_callback: Callable[[Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]] | Callable[[Mapping[SHK, SHV], Mapping[SHK, SHV]], tuple[bool, dict[SHK, SHV]]]) -> tuple[bool, str]:
         """
         Validate the sync_values_callback with every combination of given values.
         For example, if 3 values are synced (A, B, C), it tests A, AB, AC, B, BC, C, ABC.
@@ -218,7 +231,10 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
         import itertools
         
         keys = list(sync_values_to_be_validated.keys())
-        
+
+        #Collect the essential sync value keys
+        essential_sync_values = essential_sync_values = {key: sync_values_to_be_validated[key] for key in self._essential_sync_value_keys} if len(self._essential_sync_value_keys) > 0 else {}
+
         # Test every possible combination of keys (excluding empty set)
         for r in range(1, len(keys) + 1):  # Start from 1, not 0
             for combination in itertools.combinations(keys, r):
@@ -227,7 +243,10 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
                 
                 try:
                     # Get the result of the sync callback
-                    success, result_values = sync_values_callback(test_values)
+                    if len(essential_sync_values) > 0:
+                        success, result_values = sync_values_callback(test_values, essential_sync_values) # type: ignore
+                    else:
+                        success, result_values = sync_values_callback(test_values) # type: ignore
 
                     if not success:
                         return False, f"Sync callback returned invalid values for combination {combination}"

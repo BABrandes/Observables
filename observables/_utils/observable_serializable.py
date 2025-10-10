@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Generic, TypeVar
+from typing import Mapping, Optional, Generic, TypeVar, Protocol, Any
 from typing_extensions import Self
 from logging import Logger
 
@@ -17,3 +17,10 @@ class ObservableSerializable(Generic[HK, HV]):
         logger: Optional[Logger] = None,
     ) -> Self:
         return cls(values, logger=logger) # type: ignore
+
+O = TypeVar("O", bound=ObservableSerializable[Any, Any], covariant=True)
+
+class HasSerializable(Protocol[O]):
+    @property
+    def as_serializable(self) -> O:
+        ...

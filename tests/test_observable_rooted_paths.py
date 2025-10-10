@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import Mock
 
-from observables import OwnedHookLike, ObservableSingleValue, InitialSyncMode, HookLike
-from observables._other_observables.observable_rooted_paths import ObservableRootedPaths, ROOT_PATH_KEY
+from observables import OwnedHookLike, ObservableSingleValue, InitialSyncMode, HookLike, ObservableRootedPaths
+from observables._other_observables.observable_rooted_paths import ROOT_PATH_KEY
 
 class TestObservableRootedPaths(unittest.TestCase):
     """Test cases for ObservableRootedPaths."""
@@ -337,13 +337,15 @@ class TestObservableRootedPaths(unittest.TestCase):
     def test_serialization_callback(self):
         """Test the serialization callback functionality."""
         initial_values: dict[str, str|None] = {"data": "data/", "config": "config/"}
-        manager = ObservableRootedPaths(
+        manager = ObservableRootedPaths[str](
             root_path_initial_value=self.test_root,
             rooted_elements_initial_relative_path_values=initial_values
         )
+
+        manager_serializable = manager.as_serializable
         
         # Test getting primary value references for serialization
-        primary_values = manager.dict_of_value_references_for_serialization
+        primary_values = manager_serializable.dict_of_value_references_for_serialization
         
         # Should include root path
         self.assertIn(ROOT_PATH_KEY, primary_values)

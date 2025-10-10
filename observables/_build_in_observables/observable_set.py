@@ -4,7 +4,7 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable
+from .._utils.observable_serializable import ObservableSerializable, HasSerializable
 
 T = TypeVar("T")
 
@@ -56,7 +56,7 @@ class ObservableSetLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSetLike[T], HasSerializable["ObservableSetSerializable[T]"], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -140,6 +140,14 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+
+    @property
+    def as_serializable(self) -> "ObservableSetSerializable[T]":
+        from observables import ObservableSetSerializable
+        obs: ObservableSetSerializable[T] = ObservableSetSerializable[T](
+            values={"value": self.value},
+            logger=self._logger)
+        return obs
 
     @property
     def value(self) -> set[T]:

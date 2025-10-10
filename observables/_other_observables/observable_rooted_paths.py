@@ -3,7 +3,7 @@ from pathlib import Path
 from logging import Logger
 
 from .._utils.base_carries_hooks import BaseCarriesHooks
-from .._utils.observable_serializable import ObservableSerializable
+from .._utils.observable_serializable import ObservableSerializable, HasSerializable
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.hook_nexus import HookNexus
@@ -12,7 +12,7 @@ EK = TypeVar("EK", bound=str)
 
 ROOT_PATH_KEY: str = "root_path"
 
-class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], Generic[EK]):
+class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], HasSerializable["ObservableRootedPathsSerializable[EK]"], Generic[EK]):
     """
     Manages a root directory with associated elements (files or directories) and provides
     observable hooks for path management.
@@ -288,8 +288,20 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         else:
             raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")
 
+    @property
+    def as_serializable(self) -> "ObservableRootedPathsSerializable[EK]":
+        values: Mapping[str, Path|str|None] = {
+            ROOT_PATH_KEY: self._root_path_hook.value,
+            **{self.element_key_to_relative_path_key(key): self._rooted_element_path_hooks[self.element_key_to_relative_path_key(key)].value for key in self._rooted_element_keys}
+        }
+        from observables import ObservableRootedPathsSerializable
+        obs: ObservableRootedPathsSerializable[EK] = ObservableRootedPathsSerializable[EK](
+            values=values,
+            logger=self._logger)
+        return obs
+
 class ObservableRootedPathsSerializable(ObservableRootedPaths[EK], ObservableSerializable[str, str|Path|None], Generic[EK]):
-    
+
     def __init__(self, values: Mapping[str, Path|str|None], logger: Optional[Logger] = None) -> None:
 
         root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore

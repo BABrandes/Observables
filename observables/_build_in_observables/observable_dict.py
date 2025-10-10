@@ -5,7 +5,7 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
-from .._utils.observable_serializable import ObservableSerializable
+from .._utils.observable_serializable import ObservableSerializable, HasSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -57,7 +57,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         """
         ...
     
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], HasSerializable["ObservableDictSerializable[K, V]"], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -145,6 +145,14 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+
+    @property
+    def as_serializable(self) -> "ObservableDictSerializable[K, V]":
+        from observables import ObservableDictSerializable
+        obs: ObservableDictSerializable[K, V] = ObservableDictSerializable[K, V](
+            values={"value": self.value},
+            logger=self._logger)
+        return obs
 
     @property
     def value(self) -> dict[K, V]:

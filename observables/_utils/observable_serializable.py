@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Generic, TypeVar, Protocol, Any
+from typing import Mapping, Optional, Generic, TypeVar, Protocol, Any, runtime_checkable
 from typing_extensions import Self
 from logging import Logger
 
@@ -20,6 +20,7 @@ class ObservableSerializable(Generic[HK, HV]):
 
 O = TypeVar("O", bound=ObservableSerializable[Any, Any], covariant=True)
 
+@runtime_checkable
 class HasSerializable(Protocol[O]):
     @property
     def as_serializable(self) -> O:

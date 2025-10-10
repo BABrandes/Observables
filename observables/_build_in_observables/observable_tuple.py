@@ -5,7 +5,7 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -56,7 +56,7 @@ class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableTupleLike[T], HasSerializable["ObservableTupleSerializable[T]"], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableTupleLike[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -376,23 +376,10 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         return hash(self._primary_hooks["value"].value)
 
-    @property
-    def as_serializable(self) -> "ObservableTupleSerializable[T]":
-        from observables import ObservableTupleSerializable
-        obs: ObservableTupleSerializable[T] = ObservableTupleSerializable[T](
-            values={"value": self.value},
-            logger=self._logger)
-        return obs
+    #### ObservableSerializable implementation ####
 
-class ObservableTupleSerializable(ObservableTuple[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
-    def __init__(self, values: Mapping[Literal["value"], tuple[T, ...]], logger: Optional[Logger] = None) -> None:
-        tuple_value = values["value"]
-        if not isinstance(tuple_value, tuple): # type: ignore
-            raise ValueError("Value is not a tuple")
-        super().__init__(
-            tuple_value,
-            logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
         return {"value": self._primary_hooks["value"].value}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], tuple[T, ...]]) -> None:
+        self.submit_values({"value": values["value"]})

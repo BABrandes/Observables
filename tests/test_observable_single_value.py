@@ -464,6 +464,39 @@ class TestObservableSingleValue(unittest.TestCase):
         obs.remove_listeners(callback)
         self.assertEqual(len(obs.listeners), 0)
 
+    def test_serialization(self):
+        """Test the complete serialization and deserialization cycle."""
+        # Step 1: Create an ObservableSingleValue instance
+        obs = ObservableSingleValue(42, logger=logger)
+        
+        # Step 2: Fill it (modify the value)
+        obs.value = 100
+        
+        # Store the expected state after step 2
+        expected_value = obs.value
+        
+        # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
+        serialized_data = obs.get_value_references_for_serialization()
+        
+        # Verify serialized data contains expected keys
+        self.assertIn("value", serialized_data)
+        self.assertEqual(serialized_data["value"], expected_value)
+        
+        # Step 4: Delete the object
+        del obs
+        
+        # Step 5: Create a fresh ObservableSingleValue instance
+        obs_restored = ObservableSingleValue(0, logger=logger)
+        
+        # Verify it starts with different value
+        self.assertEqual(obs_restored.value, 0)
+        
+        # Step 6: Use "set_value_references_from_serialization"
+        obs_restored.set_value_references_from_serialization(serialized_data)
+        
+        # Step 7: Check if the object is the same as after step 2
+        self.assertEqual(obs_restored.value, expected_value)
+
 
 if __name__ == '__main__':
     unittest.main()

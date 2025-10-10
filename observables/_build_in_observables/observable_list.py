@@ -4,7 +4,7 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -56,7 +56,7 @@ class ObservableListLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableSerializable[Literal["value"], list[T]], ObservableListLike[T], HasSerializable["ObservableListSerializable[T]"], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableListLike[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -141,14 +141,6 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    @property
-    def as_serializable(self) -> "ObservableListSerializable[T]":
-        from observables import ObservableListSerializable
-        obs: ObservableListSerializable[T] = ObservableListSerializable[T](
-            values={"value": self.value},
-            logger=self._logger)
-        return obs
 
     @property
     def value(self) -> list[T]:
@@ -594,16 +586,10 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         """
         return hash(tuple(self._primary_hooks["value"].value)) # type: ignore
 
-class ObservableListSerializable(ObservableList[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
-    def __init__(self, values: Mapping[Literal["value"], list[T]], logger: Optional[Logger] = None) -> None:
-        
-        list_value = values["value"]
-        if not isinstance(list_value, list): # type: ignore
-            raise ValueError("Value is not a list")
-        super().__init__(
-            list_value,
-            logger=logger)
+    #### ObservableSerializable implementation ####
 
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
         return {"value": self._primary_hooks["value"].value}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], list[T]]) -> None:
+        self.submit_values({"value": values["value"]})

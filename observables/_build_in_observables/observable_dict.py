@@ -5,7 +5,7 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -57,7 +57,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         """
         ...
     
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], HasSerializable["ObservableDictSerializable[K, V]"], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], ObservableSerializable[Literal["value"], dict[K, V]], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -145,14 +145,6 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    @property
-    def as_serializable(self) -> "ObservableDictSerializable[K, V]":
-        from observables import ObservableDictSerializable
-        obs: ObservableDictSerializable[K, V] = ObservableDictSerializable[K, V](
-            values={"value": self.value},
-            logger=self._logger)
-        return obs
 
     @property
     def value(self) -> dict[K, V]:
@@ -408,16 +400,10 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
     def __repr__(self) -> str:
         return f"ObservableDict({self._primary_hooks['value'].value})"
 
-class ObservableDictSerializable(ObservableDict[K, V], ObservableSerializable[Literal["value"], dict[K, V]], Generic[K, V]):
+    #### ObservableSerializable implementation ####
 
-    def __init__(self, values: Mapping[Literal["value"], dict[K, V]], logger: Optional[Logger] = None) -> None:
-        dict_value = values["value"]
-        if not isinstance(dict_value, dict): # type: ignore
-            raise ValueError("Value is not a dictionary")
-        super().__init__(
-            dict_value,
-            logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
         return {"value": self._primary_hooks["value"].value}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], dict[K, V]]) -> None:
+        self.submit_values({"value": values["value"]})

@@ -4,12 +4,12 @@ from logging import Logger
 
 from .._other_observables.observable_selection_option import ObservableSelectionOption, ObservableOptionalSelectionOption
 from .._hooks.hook_like import HookLike
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 
 E = TypeVar("E", bound=Enum)
 
-class ObservableSelectionEnum(ObservableSelectionOption[E], HasSerializable["ObservableSelectionEnumSerializable[E]"], Generic[E]):
+class ObservableSelectionEnum(ObservableSelectionOption[E], ObservableSerializable[Literal["enum_value", "enum_options"], E|set[E]], Generic[E]):
     """
     An observable that manages a selection from a set of enum options.
     """
@@ -29,19 +29,17 @@ class ObservableSelectionEnum(ObservableSelectionOption[E], HasSerializable["Obs
 
         super().__init__(enum_value, enum_options, logger=logger)
 
-    @property
-    def as_serializable(self) -> "ObservableSelectionEnumSerializable[E]":
-        values: Mapping[Literal["enum_value", "enum_options"], E|set[E]] = {
-            "enum_value": self.selected_option,
-            "enum_options": self.available_options,
-        }
-        from observables import ObservableSelectionEnumSerializable
-        obs: ObservableSelectionEnumSerializable[E] = ObservableSelectionEnumSerializable[E](
-            values=values,
-            logger=self._logger)
-        return obs
+    #### ObservableSerializable implementation ####
 
-class ObservableOptionalSelectionEnum(ObservableOptionalSelectionOption[E], HasSerializable["ObservableOptionalSelectionEnumSerializable[E]"], Generic[E]):
+    def get_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], E|set[E]]:
+        return {"enum_value": self.selected_option, "enum_options": self.available_options}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["enum_value", "enum_options"], E|set[E]]) -> None:
+        enum_value: E = values["enum_value"] # type: ignore
+        enum_options: set[E] = values["enum_options"] # type: ignore
+        self.submit_values({"selected_option": enum_value, "available_options": enum_options})
+
+class ObservableOptionalSelectionEnum(ObservableOptionalSelectionOption[E], ObservableSerializable[Literal["enum_value", "enum_options"], Optional[E]|set[E]], Generic[E]):
     """
     An observable that manages a selection from a set of enum options.
     """
@@ -58,35 +56,12 @@ class ObservableOptionalSelectionEnum(ObservableOptionalSelectionOption[E], HasS
 
         super().__init__(enum_value, enum_options, logger=logger)
 
-    @property
-    def as_serializable(self) -> "ObservableOptionalSelectionEnumSerializable[E]":
-        values: Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]] = {
-            "enum_value": self.selected_option,
-            "enum_options": self.available_options,
-        }
-        from observables import ObservableOptionalSelectionEnumSerializable
-        obs: ObservableOptionalSelectionEnumSerializable[E] = ObservableOptionalSelectionEnumSerializable[E](
-            values=values,
-            logger=self._logger)
-        return obs
+    #### ObservableSerializable implementation ####
 
-class ObservableSelectionEnumSerializable(ObservableSelectionEnum[E], ObservableSerializable[Literal["enum_value", "enum_options"], E|set[E]], Generic[E]):
-    
-    def __init__(self, values: Mapping[Literal["enum_value", "enum_options"], E|set[E]], logger: Optional[Logger] = None) -> None:
-        enum_value: E = values["enum_value"] # type: ignore
-        enum_options: set[E] = values["enum_options"] # type: ignore
-        super().__init__(enum_value, enum_options, logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], E|set[E]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]]:
         return {"enum_value": self.selected_option, "enum_options": self.available_options}
 
-class ObservableOptionalSelectionEnumSerializable(ObservableOptionalSelectionEnum[E], ObservableSerializable[Literal["enum_value", "enum_options"], Optional[E]|set[E]], Generic[E]):
-    def __init__(self, values: Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]], logger: Optional[Logger] = None) -> None:
+    def set_value_references_from_serialization(self, values: Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]]) -> None:
         enum_value: Optional[E] = values["enum_value"] # type: ignore
         enum_options: set[E] = values["enum_options"] # type: ignore
-        super().__init__(enum_value, enum_options, logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]]:
-        return {"enum_value": self.selected_option, "enum_options": self.available_options}
+        self.submit_values({"selected_option": enum_value, "available_options": enum_options})

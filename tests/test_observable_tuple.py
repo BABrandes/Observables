@@ -456,6 +456,39 @@ class TestObservableTuple(ObservableTestCase):
         obs.remove_listeners(callback)
         self.assertEqual(len(obs.listeners), 0)
 
+    def test_serialization(self):
+        """Test the complete serialization and deserialization cycle."""
+        # Step 1: Create an ObservableTuple instance
+        obs = ObservableTuple((1, 2, 3))
+        
+        # Step 2: Fill it (modify the tuple)
+        obs.value = (10, 20, 30, 40)
+        
+        # Store the expected state after step 2
+        expected_tuple = obs.value
+        
+        # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
+        serialized_data = obs.get_value_references_for_serialization()
+        
+        # Verify serialized data contains expected keys
+        self.assertIn("value", serialized_data)
+        self.assertEqual(serialized_data["value"], expected_tuple)
+        
+        # Step 4: Delete the object
+        del obs
+        
+        # Step 5: Create a fresh ObservableTuple instance
+        obs_restored = ObservableTuple(())
+        
+        # Verify it starts empty
+        self.assertEqual(obs_restored.value, ())
+        
+        # Step 6: Use "set_value_references_from_serialization"
+        obs_restored.set_value_references_from_serialization(serialized_data)
+        
+        # Step 7: Check if the object is the same as after step 2
+        self.assertEqual(obs_restored.value, expected_tuple)
+
 if __name__ == '__main__':
     unittest.main()
 
@@ -597,16 +630,5 @@ class TestObservableIntegration(unittest.TestCase):
         # With bidirectional binding, all observables should update to the same value
         self.assertEqual(obs2.value, 200)
         self.assertEqual(obs3.value, 200)
-    
-
-    
-
-    
-
-    
-    
-
-
-    
 
     

@@ -335,27 +335,88 @@ class TestObservableRootedPaths(unittest.TestCase):
             manager.get_value_reference_of_hook("nonexistent_key")
 
     def test_serialization_callback(self):
-        """Test the serialization callback functionality."""
-        initial_values: dict[str, str|None] = {"data": "data/", "config": "config/"}
+        """Test the complete serialization and deserialization cycle."""
+        # Step 1: Create an ObservableRootedPaths instance
+        initial_values: dict[str, str|None] = {
+            "data": "data/",
+            "config": "config/settings/",
+            "logs": "logs/app.log",
+            "cache": None
+        }
+        
         manager = ObservableRootedPaths[str](
             root_path_initial_value=self.test_root,
             rooted_elements_initial_relative_path_values=initial_values
         )
-
-        manager_serializable = manager.as_serializable
         
-        # Test getting primary value references for serialization
-        primary_values = manager_serializable.dict_of_value_references_for_serialization
+        # Step 2: Fill it (modify some values)
+        manager.set_relative_path("data", "new_data/")
+        manager.set_relative_path("cache", "cache/tmp/")
         
-        # Should include root path
-        self.assertIn(ROOT_PATH_KEY, primary_values)
-        self.assertEqual(primary_values[ROOT_PATH_KEY], self.test_root)
+        # Store the expected state after step 2
+        expected_root = manager.root_path
+        expected_relative_paths = {
+            "data": manager.get_relative_path_hook("data").value,
+            "config": manager.get_relative_path_hook("config").value,
+            "logs": manager.get_relative_path_hook("logs").value,
+            "cache": manager.get_relative_path_hook("cache").value,
+        }
+        expected_absolute_paths = {
+            "data": manager.get_absolute_path_hook("data").value,
+            "config": manager.get_absolute_path_hook("config").value,
+            "logs": manager.get_absolute_path_hook("logs").value,
+            "cache": manager.get_absolute_path_hook("cache").value,
+        }
         
-        # Should include relative paths for all elements
-        for key in initial_values:
-            relative_path_key = f"{key}_relative_path"
-            self.assertIn(relative_path_key, primary_values)
-            self.assertEqual(primary_values[relative_path_key], initial_values[key])
+        # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
+        serialized_data = manager.get_value_references_for_serialization()
+        
+        # Verify serialized data contains expected keys
+        self.assertIn(ROOT_PATH_KEY, serialized_data)
+        self.assertEqual(serialized_data[ROOT_PATH_KEY], expected_root)
+        for key in initial_values.keys():
+            self.assertIn(key, serialized_data)
+            self.assertEqual(serialized_data[key], expected_relative_paths[key])
+        
+        # Step 4: Delete the object
+        del manager
+        
+        # Step 5: Create a fresh ObservableRootedPaths instance
+        manager_restored = ObservableRootedPaths[str](
+            root_path_initial_value=None,
+            rooted_elements_initial_relative_path_values={
+                "data": None,
+                "config": None,
+                "logs": None,
+                "cache": None
+            }
+        )
+        
+        # Verify it starts empty/different
+        self.assertIsNone(manager_restored.root_path)
+        
+        # Step 6: Use "set_value_references_from_serialization"
+        manager_restored.set_value_references_from_serialization(serialized_data)
+        
+        # Step 7: Check if the object is the same as after step 2
+        self.assertEqual(manager_restored.root_path, expected_root)
+        
+        for key in initial_values.keys():
+            # Check relative paths match
+            restored_relative = manager_restored.get_relative_path_hook(key).value
+            self.assertEqual(
+                restored_relative, 
+                expected_relative_paths[key],
+                f"Relative path for '{key}' doesn't match: {restored_relative} != {expected_relative_paths[key]}"
+            )
+            
+            # Check absolute paths match
+            restored_absolute = manager_restored.get_absolute_path_hook(key).value
+            self.assertEqual(
+                restored_absolute,
+                expected_absolute_paths[key],
+                f"Absolute path for '{key}' doesn't match: {restored_absolute} != {expected_absolute_paths[key]}"
+            )
 
     def test_complex_scenario(self):
         """Test a complex scenario with multiple elements and path changes."""

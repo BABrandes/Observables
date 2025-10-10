@@ -473,6 +473,42 @@ class TestObservableDict(ObservableTestCase):
         obs.remove_listeners(callback)
         self.assertEqual(len(obs.listeners), 0)
 
+    def test_serialization(self):
+        """Test the complete serialization and deserialization cycle."""
+        # Step 1: Create an ObservableDict instance
+        obs = ObservableDict({"a": 1, "b": 2})
+        
+        # Step 2: Fill it (modify the dict)
+        obs["c"] = 3
+        obs["a"] = 10
+        del obs["b"]
+        obs["d"] = 4
+        
+        # Store the expected state after step 2
+        expected_dict = obs.value.copy()
+        
+        # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
+        serialized_data = obs.get_value_references_for_serialization()
+        
+        # Verify serialized data contains expected keys
+        self.assertIn("value", serialized_data)
+        self.assertEqual(serialized_data["value"], expected_dict)
+        
+        # Step 4: Delete the object
+        del obs
+        
+        # Step 5: Create a fresh ObservableDict instance
+        obs_restored = ObservableDict[str, int]({})
+        
+        # Verify it starts empty
+        self.assertEqual(obs_restored.value, {})
+        
+        # Step 6: Use "set_value_references_from_serialization"
+        obs_restored.set_value_references_from_serialization(serialized_data)
+        
+        # Step 7: Check if the object is the same as after step 2
+        self.assertEqual(obs_restored.value, expected_dict)
+
 
 if __name__ == '__main__':
     unittest.main()

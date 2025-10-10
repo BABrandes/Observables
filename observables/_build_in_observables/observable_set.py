@@ -4,7 +4,7 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -56,7 +56,7 @@ class ObservableSetLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSetLike[T], HasSerializable["ObservableSetSerializable[T]"], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSetLike[T], ObservableSerializable[Literal["value"], set[T]], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -140,14 +140,6 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    @property
-    def as_serializable(self) -> "ObservableSetSerializable[T]":
-        from observables import ObservableSetSerializable
-        obs: ObservableSetSerializable[T] = ObservableSetSerializable[T](
-            values={"value": self.value},
-            logger=self._logger)
-        return obs
 
     @property
     def value(self) -> set[T]:
@@ -567,15 +559,10 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         """
         return hash(frozenset(self._primary_hooks["value"].value)) # type: ignore
 
-class ObservableSetSerializable(ObservableSet[T], ObservableSerializable[Literal["value"], set[T]], Generic[T]):
-    def __init__(self, values: Mapping[Literal["value"], set[T]], logger: Optional[Logger] = None) -> None:
-        set_value = values["value"]
-        if not isinstance(set_value, set): # type: ignore
-            raise ValueError("Value is not a set")
-        super().__init__(
-            set_value,
-            logger=logger)
+    #### ObservableSerializable implementation ####
 
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], set[T]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], set[T]]:
         return {"value": self._primary_hooks["value"].value}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], set[T]]) -> None:
+        self.submit_values({"value": values["value"]})

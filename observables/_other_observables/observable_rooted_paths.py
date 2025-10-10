@@ -3,7 +3,7 @@ from pathlib import Path
 from logging import Logger
 
 from .._utils.base_carries_hooks import BaseCarriesHooks
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.hook_nexus import HookNexus
@@ -12,7 +12,7 @@ EK = TypeVar("EK", bound=str)
 
 ROOT_PATH_KEY: str = "root_path"
 
-class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], HasSerializable["ObservableRootedPathsSerializable[EK]"], Generic[EK]):
+class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], ObservableSerializable[str, str|Path|None], Generic[EK]):
     """
     Manages a root directory with associated elements (files or directories) and provides
     observable hooks for path management.
@@ -288,43 +288,41 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         else:
             raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")
 
-    @property
-    def as_serializable(self) -> "ObservableRootedPathsSerializable[EK]":
-        values: Mapping[str, Path|str|None] = {
-            ROOT_PATH_KEY: self._root_path_hook.value,
-            **{self.element_key_to_relative_path_key(key): self._rooted_element_path_hooks[self.element_key_to_relative_path_key(key)].value for key in self._rooted_element_keys}
-        }
-        from observables import ObservableRootedPathsSerializable
-        obs: ObservableRootedPathsSerializable[EK] = ObservableRootedPathsSerializable[EK](
-            values=values,
-            logger=self._logger)
-        return obs
+    #### ObservableSerializable implementation ####
+    
+    def get_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
 
-class ObservableRootedPathsSerializable(ObservableRootedPaths[EK], ObservableSerializable[str, str|Path|None], Generic[EK]):
-
-    def __init__(self, values: Mapping[str, Path|str|None], logger: Optional[Logger] = None) -> None:
-
-        root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
-        if not isinstance(root_path, Path): # type: ignore
+        root_path: Optional[Path] = self._root_path_hook.value
+        if root_path is not None and not isinstance(root_path, Path): # type: ignore
             raise ValueError("Root path must be a path")
         rooted_elements_initial_relative_path_values: dict[EK, str|None] = {}
-
-        for key, value in values.items():
-            if key.endswith("_relative_path"):
-                relative_path_key = key.replace("_relative_path", "")
-                if not isinstance(value, str): # type: ignore
-                    raise ValueError("Relative path must be a string")
-                rooted_elements_initial_relative_path_values[relative_path_key] = value # type: ignore
-
-        super().__init__(
-            root_path,
-            rooted_elements_initial_relative_path_values,
-            logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
-        result = {ROOT_PATH_KEY: self._root_path_hook.value}
         for key in self._rooted_element_keys:
-            relative_path_key = self.element_key_to_relative_path_key(key)
-            result[relative_path_key] = self._rooted_element_path_hooks[relative_path_key].value # type: ignore
-        return result
+            relative_path_key: str = self.element_key_to_relative_path_key(key)
+            relative_path: Optional[str] = self._rooted_element_path_hooks[relative_path_key].value # type: ignore
+            if relative_path is not None and not isinstance(relative_path, str): # type: ignore
+                raise ValueError("Relative path must be a string")
+            rooted_elements_initial_relative_path_values[key] = relative_path
+        return {ROOT_PATH_KEY: root_path, **rooted_elements_initial_relative_path_values}
+    
+    def set_value_references_from_serialization(self, values: Mapping[str, Path|str|None]) -> None:
+        root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
+        if root_path is not None and not isinstance(root_path, Path): # type: ignore
+            raise ValueError("Root path must be a path")
+        
+        # Build the values dict for submission
+        values_to_submit: dict[str, Path|str|None] = {ROOT_PATH_KEY: root_path}
+        
+        for key in self._rooted_element_keys:
+            # Get the relative path from the serialized data (without _relative_path suffix)
+            relative_path: Optional[str] = values[key] # type: ignore
+            if relative_path is not None and not isinstance(relative_path, str): # type: ignore
+                raise ValueError("Relative path must be a string")
+            
+            # Add it to submission dict with the correct key (with _relative_path suffix)
+            relative_path_key: str = self.element_key_to_relative_path_key(key)
+            values_to_submit[relative_path_key] = relative_path
+
+        # Submit all values at once using BaseCarriesHooks.submit_values
+        success, msg = self.submit_values(values_to_submit) # type: ignore
+        if not success:
+            raise ValueError(f"Failed to set values from serialization: {msg}")

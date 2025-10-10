@@ -4,7 +4,7 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
-from .._utils.observable_serializable import ObservableSerializable, HasSerializable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -41,7 +41,7 @@ class ObservableSingleValueLike(CarriesHooksLike[Any, T], Protocol[T]):
         """
         ...
     
-class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueLike[T], HasSerializable["ObservableSingleValueSerializable[T]"], Generic[T]):
+class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueLike[T], ObservableSerializable[Literal["value"], T], Generic[T]):
     """
     An observable wrapper around a single value that supports bidirectional bindings and validation.
     
@@ -130,14 +130,6 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    @property
-    def as_serializable(self) -> "ObservableSingleValueSerializable[T]":
-        from observables import ObservableSingleValueSerializable
-        obs: ObservableSingleValueSerializable[T] = ObservableSingleValueSerializable[T](
-            values={"value": self.value},
-            logger=self._logger)
-        return obs
 
     @property
     def value(self) -> T:
@@ -383,11 +375,10 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         import math
         return math.trunc(self._primary_hooks["value"].value) # type: ignore
 
-class ObservableSingleValueSerializable(ObservableSingleValue[T], ObservableSerializable[Literal["value"], T], Generic[T]):
+    #### ObservableSerializable implementation ####
 
-    def __init__(self, values: Mapping[Literal["value"], T], logger: Optional[Logger] = None) -> None:
-        super().__init__(values["value"], logger=logger)
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
         return {"value": self._primary_hooks["value"].value}
+
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], T]) -> None:
+        self.submit_values({"value": values["value"]})

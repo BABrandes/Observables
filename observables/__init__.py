@@ -86,18 +86,18 @@ For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
 """
 
-from ._build_in_observables.observable_dict import ObservableDict, ObservableDictLike, ObservableDictSerializable
-from ._build_in_observables.observable_list import ObservableList, ObservableListLike, ObservableListSerializable
-from ._build_in_observables.observable_set import ObservableSet, ObservableSetLike, ObservableSetSerializable
-from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike, ObservableSingleValueSerializable
-from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike, ObservableTupleSerializable
+from ._build_in_observables.observable_dict import ObservableDict, ObservableDictLike
+from ._build_in_observables.observable_list import ObservableList, ObservableListLike
+from ._build_in_observables.observable_set import ObservableSet, ObservableSetLike
+from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
+from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
 from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
-from ._other_observables.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum, ObservableSelectionEnumSerializable, ObservableOptionalSelectionEnumSerializable
+from ._other_observables.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
 from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
 from ._other_observables.observable_transfer import ObservableTransfer
 from ._other_observables.observable_sync import ObservableSync
 from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
-from ._other_observables.observable_rooted_paths import ObservableRootedPaths, ObservableRootedPathsSerializable
+from ._other_observables.observable_rooted_paths import ObservableRootedPaths
 from ._utils.base_observable import BaseObservable
 from ._utils.initial_sync_mode import InitialSyncMode
 from ._hooks.owned_hook import OwnedHook
@@ -110,7 +110,7 @@ from ._utils.base_carries_hooks import CarriesHooksLike
 from ._utils.nexus_manager import NexusManager
 from ._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from ._utils.base_carries_hooks import BaseCarriesHooks
-from ._utils.observable_serializable import ObservableSerializable, HasSerializable
+from ._utils.observable_serializable import ObservableSerializable
 
 __all__ = [
     'ObservableDict',
@@ -151,15 +151,7 @@ __all__ = [
     'write_report',
     'NexusManager',
     'DEFAULT_NEXUS_MANAGER',
-    'ObservableRootedPathsSerializable',
-    'ObservableSelectionEnumSerializable',
-    'ObservableOptionalSelectionEnumSerializable',
-    'ObservableDictSerializable',
-    'ObservableListSerializable',
-    'ObservableSetSerializable',
-    'ObservableSingleValueSerializable',
-    'ObservableTupleSerializable',
-    'HasSerializable',
+    'ObservableRootedPaths',
 ]
 
 # Package metadata

@@ -10,7 +10,6 @@ from .general import log
 from .nexus_manager import NexusManager
 from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .base_listening import BaseListening
-from .observable_serializable import ObservableSerializable
 
 
 PHK = TypeVar("PHK")
@@ -19,7 +18,7 @@ PHV = TypeVar("PHV", covariant=True)
 SHV = TypeVar("SHV", covariant=True)
 O = TypeVar("O", bound="BaseObservable[Any, Any, Any, Any, Any]")
 
-class BaseObservable(BaseListening, ObservableSerializable[PHK, O], BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Generic[PHK, SHK, PHV, SHV, O]):
+class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Generic[PHK, SHK, PHV, SHV, O]):
     """
     Base class for all observable objects in the new hook-based architecture.
 
@@ -184,10 +183,6 @@ class BaseObservable(BaseListening, ObservableSerializable[PHK, O], BaseCarriesH
             value = _callback(initial_primary_hook_values)
             secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, logger, nexus_manager)
             self._secondary_hooks[key] = secondary_hook
-            
-        # Now initialize ObservableSerializable with access to _primary_hooks (after hooks are created)
-        # Use weak reference to avoid circular reference
-        ObservableSerializable.__init__(self, lambda self_ref: {key: hook.value for key, hook in self_ref._primary_hooks.items()}) # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods implementation

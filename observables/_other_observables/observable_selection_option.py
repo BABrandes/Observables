@@ -94,7 +94,6 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
-from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -261,7 +260,7 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
         else:
             raise ValueError("Available options is not a set")
 
-class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
+class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
     """
     An observable that manages a selection from a set of options.
     """
@@ -322,25 +321,6 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
                 
-        self._internal_construct_from_values(
-            {"selected_option": initial_selected_option, "available_options": initial_available_options},
-            logger=logger
-        )
-
-        if hook_selected_option is not None:
-            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-        if hook_available_options is not None:
-            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["selected_option", "available_options"], Any],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableSelectionOption instance.
-        """
-
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
@@ -364,11 +344,16 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
                 return False, f"Selected option {selected_option} not in options {available_options}"
 
         super().__init__(
-            initial_values,
+            initial_component_values_or_hooks={"selected_option": initial_selected_option, "available_options": initial_available_options}, # type: ignore
             verification_method=is_valid_value,
             secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])}, # type: ignore
             logger=logger
         )
+
+        if hook_selected_option is not None:
+            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+        if hook_available_options is not None:
+            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     @property
     def selected_option(self) -> T:
@@ -415,7 +400,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
     def __hash__(self) -> int:
         return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value)) # type: ignore
     
-class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableSerializable[Literal["selected_option", "available_options"], "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
+class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
 
     @overload
     def __init__(self, selected_option: HookLike[Optional[T]], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
@@ -474,25 +459,6 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
             else:
                 raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
                 
-        self._internal_construct_from_values(
-            {"selected_option": initial_selected_option, "available_options": initial_available_options},
-            logger=logger
-        )
-
-        if hook_selected_option is not None:
-            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-        if hook_available_options is not None:
-            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["selected_option", "available_options"], Any],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableOptionalSelectionOption instance.
-        """
-
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
                 selected_option: Optional[T] = x["selected_option"]
@@ -516,11 +482,16 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
                 return False, f"Selected option {selected_option} not in options {available_options}"
 
         super().__init__(
-            initial_values,
+            initial_component_values_or_hooks={"selected_option": initial_selected_option, "available_options": initial_available_options}, # type: ignore
             verification_method=is_valid_value,
             secondary_hook_callbacks={"number_of_available_options": lambda x: len(x["available_options"])}, # type: ignore
             logger=logger
         )
+
+        if hook_selected_option is not None:
+            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+        if hook_available_options is not None:
+            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
 
     @property
     def selected_option(self) -> Optional[T]:

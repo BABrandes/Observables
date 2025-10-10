@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Iterator
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Literal, Iterator, Mapping
 from typing import Optional
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
@@ -56,7 +56,7 @@ class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableSerializable[Literal["value"], "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
+class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableTupleLike[T], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -375,3 +375,20 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
             Hash value of the tuple
         """
         return hash(self._primary_hooks["value"].value)
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
+        return {"value": self._primary_hooks["value"].value}
+
+class ObservableTupleSerializable(ObservableTuple[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
+    def __init__(self, values: Mapping[Literal["value"], tuple[T, ...]], logger: Optional[Logger] = None) -> None:
+        tuple_value = values["value"]
+        if not isinstance(tuple_value, tuple): # type: ignore
+            raise ValueError("Value is not a tuple")
+        super().__init__(
+            tuple_value,
+            logger=logger)

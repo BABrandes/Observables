@@ -1,9 +1,10 @@
 from logging import Logger
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
+from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -373,3 +374,16 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         """
         import math
         return math.trunc(self._primary_hooks["value"].value) # type: ignore
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
+        return {"value": self._primary_hooks["value"].value}
+
+class ObservableSingleValueSerializable(ObservableSingleValue[T], ObservableSerializable[Literal["value"], T], Generic[T]):
+
+    def __init__(self, values: Mapping[Literal["value"], T], logger: Optional[Logger] = None) -> None:
+        super().__init__(values["value"], logger=logger)

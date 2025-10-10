@@ -11,12 +11,11 @@ from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.hook_nexus import HookNexus
 from .._utils.base_listening import BaseListening
-from .._utils.observable_serializable import ObservableSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableSelectionDict"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableSelectionDict"], BaseListening, Generic[K, V]):
+class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableSelectionDict"], BaseListening, Generic[K, V]):
     """
     An observable that manages a selection from a dictionary in the new hook-based architecture.
     
@@ -119,9 +118,6 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        ObservableSerializable.__init__( # type: ignore
-            self,
-            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=invalidate_callback,
@@ -281,7 +277,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
             }
         )
 
-class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableOptionalSelectionDict[K, V]"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableOptionalSelectionDict[K, V]"], BaseListening, Generic[K, V]):
+class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableOptionalSelectionDict[K, V]"], BaseListening, Generic[K, V]):
     """
     An observable that manages an optional selection from a dictionary in the new hook-based architecture.
     
@@ -417,9 +413,6 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        ObservableSerializable.__init__( # type: ignore
-            self,
-            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
@@ -591,7 +584,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
             }
         )
 
-class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableDefaultSelectionDict[K, V]"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableDefaultSelectionDict[K, V]"], BaseListening, Generic[K, V]):
+class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableDefaultSelectionDict[K, V]"], BaseListening, Generic[K, V]):
     """
     An observable that manages a selection from a dictionary with automatic default entry creation.
     
@@ -719,9 +712,6 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        ObservableSerializable.__init__( # type: ignore
-            self,
-            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,
@@ -907,7 +897,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
             }
         )
 
-class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableOptionalDefaultSelectionDict[K, V]"], ObservableSerializable[Literal["dict", "key", "value"], "ObservableOptionalDefaultSelectionDict[K, V]"], BaseListening, Generic[K, V]):
+class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], Any, "ObservableOptionalDefaultSelectionDict[K, V]"], BaseListening, Generic[K, V]):
     """
     An observable that manages an optional selection from a dictionary with automatic default entry creation.
     
@@ -1053,9 +1043,6 @@ class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "k
             return True, "Validation of complete value set in isolation passed"
 
         BaseListening.__init__(self, logger)
-        ObservableSerializable.__init__( # type: ignore
-            self,
-            lambda self_ref: {key: hook.value for key, hook in self_ref.get_dict_of_hooks().items()}) # type: ignore
         BaseCarriesHooks.__init__( # type: ignore
             self,
             invalidate_callback=None,

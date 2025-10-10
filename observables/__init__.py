@@ -159,8 +159,8 @@ __all__ = [
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
-    __version__ = "3.0.36"
-    __version_tuple__ = (3, 0, 36)
+    __version__ = "3.0.37"
+    __version_tuple__ = (3, 0, 37)
 
 __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'

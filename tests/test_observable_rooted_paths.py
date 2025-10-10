@@ -343,7 +343,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Test getting primary value references for serialization
-        primary_values = manager.get_primary_value_references_for_serialization()
+        primary_values = manager.dict_of_value_references_for_serialization
         
         # Should include root path
         self.assertIn(ROOT_PATH_KEY, primary_values)
@@ -351,8 +351,9 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Should include relative paths for all elements
         for key in initial_values:
-            self.assertIn(key, primary_values)
-            self.assertEqual(primary_values[key], initial_values[key])
+            relative_path_key = f"{key}_relative_path"
+            self.assertIn(relative_path_key, primary_values)
+            self.assertEqual(primary_values[relative_path_key], initial_values[key])
 
     def test_complex_scenario(self):
         """Test a complex scenario with multiple elements and path changes."""

@@ -5,6 +5,7 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
+from .._utils.observable_serializable import ObservableSerializable
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -56,7 +57,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         """
         ...
     
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
+class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -132,32 +133,18 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
             initial_dict_value = observable_or_hook_or_value.copy()
             hook = None
 
-        self._internal_construct_from_values(
-            {"value": initial_dict_value},
+        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
+            return (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary")
+
+        super().__init__(
+            initial_component_values_or_hooks={"value": initial_dict_value},
+            verification_method=is_valid_value,
+            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
 
         if hook is not None:
             self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["value"], dict[K, V]],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableDict instance.
-        """
-
-        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
-            return (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary")
-
-        super().__init__(
-            initial_values,
-            verification_method=is_valid_value,
-            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
-            logger=logger
-        )
 
     @property
     def value(self) -> dict[K, V]:
@@ -412,3 +399,21 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], K|V|dic
     
     def __repr__(self) -> str:
         return f"ObservableDict({self._primary_hooks['value'].value})"
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
+        return {"value": self._primary_hooks["value"].value}
+
+class ObservableDictSerializable(ObservableDict[K, V], ObservableSerializable[Literal["value"], dict[K, V]], Generic[K, V]):
+    
+    def __init__(self, values: Mapping[Literal["value"], dict[K, V]], logger: Optional[Logger] = None) -> None:
+        dict_value = values["value"]
+        if not isinstance(dict_value, dict): # type: ignore
+            raise ValueError("Value is not a dictionary")
+        super().__init__(
+            dict_value,
+            logger=logger)

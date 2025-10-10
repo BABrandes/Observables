@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator
+from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator, Mapping
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
@@ -56,7 +56,7 @@ class ObservableListLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableSerializable[Literal["value"], "ObservableList"], ObservableListLike[T], Generic[T]):
+class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableSerializable[Literal["value"], list[T]], ObservableListLike[T], Generic[T]):
     """
     An observable wrapper around a list that supports bidirectional bindings and reactive updates.
     
@@ -585,3 +585,21 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
             Hash value of the list as a tuple
         """
         return hash(tuple(self._primary_hooks["value"].value)) # type: ignore
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
+        return {"value": self._primary_hooks["value"].value}
+
+class ObservableListSerializable(ObservableList[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
+    def __init__(self, values: Mapping[Literal["value"], list[T]], logger: Optional[Logger] = None) -> None:
+        
+        list_value = values["value"]
+        if not isinstance(list_value, list): # type: ignore
+            raise ValueError("Value is not a list")
+        super().__init__(
+            list_value,
+            logger=logger)

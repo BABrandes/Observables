@@ -12,7 +12,7 @@ EK = TypeVar("EK", bound=str)
 
 ROOT_PATH_KEY: str = "root_path"
 
-class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], ObservableSerializable[str, "ObservableRootedPaths"], Generic[EK]):
+class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRootedPaths"], Generic[EK]):
     """
     Manages a root directory with associated elements (files or directories) and provides
     observable hooks for path management.
@@ -175,10 +175,6 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
             add_values_to_be_updated_callback=add_values_to_be_updated_callback,
             logger=logger)
 
-        ObservableSerializable.__init__( # type: ignore
-            self,
-            get_primary_value_references_callback=lambda self_ref: {ROOT_PATH_KEY: self_ref._root_path_hook.value, **{key: self_ref._rooted_element_path_hooks[self_ref.element_key_to_relative_path_key(key)].value for key in self_ref._rooted_element_keys}}) # type: ignore
-
     ##########################################
     # Conversion methods
     ##########################################
@@ -291,3 +287,35 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
             raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
         else:
             raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
+        result = {ROOT_PATH_KEY: self._root_path_hook.value}
+        for key in self._rooted_element_keys:
+            relative_path_key = self.element_key_to_relative_path_key(key)
+            result[relative_path_key] = self._rooted_element_path_hooks[relative_path_key].value # type: ignore
+        return result
+
+class ObservableRootedPathsSerializable(ObservableRootedPaths[EK], ObservableSerializable[str, str|Path|None], Generic[EK]):
+    def __init__(self, values: Mapping[str, Path|str|None], logger: Optional[Logger] = None) -> None:
+
+        root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
+        if not isinstance(root_path, Path): # type: ignore
+            raise ValueError("Root path must be a path")
+        rooted_elements_initial_relative_path_values: dict[EK, str|None] = {}
+
+        for key, value in values.items():
+            if key.endswith("_relative_path"):
+                relative_path_key = key.replace("_relative_path", "")
+                if not isinstance(value, str): # type: ignore
+                    raise ValueError("Relative path must be a string")
+                rooted_elements_initial_relative_path_values[relative_path_key] = value # type: ignore
+
+        super().__init__(
+            root_path,
+            rooted_elements_initial_relative_path_values,
+            logger=logger)

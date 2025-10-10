@@ -4,7 +4,6 @@ from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
-from .._utils.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
@@ -86,7 +85,7 @@ class ObservableMultiSelectionOptionLike(CarriesHooksLike[Any, Any], Protocol[T]
         """
         ...
 
-class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableSerializable[Literal["selected_options", "available_options"], "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -197,30 +196,7 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         if initial_selected_options and not initial_selected_options.issubset(initial_available_options):
             invalid_options = initial_selected_options - initial_available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {initial_available_options}")
-
-        self._internal_construct_from_values(
-            {"selected_options": initial_selected_options, "available_options": initial_available_options},
-            logger=logger
-        )
-
-        # Establish bindings if hooks were provided
-        if observable is not None:
-            self.connect_hook(observable.selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-            self.connect_hook(observable.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-        if available_options_hook is not None:
-            self.connect_hook(available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-        if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.connect_hook(selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-
-    def _internal_construct_from_values(
-        self,
-        initial_values: Mapping[Literal["selected_options", "available_options"], set[T]],
-        logger: Optional[Logger] = None,
-        **kwargs: Any) -> None:
-        """
-        Construct an ObservableMultiSelectionOption instance.
-        """
-
+        
         def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], set[T]|int]) -> tuple[bool, str]:
             
             if "selected_options" in x:
@@ -239,11 +215,20 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
             return True, "Verification method passed"
 
         super().__init__(
-            initial_values,
+            initial_component_values_or_hooks={"selected_options": initial_selected_options, "available_options": initial_available_options}, # type: ignore
             verification_method=is_valid_value,
             secondary_hook_callbacks={"number_of_selected_options": lambda x: len(x["selected_options"]), "number_of_available_options": lambda x: len(x["available_options"])}, # type: ignore
             logger=logger
         )
+
+        # Establish bindings if hooks were provided
+        if observable is not None:
+            self.connect_hook(observable.selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(observable.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+        if available_options_hook is not None:
+            self.connect_hook(available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+        if selected_options_hook is not None and selected_options_hook is not available_options_hook:
+            self.connect_hook(selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
         
     @property
     def available_options(self) -> set[T]:

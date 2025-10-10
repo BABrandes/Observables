@@ -1,5 +1,5 @@
 from logging import Logger
-from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator
+from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator, Mapping
 from .._hooks.hook_like import HookLike
 from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
@@ -56,7 +56,7 @@ class ObservableSetLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSerializable[Literal["value"], "ObservableSet"], ObservableSetLike[T], Generic[T]):
+class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], int, "ObservableSet"], ObservableSetLike[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -558,3 +558,20 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
             Hash value of the set as a frozenset
         """
         return hash(frozenset(self._primary_hooks["value"].value)) # type: ignore
+
+    ##########################################
+    # ObservableSerializable interface implementation
+    ##########################################
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], set[T]]:
+        return {"value": self._primary_hooks["value"].value}
+
+class ObservableSetSerializable(ObservableSet[T], ObservableSerializable[Literal["value"], set[T]], Generic[T]):
+    def __init__(self, values: Mapping[Literal["value"], set[T]], logger: Optional[Logger] = None) -> None:
+        set_value = values["value"]
+        if not isinstance(set_value, set): # type: ignore
+            raise ValueError("Value is not a set")
+        super().__init__(
+            set_value,
+            logger=logger)

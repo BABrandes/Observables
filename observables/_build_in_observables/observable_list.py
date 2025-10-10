@@ -586,14 +586,6 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         """
         return hash(tuple(self._primary_hooks["value"].value)) # type: ignore
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
-        return {"value": self._primary_hooks["value"].value}
-
 class ObservableListSerializable(ObservableList[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
     def __init__(self, values: Mapping[Literal["value"], list[T]], logger: Optional[Logger] = None) -> None:
         
@@ -603,3 +595,7 @@ class ObservableListSerializable(ObservableList[T], ObservableSerializable[Liter
         super().__init__(
             list_value,
             logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
+        return {"value": self._primary_hooks["value"].value}

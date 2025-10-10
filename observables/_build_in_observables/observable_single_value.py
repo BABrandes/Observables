@@ -375,15 +375,11 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         import math
         return math.trunc(self._primary_hooks["value"].value) # type: ignore
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
-        return {"value": self._primary_hooks["value"].value}
-
 class ObservableSingleValueSerializable(ObservableSingleValue[T], ObservableSerializable[Literal["value"], T], Generic[T]):
 
     def __init__(self, values: Mapping[Literal["value"], T], logger: Optional[Logger] = None) -> None:
         super().__init__(values["value"], logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
+        return {"value": self._primary_hooks["value"].value}

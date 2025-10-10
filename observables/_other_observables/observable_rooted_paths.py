@@ -288,19 +288,8 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         else:
             raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
-        result = {ROOT_PATH_KEY: self._root_path_hook.value}
-        for key in self._rooted_element_keys:
-            relative_path_key = self.element_key_to_relative_path_key(key)
-            result[relative_path_key] = self._rooted_element_path_hooks[relative_path_key].value # type: ignore
-        return result
-
 class ObservableRootedPathsSerializable(ObservableRootedPaths[EK], ObservableSerializable[str, str|Path|None], Generic[EK]):
+    
     def __init__(self, values: Mapping[str, Path|str|None], logger: Optional[Logger] = None) -> None:
 
         root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
@@ -319,3 +308,11 @@ class ObservableRootedPathsSerializable(ObservableRootedPaths[EK], ObservableSer
             root_path,
             rooted_elements_initial_relative_path_values,
             logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
+        result = {ROOT_PATH_KEY: self._root_path_hook.value}
+        for key in self._rooted_element_keys:
+            relative_path_key = self.element_key_to_relative_path_key(key)
+            result[relative_path_key] = self._rooted_element_path_hooks[relative_path_key].value # type: ignore
+        return result

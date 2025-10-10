@@ -376,14 +376,6 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """
         return hash(self._primary_hooks["value"].value)
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
-        return {"value": self._primary_hooks["value"].value}
-
 class ObservableTupleSerializable(ObservableTuple[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
     def __init__(self, values: Mapping[Literal["value"], tuple[T, ...]], logger: Optional[Logger] = None) -> None:
         tuple_value = values["value"]
@@ -392,3 +384,7 @@ class ObservableTupleSerializable(ObservableTuple[T], ObservableSerializable[Lit
         super().__init__(
             tuple_value,
             logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
+        return {"value": self._primary_hooks["value"].value}

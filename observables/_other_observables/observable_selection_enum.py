@@ -1,9 +1,10 @@
-from typing import TypeVar, Generic, Optional
+from typing import TypeVar, Generic, Optional, Literal, Mapping
 from enum import Enum
 from logging import Logger
 
 from .._other_observables.observable_selection_option import ObservableSelectionOption, ObservableOptionalSelectionOption
 from .._hooks.hook_like import HookLike
+from .._utils.observable_serializable import ObservableSerializable
 
 
 E = TypeVar("E", bound=Enum)
@@ -44,3 +45,24 @@ class ObservableOptionalSelectionEnum(ObservableOptionalSelectionOption[E], Gene
             enum_options = set(enum_value.__class__)
 
         super().__init__(enum_value, enum_options, logger=logger)
+
+class ObservableSelectionEnumSerializable(ObservableSelectionEnum[E], ObservableSerializable[Literal["enum_value", "enum_options"], E|set[E]], Generic[E]):
+    
+    def __init__(self, values: Mapping[Literal["enum_value", "enum_options"], E|set[E]], logger: Optional[Logger] = None) -> None:
+        enum_value: E = values["enum_value"] # type: ignore
+        enum_options: set[E] = values["enum_options"] # type: ignore
+        super().__init__(enum_value, enum_options, logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], E|set[E]]:
+        return {"enum_value": self.selected_option, "enum_options": self.available_options}
+
+class ObservableOptionalSelectionEnumSerializable(ObservableOptionalSelectionEnum[E], ObservableSerializable[Literal["enum_value", "enum_options"], Optional[E]|set[E]], Generic[E]):
+    def __init__(self, values: Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]], logger: Optional[Logger] = None) -> None:
+        enum_value: Optional[E] = values["enum_value"] # type: ignore
+        enum_options: set[E] = values["enum_options"] # type: ignore
+        super().__init__(enum_value, enum_options, logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["enum_value", "enum_options"], Optional[E]|set[E]]:
+        return {"enum_value": self.selected_option, "enum_options": self.available_options}

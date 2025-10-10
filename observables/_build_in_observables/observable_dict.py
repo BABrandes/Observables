@@ -400,16 +400,8 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
     def __repr__(self) -> str:
         return f"ObservableDict({self._primary_hooks['value'].value})"
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
-        return {"value": self._primary_hooks["value"].value}
-
 class ObservableDictSerializable(ObservableDict[K, V], ObservableSerializable[Literal["value"], dict[K, V]], Generic[K, V]):
-    
+
     def __init__(self, values: Mapping[Literal["value"], dict[K, V]], logger: Optional[Logger] = None) -> None:
         dict_value = values["value"]
         if not isinstance(dict_value, dict): # type: ignore
@@ -417,3 +409,7 @@ class ObservableDictSerializable(ObservableDict[K, V], ObservableSerializable[Li
         super().__init__(
             dict_value,
             logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
+        return {"value": self._primary_hooks["value"].value}

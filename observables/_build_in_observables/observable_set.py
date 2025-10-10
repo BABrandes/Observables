@@ -559,14 +559,6 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         """
         return hash(frozenset(self._primary_hooks["value"].value)) # type: ignore
 
-    ##########################################
-    # ObservableSerializable interface implementation
-    ##########################################
-
-    @property
-    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], set[T]]:
-        return {"value": self._primary_hooks["value"].value}
-
 class ObservableSetSerializable(ObservableSet[T], ObservableSerializable[Literal["value"], set[T]], Generic[T]):
     def __init__(self, values: Mapping[Literal["value"], set[T]], logger: Optional[Logger] = None) -> None:
         set_value = values["value"]
@@ -575,3 +567,7 @@ class ObservableSetSerializable(ObservableSet[T], ObservableSerializable[Literal
         super().__init__(
             set_value,
             logger=logger)
+
+    @property
+    def dict_of_value_references_for_serialization(self) -> Mapping[Literal["value"], set[T]]:
+        return {"value": self._primary_hooks["value"].value}

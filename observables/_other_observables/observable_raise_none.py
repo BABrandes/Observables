@@ -131,7 +131,7 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     def __init__(
         self,
         hook_without_None_or_value: HookLike[T]|None|T,
-        hook_with_None: HookLike[Optional[T]]|None,
+        hook_with_None: HookLike[Optional[T]]|None = None,
         logger: Optional[Logger] = None
         ):
 

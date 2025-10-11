@@ -68,21 +68,17 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
             logger=logger
         )
 
-        self._owner: weakref.ref["CarriesHooksLike[Any, T]"] = weakref.ref(owner)
+        # The owner must be stored as a strong reference to avoid garbage collection when a hook is still in use!
+        self._owner = owner
 
     @property
     def owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
-        owner = self._owner()
-        if owner is None:
-            raise RuntimeError("Owner has been garbage collected")
-        return owner
+        return self._owner
 
     def _get_owner(self) -> "CarriesHooksLike[Any, T]":
         """Get the owner of this hook."""
 
         with self._lock:
-            owner = self._owner()
-            if owner is None:
-                raise RuntimeError("Owner has been garbage collected")
+            owner = self._owner
             return owner

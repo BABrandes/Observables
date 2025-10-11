@@ -62,7 +62,12 @@ class NexusManager:
         """Get the types of value equality callbacks."""
         return set(self._value_equality_callbacks.keys())
 
-    def _value_equality_callback(self, value1: Any, value2: Any) -> bool:
+    def is_equal(self, value1: Any, value2: Any) -> bool:
+        """
+        Checks if two values are equal.
+
+        ** Please use this method instead of the built-in equality operator (==) for equality checks of values within hook system! **
+        """
 
         value_type: type[Any] = type(value1) # type: ignore
 
@@ -71,7 +76,16 @@ class NexusManager:
 
         if value_type not in self._value_equality_callbacks:
             return value1 == value2
+
         return self._value_equality_callbacks[value_type](value1, value2)
+
+    def is_not_equal(self, value1: Any, value2: Any) -> bool:
+        """
+        Check if two values are not equal.
+        
+        ** Please use this method instead of the built-in inequality operator (!=) for equality checks of values within hook system! **
+        """
+        return not self.is_equal(value1, value2)
 
     def reset(self) -> None:
         """Reset the nexus manager state for testing purposes."""
@@ -148,7 +162,7 @@ class NexusManager:
                     # The nexus is already in the nexus and values, this is not good. But maybe the associated value is the same?
                     current_value: Any = nexus_and_values[hook_nexus]
                     # Use proper equality comparison that handles NaN values correctly
-                    if not self._value_equality_callback(current_value, value):
+                    if not self.is_equal(current_value, value):
                         return False, f"Hook nexus already in nexus and values and the associated value is not the same! ({current_value} != {value})"
                 nexus_and_values[hook_nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"

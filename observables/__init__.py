@@ -111,6 +111,7 @@ from ._utils.nexus_manager import NexusManager
 from ._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from ._utils.base_carries_hooks import BaseCarriesHooks
 from ._utils.observable_serializable import ObservableSerializable
+from ._other_observables.observable_raise_none import ObservableRaiseNone
 
 __all__ = [
     'ObservableDict',
@@ -152,6 +153,7 @@ __all__ = [
     'NexusManager',
     'DEFAULT_NEXUS_MANAGER',
     'ObservableRootedPaths',
+    'ObservableRaiseNone',
 ]
 
 # Package metadata

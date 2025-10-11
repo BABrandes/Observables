@@ -1,0 +1,288 @@
+from typing import Generic, TypeVar, Literal, Optional, Mapping
+from logging import Logger
+
+from observables._utils.base_carries_hooks import BaseCarriesHooks
+from observables._hooks.owned_hook_like import OwnedHookLike
+from observables._hooks.owned_hook import OwnedHook
+from observables._hooks.hook_like import HookLike
+from observables._utils.hook_nexus import HookNexus
+from observables._utils.initial_sync_mode import InitialSyncMode
+
+T = TypeVar("T")
+
+
+class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_with_none"], T, "ObservableRaiseNone[T]"], Generic[T]):
+    """
+    An observable that maintains two synchronized hooks and raises errors when None values are submitted.
+    
+    This observable is useful when you have code paths where types suggest Optional[T] but you know 
+    the value will never actually be None in practice. It provides runtime enforcement while maintaining 
+    type safety and minimizing linter errors.
+    
+    The observable manages two internal hooks that are always kept in sync:
+    - `hook_with_None`: Typed as Optional[T], can be connected to external hooks that allow None
+    - `hook_without_None`: Typed as T, guarantees non-None values
+    
+    Any attempt to submit None to either hook will raise a ValueError, ensuring your assumption
+    about non-None values is enforced at runtime.
+    
+    Parameters
+    ----------
+    hook_without_None_or_value : HookLike[T] | None | T
+        Either:
+        - A value of type T to initialize both hooks
+        - A HookLike[T] to connect to the internal hook_without_None
+        - None (if hook_with_None is provided)
+        At least one of hook_without_None_or_value or hook_with_None must be provided.
+        
+    hook_with_None : HookLike[Optional[T]] | None
+        Either:
+        - A HookLike[Optional[T]] to connect to the internal hook_with_None
+        - None (if hook_without_None_or_value is provided)
+        At least one of hook_without_None_or_value or hook_with_None must be provided.
+        
+    logger : Optional[Logger], default=None
+        Optional logger for debugging and tracking value changes.
+    
+    Attributes
+    ----------
+    hook_with_None : OwnedHookLike[Optional[T]]
+        The internal hook typed as Optional[T]. Despite the type allowing None,
+        submitting None will raise a ValueError.
+        
+    hook_without_None : OwnedHookLike[T]
+        The internal hook typed as T (non-optional). This hook is guaranteed
+        to never contain None values.
+    
+    Raises
+    ------
+    ValueError
+        - If None is submitted to either hook
+        - If both hooks are initialized with different values
+        - If neither hook_without_None_or_value nor hook_with_None is provided
+        - If both hooks are submitted with different non-None values simultaneously
+    
+    Examples
+    --------
+    Basic usage with an initial value:
+    
+    >>> obs = ObservableRaiseNone[int](
+    ...     hook_without_None_or_value=42,
+    ...     hook_with_None=None
+    ... )
+    >>> obs.hook_without_None.value
+    42
+    >>> obs.hook_with_None.value
+    42
+    
+    Updating values (both hooks stay synchronized):
+    
+    >>> obs.submit_values({"value_without_none": 100})
+    (True, 'Values are submitted')
+    >>> obs.hook_without_None.value
+    100
+    >>> obs.hook_with_None.value
+    100
+    
+    Attempting to submit None raises an error:
+    
+    >>> obs.submit_values({"value_without_none": None})
+    Traceback (most recent call last):
+        ...
+    ValueError: One of the values is None
+    
+    Connecting to external hooks:
+    
+    >>> external_hook = FloatingHook[int | None](50)
+    >>> obs = ObservableRaiseNone[int](
+    ...     hook_without_None_or_value=None,
+    ...     hook_with_None=external_hook
+    ... )
+    >>> obs.hook_without_None.value  # Initialized from external_hook
+    50
+    >>> external_hook.submit_value(75)
+    >>> obs.hook_with_None.value  # Synchronized
+    75
+    
+    Use with listeners:
+    
+    >>> obs = ObservableRaiseNone[str](
+    ...     hook_without_None_or_value="hello",
+    ...     hook_with_None=None
+    ... )
+    >>> def on_change():
+    ...     print(f"Value changed to: {obs.hook_without_None.value}")
+    >>> obs.hook_without_None.add_listeners(on_change)
+    >>> obs.submit_values({"value_without_none": "world"})
+    Value changed to: world
+    
+    Notes
+    -----
+    - Both internal hooks are always kept synchronized
+    - The observable uses the sync system to propagate changes between hooks
+    - External hooks can be connected but should have matching initial values
+    - The validation ensures both hooks always contain the same non-None value
+    
+    See Also
+    --------
+    ObservableSingleValue : For simple single-value observables
+    ObservableSync : For custom synchronization logic between multiple values
+    """
+    def __init__(
+        self,
+        hook_without_None_or_value: HookLike[T]|None|T,
+        hook_with_None: HookLike[Optional[T]]|None,
+        logger: Optional[Logger] = None
+        ):
+
+        def _add_values_to_be_updated_callback(self_ref: "ObservableRaiseNone[T]", current_values: Mapping[Literal["value_without_none", "value_with_none"], T], submitted_values: Mapping[Literal["value_without_none", "value_with_none"], T]) -> Mapping[Literal["value_without_none", "value_with_none"], T]:
+            """
+            Add the values to be updated.
+            """
+
+            if len(submitted_values) == 0:
+                return {}
+
+            elif len(submitted_values) == 1:
+
+                if "value_without_none" in submitted_values:
+                    value = submitted_values["value_without_none"]
+                    if value is None:
+                        raise ValueError("Value without None cannot be None")
+                    return {"value_with_none": value}
+
+                elif "value_with_none" in submitted_values:
+                    value = submitted_values["value_with_none"]
+                    if value is None:
+                        raise ValueError("Value with None cannot be None")
+                    return {"value_without_none": value}
+
+                else:
+                    raise ValueError("Invalid keys")
+
+            elif len(submitted_values) == 2:
+                if "value_without_none" in submitted_values and "value_with_none" in submitted_values:
+                    value_1 = submitted_values["value_without_none"]
+                    value_2 = submitted_values["value_with_none"]
+                    if value_1 is None or value_2 is None:
+                        raise ValueError("One of the values is None")
+                    elif self.nexus_manager.is_not_equal(value_1, value_2):
+                        raise ValueError("Values do not match")
+                    return {}
+                else:
+                    raise ValueError("Invalid keys")
+            else:
+                raise ValueError("Invalid number of keys")
+
+        def _validate_complete_values_in_isolation_callback(self_ref: "ObservableRaiseNone[T]", values: Mapping[Literal["value_without_none", "value_with_none"], T]) -> tuple[bool, str]:
+            """
+            Validate the complete values in isolation.
+            """
+            if "value_without_none" in values and "value_with_none" in values:
+                value_without_none = values["value_without_none"]
+                value_with_none = values["value_with_none"]
+                if value_without_none is None or value_with_none is None:
+                    return False, "One of the values is None"
+                elif self.nexus_manager.is_not_equal(value_without_none, value_with_none):
+                    return False, "Values do not match"
+                return True, "Values are valid"
+
+            else:
+                return False, "Invalid keys"
+
+        super().__init__(
+            invalidate_callback=None,
+            validate_complete_values_in_isolation_callback=_validate_complete_values_in_isolation_callback,
+            add_values_to_be_updated_callback=_add_values_to_be_updated_callback,
+            logger=logger)
+
+        # Collect the initial value and do some checks
+        if hook_with_None is not None and hook_without_None_or_value is None:
+            initial_value: T = hook_with_None.value # type: ignore
+        
+        elif hook_with_None is None and hook_without_None_or_value is not None:
+            if isinstance(hook_without_None_or_value, HookLike):
+                initial_value = hook_without_None_or_value.value # type: ignore 
+            else:
+                # This is a value
+                initial_value = hook_without_None_or_value
+        
+        elif hook_with_None is not None and hook_without_None_or_value is not None:
+            if isinstance(hook_without_None_or_value, HookLike):
+                if self.nexus_manager.is_not_equal(hook_with_None.value, hook_without_None_or_value.value): # type: ignore
+                    raise ValueError("Values do not match of the two given hooks!")
+                initial_value = hook_with_None.value # type: ignore
+            else:
+                # This is a value
+                if self.nexus_manager.is_not_equal(hook_with_None.value, hook_without_None_or_value): # type: ignore
+                    raise ValueError("Values do not match of the two given hooks!")
+                initial_value = hook_with_None.value # type: ignore
+        else:
+            raise ValueError("Something non-none must be given!")
+        
+        # Create the hooks
+        self._hook_with_None: OwnedHook[Optional[T]] = OwnedHook(self, initial_value, logger, self.nexus_manager) # type: ignore
+        self._hook_without_None: OwnedHook[T] = OwnedHook(self, initial_value, logger, self.nexus_manager) # type: ignore
+
+        # Connect the hooks
+        if hook_with_None is not None:
+            self._hook_with_None.connect_hook(self._hook_without_None, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+        if hook_without_None_or_value is not None:
+            self._hook_without_None.connect_hook(self._hook_with_None, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+
+    #########################################################################
+    # BaseCarriesHooks abstract methods implementation
+    #########################################################################
+
+    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> OwnedHookLike[T]:
+        """
+        Get a hook by its key.
+        """
+        if key == "value_without_none":
+            return self._hook_without_None # type: ignore
+        elif key == "value_with_none":
+            return self._hook_with_None # type: ignore
+
+    def _get_value_reference_of_hook(self, key: Literal["value_without_none", "value_with_none"]) -> T:
+        """
+        Get a value as a reference by its key.
+        """
+        if key == "value_without_none":
+            return self._hook_without_None.value # type: ignore
+        elif key == "value_with_none":
+            return self._hook_with_None.value # type: ignore
+
+    def _get_hook_keys(self) -> set[Literal["value_without_none", "value_with_none"]]:
+        """
+        Get all keys of the hooks.
+        """
+        return {"value_without_none", "value_with_none"}
+
+    def _get_hook_key(self, hook_or_nexus: "HookLike[T]|HookNexus[T]") -> Literal["value_without_none", "value_with_none"]:
+        """
+        Get a key by its hook or nexus.
+        """
+        if hook_or_nexus == self._hook_without_None:
+            return "value_without_none"
+        elif hook_or_nexus == self._hook_with_None:
+            return "value_with_none"
+        else:
+            raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
+
+    #########################################################################
+    #Accessors
+    #########################################################################
+
+    @property
+    def hook_with_None(self) -> OwnedHookLike[Optional[T]]:
+        """
+        Get the hook with None.
+        """
+        return self._hook_with_None
+
+    @property
+    def hook_without_None(self) -> OwnedHookLike[T]:
+        """
+        Get the hook without None.
+        """
+        return self._hook_without_None

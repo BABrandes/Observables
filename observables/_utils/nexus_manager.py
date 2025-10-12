@@ -30,6 +30,13 @@ class NexusManager:
     All value submission operations are protected by a reentrant lock (RLock),
     ensuring safe concurrent access from multiple threads. The lock serializes
     submissions while allowing nested calls from the same thread.
+    
+    Reentrancy Protection
+    ---------------------
+    Nested submit_values() calls are allowed as long as they modify independent
+    hook nexuses. However, attempting to modify a hook nexus that's already being
+    modified in the current submission chain will raise RuntimeError. This ensures
+    atomicity and prevents subtle bugs from overlapping modifications.
     """
 
     def __init__(
@@ -40,7 +47,7 @@ class NexusManager:
         self._value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
         self._value_equality_callbacks.update(value_equality_callbacks)
         self._lock = RLock()  # Thread-safe lock for submit_values operations
-        self._thread_local = local()  # Thread-local storage for tracking submission state
+        self._thread_local = local()  # Thread-local storage for tracking active hook nexuses
 
     def add_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
         """Add a value equality callback for a specific value type."""
@@ -461,11 +468,13 @@ class NexusManager:
         Raises
         ------
         RuntimeError
-            If a recursive `submit_values()` call is detected. This indicates an incorrect
+            If a recursive `submit_values()` call attempts to modify hook nexuses that are
+            already being modified in the current submission. This indicates an incorrect
             implementation where a user-implemented callback (validation, completion, invalidation,
-            reaction, or listener) is attempting to trigger another submission during an ongoing
-            submission. This is not allowed as the entire submission flow is designed to be
-            atomic and non-reentrant.
+            reaction, or listener) is attempting to modify the same data during its own modification.
+            
+            Note: Recursive calls to `submit_values()` ARE allowed if they modify completely
+            independent hook nexuses (no overlap). Only overlapping modifications are forbidden.
             
         Additionally, callback methods called during submission may raise exceptions:
             - `_add_values_to_be_updated()` may raise ValueError if value completion logic fails
@@ -490,14 +499,24 @@ class NexusManager:
         `submit_values` concurrently without external synchronization.
         
         **Reentrancy Protection**:
-        Despite using an RLock (which allows lock reacquisition by the same thread),
-        this method actively PREVENTS recursive calls by using thread-local state tracking.
-        If `submit_values()` is called while already executing in the same thread, a
-        RuntimeError is raised. This enforces the design principle that all user-implemented
-        callbacks (validation, completion, invalidation, reaction, listeners) should never
-        trigger new submissions during an ongoing submission. Instead, callbacks should only
-        return additional values to be included in the current atomic submission. This
-        protection catches incorrect implementations early and prevents subtle bugs.
+        This method uses thread-local state tracking to prevent modification of the same
+        hook nexuses during nested `submit_values()` calls. Each thread maintains a set of
+        currently active hook nexuses being modified. If a recursive call attempts to modify
+        any nexus already in the active set, a RuntimeError is raised.
+        
+        **Independent Nested Submissions ARE Allowed**:
+        Recursive `submit_values()` calls are permitted as long as they modify completely
+        different hook nexuses (no overlap with the active set). This allows callbacks to
+        trigger independent value changes in other parts of the system. For example, a
+        listener on observable A can safely trigger an update to observable B, as long as
+        B's hooks don't overlap with A's hooks.
+        
+        **Overlapping Modifications ARE Forbidden**:
+        Attempting to modify a hook nexus that's already being modified in the current
+        submission chain will raise RuntimeError. This enforces atomicity - each hook nexus
+        can only be modified once per submission flow. Callbacks should return additional
+        values to be included in the current atomic submission rather than triggering
+        overlapping modifications.
         
         **Value Completion Cycle Detection**:
         The completion phase uses a simple iteration limit to prevent infinite loops.
@@ -560,6 +579,33 @@ class NexusManager:
         >>> hook.value
         100
         
+        Independent recursive submissions (allowed):
+        
+        >>> hook1 = FloatingHook[int](1)
+        >>> hook2 = FloatingHook[int](2)
+        >>> def listener_triggers_independent_update():
+        ...     # This is fine - hook2 is independent from hook1
+        ...     hook2.submit_value(99)
+        >>> hook1.add_listeners(listener_triggers_independent_update)
+        >>> hook1.submit_value(42)
+        (True, 'Values are submitted')
+        >>> hook1.value
+        42
+        >>> hook2.value  # Also updated by the listener
+        99
+        
+        Overlapping recursive submissions (forbidden):
+        
+        >>> hook = FloatingHook[int](1)
+        >>> def bad_listener():
+        ...     # This is BAD - trying to modify the same hook during its own update
+        ...     hook.submit_value(99)
+        >>> hook.add_listeners(bad_listener)
+        >>> hook.submit_value(42)
+        Traceback (most recent call last):
+            ...
+        RuntimeError: Recursive submit_values call detected with overlapping hook nexuses!
+        
         See Also
         --------
         HookNexus : The data structure that holds synchronized hook values
@@ -567,24 +613,34 @@ class NexusManager:
         FloatingHook.submit_value : Convenient method for submitting a single value to a floating hook
         """
         
-        # Check for recursive submission (which indicates incorrect callback implementation)
-        if getattr(self._thread_local, 'in_submission', False):
+        # Get the set of hook nexuses being submitted
+        new_nexuses = set(nexus_and_values.keys())
+        
+        # Check for overlap with currently active nexuses (indicates incorrect implementation)
+        active_nexuses: set["HookNexus[Any]"] = getattr(self._thread_local, 'active_nexuses', set())
+        overlapping_nexuses = active_nexuses & new_nexuses
+        
+        if overlapping_nexuses:
             raise RuntimeError(
-                "Recursive submit_values call detected! This indicates an incorrect implementation. "
-                "User-implemented callbacks (such asvalidation, completion, invalidation, reaction, listeners) "
-                "must NEVER trigger another submit_values() call. "
-                "The entire submission flow is designed to be atomic and non-reentrant."
+                f"Recursive submit_values call detected with overlapping hook nexuses! "
+                f"This indicates an incorrect implementation. "
+                f"User-implemented callbacks (validation, completion, invalidation, reaction, listeners) "
+                f"attempted to modify {len(overlapping_nexuses)} hook nexus(es) that are already being modified "
+                f"in the current submission. Each hook nexus can only be modified once per atomic submission. "
+                f"Independent submissions to different nexuses are allowed."
             )
         
         with self._lock:
-            # Mark that we're in a submission for this thread
-            self._thread_local.in_submission = True
+            # Add the new nexuses to the active set for this thread
+            if not hasattr(self._thread_local, 'active_nexuses'):
+                self._thread_local.active_nexuses = set()
+            self._thread_local.active_nexuses.update(new_nexuses) # type: ignore
             
             try:
                 return self._internal_submit_values(nexus_and_values, only_check_values, not_notifying_listeners_after_submission, logger)
             finally:
-                # Always reset the submission flag, even if an error occurs
-                self._thread_local.in_submission = False
+                # Always remove the nexuses we added, even if an error occurs
+                self._thread_local.active_nexuses -= new_nexuses # type: ignore
 
     @staticmethod
     def get_nexus_and_values(hooks: set["HookLike[Any]"]) -> dict[HookNexus[Any], Any]:

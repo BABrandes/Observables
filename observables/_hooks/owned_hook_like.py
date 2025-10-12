@@ -1,13 +1,13 @@
-from typing import TypeVar, TYPE_CHECKING, runtime_checkable, Protocol, Any
+from typing import TypeVar, TYPE_CHECKING, Any, Generic
 from .hook_like import HookLike
+from .hook_with_validation_mixin import HookWithValidationMixin
 
 if TYPE_CHECKING:
     from .._utils.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 
-@runtime_checkable
-class OwnedHookLike(HookLike[T], Protocol[T]):
+class OwnedHookLike(HookWithValidationMixin[T], HookLike[T], Generic[T]):
     """
     Protocol for owned hook objects.
     """

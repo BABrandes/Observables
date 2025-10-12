@@ -194,8 +194,8 @@ class TestMemoryStressScenarios:
 
     def test_mixed_observable_types_memory(self):
         """Test memory management with mixed observable types."""
-        observables: list[BaseObservable[Any, Any, Any, Any]] = []
-        weak_refs: list[weakref.ref[BaseObservable[Any, Any, Any, Any]]] = []
+        observables: list[BaseObservable[Any, Any, Any, Any, Any]] = []
+        weak_refs: list[weakref.ref[BaseObservable[Any, Any, Any, Any, Any]]] = []
         
         # Create mixed observable types
         for i in range(20):

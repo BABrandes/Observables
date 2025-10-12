@@ -249,7 +249,7 @@ class NexusManager:
         Args:
             nexus_and_values: Mapping of hook nexuses to their new values
             only_check_values: If True, only validates without updating values
-            not_notifying_listeners_after_submission: Set of listeners to skip notification
+            not_notifying_listeners_after_submission: Set of hooks or owners to skip notification
             logger: Optional logger for debugging
             
         Returns:
@@ -257,7 +257,12 @@ class NexusManager:
         """
 
         from .._hooks.owned_hook_like import OwnedHookLike
-        from .._hooks.floating_hook_like import FloatingHookLike
+        from .._hooks.hook_with_validation_mixin import HookWithValidationMixin
+        from .._hooks.hook_with_reaction_mixin import HookWithReactionMixin
+
+        #########################################################
+        # Value Completion
+        #########################################################
 
         # Step 1: Update the nexus and values
         complete_nexus_and_values: dict["HookNexus[Any]", Any] = {}
@@ -266,30 +271,40 @@ class NexusManager:
         if success == False:
             return False, msg
 
-        # Step 2: Collect the owners and floating hooks to validate
-        owners_to_validate: set["CarriesHooksLike[Any, Any]"] = set()
-        floating_hooks_to_validate: set[FloatingHookLike[Any]] = set()
+        # Step 2: Collect the owners and floating hooks to validate, react to, and notify
+        owners_that_are_affected: set["CarriesHooksLike[Any, Any]"] = set()
+        hooks_with_validation: set[HookWithValidationMixin[Any]] = set()
+        hooks_with_reaction: set[HookWithReactionMixin[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
-                match hook:
-                    case OwnedHookLike():
-                        owners_to_validate.add(hook.owner)
-                    case FloatingHookLike():
-                        floating_hooks_to_validate.add(hook)
-                    case _:
-                        pass
+                if isinstance(hook, HookWithReactionMixin):
+                    hooks_with_reaction.add(hook)
+                if isinstance(hook, HookWithValidationMixin):
+                    # Hooks that are owned by an observable are validated by the observable. They do not need to be validated in isolation.
+                    if not isinstance(hook, OwnedHookLike):
+                        hooks_with_validation.add(hook)
+                if isinstance(hook, OwnedHookLike):
+                    owners_that_are_affected.add(hook.owner)
+
+        #########################################################
+        # Value Validation
+        #########################################################
 
         # Step 3: Validate the values
-        for owner in owners_to_validate:
+        for owner in owners_that_are_affected:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
             NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
             success, msg = owner.validate_complete_values_in_isolation(value_dict)
             if success == False:
                 return False, msg
-        for floating_hook in floating_hooks_to_validate:
+        for floating_hook in hooks_with_validation:
             success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook.hook_nexus])
             if success == False:
                 return False, msg
+
+        #########################################################
+        # Value Update
+        #########################################################
 
         if only_check_values:
             return True, "Values are valid"
@@ -299,32 +314,43 @@ class NexusManager:
             nexus._previous_value = nexus._value # type: ignore
             nexus._value = value # type: ignore
 
-        # Step 5: Invalidate the affected owners and hooks
-        for owner in owners_to_validate:
-            owner.invalidate()
-        for floating_hook in floating_hooks_to_validate:
-            pass
+        #########################################################
+        # Invalidation, Reaction, and Notification
+        #########################################################
 
-        # Step 6: Notify the listeners
-        if not not_notifying_listeners_after_submission:
-            # Optimize: Only notify hooks that are actually affected by the value changes
-            affected_hooks: set[HookLike[Any]] = set()
-            for nexus, value in complete_nexus_and_values.items():
-                affected_hooks.update(nexus.hooks)
-            
-            for owner in owners_to_validate:
-                if isinstance(owner, BaseListeningLike):
-                    if owner not in not_notifying_listeners_after_submission:
-                        owner._notify_listeners() # type: ignore
-                # Only notify hooks that are actually affected
-                for hook in owner.get_dict_of_hooks().values():
-                    if hook is None: # type: ignore
-                        raise RuntimeError("Hook is None. This should not happen.")
-                    if hook in affected_hooks and hook not in not_notifying_listeners_after_submission:
-                        hook._notify_listeners() # type: ignore
-            for floating_hook in floating_hooks_to_validate:
-                if floating_hook in affected_hooks and floating_hook not in not_notifying_listeners_after_submission:
-                    floating_hook._notify_listeners() # type: ignore
+        # Step 5a: Invalidate the affected owners and hooks
+        for owner in owners_that_are_affected:
+            owner.invalidate()
+
+        # Step 5b: React to the value changes
+        for hook in hooks_with_reaction:
+            hook.react_to_value_changed()
+
+        # Step 5c: Notify the listeners
+
+        # Optimize: Only notify hooks that are actually affected by the value changes
+        hooks_to_be_notified: set[HookLike[Any]] = set()
+        for nexus, value in complete_nexus_and_values.items():
+            hooks_of_nexus: set[HookLike[Any]] = set(nexus.hooks)
+            for obj in not_notifying_listeners_after_submission:
+                if obj in hooks_of_nexus:
+                    hooks_of_nexus.remove(obj) # type: ignore
+            hooks_to_be_notified.update(hooks_of_nexus)
+
+        # Notify owners and hooks that are owned        
+        for owner in owners_that_are_affected:
+            if isinstance(owner, BaseListeningLike):
+                if owner not in not_notifying_listeners_after_submission:
+                    owner._notify_listeners() # type: ignore
+            # Only notify hooks that are actually affected
+            for hook in owner.get_dict_of_hooks().values():
+                if hook in hooks_to_be_notified:
+                    hooks_to_be_notified.remove(hook)
+                    hook._notify_listeners() # type: ignore
+
+        # Notify the remaining hooks
+        for hook in hooks_to_be_notified:
+            hook._notify_listeners() # type: ignore
 
         return True, "Values are submitted"
 

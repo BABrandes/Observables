@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Optional, Callable
+from typing import Generic, TypeVar, Optional
 from threading import RLock
 import logging
 import inspect
@@ -32,7 +32,6 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
     def __init__(
         self,
         value: T,
-        validate_value_in_isolation_callback: Optional[Callable[[T], tuple[bool, str]]] = None,
         nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER,
         logger: Optional[logging.Logger] = None
         ) -> None:
@@ -41,7 +40,6 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
         BaseListening.__init__(self, logger)
         self._value = value
-        self._validate_value_in_isolation_callback = validate_value_in_isolation_callback
         self._nexus_manager = nexus_manager
 
         self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
@@ -195,20 +193,3 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             self._hook_nexus = hook_nexus
         
         log(self, "replace_hook_nexus", self._logger, True, "Successfully replaced hook nexus")
-
-    def validate_value_in_isolation(self, value: T) -> tuple[bool, str]:
-        """
-        Validate the value in isolation. This is used to validate the value of a hook
-        in isolation, without considering the value of other hooks in the same nexus.
-
-        Args:
-            value: The value to validate
-
-        Returns:
-            Tuple of (success: bool, message: str)
-        """
-
-        if self._validate_value_in_isolation_callback is not None:
-            return self._validate_value_in_isolation_callback(value)
-        else:
-            return True, "No validate value in isolation callback provided"

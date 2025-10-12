@@ -3,6 +3,7 @@ import logging
 import weakref
 from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any
 from .._utils.base_listening import BaseListening
+from .hook_with_validation_mixin import HookWithValidationMixin
 from .owned_hook_like import OwnedHookLike
 from .hook import Hook
 from .._utils.nexus_manager import NexusManager
@@ -61,11 +62,16 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
 
             return owner.validate_complete_values_in_isolation(values)
 
-        super().__init__(
+        Hook.__init__( # type: ignore
+            self,
             value=initial_value,
-            validate_value_in_isolation_callback=validate_value_in_isolation_callback,
             nexus_manager=nexus_manager,
             logger=logger
+        )
+
+        HookWithValidationMixin.__init__( # type: ignore
+            self,
+            validate_value_in_isolation_callback=validate_value_in_isolation_callback
         )
 
         # The owner must be stored as a strong reference to avoid garbage collection when a hook is still in use!

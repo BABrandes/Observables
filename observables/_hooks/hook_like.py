@@ -93,12 +93,6 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def validate_value_in_isolation(self, value: T) -> tuple[bool, str]:
-        """
-        Check if the value is valid for submission in isolation.
-        """
-        ...
-
     def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
         """
         Replace the hook nexus that this hook belongs to.

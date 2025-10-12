@@ -114,6 +114,8 @@ from ._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from ._utils.base_carries_hooks import BaseCarriesHooks
 from ._utils.observable_serializable import ObservableSerializable
 from ._other_observables.observable_raise_none import ObservableRaiseNone
+from ._hooks.hook_with_reaction_mixin import HookWithReactionMixin
+from ._hooks.hook_with_validation_mixin import HookWithValidationMixin
 
 __all__ = [
     'ObservableDict',
@@ -158,6 +160,8 @@ __all__ = [
     'DEFAULT_NEXUS_MANAGER',
     'ObservableRootedPaths',
     'ObservableRaiseNone',
+    'HookWithReactionMixin',
+    'HookWithValidationMixin',
 ]
 
 # Package metadata

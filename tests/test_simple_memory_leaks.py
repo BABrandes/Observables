@@ -8,6 +8,7 @@ import weakref
 
 from observables._hooks.hook import Hook
 from observables._utils.hook_nexus import HookNexus
+from observables._hooks.floating_hook import FloatingHook
 
 
 class TestSimpleMemoryLeaks(unittest.TestCase):
@@ -38,7 +39,7 @@ class TestSimpleMemoryLeaks(unittest.TestCase):
             return True, "Successfully validated"
         
         # Create a hook with callback
-        hook = Hook("test_value", validate_value_in_isolation_callback=callback)
+        hook = FloatingHook("test_value", validate_value_in_isolation_callback=callback)
         hook_ref = weakref.ref(hook)
         
         # Verify the hook exists

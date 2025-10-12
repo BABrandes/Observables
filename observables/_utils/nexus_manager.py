@@ -1,5 +1,5 @@
 from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable
-
+from threading import RLock, local
 from logging import Logger
 
 
@@ -13,7 +13,7 @@ from .hook_nexus import HookNexus
 
 class NexusManager:
     """
-    Central coordinator for the observable sync system.
+    Central coordinator for the observable sync system (thread-safe).
     
     The NexusManager handles the complete value submission flow in the new architecture:
     1. Receives value submissions from observables
@@ -24,6 +24,12 @@ class NexusManager:
     
     This replaces the old binding system with a more flexible hook-based approach
     where observables can define custom logic for value completion and validation.
+    
+    Thread Safety
+    -------------
+    All value submission operations are protected by a reentrant lock (RLock),
+    ensuring safe concurrent access from multiple threads. The lock serializes
+    submissions while allowing nested calls from the same thread.
     """
 
     def __init__(
@@ -33,6 +39,8 @@ class NexusManager:
 
         self._value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
         self._value_equality_callbacks.update(value_equality_callbacks)
+        self._lock = RLock()  # Thread-safe lock for submit_values operations
+        self._thread_local = local()  # Thread-local storage for tracking submission state
 
     def add_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
         """Add a value equality callback for a specific value type."""
@@ -226,34 +234,11 @@ class NexusManager:
 
         return True, "Successfully updated nexus and values"
 
-    def submit_values(
-        self,
-        nexus_and_values: Mapping["HookNexus[Any]", Any],
-        only_check_values: bool = False,
-        not_notifying_listeners_after_submission: set[BaseListeningLike] = set(),
-        logger: Optional[Logger] = None
-        ) -> tuple[bool, str]:
+    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], only_check_values: bool = False, not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
-        Submit values to the hook nexuses in the new architecture.
-        
-        This is the main entry point for value submissions. It orchestrates the complete
-        submission flow:
-        
-        1. **Value Completion**: Uses add_values_to_be_updated_callback to complete
-           missing values based on submitted values
-        2. **Validation**: Validates all values using validation callbacks
-        3. **Value Update**: Updates hook nexuses with new values
-        4. **Invalidation**: Triggers invalidation of affected observables
-        5. **Notification**: Notifies listeners of changes
-        
-        Args:
-            nexus_and_values: Mapping of hook nexuses to their new values
-            only_check_values: If True, only validates without updating values
-            not_notifying_listeners_after_submission: Set of hooks or owners to skip notification
-            logger: Optional logger for debugging
-            
-        Returns:
-            Tuple of (success: bool, message: str)
+        This method is the internal implementation of submit_values.
+
+        * This method is not thread-safe. It is only meant to be called by the submit_values method.
         """
 
         from .._hooks.owned_hook_like import OwnedHookLike
@@ -337,22 +322,269 @@ class NexusManager:
                     hooks_of_nexus.remove(obj) # type: ignore
             hooks_to_be_notified.update(hooks_of_nexus)
 
+        def notify_listeners(obj: "BaseListeningLike | HookLike[Any]"):
+            """
+            This method notifies the listeners of an object.
+            """
+
+            try:
+                obj._notify_listeners() # type: ignore
+            except RuntimeError:
+                # RuntimeError indicates a programming error (like recursive submit_values)
+                # that should not be silently caught - re-raise it immediately
+                raise
+            except Exception as e:
+                if logger is not None:
+                    logger.error(f"Error in listener callback: {e}")
+
         # Notify owners and hooks that are owned        
         for owner in owners_that_are_affected:
             if isinstance(owner, BaseListeningLike):
                 if owner not in not_notifying_listeners_after_submission:
-                    owner._notify_listeners() # type: ignore
+                    notify_listeners(owner)
             # Only notify hooks that are actually affected
             for hook in owner.get_dict_of_hooks().values():
                 if hook in hooks_to_be_notified:
                     hooks_to_be_notified.remove(hook)
-                    hook._notify_listeners() # type: ignore
+                    notify_listeners(hook)
 
         # Notify the remaining hooks
         for hook in hooks_to_be_notified:
-            hook._notify_listeners() # type: ignore
+            notify_listeners(hook)
 
         return True, "Values are submitted"
+
+    def submit_values(
+        self,
+        nexus_and_values: Mapping["HookNexus[Any]", Any],
+        only_check_values: bool = False,
+        not_notifying_listeners_after_submission: set[BaseListeningLike] = set(),
+        logger: Optional[Logger] = None
+        ) -> tuple[bool, str]:
+        """
+        Submit values to the hook nexuses - the central orchestration point for all value changes.
+        
+        This is the main entry point for value submissions in the observable system. It orchestrates
+        the complete submission flow through five distinct phases, ensuring consistency, validation,
+        and proper notification of all affected components.
+        
+        **IMPORTANT - No Value Copying**: This method works exclusively with value references, never
+        creating copies of the submitted values. This design choice enables efficient handling of
+        complex objects (large lists, nested dictionaries, custom classes, etc.) without incurring
+        time penalties from copying operations. All value comparisons, assignments, and propagations
+        use references only.
+        
+        Submission Flow (Five Phases)
+        ------------------------------
+        
+        **Phase 1: Value Completion**
+            The system completes any missing related values using `add_values_to_be_updated_callback`
+            from affected observables. This is an iterative process:
+            
+            - Identifies all observables (owners) affected by the submitted values
+            - For each owner, calls their `_add_values_to_be_updated()` method
+            - The owner can return additional values that need to be updated
+            - Process repeats until no new values are added
+            
+            Example: When updating a dict item, the dict observable itself must also be updated.
+            The completion phase ensures both the item and parent dict are in the submission.
+        
+        **Phase 2: Value Collection**
+            Collects all affected components for validation and notification:
+            
+            - All observables (owners) that own hooks in the affected nexuses
+            - All floating hooks with validation mixins
+            - All hooks with reaction mixins
+            
+            This step prepares the sets of objects that will be processed in later phases.
+        
+        **Phase 3: Value Validation**
+            Validates all values before any changes are committed:
+            
+            - For each affected observable: calls `validate_complete_values_in_isolation()`
+              with ALL its hook values (both submitted and current values as references)
+            - For each floating hook with validation: calls `validate_value_in_isolation()`
+            - If any validation fails, the entire submission is rejected (no partial updates)
+            
+            This ensures atomicity - either all values are valid and applied, or none are.
+        
+        **Phase 4: Value Update** (skipped if only_check_values=True)
+            Updates the hook nexuses with new values:
+            
+            - Saves current value as `_previous_value` for each nexus
+            - Assigns new value to `_value` (reference assignment only)
+            - All hooks in the nexus immediately see the new value
+        
+        **Phase 5: Invalidation, Reaction, and Notification**
+            Propagates changes to all affected components:
+            
+            - **Invalidation**: Calls `invalidate()` on all affected observables
+              (allows observables to recompute derived state)
+            - **Reaction**: Calls `react_to_value_changed()` on hooks with reaction mixins
+              (enables custom side effects like logging, caching, etc.)
+            - **Notification**: Triggers `_notify_listeners()` on:
+              * All affected observables (if they implement BaseListeningLike)
+              * All hooks in affected nexuses
+              * Respects `not_notifying_listeners_after_submission` exclusions
+        
+        Parameters
+        ----------
+        nexus_and_values : Mapping[HookNexus[Any], Any]
+            Mapping of hook nexuses to their new values. The values are used by reference
+            only - no copies are created. Each nexus will be updated with its corresponding
+            value, and all hooks in that nexus will reflect the change.
+            
+        only_check_values : bool, default=False
+            If True, performs only phases 1-3 (completion and validation) without actually
+            updating values (phase 4) or triggering notifications (phase 5). Useful for
+            pre-validation of potential changes without committing them.
+            
+        not_notifying_listeners_after_submission : set[BaseListeningLike], default=set()
+            Set of observables or hooks that should NOT have their listeners notified during
+            phase 5. Useful for preventing notification loops or when the caller wants to
+            handle notifications manually. Objects in this set will still be updated and
+            validated, but their `_notify_listeners()` will not be called.
+            
+        logger : Optional[Logger], default=None
+            Optional logger for debugging the submission process. Currently not actively
+            used in the implementation but reserved for future debugging capabilities.
+        
+        Returns
+        -------
+        tuple[bool, str]
+            A tuple of (success, message):
+            - success: True if submission succeeded, False if any step failed
+            - message: Descriptive message about the result
+              * On success: "Values are valid" (if only_check_values) or "Values are submitted"
+              * On failure: Specific error message indicating what went wrong
+        
+        Raises
+        ------
+        RuntimeError
+            If a recursive `submit_values()` call is detected. This indicates an incorrect
+            implementation where a user-implemented callback (validation, completion, invalidation,
+            reaction, or listener) is attempting to trigger another submission during an ongoing
+            submission. This is not allowed as the entire submission flow is designed to be
+            atomic and non-reentrant.
+            
+        Additionally, callback methods called during submission may raise exceptions:
+            - `_add_values_to_be_updated()` may raise ValueError if value completion logic fails
+            - `validate_complete_values_in_isolation()` may raise if validation logic fails
+            
+        Most validation errors are returned as (False, error_message) tuples rather than
+        raised as exceptions.
+        
+        Notes
+        -----
+        **Performance Characteristics**:
+        - O(1) value updates per nexus (reference assignment only)
+        - O(n) where n = number of affected observables + hooks
+        - Iterative completion phase may add overhead if many related values must be completed
+        - No copying overhead regardless of value size or complexity
+        
+        **Thread Safety**:
+        This method IS thread-safe. It uses a reentrant lock (RLock) to ensure that
+        concurrent calls to `submit_values` are serialized. The lock protects the entire
+        submission flow (all 5 phases), ensuring atomicity across the completion,
+        validation, update, and notification phases. Multiple threads can safely call
+        `submit_values` concurrently without external synchronization.
+        
+        **Reentrancy Protection**:
+        Despite using an RLock (which allows lock reacquisition by the same thread),
+        this method actively PREVENTS recursive calls by using thread-local state tracking.
+        If `submit_values()` is called while already executing in the same thread, a
+        RuntimeError is raised. This enforces the design principle that all user-implemented
+        callbacks (validation, completion, invalidation, reaction, listeners) should never
+        trigger new submissions during an ongoing submission. Instead, callbacks should only
+        return additional values to be included in the current atomic submission. This
+        protection catches incorrect implementations early and prevents subtle bugs.
+        
+        **Value Completion Cycle Detection**:
+        The completion phase uses a simple iteration limit to prevent infinite loops.
+        If an observable's `_add_values_to_be_updated()` continuously adds new values
+        without converging, the system may not detect this efficiently.
+        
+        **Notification Order**:
+        Listeners are notified in this order:
+        1. Observable-level listeners (for observables that are BaseListeningLike)
+        2. Hook-level listeners for owned hooks
+        3. Hook-level listeners for floating hooks
+        
+        Examples
+        --------
+        Basic value submission:
+        
+        >>> hook = FloatingHook[int](42)
+        >>> nexus = hook.hook_nexus
+        >>> manager = NexusManager()
+        >>> success, msg = manager.submit_values({nexus: 100})
+        >>> success
+        True
+        >>> hook.value
+        100
+        
+        Validation-only check:
+        
+        >>> hook = FloatingHook[int](42)
+        >>> nexus = hook.hook_nexus
+        >>> manager = NexusManager()
+        >>> # Check if value would be valid without applying it
+        >>> success, msg = manager.submit_values({nexus: 200}, only_check_values=True)
+        >>> success
+        True
+        >>> hook.value  # Value unchanged
+        42
+        
+        Submitting complex objects by reference:
+        
+        >>> large_dict = {i: [j for j in range(1000)] for i in range(1000)}
+        >>> hook = FloatingHook[dict](large_dict)
+        >>> nexus = hook.hook_nexus
+        >>> # Modify the dict in-place
+        >>> large_dict[1000] = [999]
+        >>> # Submit - no copying occurs, immediate update
+        >>> manager.submit_values({nexus: large_dict})
+        (True, 'Values are submitted')
+        
+        Suppressing notifications:
+        
+        >>> hook = FloatingHook[int](42)
+        >>> def listener():
+        ...     print("Value changed!")
+        >>> hook.add_listeners(listener)
+        >>> nexus = hook.hook_nexus
+        >>> # Update without triggering listener
+        >>> manager.submit_values({nexus: 100}, not_notifying_listeners_after_submission={hook})
+        (True, 'Values are submitted')
+        >>> # Listener was not called, but value was updated
+        >>> hook.value
+        100
+        
+        See Also
+        --------
+        HookNexus : The data structure that holds synchronized hook values
+        BaseCarriesHooks.submit_values : Higher-level interface for submitting values to observables
+        FloatingHook.submit_value : Convenient method for submitting a single value to a floating hook
+        """
+        
+        # Check for recursive submission (which indicates incorrect callback implementation)
+        if getattr(self._thread_local, 'in_submission', False):
+            raise RuntimeError(
+                "Recursive submit_values call detected! This indicates an incorrect implementation. "
+                "User-implemented callbacks (such asvalidation, completion, invalidation, reaction, listeners) "
+                "must NEVER trigger another submit_values() call. "
+                "The entire submission flow is designed to be atomic and non-reentrant."
+            )
+        
+        with self._lock:
+            # Mark that we're in a submission for this thread
+            self._thread_local.in_submission = True
+            
+            try:
+                return self._internal_submit_values(nexus_and_values, only_check_values, not_notifying_listeners_after_submission, logger)
+            finally:
+                # Always reset the submission flag, even if an error occurs
+                self._thread_local.in_submission = False
 
     @staticmethod
     def get_nexus_and_values(hooks: set["HookLike[Any]"]) -> dict[HookNexus[Any], Any]:

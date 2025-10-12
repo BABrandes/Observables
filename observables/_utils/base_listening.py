@@ -218,6 +218,10 @@ class BaseListening(BaseListeningLike):
         for callback in listeners_copy:
             try:
                 callback()
+            except RuntimeError:
+                # RuntimeError indicates a programming error (like recursive submit_values)
+                # that should not be silently caught - re-raise it immediately
+                raise
             except Exception as e:
                 self._log("notify_listeners", False, f"Error in listener callback: {e}")
                 continue

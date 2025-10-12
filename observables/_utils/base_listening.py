@@ -21,6 +21,12 @@ class BaseListeningLike(Protocol):
         """
         ...
 
+    def add_listener_and_call_once(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Add one or more listeners and call them once.
+        """
+        ...
+
     def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
         """
         Remove one or more listeners from the observable.
@@ -136,6 +142,16 @@ class BaseListening(BaseListeningLike):
                 self._listeners.add(callback)
 
         self._log("add_listeners", True, f"Successfully added {len(callbacks)} listeners")
+
+    def add_listener_and_call_once(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Add a listener and call it once.
+        """
+        for callback in callbacks:
+            self._listeners.add(callback)
+        for callback in callbacks:
+            callback()
+        self._log("add_listener_and_call_once", True, f"Successfully added {len(callbacks)} listeners and called them once")
 
     def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
         """

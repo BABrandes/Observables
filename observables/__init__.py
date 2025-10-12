@@ -116,6 +116,7 @@ from ._utils.observable_serializable import ObservableSerializable
 from ._other_observables.observable_raise_none import ObservableRaiseNone
 from ._hooks.hook_with_reaction_mixin import HookWithReactionMixin
 from ._hooks.hook_with_validation_mixin import HookWithValidationMixin
+from ._utils.base_listening import BaseListeningLike, BaseListening
 
 __all__ = [
     'ObservableDict',
@@ -162,6 +163,8 @@ __all__ = [
     'ObservableRaiseNone',
     'HookWithReactionMixin',
     'HookWithValidationMixin',
+    'BaseListeningLike',
+    'BaseListening',
 ]
 
 # Package metadata

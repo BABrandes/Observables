@@ -5,7 +5,6 @@ Test runner for the observables library.
 
 import sys
 import os
-import unittest
 import logging
 from pathlib import Path
 
@@ -25,7 +24,7 @@ def setup_logging():
 console_logger = setup_logging()
 
 def main():
-    """Run the test suite."""
+    """Run the test suite using pytest."""
     # Get the project root directory
     project_root = Path(__file__).parent.parent
     
@@ -36,30 +35,33 @@ def main():
     # Change to project root
     os.chdir(project_root)
     
-    print("Running observables test suite...")
+    print("Running observables test suite with pytest...")
     print(f"Project root: {project_root}")
-    print(f"Python path: {sys.path[:3]}...")  # Show first 3 entries
     print()
     
     try:
-        # Discover and run all tests
-        loader = unittest.TestLoader()
-        start_dir: str = str(Path(__file__).parent)
-        suite = loader.discover(start_dir, pattern='test_*.py')
+        import pytest
         
-        # Run the tests
-        runner = unittest.TextTestRunner(verbosity=2)
-        result = runner.run(suite)
+        # Run pytest with the tests directory
+        test_dir = Path(__file__).parent
+        exit_code = pytest.main([
+            str(test_dir),
+            "-v",                    # Verbose output
+            "--tb=short",            # Shorter traceback format
+            "--color=yes",           # Colored output
+            "-ra",                   # Show summary of all test outcomes
+        ])
         
-        if result.wasSuccessful():
+        if exit_code == 0:
             print("\n✅ All tests passed!")
             return 0
         else:
-            print(f"\n❌ Tests failed!")
-            print(f"Failures: {len(result.failures)}")
-            print(f"Errors: {len(result.errors)}")
-            return 1
+            print(f"\n❌ Tests failed with exit code: {exit_code}")
+            return exit_code
             
+    except ImportError:
+        print("❌ pytest not found. Please install it with: pip install pytest")
+        return 1
     except Exception as e:
         print(f"❌ Error running tests: {e}")
         import traceback

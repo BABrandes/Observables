@@ -177,8 +177,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
                 logger=logger
             )
             self._input_hooks[key] = internal_hook_input
-            if isinstance(external_hook_or_value, HookLike):
-                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+            # Connect the internal hook to the external hook later (after the object is initialized)
 
         # Create output hooks for all keys, connecting to external hooks when provided
         if isinstance(output_trigger_hook_keys, set): # type: ignore
@@ -262,6 +261,12 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             is_inverse, msg = self.check_if_reverse_callable_is_the_inverse_of_the_forward_callable()
             if not is_inverse:
                 raise ValueError(f"Reverse callable validation failed: {msg}")
+
+        # Connect the internal hook to the external hook if provided
+        for key, external_hook_or_value in input_trigger_hooks.items():
+            internal_hook_input = self._input_hooks[key] # type: ignore
+            if isinstance(external_hook_or_value, HookLike):
+                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods

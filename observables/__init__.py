@@ -105,6 +105,8 @@ from ._hooks.hook_like import HookLike
 from ._utils.hook_nexus import HookNexus
 from ._hooks.owned_hook_like import OwnedHookLike
 from ._hooks.floating_hook import FloatingHook
+from ._hooks.floating_hook_like import FloatingHookLike
+from ._hooks.hook import Hook
 from ._utils.system_analysis import write_report    
 from ._utils.base_carries_hooks import CarriesHooksLike
 from ._utils.nexus_manager import NexusManager
@@ -142,9 +144,11 @@ __all__ = [
     'BaseObservable',
     'OwnedHook',
     'HookLike',
+    'Hook',
     'HookNexus',
     'OwnedHookLike',
     'FloatingHook',
+    'FloatingHookLike',
     'BaseCarriesHooks',
     'CarriesHooksLike',
     'InitialSyncMode',

@@ -22,6 +22,7 @@ Key Features:
 - Multiple output trigger hooks for result distribution
 - Forward transformation (inputs → outputs) via callable
 - Optional reverse transformation (outputs → inputs) via callable
+- **Both callables always receive COMPLETE sets of values** (mixing submitted and current values)
 - Automatic transformation triggering through add_values_to_be_updated_callback
 - Type-safe generic implementation with named components
 - Thread-safe operations with RLock protection
@@ -97,6 +98,13 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
     - Integrates with NexusManager for value submission and synchronization
     - Provides thread-safe operations with RLock protection
     
+    **IMPORTANT - Complete Value Sets:**
+    Both forward_callable and reverse_callable are ALWAYS called with complete sets of values.
+    When a hook value changes, the callable receives:
+    - The new (submitted) value for changed keys
+    - The current (existing) value for unchanged keys
+    This ensures transformations always have all required inputs available.
+    
     **New Architecture Integration:**
     The transformation is triggered automatically through the add_values_to_be_updated_callback,
     which is called by the NexusManager during value submission. This replaces the old
@@ -124,6 +132,8 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             forward_callable: Function that transforms input values to output values.
                 Expected signature: (input_values: Mapping[IHK, IHV]) -> Mapping[OHK, OHV]
                 Must return a dict with keys matching output_trigger_hook_keys.
+                **IMPORTANT**: This callable is ALWAYS called with a COMPLETE set of input values,
+                combining submitted (changed) values with current (unchanged) values.
             output_trigger_hook_keys: Set of output hook keys.
                 When any of these hooks are invalidated, reverse transformation is triggered (if available).
                 All keys that the forward_callable returns must be present in this set.
@@ -132,6 +142,8 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
                 If None, reverse transformation is not triggered.
                 Must return a dict with keys matching input_trigger_hooks keys.
                 It must be the inverse function of the forward callable.
+                **IMPORTANT**: This callable is ALWAYS called with a COMPLETE set of output values,
+                combining submitted (changed) values with current (unchanged) values.
             logger: Optional logger for debugging and monitoring transformations.
         
         Note:
@@ -156,6 +168,9 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             >>> 
             >>> # x_hook and y_hook changes trigger automatic updates
             >>> # sum_hook and product_hook get updated automatically when x_hook or y_hook changes
+            >>> # NOTE: forward_callable will ALWAYS receive BOTH "x" and "y" values,
+            >>> # even if only one of them changed (it gets the new value for the changed
+            >>> # one and the current value for the unchanged one)
         """
 
         self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
@@ -202,6 +217,11 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             """
             Add values to be updated by triggering transformations.
             This callback is called when any hook value changes.
+            
+            NOTE: Both forward_callable and reverse_callable are ALWAYS called with
+            COMPLETE sets of values by merging submitted_values (changed keys) with
+            current_values (unchanged keys). This ensures transformations always have
+            all required inputs available.
             """
 
             if reverse_callable is not None and not self_ref._assume_inverse_callable_is_always_valid:

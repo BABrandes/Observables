@@ -9,7 +9,7 @@ The Observables library provides a revolutionary approach to reactive programmin
 Unlike traditional reactive libraries that implement one-way data flow, Observables provides **genuine bidirectional binding** through a centralized storage system. When observables are bound together, they share the **same underlying storage (HookNexus)**, ensuring that changes propagate in both directions automatically.
 
 ```python
-from observables import ObservableSingleValue, InitialSyncMode
+from observables import ObservableSingleValue
 
 # Create two observables
 temperature_celsius = ObservableSingleValue(25.0)
@@ -19,7 +19,7 @@ temperature_fahrenheit = ObservableSingleValue(77.0)
 temperature_celsius.attach(
     temperature_fahrenheit.single_value_hook, 
     "single_value", 
-    InitialSyncMode.USE_CALLER_VALUE
+    "use_caller_value"
 )
 
 # ✅ Change from celsius - fahrenheit updates automatically
@@ -46,7 +46,7 @@ print(f"  obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexu
 # Different IDs = separate storage
 
 # Bind them together
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
 
 print(f"After binding:")
 print(f"  obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
@@ -73,9 +73,9 @@ header_name = ObservableSingleValue("John")
 sidebar_name = ObservableSingleValue("John")
 
 # Create binding chain
-user_name.attach(display_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-display_name.attach(header_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-header_name.attach(sidebar_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+user_name.attach(display_name.single_value_hook, "single_value", "use_caller_value")
+display_name.attach(header_name.single_value_hook, "single_value", "use_caller_value")
+header_name.attach(sidebar_name.single_value_hook, "single_value", "use_caller_value")
 
 # ✅ All four observables now share the same HookNexus
 # Changes from ANY observable propagate to ALL others bidirectionally
@@ -109,9 +109,9 @@ obs_c = ObservableSingleValue(1)
 obs_d = ObservableSingleValue(1)
 
 # Build the chain
-obs_a.attach(obs_b.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs_b.attach(obs_c.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs_c.attach(obs_d.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs_a.attach(obs_b.single_value_hook, "single_value", "use_caller_value")
+obs_b.attach(obs_c.single_value_hook, "single_value", "use_caller_value")
+obs_c.attach(obs_d.single_value_hook, "single_value", "use_caller_value")
 
 # All four share the same HookNexus
 print(f"All HookNexus IDs are the same:")
@@ -172,7 +172,7 @@ secondary_selector = ObservableSelectionOption("red", {"red", "green", "yellow"}
 primary_selector.attach(
     secondary_selector.selected_option_hook, 
     "selected_option", 
-    InitialSyncMode.USE_CALLER_VALUE
+    "use_caller_value"
 )
 
 # ✅ Valid change - works across both observables
@@ -229,7 +229,7 @@ print(f"Available: {product_selector.available_options}")        # {'smartwatch'
 For observables with multiple interdependent components, use `connect_multiple` to prevent validation conflicts:
 
 ```python
-from observables import ObservableSelectionOption, InitialSyncMode
+from observables import ObservableSelectionOption
 
 # Create observables with different component values
 config_primary = ObservableSelectionOption("production", {"production", "staging", "development"})
@@ -238,9 +238,9 @@ config_backup = ObservableSelectionOption("test", {"test", "validation", "sandbo
 # ❌ Sequential binding can cause validation errors
 # When binding selected_option first, "production" might not be in backup's available options
 try:
-    config_primary.attach(config_backup.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+    config_primary.attach(config_backup.selected_option_hook, "selected_option", "use_target_value")
     # This could fail if "test" is not in primary's available options
-    config_primary.attach(config_backup.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+    config_primary.attach(config_backup.available_options_hook, "available_options", "use_target_value")
 except ValueError as e:
     print(f"Sequential binding failed: {e}")
 
@@ -248,7 +248,7 @@ except ValueError as e:
 config_primary.connect_multiple({
     "selected_option": config_backup.selected_option_hook,
     "available_options": config_backup.available_options_hook
-}, InitialSyncMode.USE_TARGET_VALUE)
+}, "use_target_value")
 
 print(f"After atomic binding:")
 print(f"  Primary selected: {config_primary.selected_option}")        # "test"
@@ -271,7 +271,7 @@ config_a = ObservableSelectionOption("production", {"production", "staging", "de
 config_b = ObservableSelectionOption("staging", {"staging", "development", "test"})
 
 # ✅ Binding succeeds because current values can be made compatible
-config_a.attach(config_b.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+config_a.attach(config_b.selected_option_hook, "selected_option", "use_caller_value")
 print(f"After binding - both have: {config_a.selected_option}")  # staging
 
 # Create incompatible observables
@@ -279,7 +279,7 @@ config_c = ObservableSelectionOption("invalid_option", {"option1", "option2"})
 
 # ❌ Binding fails due to validation
 try:
-    config_a.attach(config_c.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+    config_a.attach(config_c.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
     # Output: "Selected option invalid_option not in options {'staging', 'development', 'test'}"
@@ -453,7 +453,7 @@ print(f"Temperature remains: {room_temp.single_value}°C")  # 25.0
 outdoor_temp = ValidatedTemperature(15.0, min_temp=-40.0, max_temp=60.0)
 
 # ✅ Compatible ranges - binding succeeds
-room_temp.attach(outdoor_temp.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+room_temp.attach(outdoor_temp.single_value_hook, "single_value", "use_caller_value")
 
 # ❌ Updates that violate validation are rejected
 try:
@@ -745,7 +745,7 @@ if all(is_compatible(obs) for obs in observables_to_bind):
         observables_to_bind[i].bind_to(observables_to_bind[i + 1])
 
 # ✅ Good: Use appropriate initial sync modes to minimize validation
-obs1.attach(obs2.hook, "component", InitialSyncMode.USE_CALLER_VALUE)  # Sync from obs1 to obs2
+obs1.attach(obs2.hook, "component", "use_caller_value")  # Sync from obs1 to obs2
 ```
 
 ---

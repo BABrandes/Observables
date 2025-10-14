@@ -15,8 +15,7 @@ pip install observables
 ```python
 from observables import (
     ObservableSingleValue,
-    ObservableSelectionOption,
-    InitialSyncMode
+    ObservableSelectionOption
 )
 ```
 
@@ -38,10 +37,11 @@ print(f"Celsius: {temperature_celsius.single_value}")       # 25.0
 print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 77.0
 
 # Bind them together - celsius pushes its value to fahrenheit
+# Using "use_caller_value" means the caller's value (celsius) takes precedence
 temperature_celsius.attach(
     temperature_fahrenheit.single_value_hook, 
     "single_value", 
-    InitialSyncMode.USE_CALLER_VALUE
+    "use_caller_value"
 )
 
 print("\nAfter binding:")
@@ -65,16 +65,19 @@ print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 100.0
 
 ### **Understanding Initial Sync Modes**
 
-The `InitialSyncMode` determines which value "wins" when observables are first bound:
+The initial sync mode determines which value takes precedence when observables are first bound. This is specified using string literals:
+
+- **`"use_caller_value"`**: The caller's current value overwrites the target's value
+- **`"use_target_value"`**: The target's current value overwrites the caller's value
 
 ```python
 # Create observables with different values
 obs1 = ObservableSingleValue("Hello")
 obs2 = ObservableSingleValue("World")
 
-# USE_CALLER_VALUE: obs1's value overwrites obs2's value
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-print(f"After USE_CALLER_VALUE: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
+# Using "use_caller_value": obs1's value overwrites obs2's value
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+print(f"After use_caller_value: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
 # Output: obs1='Hello', obs2='Hello'
 
 # Reset for next example
@@ -82,11 +85,13 @@ obs1.detach()
 obs1.single_value = "Hello"
 obs2.single_value = "World"
 
-# USE_TARGET_VALUE: obs1 takes obs2's value
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_TARGET_VALUE)
-print(f"After USE_TARGET_VALUE: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
+# Using "use_target_value": obs1 takes obs2's value
+obs1.attach(obs2.single_value_hook, "single_value", "use_target_value")
+print(f"After use_target_value: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
 # Output: obs1='World', obs2='World'
 ```
+
+After the initial binding, both modes result in true bidirectional synchronization. The mode only determines which value is used at the moment of binding.
 
 ### **Exercise 1: Create Your First Binding**
 
@@ -104,7 +109,7 @@ username = ObservableSingleValue("Your Name")
 display_name = ObservableSingleValue("Placeholder")
 
 # Bind username to display_name
-username.attach(display_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+username.attach(display_name.single_value_hook, "single_value", "use_caller_value")
 
 # Test bidirectional binding
 print(f"Username: {username.single_value}")
@@ -134,7 +139,7 @@ print(f"obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)
 # Different IDs = separate storage
 
 # Bind them together
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
 
 print("\nAfter binding - shared storage:")
 print(f"obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
@@ -168,9 +173,9 @@ for name, obs in [("user", user_name), ("header", header_display),
     print(f"{name}: {obs.single_value} (HookNexus: {hook_id})")
 
 # Create binding chain: user → header → sidebar → footer
-user_name.attach(header_display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-header_display.attach(sidebar_display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-sidebar_display.attach(footer_display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+user_name.attach(header_display.single_value_hook, "single_value", "use_caller_value")
+header_display.attach(sidebar_display.single_value_hook, "single_value", "use_caller_value")
+sidebar_display.attach(footer_display.single_value_hook, "single_value", "use_caller_value")
 
 print("\nAfter chaining - all connected:")
 for name, obs in [("user", user_name), ("header", header_display), 
@@ -211,9 +216,9 @@ save_button_text = ObservableSingleValue("")
 status_message = ObservableSingleValue("")
 
 # Build the chain
-input_field.attach(validation_display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-validation_display.attach(save_button_text.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-save_button_text.attach(status_message.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+input_field.attach(validation_display.single_value_hook, "single_value", "use_caller_value")
+validation_display.attach(save_button_text.single_value_hook, "single_value", "use_caller_value")
+save_button_text.attach(status_message.single_value_hook, "single_value", "use_caller_value")
 
 # Test the network
 input_field.single_value = "user@example.com"
@@ -311,7 +316,7 @@ print(f"  theme1: {theme1.selected_option} from {theme1.available_options}")
 print(f"  theme2: {theme2.selected_option} from {theme2.available_options}")
 
 # ✅ Binding succeeds - both have "dark" as an option
-theme1.attach(theme2.selected_option_hook, "selected_option", InitialSyncMode.USE_CALLER_VALUE)
+theme1.attach(theme2.selected_option_hook, "selected_option", "use_caller_value")
 
 print("\nAfter successful binding:")
 print(f"  theme1: {theme1.selected_option}")
@@ -322,7 +327,7 @@ incompatible_theme = ObservableSelectionOption("high_contrast", {"high_contrast"
 
 # ❌ Binding fails - "high_contrast" is not available in theme1's options
 try:
-    theme1.attach(incompatible_theme.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+    theme1.attach(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
     print("ERROR: This should not print!")
 except ValueError as e:
     print(f"\n❌ Binding validation failed: {e}")
@@ -363,7 +368,7 @@ print(f"After atomic update: {payment_method.selected_option}")
 # Test binding validation
 another_payment = ObservableSelectionOption("cash", {"cash", "check"})
 try:
-    payment_method.attach(another_payment.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
+    payment_method.attach(another_payment.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
 ```
@@ -382,9 +387,9 @@ obs_c = ObservableSingleValue("C")
 obs_d = ObservableSingleValue("D")
 
 # Build chain: A ↔ B ↔ C ↔ D
-obs_a.attach(obs_b.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs_b.attach(obs_c.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs_c.attach(obs_d.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs_a.attach(obs_b.single_value_hook, "single_value", "use_caller_value")
+obs_b.attach(obs_c.single_value_hook, "single_value", "use_caller_value")
+obs_c.attach(obs_d.single_value_hook, "single_value", "use_caller_value")
 
 print("Network after creation (all share same value):")
 for name, obs in [("A", obs_a), ("B", obs_b), ("C", obs_c), ("D", obs_d)]:
@@ -433,9 +438,9 @@ profile_name = ObservableSingleValue("John Doe")
 settings_name = ObservableSingleValue("John Doe")
 
 # Connect everything initially
-user_info.attach(header_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-header_name.attach(profile_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-profile_name.attach(settings_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+user_info.attach(header_name.single_value_hook, "single_value", "use_caller_value")
+header_name.attach(profile_name.single_value_hook, "single_value", "use_caller_value")
+profile_name.attach(settings_name.single_value_hook, "single_value", "use_caller_value")
 
 print("All connected initially:")
 user_info.single_value = "Alice Smith"
@@ -481,10 +486,10 @@ sidebar_title = ObservableSingleValue("Home")
 footer_link = ObservableSingleValue("Home")
 
 # Connect all in chain
-nav_title.attach(page_header.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-page_header.attach(breadcrumb.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-breadcrumb.attach(sidebar_title.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-sidebar_title.attach(footer_link.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+nav_title.attach(page_header.single_value_hook, "single_value", "use_caller_value")
+page_header.attach(breadcrumb.single_value_hook, "single_value", "use_caller_value")
+breadcrumb.attach(sidebar_title.single_value_hook, "single_value", "use_caller_value")
+sidebar_title.attach(footer_link.single_value_hook, "single_value", "use_caller_value")
 
 # Test network
 nav_title.single_value = "Dashboard"

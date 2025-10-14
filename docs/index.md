@@ -53,8 +53,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs2.attach(obs3.single_value_hook, "single_value", "use_caller_value")
 
 # 🎉 obs1 is automatically connected to obs3!
 # This happens through HookNexus merging, not manual configuration
@@ -84,7 +84,7 @@ print(f"  Obs2: {id(obs2._component_hooks['single_value'].hook_nexus)}")
 # Output: Different IDs - separate storage
 
 # Bind them together (merges their HookNexus instances)
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
 
 print(f"After binding - HookNexus IDs:")
 print(f"  Obs1: {id(obs1._component_hooks['single_value'].hook_nexus)}")
@@ -111,9 +111,9 @@ obs1 = ObservableList(large_dataset)
 obs2 = ObservableList(large_dataset)
 obs3 = ObservableList(large_dataset)
 
-# Bind them together
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+# Bind them together using attach
+obs1.attach(obs2.list_value_hook, "list_value", "use_target_value")
+obs2.attach(obs3.list_value_hook, "list_value", "use_target_value")
 
 # Now all three share the same HookNexus
 print(f"Memory efficiency:")
@@ -171,29 +171,30 @@ print(f"  Obs3 length: {len(obs3.list_value)}")
 
 ### **Core Binding Methods**
 
-#### **`bind_to(observable, initial_sync_mode=InitialSyncMode.SELF_IS_UPDATED)`**
-Binds this observable to another observable, merging their HookNexus instances.
+#### **`attach(hook, component_name, initial_sync_mode)`**
+Binds this observable to another observable's hook, merging their HookNexus instances for bidirectional synchronization.
 
 **Parameters:**
-- `observable`: The target observable to bind to
-- `initial_sync_mode`: How values should be synchronized initially
+- `hook: HookLike` - The hook of the target observable to bind to
+- `component_name: str` - Name of the component being bound (e.g., "single_value", "list_value")
+- `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - Which value to use initially
 
 **Initial Sync Modes:**
-- `SELF_IS_UPDATED`: This observable gets the target's value
-- `SELF_UPDATES`: Target gets this observable's value
+- `"use_caller_value"`: Caller's value takes precedence, target adopts it
+- `"use_target_value"`: Target's value takes precedence, caller adopts it
 
 **Example:**
 ```python
 obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
 
-# obs1 gets obs2's value
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-print(obs1.single_value)  # 200
-
-# obs2 gets obs1's value
-obs1.bind_to(obs2, InitialSyncMode.SELF_UPDATES)
+# obs2 gets obs1's value (100)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
 print(obs2.single_value)  # 100
+
+# obs1 gets obs2's value (200)
+obs1.attach(obs2.single_value_hook, "single_value", "use_target_value")
+print(obs1.single_value)  # 200
 ```
 
 #### **`detach()`**
@@ -203,7 +204,7 @@ Disconnects this observable from all bindings, creating its own isolated HookNex
 ```python
 obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.single_value_hook, "single_value", "use_target_value")
 
 # Disconnect obs1
 obs1.detach()
@@ -368,7 +369,7 @@ scores.add_listeners(lambda: print(f"Scores updated: {scores.list_value}"))
 
 # Create bindings (automatic HookNexus merging)
 name_display = ObservableSingleValue("")
-name_display.bind_to(name, InitialSyncMode.SELF_IS_UPDATED)
+name_display.attach(name.single_value_hook, "single_value", "use_target_value")
 
 # Changes propagate automatically
 name.single_value = "Jane"  # Updates both name and name_display

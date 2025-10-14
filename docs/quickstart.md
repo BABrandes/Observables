@@ -14,8 +14,7 @@ pip install observables
 from observables import (
     ObservableSingleValue,
     ObservableSelectionOption,
-    ObservableList,
-    InitialSyncMode
+    ObservableList
 )
 ```
 
@@ -54,10 +53,13 @@ primary_name = ObservableSingleValue("Initial")
 display_name = ObservableSingleValue("Display")
 
 # Bind them bidirectionally
+# The third parameter specifies initial sync mode:
+# - "use_caller_value": Use the caller's current value
+# - "use_target_value": Use the target's current value
 primary_name.attach(
     display_name.single_value_hook, 
     "single_value", 
-    InitialSyncMode.USE_CALLER_VALUE
+    "use_caller_value"
 )
 
 print(f"After binding:")
@@ -113,8 +115,8 @@ page_title = ObservableSingleValue("Page")
 navigation_title = ObservableSingleValue("Nav")
 
 # Connect them in a chain
-header_title.attach(page_title.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-page_title.attach(navigation_title.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+header_title.attach(page_title.single_value_hook, "single_value", "use_caller_value")
+page_title.attach(navigation_title.single_value_hook, "single_value", "use_caller_value")
 
 # 🎯 Change the header - all others update automatically
 header_title.single_value = "Dashboard"
@@ -149,8 +151,8 @@ class UserProfileForm:
         self.is_valid = ObservableSingleValue(False)
         
         # Bind form fields to display fields
-        self.name.attach(self.display_name.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-        self.email.attach(self.header_email.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+        self.name.attach(self.display_name.single_value_hook, "single_value", "use_caller_value")
+        self.email.attach(self.header_email.single_value_hook, "single_value", "use_caller_value")
         
         # Add validation listeners
         self.name.add_listener(self._validate)
@@ -207,21 +209,21 @@ form.print_status()
 When working with observables that have multiple dependent components (like selection options), use `connect_multiple` for atomic binding:
 
 ```python
-from observables import ObservableSelectionOption, InitialSyncMode
+from observables import ObservableSelectionOption
 
 # Create two selection observables with different setups
 user_preferences = ObservableSelectionOption("dark", {"dark", "light", "auto"})
 display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
 
 # ❌ Individual binding might cause validation conflicts
-# user_preferences.attach(display_settings.selected_option_hook, "selected_option", InitialSyncMode.USE_TARGET_VALUE)
-# user_preferences.attach(display_settings.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE)
+# user_preferences.attach(display_settings.selected_option_hook, "selected_option", "use_target_value")
+# user_preferences.attach(display_settings.available_options_hook, "available_options", "use_target_value")
 
 # ✅ Atomic binding prevents validation conflicts
 user_preferences.connect_multiple({
     "selected_option": display_settings.selected_option_hook,
     "available_options": display_settings.available_options_hook
-}, InitialSyncMode.USE_TARGET_VALUE)
+}, "use_target_value")
 
 print(f"User preferences now has:")
 print(f"  Selected: {user_preferences.selected_option}")      # "blue"
@@ -251,9 +253,9 @@ display = ObservableSingleValue("Current")
 use_advanced = True
 
 if use_advanced:
-    advanced_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+    advanced_mode.attach(display.single_value_hook, "single_value", "use_caller_value")
 else:
-    simple_mode.attach(display.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+    simple_mode.attach(display.single_value_hook, "single_value", "use_caller_value")
 
 print(f"Display shows: {display.single_value}")  # "Advanced"
 ```
@@ -283,8 +285,8 @@ obs2 = ObservableSingleValue("Connected")
 obs3 = ObservableSingleValue("Connected")
 
 # Connect them
-obs1.attach(obs2.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
-obs2.attach(obs3.single_value_hook, "single_value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs2.attach(obs3.single_value_hook, "single_value", "use_caller_value")
 
 # Disconnect the middle one
 obs2.detach()
@@ -312,8 +314,23 @@ print(f"obs3: {obs3.single_value}")  # "Updated" (still connected to obs1)
 - `is_attached_to(other)` - Check if bound to another observable
 
 ### **Initial Sync Modes**
-- `InitialSyncMode.USE_CALLER_VALUE` - Use caller's value for initial synchronization
-- `InitialSyncMode.USE_TARGET_VALUE` - Use target's value for initial synchronization
+
+When binding observables, you specify which value to use for the initial synchronization using string literals:
+
+- `"use_caller_value"` - Use the caller's current value for initial synchronization. After binding, the target observable will adopt the caller's value.
+- `"use_target_value"` - Use the target's current value for initial synchronization. After binding, the caller observable will adopt the target's value.
+
+Example:
+```python
+source = ObservableSingleValue(10)
+target = ObservableSingleValue(20)
+
+# Using "use_caller_value": target becomes 10
+source.attach(target.single_value_hook, "single_value", "use_caller_value")
+
+# Using "use_target_value": source would become 20
+# source.attach(target.single_value_hook, "single_value", "use_target_value")
+```
 
 ### **Common Hooks**
 - `single_value_hook` - For single values

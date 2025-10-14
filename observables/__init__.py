@@ -18,7 +18,7 @@ Core Features:
 - Thread-safe binding management with RLock protection
 
 Architecture:
-The library uses a revolutionary hook-based architecture where:
+The library uses a hook-based architecture where:
 - HookNexus: Central storage for actual data values
 - Hooks: References/views to central values
 - Observables: User-facing interfaces that access values through hooks

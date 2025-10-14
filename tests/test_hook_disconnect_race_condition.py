@@ -25,8 +25,7 @@ def test_disconnect_connect_race_condition():
     hook3 = Hook(3)
     
     # Connect hook1 and hook2
-    from observables._utils.initial_sync_mode import InitialSyncMode
-    hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+    hook1.connect_hook(hook2, "use_caller_value")
     
     # Verify they're connected
     assert hook1.is_connected_to(hook2)
@@ -48,7 +47,7 @@ def test_disconnect_connect_race_condition():
         """Thread 2: Connect hook1 to hook3"""
         try:
             # This will call _replace_hook_nexus on hook1 and hook3
-            hook1.connect_hook(hook3, InitialSyncMode.USE_CALLER_VALUE)
+            hook1.connect_hook(hook3, "use_caller_value")
         except Exception as e:
             errors.append(("connect", e))
     
@@ -58,7 +57,7 @@ def test_disconnect_connect_race_condition():
         hook1 = Hook(1)
         hook2 = Hook(2)
         hook3 = Hook(3)
-        hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook1.connect_hook(hook2, "use_caller_value")
         
         errors.clear()
         
@@ -99,8 +98,7 @@ def test_disconnect_replace_nexus_concurrent():
         hook2 = Hook(2)
         
         # Connect them
-        from observables._utils.initial_sync_mode import InitialSyncMode
-        hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        hook1.connect_hook(hook2, "use_caller_value")
         
         def thread_disconnect():
             try:

@@ -119,8 +119,8 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
     )
     
     # Connect to external observables
-    external_field1.connect_hook(sync.get_sync_hook("field1"), InitialSyncMode.USE_CALLER_VALUE)
-    external_field2.connect_hook(sync.get_sync_hook("field2"), InitialSyncMode.USE_CALLER_VALUE)
+    external_field1.connect_hook(sync.get_sync_hook("field1"), "use_caller_value")
+    external_field2.connect_hook(sync.get_sync_hook("field2"), "use_caller_value")
     ```
     
     The ObservableSync ensures that whenever any connected hook changes, all hooks

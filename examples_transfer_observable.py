@@ -9,7 +9,7 @@ multiple observable inputs and outputs.
 
 from observables import (
     ObservableTransfer, ObservableDict, ObservableSingleValue, 
-    ObservableList, ObservableSet, InitialSyncMode
+    ObservableList, ObservableSet
 )
 from typing import Dict, Any
 
@@ -30,8 +30,8 @@ def example_1_dictionary_access():
     # Create transfer observable for dictionary access
     dict_access = ObservableTransfer(
         input_hooks={
-            "dict": data_dict.dict_hook,
-            "key": key_obs.single_value_hook
+            "dict": data_dict.value_hook,
+            "key": key_obs.hook
         },
         output_hooks={
             "value": None,  # Will be computed

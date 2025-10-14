@@ -1,10 +1,9 @@
-from typing import Generic, TypeVar, Optional
+from typing import Generic, TypeVar, Optional, Literal
 from threading import RLock
 import logging
 import inspect
 
 from .hook_like import HookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.general import log
 from .._utils.base_listening import BaseListening
 from .._utils.nexus_manager import NexusManager
@@ -95,7 +94,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect_hook(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook in the new architecture.
 
@@ -104,7 +103,7 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         system with a more flexible hook-based approach.
 
         Args:
-            hook: The hook to connect to
+            target_hook: The hook to connect to
             initial_sync_mode: The initial synchronization mode
             
         Returns:
@@ -113,15 +112,15 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
         with self._lock:
 
-            if hook is None: # type: ignore
+            if target_hook is None: # type: ignore
                 raise ValueError("Cannot connect to None hook")
             
-            if initial_sync_mode == InitialSyncMode.USE_CALLER_VALUE:
+            if initial_sync_mode == "use_caller_value":
                 from .._utils.hook_nexus import HookNexus
-                success, msg = HookNexus[T].connect_hook_pairs((self, hook))
-            elif initial_sync_mode == InitialSyncMode.USE_TARGET_VALUE:
+                success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))
+            elif initial_sync_mode == "use_target_value":
                 from .._utils.hook_nexus import HookNexus
-                success, msg = HookNexus[T].connect_hook_pairs((hook, self))
+                success, msg = HookNexus[T].connect_hook_pairs((target_hook, self))
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 

@@ -1,5 +1,4 @@
-from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final
-from .initial_sync_mode import InitialSyncMode
+from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final, Literal
 from logging import Logger
 
 if TYPE_CHECKING:
@@ -135,7 +134,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
     # Methods to connect and disconnect hooks
     #########################################################################
 
-    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
@@ -149,7 +148,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
         """
         ...
 
-    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a list of hooks to the observable.
 

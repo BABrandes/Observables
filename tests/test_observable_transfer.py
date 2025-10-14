@@ -3,7 +3,8 @@ import threading
 import time
 from typing import Any, Literal, Mapping, Optional, cast
 from logging import Logger
-from observables import ObservableTransfer, BaseObservable, InitialSyncMode, ObservableSingleValue, HookLike
+from observables import ObservableTransfer, ObservableSingleValue
+from observables.core import BaseObservable, HookLike
 from observables._hooks.owned_hook import OwnedHook
 # Set up logging for tests
 import logging
@@ -99,7 +100,7 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Connect the transfer's output hook to the external sum_hook
-        transfer.connect_hook(sum_hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_hook, "sum", "use_caller_value")
         
         # Test get_hook - should return transfer's internal hooks, not external ones
         x_internal_hook = transfer.get_hook("x")
@@ -146,7 +147,7 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=forward_transform,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
         
         # Initially, sum should be calculated from initial values
         self.assertEqual(sum_obs.value, 8)  # 5 + 3
@@ -185,9 +186,9 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=forward_transform,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(product_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(diff_obs.hook, "difference", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
+        transfer.connect_hook(product_obs.hook, "product", "use_caller_value")
+        transfer.connect_hook(diff_obs.hook, "difference", "use_caller_value")
         
         # Initially, outputs should be calculated from initial values
         self.assertEqual(sum_obs.value, 14)    # 10 + 4
@@ -229,7 +230,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_transform,
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Test forward transformation
         forward_called.clear()
@@ -262,7 +263,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=fahrenheit_to_celsius,
             logger=logger
         )
-        transfer.connect_hook(fahrenheit_obs.hook, "fahrenheit", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(fahrenheit_obs.hook, "fahrenheit", "use_caller_value")
         
         # Test forward: Change Celsius, check Fahrenheit
         celsius_obs.value = 0.0  # Freezing point
@@ -285,14 +286,14 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Test attach
-        transfer.connect_hook(external_hook, "x", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        transfer.connect_hook(external_hook, "x", "use_caller_value")  # type: ignore
         
         # Test detach
         transfer.disconnect("x")
         
         # Test invalid key for attach/detach
         with self.assertRaises(ValueError):
-            transfer.connect_hook(external_hook, "invalid", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            transfer.connect_hook(external_hook, "invalid", "use_caller_value")  # type: ignore
         
         with self.assertRaises(ValueError):
             transfer.disconnect("invalid")
@@ -322,8 +323,8 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=dict_access_transform,
             logger=logger
         )
-        transfer.connect_hook(value_obs.hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
-        transfer.connect_hook(exists_obs.hook, "exists", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        transfer.connect_hook(value_obs.hook, "value", "use_caller_value") # type: ignore
+        transfer.connect_hook(exists_obs.hook, "exists", "use_caller_value") # type: ignore
         
         # Test initial state
         self.assertEqual(value_obs.value, 1)      # dict["a"] = 1
@@ -365,7 +366,7 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=slow_transform,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
         
         def worker_thread(thread_id: int) -> None:
             """Worker thread that triggers transformations."""
@@ -399,7 +400,7 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Add listener to transfer
         notifications: list[str] = []
@@ -427,7 +428,7 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=format_string,
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Test initial transformation
         name_obs.value = "Alice"  # Trigger transformation
@@ -461,9 +462,9 @@ class TestObservableTransfer(unittest.TestCase):
             forward_callable=math_operations,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(product_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(quotient_obs.hook, "quotient", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
+        transfer.connect_hook(product_obs.hook, "product", "use_caller_value")
+        transfer.connect_hook(quotient_obs.hook, "quotient", "use_caller_value")
         
         # Test calculation by changing input
         x_obs.value = 12.0  # Trigger transformation
@@ -500,7 +501,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=valid_reverse_transform,
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Test invalid reverse callable (wrong return key)
         # Validation now happens during transformation, not at initialization
@@ -509,12 +510,15 @@ class TestObservableTransfer(unittest.TestCase):
             output_trigger_hook_keys={"result"},
             forward_callable=forward_transform,
             reverse_callable=invalid_reverse_transform, # type: ignore
+            assume_inverse_callable_is_always_valid=True,  # Skip inverse validation at init
             logger=logger
         )
         
         # The validation should fail when we try to use the reverse transformation
+        # Note: Must submit a DIFFERENT value than current (x=5 → result=10)
+        # so it's not filtered out as unchanged
         with self.assertRaises(ValueError) as context:
-            invalid_transfer.submit_values({"result": 10})
+            invalid_transfer.submit_values({"result": 20})  # Changed from 10 to 20
         self.assertIn("Key wrong_key not found in hooks", str(context.exception))
 
     def test_reverse_callable_inverse_validation(self):
@@ -574,8 +578,8 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_math,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(product_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
+        transfer.connect_hook(product_obs.hook, "product", "use_caller_value")
         
         # Test forward transformation
         self.assertEqual(sum_obs.value, 13)    # 10 + 3
@@ -591,8 +595,8 @@ class TestObservableTransfer(unittest.TestCase):
         product_reverse_obs = ObservableSingleValue(12, logger=logger)
         
         # Connect to new observables
-        transfer.connect_hook(sum_reverse_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(product_reverse_obs.hook, "product", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_reverse_obs.hook, "sum", "use_caller_value")
+        transfer.connect_hook(product_reverse_obs.hook, "product", "use_caller_value")
         
         # Should trigger reverse transformation to find x, y such that x+y=7, x*y=12
         # Solutions: x=3, y=4 or x=4, y=3
@@ -622,7 +626,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_split,
             logger=logger
         )
-        transfer.connect_hook(full_obs.hook, "full", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(full_obs.hook, "full", "use_caller_value")
         
         # Test forward transformation
         self.assertEqual(full_obs.value, "Hello World")
@@ -659,7 +663,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_transform_with_error,
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Test normal operation
         x_obs.value = 10
@@ -704,8 +708,8 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_operations,
             logger=logger
         )
-        transfer.connect_hook(sum_obs.hook, "sum", InitialSyncMode.USE_CALLER_VALUE)
-        transfer.connect_hook(diff_obs.hook, "diff", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
+        transfer.connect_hook(diff_obs.hook, "diff", "use_caller_value")
         
         # Test forward transformation
         self.assertEqual(sum_obs.value, 5)    # 2 + 3
@@ -741,7 +745,7 @@ class TestObservableTransfer(unittest.TestCase):
             reverse_callable=reverse_transform,
             logger=logger
         )
-        transfer.connect_hook(result_obs.hook, "result", InitialSyncMode.USE_CALLER_VALUE)
+        transfer.connect_hook(result_obs.hook, "result", "use_caller_value")
         
         # Test reverse transformation by directly submitting value to the transfer's output hook
         # This bypasses the hook connection complexity and tests the reverse transformation directly

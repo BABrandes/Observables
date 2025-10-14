@@ -91,7 +91,6 @@ from logging import Logger
 
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
 
@@ -351,9 +350,9 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         )
 
         if hook_selected_option is not None:
-            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_selected_option, "selected_option", "use_target_value") # type: ignore
         if hook_available_options is not None:
-            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_available_options, "available_options", "use_target_value") # type: ignore
 
     @property
     def selected_option(self) -> T:
@@ -489,9 +488,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
         )
 
         if hook_selected_option is not None:
-            self.connect_hook(hook_selected_option, "selected_option", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_selected_option, "selected_option", "use_target_value") # type: ignore
         if hook_available_options is not None:
-            self.connect_hook(hook_available_options, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook_available_options, "available_options", "use_target_value") # type: ignore
 
     @property
     def selected_option(self) -> Optional[T]:

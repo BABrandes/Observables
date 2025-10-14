@@ -6,7 +6,6 @@ from observables._hooks.owned_hook_like import OwnedHookLike
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_like import HookLike
 from observables._utils.hook_nexus import HookNexus
-from observables._utils.initial_sync_mode import InitialSyncMode
 
 T = TypeVar("T")
 
@@ -226,9 +225,9 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
 
         # Connect the hooks
         if hook_with_None is not None:
-            self._hook_with_None.connect_hook(self._hook_without_None, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._hook_with_None.connect_hook(self._hook_without_None, "use_target_value") # type: ignore
         if hook_without_None_or_value is not None:
-            self._hook_without_None.connect_hook(self._hook_with_None, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._hook_without_None.connect_hook(self._hook_with_None, "use_target_value") # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods implementation

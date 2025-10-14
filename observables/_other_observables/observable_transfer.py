@@ -69,8 +69,6 @@ Performance Characteristics:
 from typing import Callable, Generic, Mapping, Optional, TypeVar, Literal
 from logging import Logger
 
-from .._utils.initial_sync_mode import InitialSyncMode
-
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
@@ -286,7 +284,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         for key, external_hook_or_value in input_trigger_hooks.items():
             internal_hook_input = self._input_hooks[key] # type: ignore
             if isinstance(external_hook_or_value, HookLike):
-                internal_hook_input.connect_hook(external_hook_or_value, InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+                internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods

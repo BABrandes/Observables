@@ -84,8 +84,7 @@ class TestMemoryLeaks(unittest.TestCase):
         hook2_ref = weakref.ref(hook2)
         
         # Connect them
-        from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, "use_caller_value")
         self.assertTrue(success)
         
         # Verify they're connected (same nexus)
@@ -166,8 +165,7 @@ class TestMemoryLeaks(unittest.TestCase):
         hook2_ref = weakref.ref(hook2)
         
         # Connect them through NexusManager
-        from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, "use_caller_value")
         self.assertTrue(success)
         
         # Delete the hooks
@@ -188,8 +186,7 @@ class TestMemoryLeaks(unittest.TestCase):
         hook2 = Hook("value2")
         
         # Connect them (creates circular references through nexus)
-        from observables._utils.initial_sync_mode import InitialSyncMode
-        success, _ = hook1.connect_hook(hook2, InitialSyncMode.USE_CALLER_VALUE)
+        success, _ = hook1.connect_hook(hook2, "use_caller_value")
         self.assertTrue(success)
         
         # Create weak references

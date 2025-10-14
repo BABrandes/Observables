@@ -1,7 +1,6 @@
 from logging import Logger
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
 from .._hooks.hook_like import HookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
 
@@ -223,12 +222,12 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
 
         # Establish bindings if hooks were provided
         if observable is not None:
-            self.connect_hook(observable.selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
-            self.connect_hook(observable.available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(observable.selected_options_hook, "selected_options", "use_target_value") # type: ignore
+            self.connect_hook(observable.available_options_hook, "available_options", "use_target_value") # type: ignore
         if available_options_hook is not None:
-            self.connect_hook(available_options_hook, "available_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(available_options_hook, "available_options", "use_target_value") # type: ignore
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.connect_hook(selected_options_hook, "selected_options", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
     @property
     def available_options(self) -> set[T]:

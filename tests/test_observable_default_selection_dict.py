@@ -1,7 +1,8 @@
 import unittest
 from typing import Any, Literal, Mapping, Optional
 from logging import Logger
-from observables import ObservableDefaultSelectionDict, OwnedHook, FloatingHook, BaseObservable, InitialSyncMode, HookLike
+from observables import ObservableDefaultSelectionDict
+from observables.core import OwnedHook, FloatingHook, BaseObservable, HookLike
 # Set up logging for tests
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -308,7 +309,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect_hook(external_hook, "key", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        selection_dict.connect_hook(external_hook, "key", "use_target_value")  # type: ignore
         self.assertEqual(selection_dict.key, "b")
         self.assertEqual(selection_dict.value, 2)
         

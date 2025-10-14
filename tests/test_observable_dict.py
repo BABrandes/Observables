@@ -1,5 +1,5 @@
 import unittest
-from observables import ObservableDict, InitialSyncMode
+from observables import ObservableDict
 from tests.test_base import ObservableTestCase
 
 class TestObservableDict(ObservableTestCase):
@@ -212,7 +212,7 @@ class TestObservableDict(ObservableTestCase):
         obs2 = ObservableDict({"key2": 20})
         
         # Bind obs1 to obs2
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
         
         # Change obs1, obs2 should update
         obs1.set_item("key3", 30)
@@ -228,13 +228,13 @@ class TestObservableDict(ObservableTestCase):
         obs2 = ObservableDict({"key2": 200})
         
         # Test USE_CALLER_VALUE mode (obs1 pushes its value to obs2)
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
         self.assertEqual(obs2.value, {"key1": 100})  # obs2 gets obs1's value
         
         # Test USE_CALLER_VALUE mode (obs3 pushes its value to obs4)
         obs3 = ObservableDict({"key3": 300})
         obs4 = ObservableDict({"key4": 400})
-        obs3.connect_hook(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs3.connect_hook(obs4.value_hook, "value", "use_caller_value") # type: ignore
         self.assertEqual(obs4.value, {"key3": 300})  # obs4 gets obs3's value
     
     def test_unbinding(self):
@@ -242,7 +242,7 @@ class TestObservableDict(ObservableTestCase):
         obs1 = ObservableDict({"key1": 10})
         obs2 = ObservableDict({"key2": 20})
         
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
         obs1.disconnect()
         
         # Changes should no longer propagate
@@ -253,7 +253,7 @@ class TestObservableDict(ObservableTestCase):
         """Test that binding to self raises an error"""
         obs = ObservableDict({"key1": 10})
         with self.assertRaises(ValueError):
-            obs.connect_hook(obs.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+            obs.connect_hook(obs.value_hook, "value", "use_caller_value") # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -262,8 +262,8 @@ class TestObservableDict(ObservableTestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
-        obs2.connect_hook(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
+        obs2.connect_hook(obs3.value_hook, "value", "use_caller_value") # type: ignore
         
         # Verify chain works
         obs1.set_item("key4", 100)
@@ -308,8 +308,8 @@ class TestObservableDict(ObservableTestCase):
         obs3 = ObservableDict({"key3": 30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect_hook(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
-        obs3.connect_hook(obs1.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs2.connect_hook(obs1.value_hook, "value", "use_caller_value") # type: ignore
+        obs3.connect_hook(obs1.value_hook, "value", "use_caller_value") # type: ignore
         
         # Change obs1, both should update
         obs1.set_item("key4", 100)
@@ -376,7 +376,7 @@ class TestObservableDict(ObservableTestCase):
         # Test binding empty dicts
         obs1: ObservableDict[str, str] = ObservableDict({})
         obs2: ObservableDict[str, str] = ObservableDict({})
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
         
         obs1.set_item("key1", "value1")
         self.assertEqual(obs2.value, {"key1": "value1"})
@@ -384,7 +384,7 @@ class TestObservableDict(ObservableTestCase):
         # Test binding dicts with same initial values
         obs3 = ObservableDict({"key1": "value1"})
         obs4 = ObservableDict({"key1": "value1"})
-        obs3.connect_hook(obs4.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs3.connect_hook(obs4.value_hook, "value", "use_caller_value") # type: ignore
         
         obs3.set_item("key2", "value2")
         self.assertEqual(obs4.value, {"key1": "value1", "key2": "value2"})
@@ -441,14 +441,14 @@ class TestObservableDict(ObservableTestCase):
         """Test that binding to None raises an error"""
         obs = ObservableDict({"key1": "value1"})
         with self.assertRaises(ValueError):
-            obs.connect_hook(None, "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect_hook(None, "value", "use_caller_value")  # type: ignore
     
     def test_dict_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableDict({"key1": "value1"})
         obs2 = ObservableDict({"key1": "value1"})
         
-        obs1.connect_hook(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE) # type: ignore
+        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
         # Both should still have the same value
         self.assertEqual(obs1.value, {"key1": "value1"})
         self.assertEqual(obs2.value, {"key1": "value1"})

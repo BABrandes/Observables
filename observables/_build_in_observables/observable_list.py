@@ -1,10 +1,10 @@
 from logging import Logger
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator, Mapping
 from .._hooks.hook_like import HookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
+from .._utils.submission_error import SubmissionError
 
 T = TypeVar("T")
 
@@ -140,7 +140,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
     @property
     def value(self) -> list[T]:
@@ -157,10 +157,9 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         """
         Set the current value of the list.
         """
-        if value != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": value})
-            if not success:
-                raise ValueError(msg)
+        success, msg = self.submit_value("value", value)
+        if not success:
+            raise SubmissionError(msg, value)
 
     def change_value(self, new_value: list[T]) -> None:
         """
@@ -172,10 +171,9 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         Args:
             new_value: The new list value to set
         """
-        if new_value != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": new_value})
-            if not success:
-                raise ValueError(msg)
+        success, msg = self.submit_value("value", new_value)
+        if not success:
+            raise SubmissionError(msg, new_value, "value")
 
     @property
     def value_hook(self) -> HookLike[list[T]]:
@@ -215,7 +213,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list.append(item) # type: ignore
         success, msg = self.submit_values({"value": new_list})
         if not success:
-            raise ValueError(msg)
+            raise SubmissionError(msg, new_list, "value")
     
     def extend(self, iterable: Iterable[T]) -> None:
         """
@@ -227,9 +225,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list = self._primary_hooks["value"].value.copy()
         new_list.extend(iterable) # type: ignore
         if new_list != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": new_list})
-            if not success:
-                raise ValueError(msg)
+            self.value = new_list
     
     def insert(self, index: int, item: T) -> None:
         """
@@ -241,9 +237,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         """
         new_list = self._primary_hooks["value"].value.copy()
         new_list.insert(index, item) # type: ignore
-        success, msg = self.submit_values({"value": new_list})
-        if not success:
-            raise ValueError(msg)
+        self.value = new_list
     
     def remove(self, item: T) -> None:
         """
@@ -262,9 +256,8 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         if item in self._primary_hooks["value"].value:
             new_list = self._primary_hooks["value"].value.copy()
             new_list.remove(item) # type: ignore
-            success, msg = self.submit_values({"value": new_list})
-            if not success:
-                raise ValueError(msg)
+            if new_list != self._primary_hooks["value"].value:
+                self.value = new_list
     
     def pop(self, index: int = -1) -> T:
         """
@@ -285,7 +278,8 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         item: T = self._primary_hooks["value"].value[index] # type: ignore
         new_list = self._primary_hooks["value"].value.copy()
         new_list.pop(index) # type: ignore
-        self.submit_values({"value": new_list})
+        if new_list != self._primary_hooks["value"].value:
+            self.value = new_list
         return item # type: ignore
     
     def clear(self) -> None:
@@ -297,7 +291,8 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         """
         if self._primary_hooks["value"].value:
             new_list: list[T] = []
-            self.submit_values({"value": new_list}) # type: ignore
+            if new_list != self._primary_hooks["value"].value:
+                self.value = new_list # type: ignore
     
     def sort(self, key: Optional[Callable[[T], Any]] = None, reverse: bool = False) -> None:
         """
@@ -313,7 +308,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list = self._primary_hooks["value"].value.copy()
         new_list.sort(key=key, reverse=reverse) # type: ignore
         if new_list != self._primary_hooks["value"].value:
-            self.submit_values({"value": new_list})
+            self.value = new_list
     
     def reverse(self) -> None:
         """
@@ -325,7 +320,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list = self._primary_hooks["value"].value.copy()
         new_list.reverse() # type: ignore
         if new_list != self._primary_hooks["value"].value:
-            self.submit_values({"value": new_list})
+            self.value = new_list
     
     def count(self, item: T) -> int:
         """
@@ -407,7 +402,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list = self._primary_hooks["value"].value.copy()
         new_list[index] = value
         if new_list != self._primary_hooks["value"].value:
-            self.submit_values({"value": new_list})
+            self.value = new_list
     
     def __delitem__(self, index: int) -> None:
         """
@@ -425,7 +420,7 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         new_list = self._primary_hooks["value"].value.copy()
         del new_list[index]
         if new_list != self._primary_hooks["value"].value:
-            self.submit_values({"value": new_list})
+            self.value = new_list
     
     def __contains__(self, item: T) -> bool:
         """
@@ -592,4 +587,4 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
         return {"value": self._primary_hooks["value"].value}
 
     def set_value_references_from_serialization(self, values: Mapping[Literal["value"], list[T]]) -> None:
-        self.submit_values({"value": values["value"]})
+        self.value = values["value"]

@@ -1,7 +1,7 @@
 import unittest
 import pytest
 from typing import Any, Mapping, Optional
-from observables import ObservableSync, InitialSyncMode, ObservableSingleValue
+from observables import ObservableSync, ObservableSingleValue
 from observables._hooks.owned_hook import OwnedHook
 from observables._utils.base_carries_hooks import BaseCarriesHooks
 # Set up logging for tests
@@ -237,8 +237,8 @@ class TestObservableSync(unittest.TestCase):
         self.assertEqual(sync.get_sync_hook("b").value, 10)  # Original value
 
         # Now connect to external observables after initialization
-        sync.get_sync_hook("a").connect_hook(external_a.hook, InitialSyncMode.USE_CALLER_VALUE)
-        sync.get_sync_hook("b").connect_hook(external_b.hook, InitialSyncMode.USE_CALLER_VALUE)
+        sync.get_sync_hook("a").connect_hook(external_a.hook, "use_caller_value")
+        sync.get_sync_hook("b").connect_hook(external_b.hook, "use_caller_value")
 
         # Check that external values are updated to match sync values
         self.assertEqual(external_a.value, 5)  # Matches sync value
@@ -293,14 +293,25 @@ class TestObservableSync(unittest.TestCase):
         
         Any of the three values can be changed, and the others sync automatically.
         """
-        def sync_callback(submitted_values: Mapping[str, float | str]) -> tuple[bool, dict[str, float | str]]:
-            """Sync callback that maintains the constraint: square_value = root_value²."""
+        def sync_callback(
+            submitted_values: Mapping[str, float | str],
+            essential_values: Mapping[str, float | str]
+        ) -> tuple[bool, dict[str, float | str]]:
+            """Sync callback that maintains the constraint: square_value = root_value².
+            
+            Args:
+                submitted_values: Values that were submitted (changed)
+                essential_values: Essential values (domain) that are always provided
+            """
             result: dict[str, float | str] = {}
             
             # Extract submitted values
             root = submitted_values.get("root_value")
             square = submitted_values.get("square_value")
-            domain = submitted_values.get("domain")
+            submitted_domain = submitted_values.get("domain")
+            
+            # Get current domain from essential values
+            current_domain = essential_values.get("domain", "positive")
             
             # When all three values are present (validation mode), check consistency
             if all(k in submitted_values for k in ["root_value", "square_value", "domain"]):
@@ -314,7 +325,7 @@ class TestObservableSync(unittest.TestCase):
                 
                 # Check: domain matches sign of root
                 expected_domain = "positive" if root >= 0 else "negative"
-                if domain != expected_domain:
+                if submitted_domain != expected_domain:
                     return (False, {})
                 
                 # All consistent, no changes needed
@@ -327,26 +338,21 @@ class TestObservableSync(unittest.TestCase):
                 # Update domain to match the sign of the root
                 result["domain"] = "positive" if root >= 0 else "negative"
             
-            # Case 2: square_value and domain were submitted together
-            elif "square_value" in submitted_values and "domain" in submitted_values:
+            # Case 2: square_value was submitted (use current or submitted domain)
+            elif "square_value" in submitted_values:
                 if not isinstance(square, (int, float)):
                     return (False, {})
                 if square < 0:
                     return (False, {})  # Invalid: can't take square root of negative number
                 
+                # Use submitted domain if provided, otherwise use current domain
+                domain_to_use = submitted_domain if submitted_domain is not None else current_domain
+                
                 sqrt_val = square ** 0.5
                 # Use domain to determine the sign of the root
-                result["root_value"] = -sqrt_val if domain == "negative" else sqrt_val
+                result["root_value"] = -sqrt_val if domain_to_use == "negative" else sqrt_val
             
-            # Case 3: Only square_value (use positive domain by default)
-            elif "square_value" in submitted_values:
-                if not isinstance(square, (int, float)):
-                    return (False, {})
-                if square < 0:
-                    return (False, {})
-                result["root_value"] = square ** 0.5
-            
-            # Case 4: Only domain was submitted
+            # Case 3: Only domain was submitted
             elif "domain" in submitted_values:
                 # Can't change domain without knowing current root
                 # Return no changes; this will be checked during validation
@@ -356,6 +362,7 @@ class TestObservableSync(unittest.TestCase):
 
         # Create ObservableSync with initial valid state
         # Initial state: √4 = 2 (positive domain)
+        # Mark 'domain' as essential so it's always available to the callback
         sync = ObservableSync[str, float | str](
             sync_values_initially_valid={
                 "square_value": 4.0,
@@ -363,6 +370,7 @@ class TestObservableSync(unittest.TestCase):
                 "domain": "positive"
             },
             sync_values_callback=sync_callback,
+            essential_sync_value_keys={"domain"},  # Domain is essential - always pass to callback
             logger=logger
         )
 

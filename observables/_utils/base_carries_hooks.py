@@ -1,7 +1,6 @@
-from typing import TYPE_CHECKING, Any, TypeVar, Optional, final, Mapping, Generic, Callable
+from typing import TYPE_CHECKING, Any, TypeVar, Optional, final, Mapping, Generic, Callable, Literal
 from logging import Logger
 from abc import ABC, abstractmethod
-from .initial_sync_mode import InitialSyncMode
 from .base_listening import BaseListeningLike
 from threading import RLock
 from .carries_hooks_like import CarriesHooksLike
@@ -326,7 +325,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 return {}
 
     @final
-    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
@@ -349,7 +348,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
 
     @final
-    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: InitialSyncMode) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a list of hooks to the observable.
 
@@ -366,9 +365,9 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
             for key, hook in hooks.items():
                 hook_of_observable = self._get_hook(key)
                 match initial_sync_mode:
-                    case InitialSyncMode.USE_CALLER_VALUE:
+                    case "use_caller_value":
                         hook_pairs.append((hook_of_observable, hook))
-                    case InitialSyncMode.USE_TARGET_VALUE:
+                    case "use_target_value":
                         hook_pairs.append((hook, hook_of_observable))
                     case _: # type: ignore
                         raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
@@ -419,7 +418,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         with self._lock:
             hook: "OwnedHookLike[Any]" = self._get_hook(hook_key)
 
-            success, msg = self._nexus_manager.submit_values({hook.hook_nexus: value}, only_check_values=True)
+            success, msg = self._nexus_manager.submit_values({hook.hook_nexus: value}, mode="Check values")
             if success == False:
                 return False, msg
             else:
@@ -436,7 +435,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 return True, "No values provided"
 
             nexus_and_values: Mapping[HookNexus[Any], Any] = self.get_nexus_and_values(values)
-            success, msg = self._nexus_manager.submit_values(nexus_and_values, only_check_values=True)
+            success, msg = self._nexus_manager.submit_values(nexus_and_values, mode="Check values")
             if success == True:
                 return True, msg
             else:
@@ -450,6 +449,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         with self._lock:
             return self._nexus_manager.submit_values(
                 {self._get_hook(key).hook_nexus: value},
+                mode="Normal submission",
                 logger=logger
             )
 

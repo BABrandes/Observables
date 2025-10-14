@@ -2,10 +2,10 @@ from logging import Logger
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
 from .._hooks.hook_like import HookLike
 from .._hooks.owned_hook_like import OwnedHookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.observable_serializable import ObservableSerializable
+from .._utils.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -144,7 +144,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
     @property
     def value(self) -> dict[K, V]:
@@ -161,9 +161,9 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         """
         Set the current value of the dictionary.
         """
-        if value == self._primary_hooks["value"].value:
-            return
-        self.submit_values({"value": value})
+        success, msg = self.submit_value("value", value)
+        if not success:
+            raise SubmissionError(msg, value, "value")
     
     def change_value(self, new_dict: dict[K, V]) -> None:
         """
@@ -175,9 +175,9 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Args:
             new_dict: The new dictionary to set
         """
-        if new_dict == self._primary_hooks["value"].value:
-            return
-        self.submit_values({"value": new_dict})
+        success, msg = self.submit_value("value", new_dict)
+        if not success:
+            raise SubmissionError(msg, new_dict, "value")
 
     @property
     def value_hook(self) -> OwnedHookLike[dict[K, V]]:
@@ -220,7 +220,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
             return  # No change
         new_dict = self.value.copy()
         new_dict[key] = value
-        self.submit_values({"value": new_dict})
+        self.value = new_dict
     
     def get_item(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """
@@ -261,7 +261,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
             return  # No change
         new_dict: dict[K, V] = self._primary_hooks["value"].value.copy() # type: ignore
         del new_dict[key]
-        self.submit_values({"value": new_dict}) # type: ignore
+        self.value = new_dict # type: ignore
     
     def clear(self) -> None:
         """
@@ -273,7 +273,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         if not self._primary_hooks["value"].value: # type: ignore
             return  # No change
         new_dict: dict[K, V] = {}
-        self.submit_values({"value": new_dict})
+        self.value = new_dict
     
     def update(self, other_dict: dict[K, V]) -> None:
         """
@@ -299,7 +299,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         
         new_dict = self._primary_hooks["value"].value.copy() # type: ignore
         new_dict.update(other_dict) # type: ignore
-        self.submit_values({"value": new_dict}) # type: ignore
+        self.value = new_dict # type: ignore
     
     def keys(self) -> set[K]:
         """
@@ -377,7 +377,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
             key: The key to set or update
             value: The value to associate with the key
         """
-        self.submit_values({"value": {**self._primary_hooks["value"].value, key: value}}) # type: ignore
+        self.value = {**self._primary_hooks["value"].value, key: value} # type: ignore
     
     def __delitem__(self, key: K) -> None:
         """
@@ -392,7 +392,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        self.submit_values({"value": {k: v for k, v in self._primary_hooks["value"].value.items() if k != key}}) # type: ignore
+        self.value = {k: v for k, v in self._primary_hooks["value"].value.items() if k != key} # type: ignore
     
     def __str__(self) -> str:
         return f"OD(dict={self._primary_hooks['value'].value})"
@@ -406,4 +406,4 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         return {"value": self._primary_hooks["value"].value}
 
     def set_value_references_from_serialization(self, values: Mapping[Literal["value"], dict[K, V]]) -> None:
-        self.submit_values({"value": values["value"]})
+        self.value = values["value"]

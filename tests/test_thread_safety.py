@@ -9,8 +9,8 @@ import threading
 import time
 import pytest
 from unittest.mock import Mock
-from observables import ObservableSingleValue, ObservableList, ObservableDict, BaseObservable
-from observables._utils.initial_sync_mode import InitialSyncMode
+from observables import ObservableSingleValue, ObservableList, ObservableDict
+from observables.core import BaseObservable
 from typing import Any
 
 
@@ -67,7 +67,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -263,8 +263,8 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
-                    obs2.connect_hook(obs3.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                    obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                    obs2.connect_hook(obs3.get_hook("value"), "value", "use_caller_value")  # type: ignore
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
@@ -364,7 +364,7 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.connect_hook(obs2.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                        obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
                         obs1.disconnect("value")
                     elif i % 4 == 1:

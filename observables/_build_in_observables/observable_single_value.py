@@ -1,10 +1,10 @@
 from logging import Logger
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from .._hooks.hook_like import HookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
+from .._utils.submission_error import SubmissionError
 
 T = TypeVar("T")
 
@@ -129,7 +129,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         )
         
         if hook is not None:
-            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
     @property
     def value(self) -> T:
@@ -149,11 +149,9 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         Raises:
             ValueError: If the new value fails validation
         """
-        if value == self._primary_hooks["value"].value:
-            return
-        success, msg = self.submit_values({"value": value})
+        success, msg = self.submit_value("value", value)
         if not success:
-            raise ValueError(msg)
+            raise SubmissionError(msg, value, "value")
 
     def change_value(self, value: T) -> None:
         """
@@ -167,7 +165,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         """
         if value == self._primary_hooks["value"].value:
             return
-        self.submit_values({"value": value})
+        self.value = value
     
     @property
     def hook(self) -> HookLike[T]:
@@ -381,4 +379,4 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         return {"value": self._primary_hooks["value"].value}
 
     def set_value_references_from_serialization(self, values: Mapping[Literal["value"], T]) -> None:
-        self.submit_values({"value": values["value"]})
+        self.value = values["value"]

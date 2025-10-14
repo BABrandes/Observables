@@ -1,7 +1,6 @@
 from logging import Logger
 from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator, Mapping
 from .._hooks.hook_like import HookLike
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.base_observable import BaseObservable
 from .._utils.observable_serializable import ObservableSerializable
@@ -139,7 +138,7 @@ class ObservableSet(BaseObservable[Literal["value"], Literal["length"], set[T], 
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
     @property
     def value(self) -> set[T]:

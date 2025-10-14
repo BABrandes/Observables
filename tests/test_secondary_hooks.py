@@ -6,7 +6,7 @@ secondary hooks are properly recomputed when component values change.
 """
 
 import pytest
-from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple, InitialSyncMode
+from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple
 from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
 
 
@@ -244,9 +244,8 @@ class TestEmitterHooksListeners:
         length_tracker = ObservableSingleValue(0)
         
         # Bind the length hook to the single value (reverse direction)
-        from observables._utils.initial_sync_mode import InitialSyncMode
         length_hook = obs_list.length_hook
-        length_hook.connect_hook(length_tracker.hook, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        length_hook.connect_hook(length_tracker.hook, "use_caller_value")  # type: ignore
         
         # Initial binding should work
         assert length_tracker.value == 3
@@ -292,7 +291,7 @@ class TestSecondaryHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to secondary hook
-        obs_list.connect_hook(target.hook, "length", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_list.connect_hook(target.hook, "length", "use_caller_value")  # type: ignore
         
         # Should sync immediately
         assert target.value == 3

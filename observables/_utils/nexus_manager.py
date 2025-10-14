@@ -1,6 +1,8 @@
-from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable
+from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable, Literal
 from threading import RLock, local
 from logging import Logger
+
+from .general import log
 
 
 if TYPE_CHECKING:
@@ -9,7 +11,6 @@ if TYPE_CHECKING:
 from .._hooks.hook_like import HookLike
 from .base_listening import BaseListeningLike
 from .hook_nexus import HookNexus
-
 
 class NexusManager:
     """
@@ -41,40 +42,45 @@ class NexusManager:
 
     def __init__(
         self,
-        value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
+        value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
         ):
 
-        self._value_equality_callbacks: dict[type[Any], Callable[[Any, Any], bool]] = {}
+        self._value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
         self._value_equality_callbacks.update(value_equality_callbacks)
         self._lock = RLock()  # Thread-safe lock for submit_values operations
         self._thread_local = local()  # Thread-local storage for tracking active hook nexuses
 
-    def add_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
-        """Add a value equality callback for a specific value type."""
+    def add_value_equality_callback(self, value_type_pair: tuple[type[Any], type[Any]], value_equality_callback: Callable[[Any, Any], bool]) -> None:
+        """Add a value equality callback for a specific pair of value types.
+        
+        Args:
+            value_type_pair: Tuple of (type1, type2) for the comparison
+            value_equality_callback: Callback function that takes (value1: type1, value2: type2) and returns bool
+        """
 
-        if value_type in self._value_equality_callbacks:
-            raise ValueError(f"Value equality callback for {value_type} already exists")
+        if value_type_pair in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type_pair} already exists")
 
-        self._value_equality_callbacks[value_type] = value_equality_callback
+        self._value_equality_callbacks[value_type_pair] = value_equality_callback
 
-    def remove_value_equality_callback(self, value_type: type[Any]) -> None:
-        """Remove a value equality callback for a specific value type."""
-        if value_type not in self._value_equality_callbacks:
-            raise ValueError(f"Value equality callback for {value_type} does not exist")
-        del self._value_equality_callbacks[value_type]
+    def remove_value_equality_callback(self, value_type_pair: tuple[type[Any], type[Any]]) -> None:
+        """Remove a value equality callback for a specific pair of value types."""
+        if value_type_pair not in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type_pair} does not exist")
+        del self._value_equality_callbacks[value_type_pair]
 
-    def replace_value_equality_callback(self, value_type: type[Any], value_equality_callback: Callable[[Any, Any], bool]) -> None:
-        """Replace a value equality callback for a specific value type."""
-        if value_type not in self._value_equality_callbacks:
-            raise ValueError(f"Value equality callback for {value_type} does not exist")
-        self._value_equality_callbacks[value_type] = value_equality_callback
+    def replace_value_equality_callback(self, value_type_pair: tuple[type[Any], type[Any]], value_equality_callback: Callable[[Any, Any], bool]) -> None:
+        """Replace a value equality callback for a specific pair of value types."""
+        if value_type_pair not in self._value_equality_callbacks:
+            raise ValueError(f"Value equality callback for {value_type_pair} does not exist")
+        self._value_equality_callbacks[value_type_pair] = value_equality_callback
 
-    def exists_value_equality_callback(self, value_type: type[Any]) -> bool:
-        """Check if a value equality callback exists for a specific value type."""
-        return value_type in self._value_equality_callbacks
+    def exists_value_equality_callback(self, value_type_pair: tuple[type[Any], type[Any]]) -> bool:
+        """Check if a value equality callback exists for a specific pair of value types."""
+        return value_type_pair in self._value_equality_callbacks
 
-    def types_of_value_equality_callbacks(self) -> set[type[Any]]:
-        """Get the types of value equality callbacks."""
+    def types_of_value_equality_callbacks(self) -> set[tuple[type[Any], type[Any]]]:
+        """Get the type pairs of value equality callbacks."""
         return set(self._value_equality_callbacks.keys())
 
     def is_equal(self, value1: Any, value2: Any) -> bool:
@@ -82,17 +88,21 @@ class NexusManager:
         Checks if two values are equal.
 
         ** Please use this method instead of the built-in equality operator (==) for equality checks of values within hook system! **
+        
+        This method supports cross-type comparisons using registered equality callbacks.
+        For example, you can compare float with int using appropriate tolerance.
         """
 
-        value_type: type[Any] = type(value1) # type: ignore
+        type1: type[Any] = type(value1) # type: ignore
+        type2: type[Any] = type(value2) # type: ignore
+        type_pair = (type1, type2)
 
-        if value_type != type(value2):
-            return False
+        # Check if we have a registered callback for this type pair
+        if type_pair in self._value_equality_callbacks:
+            return self._value_equality_callbacks[type_pair](value1, value2)
 
-        if value_type not in self._value_equality_callbacks:
-            return value1 == value2
-
-        return self._value_equality_callbacks[value_type](value1, value2)
+        # Fall back to built-in equality
+        return value1 == value2
 
     def is_not_equal(self, value1: Any, value2: Any) -> bool:
         """
@@ -241,11 +251,19 @@ class NexusManager:
 
         return True, "Successfully updated nexus and values"
 
-    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], only_check_values: bool = False, not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
-        This method is the internal implementation of submit_values.
+        Internal implementation of submit_values.
 
-        * This method is not thread-safe. It is only meant to be called by the submit_values method.
+        This method is not thread-safe and should only be called by the submit_values method.
+        
+        Parameters
+        ----------
+        mode : Literal["Normal submission", "Forced submission", "Check values"]
+            Controls the submission behavior:
+            - "Normal submission": Only submits values that differ from current values
+            - "Forced submission": Submits all values regardless of equality
+            - "Check values": Only validates without updating
         """
 
         from .._hooks.owned_hook_like import OwnedHookLike
@@ -253,12 +271,37 @@ class NexusManager:
         from .._hooks.hook_with_reaction_mixin import HookWithReactionMixin
 
         #########################################################
+        # Check if the values are even different from the current values
+        #########################################################
+
+        match mode:
+            case "Normal submission":
+                _nexus_and_values: dict["HookNexus[Any]", Any] = {}
+                for nexus, value in nexus_and_values.items():
+                    if not self.is_equal(nexus._value, value): # type: ignore
+                        _nexus_and_values[nexus] = value
+
+                log(self, "NexusManager._internal_submit_values", logger, True, f"Initally {len(nexus_and_values)} nexus and values submitted, after checking for equality {len(_nexus_and_values)}")
+
+                if len(_nexus_and_values) == 0:
+                    return True, "Values are the same as the current values. No submission needed."
+
+            case "Forced submission":
+                _nexus_and_values = dict(nexus_and_values)
+
+            case "Check values":
+                _nexus_and_values = dict(nexus_and_values)
+
+            case _: # type: ignore
+                raise ValueError(f"Invalid mode: {mode}")
+
+        #########################################################
         # Value Completion
         #########################################################
 
         # Step 1: Update the nexus and values
         complete_nexus_and_values: dict["HookNexus[Any]", Any] = {}
-        complete_nexus_and_values.update(nexus_and_values)
+        complete_nexus_and_values.update(_nexus_and_values)
         success, msg = self._complete_nexus_and_values_dict(complete_nexus_and_values)
         if success == False:
             return False, msg
@@ -298,7 +341,7 @@ class NexusManager:
         # Value Update
         #########################################################
 
-        if only_check_values:
+        if mode == "Check values":
             return True, "Values are valid"
 
         # Step 4: Update each nexus with the new value
@@ -364,7 +407,7 @@ class NexusManager:
     def submit_values(
         self,
         nexus_and_values: Mapping["HookNexus[Any]", Any],
-        only_check_values: bool = False,
+        mode: Literal["Normal submission", "Forced submission", "Check values"] = "Normal submission",
         not_notifying_listeners_after_submission: set[BaseListeningLike] = set(),
         logger: Optional[Logger] = None
         ) -> tuple[bool, str]:
@@ -381,10 +424,14 @@ class NexusManager:
         time penalties from copying operations. All value comparisons, assignments, and propagations
         use references only.
         
-        Submission Flow (Five Phases)
+        Submission Flow (Six Phases)
         ------------------------------
+
+        **Phase 1: Value Equality Check**
+            Depending on the mode, this phase checks if the values are different from the current values using `is_equal`.
+            If they are the same, the submission is skipped.
         
-        **Phase 1: Value Completion**
+        **Phase 2: Value Completion**
             The system completes any missing related values using `add_values_to_be_updated_callback`
             from affected observables. This is an iterative process:
             
@@ -396,7 +443,7 @@ class NexusManager:
             Example: When updating a dict item, the dict observable itself must also be updated.
             The completion phase ensures both the item and parent dict are in the submission.
         
-        **Phase 2: Value Collection**
+        **Phase 3: Value Collection**
             Collects all affected components for validation and notification:
             
             - All observables (owners) that own hooks in the affected nexuses
@@ -405,7 +452,7 @@ class NexusManager:
             
             This step prepares the sets of objects that will be processed in later phases.
         
-        **Phase 3: Value Validation**
+        **Phase 4: Value Validation**
             Validates all values before any changes are committed:
             
             - For each affected observable: calls `validate_complete_values_in_isolation()`
@@ -415,14 +462,14 @@ class NexusManager:
             
             This ensures atomicity - either all values are valid and applied, or none are.
         
-        **Phase 4: Value Update** (skipped if only_check_values=True)
+        **Phase 5: Value Update** (skipped if mode="Check values")
             Updates the hook nexuses with new values:
             
             - Saves current value as `_previous_value` for each nexus
             - Assigns new value to `_value` (reference assignment only)
             - All hooks in the nexus immediately see the new value
         
-        **Phase 5: Invalidation, Reaction, and Notification**
+        **Phase 6: Invalidation, Reaction, and Notification**
             Propagates changes to all affected components:
             
             - **Invalidation**: Calls `invalidate()` on all affected observables
@@ -441,14 +488,26 @@ class NexusManager:
             only - no copies are created. Each nexus will be updated with its corresponding
             value, and all hooks in that nexus will reflect the change.
             
-        only_check_values : bool, default=False
-            If True, performs only phases 1-3 (completion and validation) without actually
-            updating values (phase 4) or triggering notifications (phase 5). Useful for
-            pre-validation of potential changes without committing them.
+        mode : Literal["Normal submission", "Forced submission", "Check values"], default="Normal submission"
+            Controls the submission behavior:
+            
+            - **"Normal submission"**: Checks if values differ from current values first (using `is_equal`).
+              Only submits and processes values that are actually different, skipping unchanged values.
+              Returns early if all values match current values. This is the most efficient mode for
+              typical value updates.
+              
+            - **"Forced submission"**: Submits all values regardless of whether they match current values.
+              Bypasses the equality check and processes all submitted values through the complete
+              submission flow. Useful when you need to ensure all validation, reaction, and notification
+              logic runs even for unchanged values.
+              
+            - **"Check values"**: Performs only phases 2-4 (value completion and validation) without
+              actually updating values (phase 5) or triggering notifications (phase 6). Useful for
+              pre-validation of potential changes without committing them.
             
         not_notifying_listeners_after_submission : set[BaseListeningLike], default=set()
             Set of observables or hooks that should NOT have their listeners notified during
-            phase 5. Useful for preventing notification loops or when the caller wants to
+            phase 6. Useful for preventing notification loops or when the caller wants to
             handle notifications manually. Objects in this set will still be updated and
             validated, but their `_notify_listeners()` will not be called.
             
@@ -462,7 +521,7 @@ class NexusManager:
             A tuple of (success, message):
             - success: True if submission succeeded, False if any step failed
             - message: Descriptive message about the result
-              * On success: "Values are valid" (if only_check_values) or "Values are submitted"
+              * On success: "Values are valid" (if mode="Check values") or "Values are submitted" (if mode="Normal submission") or "Values are submitted" (if mode="Forced submission")
               * On failure: Specific error message indicating what went wrong
         
         Raises
@@ -494,7 +553,7 @@ class NexusManager:
         **Thread Safety**:
         This method IS thread-safe. It uses a reentrant lock (RLock) to ensure that
         concurrent calls to `submit_values` are serialized. The lock protects the entire
-        submission flow (all 5 phases), ensuring atomicity across the completion,
+        submission flow (all 6 phases), ensuring atomicity across the completion,
         validation, update, and notification phases. Multiple threads can safely call
         `submit_values` concurrently without external synchronization.
         
@@ -548,7 +607,7 @@ class NexusManager:
         >>> nexus = hook.hook_nexus
         >>> manager = NexusManager()
         >>> # Check if value would be valid without applying it
-        >>> success, msg = manager.submit_values({nexus: 200}, only_check_values=True)
+        >>> success, msg = manager.submit_values({nexus: 200}, mode="Check values")
         >>> success
         True
         >>> hook.value  # Value unchanged
@@ -637,7 +696,7 @@ class NexusManager:
             self._thread_local.active_nexuses.update(new_nexuses) # type: ignore
             
             try:
-                return self._internal_submit_values(nexus_and_values, only_check_values, not_notifying_listeners_after_submission, logger)
+                return self._internal_submit_values(nexus_and_values, mode, not_notifying_listeners_after_submission, logger)
             finally:
                 # Always remove the nexuses we added, even if an error occurs
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore

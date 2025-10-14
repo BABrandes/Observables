@@ -1,6 +1,5 @@
 from threading import RLock
-from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional
-from .._utils.initial_sync_mode import InitialSyncMode
+from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional, Literal
 from .._utils.base_listening import BaseListeningLike
 from logging import Logger
 
@@ -69,12 +68,12 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def connect_hook(self, hook: "HookLike[T]", initial_sync_mode: "InitialSyncMode") -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook.
 
         Args:
-            hook: The hook to connect to
+            target_hook: The hook to connect to
             initial_sync_mode: The initial synchronization mode
         """
         ...
@@ -114,7 +113,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
             logger: The logger to use
         """
 
-        return self.nexus_manager.submit_values({self.hook_nexus: value}, False, not_notifying_listeners_after_submission, logger)
+        return self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", not_notifying_listeners_after_submission=not_notifying_listeners_after_submission, logger=logger)
 
 
     @final
@@ -137,7 +136,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
             if hook.nexus_manager != hook_manager:
                 raise ValueError("The nexus managers must be the same")
             hook_nexus_and_values[hook.hook_nexus] = value
-        return hook_manager.submit_values(hook_nexus_and_values, False, not_notifying_listeners_after_submission, logger)
+        return hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", not_notifying_listeners_after_submission=not_notifying_listeners_after_submission, logger=logger)
 
     @final
     def validate_value(self, value: T, logger: Optional[Logger] = None) -> tuple[bool, str]:
@@ -145,7 +144,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         Check if the value is valid for submission.
         """
 
-        return self.nexus_manager.submit_values({self.hook_nexus: value}, only_check_values=True, logger=logger)
+        return self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Check values", logger=logger)
 
     @staticmethod
     @final
@@ -162,4 +161,4 @@ class HookLike(BaseListeningLike, Protocol[T]):
             if hook.nexus_manager != hook_manager:
                 raise ValueError("The nexus managers must be the same")
             hook_nexus_and_values[hook.hook_nexus] = value
-        return hook_manager.submit_values(hook_nexus_and_values, only_check_values=True, logger=logger)
+        return hook_manager.submit_values(hook_nexus_and_values, mode="Check values", logger=logger)

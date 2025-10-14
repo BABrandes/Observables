@@ -7,7 +7,8 @@ are working correctly and detect performance regressions.
 
 import time
 import pytest   
-from observables import ObservableSingleValue, ObservableList, ObservableDict, BaseObservable, InitialSyncMode
+from observables import ObservableSingleValue, ObservableList, ObservableDict
+from observables.core import BaseObservable
 from typing import Any, Callable
 
 
@@ -31,7 +32,7 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
-            obs.connect_hook(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+            obs.connect_hook(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
             bound_observables.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
@@ -149,7 +150,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.connect_hook(main_obs.get_hook("value"), "value", InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+                obs.connect_hook(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -222,12 +223,12 @@ class TestScalabilityPerformance:
         
         # Create a simpler binding pattern that avoids nexus conflicts
         # Connect obs_single to obs_list.length_hook
-        obs_single.connect_hook(obs_list.length_hook, "value", InitialSyncMode.USE_TARGET_VALUE)  # type: ignore
+        obs_single.connect_hook(obs_list.length_hook, "value", "use_target_value")  # type: ignore
         
         # Create a separate binding for obs_dict to avoid conflicts
         # Use a different approach: bind obs_dict.length_hook to a new observable
         obs_dict_tracker = ObservableSingleValue(1)
-        obs_dict.length_hook.connect_hook(obs_dict_tracker.hook, InitialSyncMode.USE_CALLER_VALUE)  # type: ignore
+        obs_dict.length_hook.connect_hook(obs_dict_tracker.hook, "use_caller_value")  # type: ignore
         
         # Time complex operations
         def complex_operation():

@@ -8,7 +8,6 @@ from .._hooks.owned_hook_like import OwnedHookLike
 from .._hooks.owned_hook import OwnedHook
 from logging import Logger
 from .._utils.base_carries_hooks import BaseCarriesHooks
-from .._utils.initial_sync_mode import InitialSyncMode
 from .._utils.hook_nexus import HookNexus
 from .._utils.base_listening import BaseListening
 
@@ -148,11 +147,11 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect_hook(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "use_target_value")
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect_hook(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect_hook(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -451,11 +450,11 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         self._value_hook: OwnedHook[Optional[V]] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect_hook(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "use_target_value")
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect_hook(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect_hook(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -749,11 +748,11 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect_hook(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "use_target_value")
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect_hook(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect_hook(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
 
     ########################################################
     # CarriesHooks interface
@@ -1083,11 +1082,11 @@ class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "k
         self._value_hook: OwnedHook[Optional[V]] = OwnedHook[Optional[V]](self, _initial_value_value, logger) # type: ignore
 
         if isinstance(dict_hook, HookLike):
-            self._dict_hook.connect_hook(dict_hook, InitialSyncMode.USE_TARGET_VALUE)
+            self._dict_hook.connect_hook(dict_hook, "use_target_value")
         if isinstance(key_hook, HookLike):
-            self._key_hook.connect_hook(key_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
         if isinstance(value_hook, HookLike):
-            self._value_hook.connect_hook(value_hook, InitialSyncMode.USE_TARGET_VALUE) # type: ignore
+            self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
 
     ########################################################
     # CarriesHooks interface

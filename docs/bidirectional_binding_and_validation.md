@@ -16,19 +16,19 @@ temperature_celsius = ObservableSingleValue(25.0)
 temperature_fahrenheit = ObservableSingleValue(77.0)
 
 # Bind them together - they now share the same storage
-temperature_celsius.attach(
-    temperature_fahrenheit.single_value_hook, 
+temperature_celsius.connect_hook(
+    temperature_fahrenheit.value_hook, 
     "single_value", 
     "use_caller_value"
 )
 
 # ✅ Change from celsius - fahrenheit updates automatically
-temperature_celsius.single_value = 30.0
-print(temperature_fahrenheit.single_value)  # 30.0 (same value, shared storage)
+temperature_celsius.value = 30.0
+print(temperature_fahrenheit.value)  # 30.0 (same value, shared storage)
 
 # ✅ Change from fahrenheit - celsius updates automatically  
-temperature_fahrenheit.single_value = 100.0
-print(temperature_celsius.single_value)   # 100.0 (same value, shared storage)
+temperature_fahrenheit.value = 100.0
+print(temperature_celsius.value)   # 100.0 (same value, shared storage)
 ```
 
 ### **The HookNexus: Central Storage Architecture**
@@ -46,7 +46,7 @@ print(f"  obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexu
 # Different IDs = separate storage
 
 # Bind them together
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 
 print(f"After binding:")
 print(f"  obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
@@ -54,11 +54,11 @@ print(f"  obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexu
 # Same ID = shared storage! ✅
 
 # Now changes propagate bidirectionally because they share the same storage
-obs1.single_value = 100
-print(f"obs2.single_value: {obs2.single_value}")  # 100 ✅
+obs1.value = 100
+print(f"obs2.value: {obs2.value}")  # 100 ✅
 
-obs2.single_value = 200  
-print(f"obs1.single_value: {obs1.single_value}")  # 200 ✅
+obs2.value = 200  
+print(f"obs1.value: {obs1.value}")  # 200 ✅
 ```
 
 ### **Transitive Binding Networks**
@@ -73,28 +73,28 @@ header_name = ObservableSingleValue("John")
 sidebar_name = ObservableSingleValue("John")
 
 # Create binding chain
-user_name.attach(display_name.single_value_hook, "single_value", "use_caller_value")
-display_name.attach(header_name.single_value_hook, "single_value", "use_caller_value")
-header_name.attach(sidebar_name.single_value_hook, "single_value", "use_caller_value")
+user_name.connect_hook(display_name.hook, "value", "use_caller_value")
+display_name.connect_hook(header_name.hook, "value", "use_caller_value")
+header_name.connect_hook(sidebar_name.hook, "value", "use_caller_value")
 
 # ✅ All four observables now share the same HookNexus
 # Changes from ANY observable propagate to ALL others bidirectionally
 
 # Change from the first one
-user_name.single_value = "Alice"
+user_name.value = "Alice"
 print(f"All names updated:")
-print(f"  user_name: {user_name.single_value}")         # Alice
-print(f"  display_name: {display_name.single_value}")   # Alice
-print(f"  header_name: {header_name.single_value}")     # Alice
-print(f"  sidebar_name: {sidebar_name.single_value}")   # Alice
+print(f"  user_name: {user_name.value}")         # Alice
+print(f"  display_name: {display_name.value}")   # Alice
+print(f"  header_name: {header_name.value}")     # Alice
+print(f"  sidebar_name: {sidebar_name.value}")   # Alice
 
 # Change from the last one - propagates to all others
-sidebar_name.single_value = "Bob"
+sidebar_name.value = "Bob"
 print(f"All names updated from sidebar:")
-print(f"  user_name: {user_name.single_value}")         # Bob
-print(f"  display_name: {display_name.single_value}")   # Bob
-print(f"  header_name: {header_name.single_value}")     # Bob
-print(f"  sidebar_name: {sidebar_name.single_value}")   # Bob
+print(f"  user_name: {user_name.value}")         # Bob
+print(f"  display_name: {display_name.value}")   # Bob
+print(f"  header_name: {header_name.value}")     # Bob
+print(f"  sidebar_name: {sidebar_name.value}")   # Bob
 ```
 
 ### **Network Resilience**
@@ -109,9 +109,9 @@ obs_c = ObservableSingleValue(1)
 obs_d = ObservableSingleValue(1)
 
 # Build the chain
-obs_a.attach(obs_b.single_value_hook, "single_value", "use_caller_value")
-obs_b.attach(obs_c.single_value_hook, "single_value", "use_caller_value")
-obs_c.attach(obs_d.single_value_hook, "single_value", "use_caller_value")
+obs_a.connect_hook(obs_b.hook, "value", "use_caller_value")
+obs_b.connect_hook(obs_c.hook, "value", "use_caller_value")
+obs_c.connect_hook(obs_d.hook, "value", "use_caller_value")
 
 # All four share the same HookNexus
 print(f"All HookNexus IDs are the same:")
@@ -124,12 +124,12 @@ print(f"  D: {id(obs_d._component_hooks['single_value'].hook_nexus)}")
 obs_b.detach()
 
 # A, C, and D remain connected! B is isolated.
-obs_a.single_value = 100
+obs_a.value = 100
 print(f"After B disconnects:")
-print(f"  A: {obs_a.single_value}")  # 100 ✅
-print(f"  B: {obs_b.single_value}")  # 1 (isolated) ✅
-print(f"  C: {obs_c.single_value}")  # 100 ✅
-print(f"  D: {obs_d.single_value}")  # 100 ✅
+print(f"  A: {obs_a.value}")  # 100 ✅
+print(f"  B: {obs_b.value}")  # 1 (isolated) ✅
+print(f"  C: {obs_c.value}")  # 100 ✅
+print(f"  D: {obs_d.value}")  # 100 ✅
 ```
 
 ## ⚡ **Rigorous State Validation**
@@ -169,7 +169,7 @@ primary_selector = ObservableSelectionOption("red", {"red", "green", "blue"})
 secondary_selector = ObservableSelectionOption("red", {"red", "green", "yellow"})
 
 # Bind them together
-primary_selector.attach(
+primary_selector.connect_hook(
     secondary_selector.selected_option_hook, 
     "selected_option", 
     "use_caller_value"
@@ -226,7 +226,7 @@ print(f"Available: {product_selector.available_options}")        # {'smartwatch'
 
 ### **Atomic Multi-Component Binding**
 
-For observables with multiple interdependent components, use `connect_multiple` to prevent validation conflicts:
+For observables with multiple interdependent components, use `connect_hooks` to prevent validation conflicts:
 
 ```python
 from observables import ObservableSelectionOption
@@ -238,14 +238,14 @@ config_backup = ObservableSelectionOption("test", {"test", "validation", "sandbo
 # ❌ Sequential binding can cause validation errors
 # When binding selected_option first, "production" might not be in backup's available options
 try:
-    config_primary.attach(config_backup.selected_option_hook, "selected_option", "use_target_value")
+    config_primary.connect_hook(config_backup.selected_option_hook, "selected_option", "use_target_value")
     # This could fail if "test" is not in primary's available options
-    config_primary.attach(config_backup.available_options_hook, "available_options", "use_target_value")
+    config_primary.connect_hook(config_backup.available_options_hook, "available_options", "use_target_value")
 except ValueError as e:
     print(f"Sequential binding failed: {e}")
 
 # ✅ Atomic binding succeeds - all components update together
-config_primary.connect_multiple({
+config_primary.connect_hooks({
     "selected_option": config_backup.selected_option_hook,
     "available_options": config_backup.available_options_hook
 }, "use_target_value")
@@ -271,7 +271,7 @@ config_a = ObservableSelectionOption("production", {"production", "staging", "de
 config_b = ObservableSelectionOption("staging", {"staging", "development", "test"})
 
 # ✅ Binding succeeds because current values can be made compatible
-config_a.attach(config_b.selected_option_hook, "selected_option", "use_caller_value")
+config_a.connect_hook(config_b.selected_option_hook, "selected_option", "use_caller_value")
 print(f"After binding - both have: {config_a.selected_option}")  # staging
 
 # Create incompatible observables
@@ -279,7 +279,7 @@ config_c = ObservableSelectionOption("invalid_option", {"option1", "option2"})
 
 # ❌ Binding fails due to validation
 try:
-    config_a.attach(config_c.selected_option_hook, "selected_option", "use_target_value")
+    config_a.connect_hook(config_c.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
     # Output: "Selected option invalid_option not in options {'staging', 'development', 'test'}"
@@ -437,27 +437,27 @@ class ValidatedTemperature(ObservableSingleValue[float]):
 room_temp = ValidatedTemperature(22.0, min_temp=-10.0, max_temp=50.0)
 
 # ✅ Valid temperature
-room_temp.single_value = 25.0
-print(f"Room temperature: {room_temp.single_value}°C")
+room_temp.value = 25.0
+print(f"Room temperature: {room_temp.value}°C")
 
 # ❌ Invalid temperature - rejected
 try:
-    room_temp.single_value = 100.0  # Too hot!
+    room_temp.value = 100.0  # Too hot!
 except ValueError as e:
     print(f"Validation error: {e}")
 
 # State remains valid
-print(f"Temperature remains: {room_temp.single_value}°C")  # 25.0
+print(f"Temperature remains: {room_temp.value}°C")  # 25.0
 
 # Binding also respects custom validation
 outdoor_temp = ValidatedTemperature(15.0, min_temp=-40.0, max_temp=60.0)
 
 # ✅ Compatible ranges - binding succeeds
-room_temp.attach(outdoor_temp.single_value_hook, "single_value", "use_caller_value")
+room_temp.connect_hook(outdoor_temp.hook, "value", "use_caller_value")
 
 # ❌ Updates that violate validation are rejected
 try:
-    outdoor_temp.single_value = 75.0  # Valid for outdoor but invalid for room
+    outdoor_temp.value = 75.0  # Valid for outdoor but invalid for room
 except ValueError as e:
     print(f"Binding validation error: {e}")
 ```
@@ -497,33 +497,33 @@ class UserRegistrationForm:
     
     def _validate_passwords(self):
         """Validate password consistency."""
-        if self.password.single_value != self.confirm_password.single_value:
-            if "password_mismatch" not in self.validation_errors.single_value:
-                errors = self.validation_errors.single_value.copy()
+        if self.password.value != self.confirm_password.value:
+            if "password_mismatch" not in self.validation_errors.value:
+                errors = self.validation_errors.value.copy()
                 errors.append("password_mismatch")
-                self.validation_errors.single_value = errors
+                self.validation_errors.value = errors
         else:
-            if "password_mismatch" in self.validation_errors.single_value:
-                errors = self.validation_errors.single_value.copy()
+            if "password_mismatch" in self.validation_errors.value:
+                errors = self.validation_errors.value.copy()
                 errors.remove("password_mismatch")
-                self.validation_errors.single_value = errors
+                self.validation_errors.value = errors
     
     def _validate_form(self):
         """Validate entire form."""
         errors = []
         
         # Username validation
-        if len(self.username.single_value) < 3:
+        if len(self.username.value) < 3:
             errors.append("username_too_short")
         
         # Email validation
-        if "@" not in self.email.single_value:
+        if "@" not in self.email.value:
             errors.append("invalid_email")
         
         # Age validation
-        if self.age.single_value < 13:
+        if self.age.value < 13:
             errors.append("age_too_young")
-        elif self.age.single_value > 120:
+        elif self.age.value > 120:
             errors.append("age_too_old")
         
         # Country validation
@@ -531,19 +531,19 @@ class UserRegistrationForm:
             errors.append("country_required")
         
         # Update validation state atomically
-        self.validation_errors.single_value = errors
-        self.is_valid.single_value = len(errors) == 0
+        self.validation_errors.value = errors
+        self.is_valid.value = len(errors) == 0
     
     def submit(self):
         """Submit form if valid."""
         self._validate_form()  # Final validation
         self._validate_passwords()
         
-        if self.is_valid.single_value and "password_mismatch" not in self.validation_errors.single_value:
+        if self.is_valid.value and "password_mismatch" not in self.validation_errors.value:
             print("✅ Form submitted successfully!")
             return True
         else:
-            all_errors = self.validation_errors.single_value.copy()
+            all_errors = self.validation_errors.value.copy()
             if "password_mismatch" in [err for err in all_errors]:
                 all_errors.append("password_mismatch")
             
@@ -556,12 +556,12 @@ class UserRegistrationForm:
 form = UserRegistrationForm()
 
 # Fill out form with valid data
-form.username.single_value = "johndoe"
-form.email.single_value = "john@example.com"
-form.password.single_value = "secretpassword"
-form.confirm_password.single_value = "secretpassword"
+form.username.value = "johndoe"
+form.email.value = "john@example.com"
+form.password.value = "secretpassword"
+form.confirm_password.value = "secretpassword"
 form.country.selected_option = "US"
-form.age.single_value = 25
+form.age.value = 25
 
 # Submit form
 success = form.submit()
@@ -599,21 +599,21 @@ class DatabaseConfig:
         
         if env == "production":
             # Production requirements
-            if self.host.single_value in ["localhost", "127.0.0.1"]:
+            if self.host.value in ["localhost", "127.0.0.1"]:
                 raise ValueError("Production environment cannot use localhost")
             
-            if not self.ssl_required.single_value:
+            if not self.ssl_required.value:
                 raise ValueError("Production environment requires SSL")
             
-            if self.pool_size.single_value < 10:
+            if self.pool_size.value < 10:
                 raise ValueError("Production environment requires pool size >= 10")
         
         elif env == "staging":
             # Staging requirements
-            if self.host.single_value == "localhost":
+            if self.host.value == "localhost":
                 raise ValueError("Staging environment cannot use localhost")
             
-            if self.pool_size.single_value < 5:
+            if self.pool_size.value < 5:
                 raise ValueError("Staging environment requires pool size >= 5")
         
         # Development has no special constraints
@@ -623,45 +623,45 @@ class DatabaseConfig:
         env = self.environment.selected_option
         
         if env == "production":
-            self.host.single_value = "prod-db.company.com"
-            self.port.single_value = 5432
-            self.ssl_required.single_value = True
-            self.pool_size.single_value = 20
+            self.host.value = "prod-db.company.com"
+            self.port.value = 5432
+            self.ssl_required.value = True
+            self.pool_size.value = 20
         
         elif env == "staging":
-            self.host.single_value = "staging-db.company.com"
-            self.port.single_value = 5432
-            self.ssl_required.single_value = True
-            self.pool_size.single_value = 10
+            self.host.value = "staging-db.company.com"
+            self.port.value = 5432
+            self.ssl_required.value = True
+            self.pool_size.value = 10
         
         elif env == "development":
-            self.host.single_value = "localhost"
-            self.port.single_value = 5432
-            self.ssl_required.single_value = False
-            self.pool_size.single_value = 5
+            self.host.value = "localhost"
+            self.port.value = 5432
+            self.ssl_required.value = False
+            self.pool_size.value = 5
 
 # Usage
 config = DatabaseConfig()
 
 # ✅ Valid development configuration
 config.apply_environment_defaults()
-print(f"Development config: {config.host.single_value}:{config.port.single_value}")
+print(f"Development config: {config.host.value}:{config.port.value}")
 
 # ✅ Switch to staging with validation
 config.environment.selected_option = "staging"
 config.apply_environment_defaults()
-print(f"Staging config: {config.host.single_value}:{config.port.single_value}")
+print(f"Staging config: {config.host.value}:{config.port.value}")
 
 # ❌ Invalid production configuration
 config.environment.selected_option = "production"
 try:
-    config.host.single_value = "localhost"  # Not allowed in production
+    config.host.value = "localhost"  # Not allowed in production
 except ValueError as e:
     print(f"Production validation error: {e}")
 
 # ✅ Valid production configuration
 config.apply_environment_defaults()
-print(f"Production config: {config.host.single_value}:{config.port.single_value}")
+print(f"Production config: {config.host.value}:{config.port.value}")
 ```
 
 ## 🔍 **Debugging Validation Issues**
@@ -742,10 +742,10 @@ selector.set_selected_option_and_available_options("new_option", {"new_option", 
 # ✅ Good: Validate once when building networks
 if all(is_compatible(obs) for obs in observables_to_bind):
     for i in range(len(observables_to_bind) - 1):
-        observables_to_bind[i].bind_to(observables_to_bind[i + 1])
+        observables_to_bind[i].connect_hook(observables_to_bind[i + 1].hook, "value", "use_caller_value")
 
 # ✅ Good: Use appropriate initial sync modes to minimize validation
-obs1.attach(obs2.hook, "component", "use_caller_value")  # Sync from obs1 to obs2
+obs1.connect_hook(obs2.hook, "component", "use_caller_value")  # Sync from obs1 to obs2
 ```
 
 ---

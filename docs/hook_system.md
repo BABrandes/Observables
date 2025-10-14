@@ -21,7 +21,7 @@ The Observables library is built around a sophisticated hook-based architecture 
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Hook Layer                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Hook[T]  ←→  HookGroup[T]  ←→  HookLike[T]                  │
+│  Hook[T]  ←→  HookNexus[T]  ←→  HookLike[T]                  │
 │     │              │                    │                      │
 │     └──────────────┼────────────────────┘                      │
 │                    ▼                                            │
@@ -32,7 +32,7 @@ The Observables library is built around a sophisticated hook-based architecture 
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Binding System                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  SyncMode  ←→  HookGroup.connect_hooks()  ←→  Validation      │
+│  Initial Sync  ←→  HookNexus Merging  ←→  Validation          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -59,35 +59,34 @@ class Hook[T]:
         self._owner = owner
         self._get_callback = get_callback
         self._set_callback = set_callback
-        self._hook_group = HookGroup([self])  # Starts in isolated group
+        self._hook_nexus = HookNexus(initial_value)  # Starts with its own nexus
         self._lock = threading.Lock()
 ```
 
-### Hook Groups
+### HookNexus - Central Value Storage
 
-`HookGroup[T]` manages collections of hooks that share the same data state. When hooks are bound together, their groups are merged.
+`HookNexus[T]` is the central storage point for a value, with multiple hooks referencing it. When hooks are bound together, they merge to reference the same HookNexus.
 
-#### Group Management
+#### Nexus Management
 
 ```python
-class HookGroup[T]:
-    def __init__(self, hooks: list[Hook[T]]):
-        self._hooks = hooks
-        self._lock = threading.Lock()
-        self._former_values_for_reset = {}
+class HookNexus[T]:
+    def __init__(self, initial_value: T):
+        self._value = initial_value       # The central value
+        self._hooks = WeakSet()           # All hooks referencing this nexus
+        self._lock = threading.Lock()     # Thread safety
     
-    @staticmethod
-    def merge_hook_groups(group1: "HookGroup[T]", group2: "HookGroup[T]") -> "HookGroup[T]":
-        """Merge two hook groups into one."""
-        # Implementation details...
+    def replace_nexus(old_nexus: "HookNexus[T]", new_nexus: "HookNexus[T]"):
+        """Transfer all hooks from old_nexus to new_nexus."""
+        # Move all hooks to reference the new nexus
 ```
 
-#### Group Operations
+#### Nexus Operations
 
-1. **Merge**: Combine two groups when hooks are bound
-2. **Split**: Separate groups when hooks are detached
-3. **Synchronize**: Ensure all hooks in a group have the same value
-4. **Validate**: Check that all hooks can maintain consistency
+1. **Merge**: Transfer hooks from one nexus to another when binding
+2. **Replace**: Update a hook to reference a different nexus
+3. **Synchronize**: All hooks referencing a nexus see the same value
+4. **Validate**: Check that value changes are valid for all hooks
 
 ### Binding Mechanics
 
@@ -97,8 +96,8 @@ When two hooks are connected via `connect_hooks()`:
 
 1. **Validation**: Ensure hooks are compatible and not None
 2. **Value Synchronization**: If values differ, invalidate the target group
-3. **Group Merging**: Merge the hook groups into a single group
-4. **Consistency Check**: Verify all hooks in the merged group are synchronized
+3. **Nexus Merging**: Transfer hooks to reference a single shared nexus
+4. **Consistency Check**: Verify all hooks referencing the nexus are synchronized
 
 ```python
 @staticmethod
@@ -108,19 +107,19 @@ def connect_hooks(from_hook: "HookLike[T]", to_hook: "HookLike[T]"):
     if from_hook is None or to_hook is None:
         raise ValueError("Cannot connect None hooks")
     
-    # Ensure that the value in both hook groups is the same
+    # Ensure that the value in both hook nexuss is the same
     if from_hook.value != to_hook.value:
         success, msg = to_hook.hook_group.invalidate(from_hook.value)
         if not success:
             raise ValueError(msg)
     
-    # Then merge the hook groups
-    merged_hook_group = HookGroup[T].merge_hook_groups(
+    # Then merge the hook nexuss
+    merged_hook_group = HookNexus[T].merge_hook_groups(
         from_hook.hook_group, to_hook.hook_group
     )
     
     # Check if all hooks are synced
-    success, msg = HookGroup[T].check_all_hooks_synced(merged_hook_group)
+    success, msg = HookNexus[T].check_all_hooks_synced(merged_hook_group)
     if not success:
         raise ValueError(msg)
 ```
@@ -160,7 +159,7 @@ def detach(self) -> None:
     self._hook_group.remove_hook(self)
     
     # Create new isolated group
-    new_group = HookGroup([self])
+    new_group = HookNexus([self])
     self._hook_group = new_group
     
     # The remaining hooks in the old group will continue to be bound together
@@ -170,21 +169,21 @@ def detach(self) -> None:
 
 The system supports different initial synchronization behaviors:
 
-### UPDATE_SELF_FROM_OBSERVABLE
+### use_target_value Mode
 
 The calling observable takes the target's value upon binding:
 
 ```python
-# obs1.bind_to(obs2, SyncMode.UPDATE_SELF_FROM_OBSERVABLE)
+obs1.connect_hook(obs2.hook, "value", "use_target_value")
 # Result: obs1.value = obs2.value
 ```
 
-### UPDATE_OBSERVABLE_FROM_SELF
+### use_caller_value Mode
 
 The target observable takes the calling observable's value upon binding:
 
 ```python
-# obs1.bind_to(obs2, SyncMode.UPDATE_OBSERVABLE_FROM_SELF)  
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")  
 # Result: obs2.value = obs1.value
 ```
 
@@ -192,7 +191,7 @@ The target observable takes the calling observable's value upon binding:
 
 ### Value Validation
 
-Before merging hook groups, the system validates that all hooks can maintain consistent values:
+Before merging hook nexuss, the system validates that all hooks can maintain consistent values:
 
 ```python
 def invalidate(self, source_hook_or_value: "HookLike[T]" | T) -> tuple[bool, str]:
@@ -206,7 +205,7 @@ After merging groups, the system ensures all hooks are properly synchronized:
 
 ```python
 @staticmethod
-def check_all_hooks_synced(hook_group: "HookGroup[T]") -> tuple[bool, str]:
+def check_all_hooks_synced(hook_group: "HookNexus[T]") -> tuple[bool, str]:
     """Check if all hooks in a group are synchronized."""
     # Implementation details for consistency checking...
 ```
@@ -290,7 +289,7 @@ def connect_hooks(from_hook: "HookLike[T]", to_hook: "HookLike[T]"):
 ### Debug Tools
 
 ```python
-# Check hook group membership
+# Check hook nexus membership
 print(hook.hook_group._hooks)
 
 # Verify binding status

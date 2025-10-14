@@ -34,8 +34,8 @@ class ConfigurationManager:
         })
         
         # Bind configurations together
-        self.ui_config.bind_to(self.main_config)
-        self.api_config.bind_to(self.main_config)
+        self.ui_config.connect_hook(self.main_config.value_hook, "value", "use_target_value")
+        self.api_config.connect_hook(self.main_config.value_hook, "value", "use_target_value")
         
         # Add listeners for logging
         self.main_config.add_listeners(self._log_config_change)
@@ -79,8 +79,8 @@ class UserProfileView:
         self.age_field = ObservableSingleValue(0)
         
         # Bind all fields together
-        self.name_field.bind_to(self.email_field)
-        self.email_field.bind_to(self.age_field)
+        self.name_field.connect_hook(self.email_field.hook, "value", "use_target_value")
+        self.email_field.connect_hook(self.age_field.hook, "value", "use_target_value")
         
         # Add listeners for UI updates
         self.name_field.add_listeners(self._update_name_display)
@@ -88,17 +88,17 @@ class UserProfileView:
         self.age_field.add_listeners(self._update_age_display)
     
     def _update_name_display(self):
-        print(f"Name display updated: {self.name_field.single_value}")
+        print(f"Name display updated: {self.name_field.value}")
     
     def _update_email_display(self):
-        print(f"Email display updated: {self.email_field.single_value}")
+        print(f"Email display updated: {self.email_field.value}")
     
     def _update_age_display(self):
-        print(f"Age display updated: {self.age_field.single_value}")
+        print(f"Age display updated: {self.age_field.value}")
     
     def load_user(self, user: User):
         """Load user data - all fields update automatically."""
-        self.name_field.single_value = user.name
+        self.name_field.value = user.name
         # Due to transitive binding, email and age also update!
 
 class UserListViewModel:
@@ -108,11 +108,11 @@ class UserListViewModel:
         
         # Bind to profile view
         self.profile_view = UserProfileView()
-        self.selected_user.bind_to(self.profile_view.name_field)
+        self.selected_user.connect_hook(self.profile_view.name_field.hook, "value", "use_caller_value")
     
     def select_user(self, user: User):
         """Select a user - profile view updates automatically."""
-        self.selected_user.single_value = user
+        self.selected_user.value = user
         # Profile view automatically loads user data!
 
 # Usage
@@ -147,9 +147,9 @@ class DataPipeline:
         self.results = ObservableList([])
         
         # Bind pipeline stages together
-        self.raw_data.bind_to(self.processed_data)
-        self.processed_data.bind_to(self.filtered_data)
-        self.filtered_data.bind_to(self.results)
+        self.raw_data.connect_hook(self.processed_data.value_hook, "value", "use_target_value")
+        self.processed_data.connect_hook(self.filtered_data.value_hook, "value", "use_target_value")
+        self.filtered_data.connect_hook(self.results.value_hook, "value", "use_target_value")
         
         # Add processing listeners
         self.raw_data.add_listeners(self._process_data)
@@ -160,23 +160,23 @@ class DataPipeline:
         """Process raw data."""
         raw = self.raw_data.list
         processed = [item.upper() for item in raw if isinstance(item, str)]
-        self.processed_data.list_value = processed
+        self.processed_data.value = processed
     
     def _filter_data(self):
         """Filter processed data."""
         processed = self.processed_data.list
         filtered = [item for item in processed if len(item) > 3]
-        self.filtered_data.list_value = filtered
+        self.filtered_data.value = filtered
     
     def _generate_results(self):
         """Generate final results."""
         filtered = self.filtered_data.list
         results = [f"Result: {item}" for item in filtered]
-        self.results.list_value = results
+        self.results.value = results
     
     def add_data(self, data: List[str]):
         """Add new data to the pipeline."""
-        self.raw_data.list_value = data
+        self.raw_data.value = data
         # All stages automatically process the data!
 
 # Usage
@@ -208,7 +208,7 @@ class FormValidator:
     
     def _update_validity(self):
         """Update validity based on error count."""
-        self.is_valid.single_value = len(self.errors.dict) == 0
+        self.is_valid.value = len(self.errors.dict) == 0
 
 class UserForm:
     def __init__(self):
@@ -232,14 +232,14 @@ class UserForm:
         self.state.add_listeners(self._validate_state)
         
         # Bind password fields together
-        self.password.bind_to(self.confirm_password)
+        self.password.connect_hook(self.confirm_password.hook, "value", "use_caller_value")
         
         # Bind validation results
         self.validator.is_valid.add_listeners(self._on_validation_change)
     
     def _validate_username(self):
         """Validate username field."""
-        username = self.username.single_value
+        username = self.username.value
         if len(username) < 3:
             self.validator.errors["username"] = "Username must be at least 3 characters"
         elif "username" in self.validator.errors.dict:
@@ -247,7 +247,7 @@ class UserForm:
     
     def _validate_email(self):
         """Validate email field."""
-        email = self.email.single_value
+        email = self.email.value
         if "@" not in email:
             self.validator.errors["email"] = "Invalid email format"
         elif "email" in self.validator.errors.dict:
@@ -255,7 +255,7 @@ class UserForm:
     
     def _validate_password(self):
         """Validate password field."""
-        password = self.password.single_value
+        password = self.password.value
         if len(password) < 8:
             self.validator.errors["password"] = "Password must be at least 8 characters"
         elif "password" in self.validator.errors.dict:
@@ -263,8 +263,8 @@ class UserForm:
     
     def _validate_password_confirmation(self):
         """Validate password confirmation."""
-        password = self.password.single_value
-        confirm = self.confirm_password.single_value
+        password = self.password.value
+        confirm = self.confirm_password.value
         if password != confirm:
             self.validator.errors["password_confirmation"] = "Passwords do not match"
         elif "password_confirmation" in self.validator.errors.dict:
@@ -273,7 +273,7 @@ class UserForm:
     def _validate_state(self):
         """Validate state based on country."""
         country = self.country.selected_option
-        state = self.state.single_value
+        state = self.state.value
         
         if country == "US" and not state:
             self.validator.errors["state"] = "State is required for US"
@@ -284,7 +284,7 @@ class UserForm:
     
     def _on_validation_change(self):
         """Handle validation state changes."""
-        if self.validator.is_valid.single_value:
+        if self.validator.is_valid.value:
             print("✅ Form is valid!")
         else:
             print(f"❌ Form has {len(self.validator.errors.dict)} errors:")
@@ -295,11 +295,11 @@ class UserForm:
 form = UserForm()
 
 # Fill out form - validation happens automatically
-form.username.single_value = "john"
-form.email.single_value = "john@example.com"
-form.password.single_value = "password123"
+form.username.value = "john"
+form.email.value = "john@example.com"
+form.password.value = "password123"
 form.country.selected_option = "US"
-form.state.single_value = "CA"
+form.state.value = "CA"
 
 # Form automatically validates and shows results
 ```
@@ -352,7 +352,7 @@ class UserComponent:
         """Handle state changes."""
         if "user" in state:
             user = state["user"]
-            self.user_display.single_value = f"Welcome, {user['name']}!"
+            self.user_display.value = f"Welcome, {user['name']}!"
 
 class ThemeComponent:
     def __init__(self, store: Store):
@@ -366,7 +366,7 @@ class ThemeComponent:
         """Handle state changes."""
         if "theme" in state:
             theme = state["theme"]
-            self.theme_display.single_value = f"Current theme: {theme}"
+            self.theme_display.value = f"Current theme: {theme}"
 
 class TodoComponent:
     def __init__(self, store: Store):
@@ -380,7 +380,7 @@ class TodoComponent:
         """Handle state changes."""
         if "todos" in state:
             todos = state["todos"]
-            self.todo_list.single_value = todos
+            self.todo_list.value = todos
 
 # Usage
 store = Store()
@@ -422,10 +422,10 @@ class ConditionalBindingExample:
         """Update binding based on current mode."""
         if self.mode.selected_option == "simple":
             # Bind to simple value
-            self.simple_value.bind_to(self.display_value)
+            self.simple_value.connect_hook(self.display_value.hook, "value", "use_caller_value")
         else:
             # Bind to advanced value
-            self.advanced_value.bind_to(self.display_value)
+            self.advanced_value.connect_hook(self.display_value.hook, "value", "use_caller_value")
 ```
 
 ### 2. Binding Chains with Validation
@@ -449,25 +449,25 @@ class ValidationChain:
     
     def _validate_input(self):
         """Validate input value."""
-        value = self.input_value.single_value
+        value = self.input_value.value
         if isinstance(value, (int, float)) and value >= 0:
-            self.validated_value.single_value = value
+            self.validated_value.value = value
         else:
-            self.validated_value.single_value = 0
+            self.validated_value.value = 0
     
     def _process_value(self):
         """Process validated value."""
-        value = self.validated_value.single_value
-        self.processed_value.single_value = value * 2
+        value = self.validated_value.value
+        self.processed_value.value = value * 2
     
     def _finalize_value(self):
         """Finalize processed value."""
-        value = self.processed_value.single_value
-        self.final_value.single_value = f"Result: {value}"
+        value = self.processed_value.value
+        self.final_value.value = f"Result: {value}"
 
 # Usage
 chain = ValidationChain()
-chain.input_value.single_value = 5
+chain.input_value.value = 5
 # Result: input_value = 5
 #         validated_value = 5
 #         processed_value = 10
@@ -492,26 +492,26 @@ class TransformBinding:
     
     def _celsius_to_fahrenheit(self):
         """Convert Celsius to Fahrenheit."""
-        c = self.celsius.single_value
+        c = self.celsius.value
         f = (c * 9/5) + 32
-        self.fahrenheit.single_value = f
+        self.fahrenheit.value = f
     
     def _fahrenheit_to_celsius(self):
         """Convert Fahrenheit to Celsius."""
-        f = self.fahrenheit.single_value
+        f = self.fahrenheit.value
         c = (f - 32) * 5/9
-        self.celsius.single_value = c
+        self.celsius.value = c
 
 # Usage
 temp_converter = TransformBinding()
 
 # Set Celsius - Fahrenheit updates automatically
-temp_converter.celsius.single_value = 25
-print(temp_converter.fahrenheit.single_value)  # 77.0
+temp_converter.celsius.value = 25
+print(temp_converter.fahrenheit.value)  # 77.0
 
 # Set Fahrenheit - Celsius updates automatically
-temp_converter.fahrenheit.single_value = 98.6
-print(temp_converter.celsius.single_value)  # 37.0
+temp_converter.fahrenheit.value = 98.6
+print(temp_converter.celsius.value)  # 37.0
 ```
 
 ## 🚀 Performance Tips
@@ -522,15 +522,15 @@ Group multiple changes together to minimize notifications:
 
 ```python
 # Instead of:
-obs1.single_value = 1
-obs2.single_value = 2
-obs3.single_value = 3
+obs1.value = 1
+obs2.value = 2
+obs3.value = 3
 
 # Use batch operations when possible:
 with obs1.batch_update():
-    obs1.single_value = 1
-    obs2.single_value = 2
-    obs3.single_value = 3
+    obs1.value = 1
+    obs2.value = 2
+    obs3.value = 3
 ```
 
 ### 2. Selective Binding
@@ -567,18 +567,18 @@ def test_transitive_binding():
     obs3 = ObservableSingleValue(30)
     
     # Build chain
-    obs1.bind_to(obs2)
-    obs2.bind_to(obs3)
+    obs1.connect_hook(obs2.hook, "value", "use_target_value")
+    obs2.connect_hook(obs3.hook, "value", "use_target_value")
     
     # Test transitive binding
-    obs1.single_value = 100
-    assert obs2.single_value == 100
-    assert obs3.single_value == 100
+    obs1.value = 100
+    assert obs2.value == 100
+    assert obs3.value == 100
     
     # Test reverse propagation
-    obs3.single_value = 200
-    assert obs1.single_value == 200
-    assert obs2.single_value == 200
+    obs3.value = 200
+    assert obs1.value == 200
+    assert obs2.value == 200
 ```
 
 ### 2. Testing Disconnection
@@ -590,16 +590,16 @@ def test_detachion_behavior():
     obs3 = ObservableSingleValue(30)
     
     # Build chain
-    obs1.bind_to(obs2)
-    obs2.bind_to(obs3)
+    obs1.connect_hook(obs2.hook, "value", "use_target_value")
+    obs2.connect_hook(obs3.hook, "value", "use_target_value")
     
     # Disconnect middle
     obs2.detach()
     
     # Test isolation
-    obs1.single_value = 100
-    assert obs2.single_value == 20  # Isolated
-    assert obs3.single_value == 100  # Still bound to obs1
+    obs1.value = 100
+    assert obs2.value == 20  # Isolated
+    assert obs3.value == 100  # Still bound to obs1
 ```
 
 These examples demonstrate the power and flexibility of the Observables library's transitive binding system and hook "bus" architecture. The system automatically handles complex synchronization scenarios while maintaining clean, maintainable code.

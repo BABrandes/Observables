@@ -33,32 +33,32 @@ temperature_celsius = ObservableSingleValue(25.0)
 temperature_fahrenheit = ObservableSingleValue(77.0)
 
 print("Before binding:")
-print(f"Celsius: {temperature_celsius.single_value}")       # 25.0
-print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 77.0
+print(f"Celsius: {temperature_celsius.value}")       # 25.0
+print(f"Fahrenheit: {temperature_fahrenheit.value}") # 77.0
 
 # Bind them together - celsius pushes its value to fahrenheit
 # Using "use_caller_value" means the caller's value (celsius) takes precedence
-temperature_celsius.attach(
-    temperature_fahrenheit.single_value_hook, 
-    "single_value", 
+temperature_celsius.connect_hook(
+    temperature_fahrenheit.hook, 
+    "value", 
     "use_caller_value"
 )
 
 print("\nAfter binding:")
-print(f"Celsius: {temperature_celsius.single_value}")       # 25.0
-print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 25.0 (now shares same value)
+print(f"Celsius: {temperature_celsius.value}")       # 25.0
+print(f"Fahrenheit: {temperature_fahrenheit.value}") # 25.0 (now shares same value)
 
 # 🔄 Change from celsius - fahrenheit updates automatically
-temperature_celsius.single_value = 30.0
+temperature_celsius.value = 30.0
 print("\nAfter changing celsius:")
-print(f"Celsius: {temperature_celsius.single_value}")       # 30.0
-print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 30.0
+print(f"Celsius: {temperature_celsius.value}")       # 30.0
+print(f"Fahrenheit: {temperature_fahrenheit.value}") # 30.0
 
 # 🔄 Change from fahrenheit - celsius updates automatically
-temperature_fahrenheit.single_value = 100.0
+temperature_fahrenheit.value = 100.0
 print("\nAfter changing fahrenheit:")
-print(f"Celsius: {temperature_celsius.single_value}")       # 100.0
-print(f"Fahrenheit: {temperature_fahrenheit.single_value}") # 100.0
+print(f"Celsius: {temperature_celsius.value}")       # 100.0
+print(f"Fahrenheit: {temperature_fahrenheit.value}") # 100.0
 ```
 
 **Key Insight**: Once bound, both observables share the same storage. Changes from either side propagate to the other automatically.
@@ -76,18 +76,18 @@ obs1 = ObservableSingleValue("Hello")
 obs2 = ObservableSingleValue("World")
 
 # Using "use_caller_value": obs1's value overwrites obs2's value
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
-print(f"After use_caller_value: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+print(f"After use_caller_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='Hello', obs2='Hello'
 
 # Reset for next example
 obs1.detach()
-obs1.single_value = "Hello"
-obs2.single_value = "World"
+obs1.value = "Hello"
+obs2.value = "World"
 
 # Using "use_target_value": obs1 takes obs2's value
-obs1.attach(obs2.single_value_hook, "single_value", "use_target_value")
-print(f"After use_target_value: obs1='{obs1.single_value}', obs2='{obs2.single_value}'")
+obs1.connect_hook(obs2.hook, "value", "use_target_value")
+print(f"After use_target_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='World', obs2='World'
 ```
 
@@ -109,17 +109,17 @@ username = ObservableSingleValue("Your Name")
 display_name = ObservableSingleValue("Placeholder")
 
 # Bind username to display_name
-username.attach(display_name.single_value_hook, "single_value", "use_caller_value")
+username.connect_hook(display_name.hook, "value", "use_caller_value")
 
 # Test bidirectional binding
-print(f"Username: {username.single_value}")
-print(f"Display: {display_name.single_value}")
+print(f"Username: {username.value}")
+print(f"Display: {display_name.value}")
 
-username.single_value = "Alice"
-print(f"After username change - Username: {username.single_value}, Display: {display_name.single_value}")
+username.value = "Alice"
+print(f"After username change - Username: {username.value}, Display: {display_name.value}")
 
-display_name.single_value = "Bob"
-print(f"After display change - Username: {username.single_value}, Display: {display_name.single_value}")
+display_name.value = "Bob"
+print(f"After display change - Username: {username.value}, Display: {display_name.value}")
 ```
 
 ## 📚 **Chapter 2: The HookNexus - Central Storage System**
@@ -139,7 +139,7 @@ print(f"obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)
 # Different IDs = separate storage
 
 # Bind them together
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 
 print("\nAfter binding - shared storage:")
 print(f"obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
@@ -147,12 +147,12 @@ print(f"obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)
 # Same ID = shared storage! This is why binding is bidirectional.
 
 # Verify they share the same value
-print(f"obs1 value: {obs1.single_value}")  # 10
-print(f"obs2 value: {obs2.single_value}")  # 10
+print(f"obs1 value: {obs1.value}")  # 10
+print(f"obs2 value: {obs2.value}")  # 10
 
 # Changes propagate because they access the same storage
-obs1.single_value = 100
-print(f"After obs1 change: obs1={obs1.single_value}, obs2={obs2.single_value}")
+obs1.value = 100
+print(f"After obs1 change: obs1={obs1.value}, obs2={obs2.value}")
 ```
 
 ### **Transitive Binding Networks**
@@ -170,34 +170,34 @@ print("Before binding - all separate:")
 for name, obs in [("user", user_name), ("header", header_display), 
                   ("sidebar", sidebar_display), ("footer", footer_display)]:
     hook_id = id(obs._component_hooks['single_value'].hook_nexus)
-    print(f"{name}: {obs.single_value} (HookNexus: {hook_id})")
+    print(f"{name}: {obs.value} (HookNexus: {hook_id})")
 
 # Create binding chain: user → header → sidebar → footer
-user_name.attach(header_display.single_value_hook, "single_value", "use_caller_value")
-header_display.attach(sidebar_display.single_value_hook, "single_value", "use_caller_value")
-sidebar_display.attach(footer_display.single_value_hook, "single_value", "use_caller_value")
+user_name.connect_hook(header_display.hook, "value", "use_caller_value")
+header_display.connect_hook(sidebar_display.hook, "value", "use_caller_value")
+sidebar_display.connect_hook(footer_display.hook, "value", "use_caller_value")
 
 print("\nAfter chaining - all connected:")
 for name, obs in [("user", user_name), ("header", header_display), 
                   ("sidebar", sidebar_display), ("footer", footer_display)]:
     hook_id = id(obs._component_hooks['single_value'].hook_nexus)
-    print(f"{name}: {obs.single_value} (HookNexus: {hook_id})")
+    print(f"{name}: {obs.value} (HookNexus: {hook_id})")
 
 # 🎯 Change from ANY observable - ALL others update
-user_name.single_value = "Alice"
+user_name.value = "Alice"
 print(f"\nAfter user_name change:")
-print(f"  user_name: {user_name.single_value}")
-print(f"  header_display: {header_display.single_value}")
-print(f"  sidebar_display: {sidebar_display.single_value}")
-print(f"  footer_display: {footer_display.single_value}")
+print(f"  user_name: {user_name.value}")
+print(f"  header_display: {header_display.value}")
+print(f"  sidebar_display: {sidebar_display.value}")
+print(f"  footer_display: {footer_display.value}")
 
 # 🎯 Change from the END of the chain - propagates to ALL
-footer_display.single_value = "Bob"
+footer_display.value = "Bob"
 print(f"\nAfter footer_display change:")
-print(f"  user_name: {user_name.single_value}")
-print(f"  header_display: {header_display.single_value}")
-print(f"  sidebar_display: {sidebar_display.single_value}")
-print(f"  footer_display: {footer_display.single_value}")
+print(f"  user_name: {user_name.value}")
+print(f"  header_display: {header_display.value}")
+print(f"  sidebar_display: {sidebar_display.value}")
+print(f"  footer_display: {footer_display.value}")
 ```
 
 ### **Exercise 2: Build a Binding Network**
@@ -216,17 +216,17 @@ save_button_text = ObservableSingleValue("")
 status_message = ObservableSingleValue("")
 
 # Build the chain
-input_field.attach(validation_display.single_value_hook, "single_value", "use_caller_value")
-validation_display.attach(save_button_text.single_value_hook, "single_value", "use_caller_value")
-save_button_text.attach(status_message.single_value_hook, "single_value", "use_caller_value")
+input_field.connect_hook(validation_display.hook, "value", "use_caller_value")
+validation_display.connect_hook(save_button_text.hook, "value", "use_caller_value")
+save_button_text.connect_hook(status_message.hook, "value", "use_caller_value")
 
 # Test the network
-input_field.single_value = "user@example.com"
+input_field.value = "user@example.com"
 print("All observables after input change:")
-print(f"  Input: {input_field.single_value}")
-print(f"  Validation: {validation_display.single_value}")
-print(f"  Button: {save_button_text.single_value}")
-print(f"  Status: {status_message.single_value}")
+print(f"  Input: {input_field.value}")
+print(f"  Validation: {validation_display.value}")
+print(f"  Button: {save_button_text.value}")
+print(f"  Status: {status_message.value}")
 ```
 
 ## 📚 **Chapter 3: Rigorous State Validation**
@@ -316,7 +316,7 @@ print(f"  theme1: {theme1.selected_option} from {theme1.available_options}")
 print(f"  theme2: {theme2.selected_option} from {theme2.available_options}")
 
 # ✅ Binding succeeds - both have "dark" as an option
-theme1.attach(theme2.selected_option_hook, "selected_option", "use_caller_value")
+theme1.connect_hook(theme2.selected_option_hook, "selected_option", "use_caller_value")
 
 print("\nAfter successful binding:")
 print(f"  theme1: {theme1.selected_option}")
@@ -327,7 +327,7 @@ incompatible_theme = ObservableSelectionOption("high_contrast", {"high_contrast"
 
 # ❌ Binding fails - "high_contrast" is not available in theme1's options
 try:
-    theme1.attach(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
+    theme1.connect_hook(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
     print("ERROR: This should not print!")
 except ValueError as e:
     print(f"\n❌ Binding validation failed: {e}")
@@ -368,7 +368,7 @@ print(f"After atomic update: {payment_method.selected_option}")
 # Test binding validation
 another_payment = ObservableSelectionOption("cash", {"cash", "check"})
 try:
-    payment_method.attach(another_payment.selected_option_hook, "selected_option", "use_target_value")
+    payment_method.connect_hook(another_payment.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
 ```
@@ -387,13 +387,13 @@ obs_c = ObservableSingleValue("C")
 obs_d = ObservableSingleValue("D")
 
 # Build chain: A ↔ B ↔ C ↔ D
-obs_a.attach(obs_b.single_value_hook, "single_value", "use_caller_value")
-obs_b.attach(obs_c.single_value_hook, "single_value", "use_caller_value")
-obs_c.attach(obs_d.single_value_hook, "single_value", "use_caller_value")
+obs_a.connect_hook(obs_b.hook, "value", "use_caller_value")
+obs_b.connect_hook(obs_c.hook, "value", "use_caller_value")
+obs_c.connect_hook(obs_d.hook, "value", "use_caller_value")
 
 print("Network after creation (all share same value):")
 for name, obs in [("A", obs_a), ("B", obs_b), ("C", obs_c), ("D", obs_d)]:
-    print(f"  {name}: {obs.single_value}")
+    print(f"  {name}: {obs.value}")
 
 # Verify they all share the same HookNexus
 all_same_nexus = all(
@@ -407,23 +407,23 @@ print(f"All share same HookNexus: {all_same_nexus}")
 obs_b.detach()
 
 print("\nAfter detaching B:")
-print(f"  B is isolated: {obs_b.single_value}")
+print(f"  B is isolated: {obs_b.value}")
 
 # Test that A, C, D remain connected
-obs_a.single_value = "Changed"
+obs_a.value = "Changed"
 print(f"After changing A:")
-print(f"  A: {obs_a.single_value}")
-print(f"  B: {obs_b.single_value}")  # Isolated, unchanged
-print(f"  C: {obs_c.single_value}")  # Connected to A
-print(f"  D: {obs_d.single_value}")  # Connected to A
+print(f"  A: {obs_a.value}")
+print(f"  B: {obs_b.value}")  # Isolated, unchanged
+print(f"  C: {obs_c.value}")  # Connected to A
+print(f"  D: {obs_d.value}")  # Connected to A
 
 # Verify B is truly isolated
-obs_b.single_value = "B_Isolated"
+obs_b.value = "B_Isolated"
 print(f"\nAfter changing isolated B:")
-print(f"  A: {obs_a.single_value}")  # Unchanged
-print(f"  B: {obs_b.single_value}")  # Changed
-print(f"  C: {obs_c.single_value}")  # Unchanged
-print(f"  D: {obs_d.single_value}")  # Unchanged
+print(f"  A: {obs_a.value}")  # Unchanged
+print(f"  B: {obs_b.value}")  # Changed
+print(f"  C: {obs_c.value}")  # Unchanged
+print(f"  D: {obs_d.value}")  # Unchanged
 ```
 
 ### **Strategic Network Disconnection**
@@ -438,34 +438,34 @@ profile_name = ObservableSingleValue("John Doe")
 settings_name = ObservableSingleValue("John Doe")
 
 # Connect everything initially
-user_info.attach(header_name.single_value_hook, "single_value", "use_caller_value")
-header_name.attach(profile_name.single_value_hook, "single_value", "use_caller_value")
-profile_name.attach(settings_name.single_value_hook, "single_value", "use_caller_value")
+user_info.connect_hook(header_name.hook, "value", "use_caller_value")
+header_name.connect_hook(profile_name.hook, "value", "use_caller_value")
+profile_name.connect_hook(settings_name.hook, "value", "use_caller_value")
 
 print("All connected initially:")
-user_info.single_value = "Alice Smith"
-print(f"  User Info: {user_info.single_value}")
-print(f"  Header: {header_name.single_value}")
-print(f"  Profile: {profile_name.single_value}")
-print(f"  Settings: {settings_name.single_value}")
+user_info.value = "Alice Smith"
+print(f"  User Info: {user_info.value}")
+print(f"  Header: {header_name.value}")
+print(f"  Profile: {profile_name.value}")
+print(f"  Settings: {settings_name.value}")
 
 # Disconnect settings to allow independent editing
 settings_name.detach()
-settings_name.single_value = "Custom Display Name"
+settings_name.value = "Custom Display Name"
 
 print("\nAfter disconnecting settings:")
-print(f"  User Info: {user_info.single_value}")
-print(f"  Header: {header_name.single_value}")
-print(f"  Profile: {profile_name.single_value}")
-print(f"  Settings: {settings_name.single_value}")  # Independent
+print(f"  User Info: {user_info.value}")
+print(f"  Header: {header_name.value}")
+print(f"  Profile: {profile_name.value}")
+print(f"  Settings: {settings_name.value}")  # Independent
 
 # Changes to main network don't affect settings
-user_info.single_value = "Bob Johnson"
+user_info.value = "Bob Johnson"
 print(f"\nAfter changing user info:")
-print(f"  User Info: {user_info.single_value}")
-print(f"  Header: {header_name.single_value}")
-print(f"  Profile: {profile_name.single_value}")
-print(f"  Settings: {settings_name.single_value}")  # Still independent
+print(f"  User Info: {user_info.value}")
+print(f"  Header: {header_name.value}")
+print(f"  Profile: {profile_name.value}")
+print(f"  Settings: {settings_name.value}")  # Still independent
 ```
 
 ### **Exercise 4: Network Management**
@@ -486,31 +486,31 @@ sidebar_title = ObservableSingleValue("Home")
 footer_link = ObservableSingleValue("Home")
 
 # Connect all in chain
-nav_title.attach(page_header.single_value_hook, "single_value", "use_caller_value")
-page_header.attach(breadcrumb.single_value_hook, "single_value", "use_caller_value")
-breadcrumb.attach(sidebar_title.single_value_hook, "single_value", "use_caller_value")
-sidebar_title.attach(footer_link.single_value_hook, "single_value", "use_caller_value")
+nav_title.connect_hook(page_header.hook, "value", "use_caller_value")
+page_header.connect_hook(breadcrumb.hook, "value", "use_caller_value")
+breadcrumb.connect_hook(sidebar_title.hook, "value", "use_caller_value")
+sidebar_title.connect_hook(footer_link.hook, "value", "use_caller_value")
 
 # Test network
-nav_title.single_value = "Dashboard"
+nav_title.value = "Dashboard"
 print("All connected:")
-print(f"  Nav: {nav_title.single_value}")
-print(f"  Header: {page_header.single_value}")
-print(f"  Breadcrumb: {breadcrumb.single_value}")
-print(f"  Sidebar: {sidebar_title.single_value}")
-print(f"  Footer: {footer_link.single_value}")
+print(f"  Nav: {nav_title.value}")
+print(f"  Header: {page_header.value}")
+print(f"  Breadcrumb: {breadcrumb.value}")
+print(f"  Sidebar: {sidebar_title.value}")
+print(f"  Footer: {footer_link.value}")
 
 # Disconnect middle (breadcrumb)
 breadcrumb.detach()
 
 # Verify ends still connected
-nav_title.single_value = "Profile"
+nav_title.value = "Profile"
 print("\nAfter disconnecting breadcrumb:")
-print(f"  Nav: {nav_title.single_value}")
-print(f"  Header: {page_header.single_value}")
-print(f"  Breadcrumb: {breadcrumb.single_value}")  # Should be unchanged
-print(f"  Sidebar: {sidebar_title.single_value}")  # Should update
-print(f"  Footer: {footer_link.single_value}")     # Should update
+print(f"  Nav: {nav_title.value}")
+print(f"  Header: {page_header.value}")
+print(f"  Breadcrumb: {breadcrumb.value}")  # Should be unchanged
+print(f"  Sidebar: {sidebar_title.value}")  # Should update
+print(f"  Footer: {footer_link.value}")     # Should update
 ```
 
 ## 📚 **Chapter 5: Advanced Patterns and Real-World Applications**
@@ -546,75 +546,75 @@ class UserRegistrationForm:
     
     def _validate_passwords(self):
         """Check password consistency."""
-        if self.password.single_value and self.confirm_password.single_value:
-            if self.password.single_value != self.confirm_password.single_value:
-                self.validation_message.single_value = "Passwords do not match"
-                self.is_form_valid.single_value = False
+        if self.password.value and self.confirm_password.value:
+            if self.password.value != self.confirm_password.value:
+                self.validation_message.value = "Passwords do not match"
+                self.is_form_valid.value = False
             else:
                 self._validate_form()  # Re-check overall form
     
     def _validate_form(self):
         """Validate entire form."""
         # Check all required fields
-        if not self.username.single_value:
-            self.validation_message.single_value = "Username is required"
-            self.is_form_valid.single_value = False
+        if not self.username.value:
+            self.validation_message.value = "Username is required"
+            self.is_form_valid.value = False
             return
         
-        if not self.email.single_value or "@" not in self.email.single_value:
-            self.validation_message.single_value = "Valid email is required"
-            self.is_form_valid.single_value = False
+        if not self.email.value or "@" not in self.email.value:
+            self.validation_message.value = "Valid email is required"
+            self.is_form_valid.value = False
             return
         
-        if not self.password.single_value or len(self.password.single_value) < 8:
-            self.validation_message.single_value = "Password must be at least 8 characters"
-            self.is_form_valid.single_value = False
+        if not self.password.value or len(self.password.value) < 8:
+            self.validation_message.value = "Password must be at least 8 characters"
+            self.is_form_valid.value = False
             return
         
         if not self.country.selected_option:
-            self.validation_message.single_value = "Please select a country"
-            self.is_form_valid.single_value = False
+            self.validation_message.value = "Please select a country"
+            self.is_form_valid.value = False
             return
         
         # Check password confirmation
-        if self.password.single_value != self.confirm_password.single_value:
-            self.validation_message.single_value = "Passwords do not match"
-            self.is_form_valid.single_value = False
+        if self.password.value != self.confirm_password.value:
+            self.validation_message.value = "Passwords do not match"
+            self.is_form_valid.value = False
             return
         
         # All validations passed
-        self.validation_message.single_value = "Form is valid!"
-        self.is_form_valid.single_value = True
+        self.validation_message.value = "Form is valid!"
+        self.is_form_valid.value = True
 
 # Usage
 form = UserRegistrationForm()
 
 def print_form_status():
-    print(f"Valid: {form.is_form_valid.single_value}")
-    print(f"Message: {form.validation_message.single_value}")
+    print(f"Valid: {form.is_form_valid.value}")
+    print(f"Message: {form.validation_message.value}")
     print()
 
 # Test form validation
 print("Initial state:")
 print_form_status()
 
-form.username.single_value = "johndoe"
+form.username.value = "johndoe"
 print("After username:")
 print_form_status()
 
-form.email.single_value = "john@example.com"
+form.email.value = "john@example.com"
 print("After email:")
 print_form_status()
 
-form.password.single_value = "secretpassword"
+form.password.value = "secretpassword"
 print("After password:")
 print_form_status()
 
-form.confirm_password.single_value = "wrongpassword"
+form.confirm_password.value = "wrongpassword"
 print("After wrong confirm password:")
 print_form_status()
 
-form.confirm_password.single_value = "secretpassword"
+form.confirm_password.value = "secretpassword"
 print("After correct confirm password:")
 print_form_status()
 
@@ -653,54 +653,54 @@ class DatabaseConfig:
         env = self.environment.selected_option
         
         if env == "production":
-            if self.host.single_value in ["localhost", "127.0.0.1"]:
+            if self.host.value in ["localhost", "127.0.0.1"]:
                 errors.append("Production cannot use localhost")
             
-            if not self.ssl_enabled.single_value:
+            if not self.ssl_enabled.value:
                 errors.append("Production requires SSL")
             
-            if self.pool_size.single_value < 10:
+            if self.pool_size.value < 10:
                 errors.append("Production requires pool size >= 10")
         
         elif env == "staging":
-            if self.host.single_value == "localhost":
+            if self.host.value == "localhost":
                 errors.append("Staging should not use localhost")
             
-            if self.pool_size.single_value < 5:
+            if self.pool_size.value < 5:
                 errors.append("Staging requires pool size >= 5")
         
         # Update validation state
-        self.validation_errors.single_value = errors
-        self.config_valid.single_value = len(errors) == 0
+        self.validation_errors.value = errors
+        self.config_valid.value = len(errors) == 0
     
     def apply_environment_defaults(self):
         """Apply appropriate defaults for the current environment."""
         env = self.environment.selected_option
         
         if env == "production":
-            self.host.single_value = "prod-db.company.com"
-            self.ssl_enabled.single_value = True
-            self.pool_size.single_value = 20
+            self.host.value = "prod-db.company.com"
+            self.ssl_enabled.value = True
+            self.pool_size.value = 20
         elif env == "staging":
-            self.host.single_value = "staging-db.company.com"
-            self.ssl_enabled.single_value = True
-            self.pool_size.single_value = 10
+            self.host.value = "staging-db.company.com"
+            self.ssl_enabled.value = True
+            self.pool_size.value = 10
         else:  # development
-            self.host.single_value = "localhost"
-            self.ssl_enabled.single_value = False
-            self.pool_size.single_value = 5
+            self.host.value = "localhost"
+            self.ssl_enabled.value = False
+            self.pool_size.value = 5
 
 # Usage
 config = DatabaseConfig()
 
 def print_config_status():
     print(f"Environment: {config.environment.selected_option}")
-    print(f"Host: {config.host.single_value}")
-    print(f"SSL: {config.ssl_enabled.single_value}")
-    print(f"Pool Size: {config.pool_size.single_value}")
-    print(f"Valid: {config.config_valid.single_value}")
-    if config.validation_errors.single_value:
-        print(f"Errors: {config.validation_errors.single_value}")
+    print(f"Host: {config.host.value}")
+    print(f"SSL: {config.ssl_enabled.value}")
+    print(f"Pool Size: {config.pool_size.value}")
+    print(f"Valid: {config.config_valid.value}")
+    if config.validation_errors.value:
+        print(f"Errors: {config.validation_errors.value}")
     print()
 
 print("Development config:")
@@ -716,7 +716,7 @@ config.apply_environment_defaults()
 print_config_status()
 
 print("Testing invalid production config:")
-config.host.single_value = "localhost"  # This triggers validation error
+config.host.value = "localhost"  # This triggers validation error
 print_config_status()
 ```
 
@@ -759,41 +759,41 @@ class ShoppingCart:
         """Update unit price when product changes."""
         product = self.selected_product.selected_option
         if product in self.available_products:
-            self.unit_price.single_value = self.available_products[product]
+            self.unit_price.value = self.available_products[product]
     
     def _calculate_total(self):
         """Calculate total price."""
-        if self.is_valid.single_value:
-            total = self.unit_price.single_value * self.quantity.single_value
-            self.total_price.single_value = round(total, 2)
+        if self.is_valid.value:
+            total = self.unit_price.value * self.quantity.value
+            self.total_price.value = round(total, 2)
     
     def _validate_quantity(self):
         """Validate quantity limits."""
-        qty = self.quantity.single_value
+        qty = self.quantity.value
         
         if qty <= 0:
-            self.error_message.single_value = "Quantity must be positive"
-            self.is_valid.single_value = False
+            self.error_message.value = "Quantity must be positive"
+            self.is_valid.value = False
         elif qty > 10:
-            self.error_message.single_value = "Maximum quantity is 10"
-            self.is_valid.single_value = False
+            self.error_message.value = "Maximum quantity is 10"
+            self.is_valid.value = False
         else:
-            self.error_message.single_value = ""
-            self.is_valid.single_value = True
+            self.error_message.value = ""
+            self.is_valid.value = True
         
         # Recalculate total if valid
-        if self.is_valid.single_value:
+        if self.is_valid.value:
             self._calculate_total()
     
     def print_cart_status(self):
         """Print current cart status."""
         print(f"Product: {self.selected_product.selected_option}")
-        print(f"Quantity: {self.quantity.single_value}")
-        print(f"Unit Price: ${self.unit_price.single_value}")
-        print(f"Total: ${self.total_price.single_value}")
-        print(f"Valid: {self.is_valid.single_value}")
-        if self.error_message.single_value:
-            print(f"Error: {self.error_message.single_value}")
+        print(f"Quantity: {self.quantity.value}")
+        print(f"Unit Price: ${self.unit_price.value}")
+        print(f"Total: ${self.total_price.value}")
+        print(f"Valid: {self.is_valid.value}")
+        if self.error_message.value:
+            print(f"Error: {self.error_message.value}")
         print()
 
 # Test the shopping cart
@@ -803,7 +803,7 @@ print("Initial cart:")
 cart.print_cart_status()
 
 print("Changing quantity to 3:")
-cart.quantity.single_value = 3
+cart.quantity.value = 3
 cart.print_cart_status()
 
 print("Switching to mouse:")
@@ -811,11 +811,11 @@ cart.selected_product.selected_option = "mouse"
 cart.print_cart_status()
 
 print("Invalid quantity (15):")
-cart.quantity.single_value = 15
+cart.quantity.value = 15
 cart.print_cart_status()
 
 print("Back to valid quantity (2):")
-cart.quantity.single_value = 2
+cart.quantity.value = 2
 cart.print_cart_status()
 ```
 

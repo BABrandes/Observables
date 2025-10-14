@@ -161,6 +161,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
                     primary_values[key] = hook.value
 
             # Step 2: Generate additionally values if add_values_to_be_updated_callback is provided
+            additional_values: dict[PHK|SHK, PHV|SHV] = {}
             if add_values_to_be_updated_callback is not None:
                 current_values_only_primary: Mapping[PHK, PHV] = {}
                 for key, value in current_values.items():
@@ -171,14 +172,15 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
                     if key in self_ref._primary_hook_keys:
                         submitted_values_only_primary[key] = value # type: ignore
 
-                additional_primary_values = add_values_to_be_updated_callback(self_ref, current_values_only_primary, submitted_values_only_primary)
-                if self_ref._secondary_hook_keys & additional_primary_values.keys():
-                    raise ValueError(f"Additional values keys must be disjoint with secondary hook keys")
+                additional_values = add_values_to_be_updated_callback(self_ref, current_values_only_primary, submitted_values_only_primary) # type: ignore
+                # Check this they only contain primary hook keys
+                for key in additional_values.keys():
+                    if key not in self_ref._primary_hook_keys:
+                        raise ValueError(f"Additional values keys must only contain primary hook keys")
 
-                primary_values.update(additional_primary_values)
+                primary_values.update(additional_values) # type: ignore
 
             # Step 3: Generate the secondary values
-            additional_values: dict[PHK|SHK, PHV|SHV] = {}
             for key in self_ref._secondary_hooks.keys():
                 value = self_ref._secondary_hook_callbacks[key](primary_values)
                 self_ref._secondary_values[key] = value

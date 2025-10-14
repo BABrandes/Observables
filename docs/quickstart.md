@@ -27,20 +27,20 @@ Start with the simplest observable - a single value:
 username = ObservableSingleValue("John")
 
 # Read the value
-print(username.single_value)  # "John"
+print(username.value)  # "John"
 
 # Change the value
-username.single_value = "Alice"
-print(username.single_value)  # "Alice"
+username.value = "Alice"
+print(username.value)  # "Alice"
 
 # Add a listener
 def on_username_change():
-    print(f"Username changed to: {username.single_value}")
+    print(f"Username changed to: {username.value}")
 
-username.add_listener(on_username_change)
+username.add_listeners(on_username_change)
 
 # Changes trigger listeners
-username.single_value = "Bob"  # Prints: "Username changed to: Bob"
+username.value = "Bob"  # Prints: "Username changed to: Bob"
 ```
 
 ## 🔄 **2. Bidirectional Binding**
@@ -56,25 +56,25 @@ display_name = ObservableSingleValue("Display")
 # The third parameter specifies initial sync mode:
 # - "use_caller_value": Use the caller's current value
 # - "use_target_value": Use the target's current value
-primary_name.attach(
-    display_name.single_value_hook, 
-    "single_value", 
+primary_name.connect_hook(
+    display_name.hook, 
+    "value", 
     "use_caller_value"
 )
 
 print(f"After binding:")
-print(f"  Primary: {primary_name.single_value}")   # "Initial"
-print(f"  Display: {display_name.single_value}")   # "Initial" (updated from primary)
+print(f"  Primary: {primary_name.value}")   # "Initial"
+print(f"  Display: {display_name.value}")   # "Initial" (updated from primary)
 
 # ✅ Change primary - display updates automatically
-primary_name.single_value = "Changed from primary"
-print(f"  Primary: {primary_name.single_value}")   # "Changed from primary"
-print(f"  Display: {display_name.single_value}")   # "Changed from primary"
+primary_name.value = "Changed from primary"
+print(f"  Primary: {primary_name.value}")   # "Changed from primary"
+print(f"  Display: {display_name.value}")   # "Changed from primary"
 
 # ✅ Change display - primary updates automatically
-display_name.single_value = "Changed from display"
-print(f"  Primary: {primary_name.single_value}")   # "Changed from display"
-print(f"  Display: {display_name.single_value}")   # "Changed from display"
+display_name.value = "Changed from display"
+print(f"  Primary: {primary_name.value}")   # "Changed from display"
+print(f"  Display: {display_name.value}")   # "Changed from display"
 ```
 
 **Key Insight**: Once bound, both observables share the same storage. Changes from either side propagate automatically.
@@ -115,20 +115,20 @@ page_title = ObservableSingleValue("Page")
 navigation_title = ObservableSingleValue("Nav")
 
 # Connect them in a chain
-header_title.attach(page_title.single_value_hook, "single_value", "use_caller_value")
-page_title.attach(navigation_title.single_value_hook, "single_value", "use_caller_value")
+header_title.connect_hook(page_title.hook, "value", "use_caller_value")
+page_title.connect_hook(navigation_title.hook, "value", "use_caller_value")
 
 # 🎯 Change the header - all others update automatically
-header_title.single_value = "Dashboard"
-print(f"Header: {header_title.single_value}")        # "Dashboard"
-print(f"Page: {page_title.single_value}")            # "Dashboard"  
-print(f"Navigation: {navigation_title.single_value}") # "Dashboard"
+header_title.value = "Dashboard"
+print(f"Header: {header_title.value}")        # "Dashboard"
+print(f"Page: {page_title.value}")            # "Dashboard"  
+print(f"Navigation: {navigation_title.value}") # "Dashboard"
 
 # 🎯 Change navigation - all others update automatically  
-navigation_title.single_value = "Settings"
-print(f"Header: {header_title.single_value}")        # "Settings"
-print(f"Page: {page_title.single_value}")            # "Settings"
-print(f"Navigation: {navigation_title.single_value}") # "Settings"
+navigation_title.value = "Settings"
+print(f"Header: {header_title.value}")        # "Settings"
+print(f"Page: {page_title.value}")            # "Settings"
+print(f"Navigation: {navigation_title.value}") # "Settings"
 ```
 
 ## 📝 **5. Real-World Example: User Profile Form**
@@ -151,8 +151,8 @@ class UserProfileForm:
         self.is_valid = ObservableSingleValue(False)
         
         # Bind form fields to display fields
-        self.name.attach(self.display_name.single_value_hook, "single_value", "use_caller_value")
-        self.email.attach(self.header_email.single_value_hook, "single_value", "use_caller_value")
+        self.name.connect_hook(self.display_name.hook, "value", "use_caller_value")
+        self.email.connect_hook(self.header_email.hook, "value", "use_caller_value")
         
         # Add validation listeners
         self.name.add_listener(self._validate)
@@ -161,22 +161,22 @@ class UserProfileForm:
     
     def _validate(self):
         """Validate the form."""
-        name_valid = len(self.name.single_value) >= 2
-        email_valid = "@" in self.email.single_value
+        name_valid = len(self.name.value) >= 2
+        email_valid = "@" in self.email.value
         role_valid = self.role.selected_option in {"user", "admin", "moderator"}
         
-        self.is_valid.single_value = name_valid and email_valid and role_valid
+        self.is_valid.value = name_valid and email_valid and role_valid
     
     def print_status(self):
         """Print current form status."""
         print(f"Form Fields:")
-        print(f"  Name: '{self.name.single_value}'")
-        print(f"  Email: '{self.email.single_value}'")
+        print(f"  Name: '{self.name.value}'")
+        print(f"  Email: '{self.email.value}'")
         print(f"  Role: '{self.role.selected_option}'")
         print(f"Display Fields (auto-synced):")
-        print(f"  Display Name: '{self.display_name.single_value}'")
-        print(f"  Header Email: '{self.header_email.single_value}'")
-        print(f"Valid: {self.is_valid.single_value}")
+        print(f"  Display Name: '{self.display_name.value}'")
+        print(f"  Header Email: '{self.header_email.value}'")
+        print(f"Valid: {self.is_valid.value}")
         print()
 
 # Create and test the form
@@ -186,10 +186,10 @@ print("Initial state:")
 form.print_status()
 
 print("Filling out form...")
-form.name.single_value = "Alice Johnson"
+form.name.value = "Alice Johnson"
 form.print_status()
 
-form.email.single_value = "alice@example.com"
+form.email.value = "alice@example.com"
 form.print_status()
 
 form.role.selected_option = "admin"
@@ -216,11 +216,11 @@ user_preferences = ObservableSelectionOption("dark", {"dark", "light", "auto"})
 display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
 
 # ❌ Individual binding might cause validation conflicts
-# user_preferences.attach(display_settings.selected_option_hook, "selected_option", "use_target_value")
-# user_preferences.attach(display_settings.available_options_hook, "available_options", "use_target_value")
+# user_preferences.connect_hook(display_settings.selected_option_hook, "selected_option", "use_target_value")
+# user_preferences.connect_hook(display_settings.available_options_hook, "available_options", "use_target_value")
 
 # ✅ Atomic binding prevents validation conflicts
-user_preferences.connect_multiple({
+user_preferences.connect_hooks({
     "selected_option": display_settings.selected_option_hook,
     "available_options": display_settings.available_options_hook
 }, "use_target_value")
@@ -253,11 +253,11 @@ display = ObservableSingleValue("Current")
 use_advanced = True
 
 if use_advanced:
-    advanced_mode.attach(display.single_value_hook, "single_value", "use_caller_value")
+    advanced_mode.connect_hook(display.hook, "value", "use_caller_value")
 else:
-    simple_mode.attach(display.single_value_hook, "single_value", "use_caller_value")
+    simple_mode.connect_hook(display.hook, "value", "use_caller_value")
 
-print(f"Display shows: {display.single_value}")  # "Advanced"
+print(f"Display shows: {display.value}")  # "Advanced"
 ```
 
 ### **Pattern 2: Atomic Multi-Component Updates**
@@ -285,17 +285,17 @@ obs2 = ObservableSingleValue("Connected")
 obs3 = ObservableSingleValue("Connected")
 
 # Connect them
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
-obs2.attach(obs3.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs2.connect_hook(obs3.hook, "value", "use_caller_value")
 
 # Disconnect the middle one
 obs2.detach()
 
 # obs1 and obs3 remain connected!
-obs1.single_value = "Updated"
-print(f"obs1: {obs1.single_value}")  # "Updated"
-print(f"obs2: {obs2.single_value}")  # "Connected" (isolated)
-print(f"obs3: {obs3.single_value}")  # "Updated" (still connected to obs1)
+obs1.value = "Updated"
+print(f"obs1: {obs1.value}")  # "Updated"
+print(f"obs2: {obs2.value}")  # "Connected" (isolated)
+print(f"obs3: {obs3.value}")  # "Updated" (still connected to obs1)
 ```
 
 ## 🎯 **7. Quick Reference**
@@ -308,10 +308,10 @@ print(f"obs3: {obs3.single_value}")  # "Updated" (still connected to obs1)
 - `ObservableSet[T]` - Sets
 
 ### **Binding Methods**
-- `attach(hook, component_name, sync_mode)` - Bind to another observable
-- `connect_multiple(hook_dict, sync_mode)` - Atomically bind multiple components
+- `connect_hook(hook, to_key, initial_sync_mode)` - Bind to another observable
+- `connect_hooks(hooks_dict, initial_sync_mode)` - Atomically bind multiple components
 - `detach()` - Disconnect from all bindings
-- `is_attached_to(other)` - Check if bound to another observable
+- `is_connected_to(hook)` - Check if bound to another hook
 
 ### **Initial Sync Modes**
 
@@ -326,17 +326,16 @@ source = ObservableSingleValue(10)
 target = ObservableSingleValue(20)
 
 # Using "use_caller_value": target becomes 10
-source.attach(target.single_value_hook, "single_value", "use_caller_value")
+source.connect_hook(target.hook, "value", "use_caller_value")
 
 # Using "use_target_value": source would become 20
-# source.attach(target.single_value_hook, "single_value", "use_target_value")
+# source.connect_hook(target.hook, "value", "use_target_value")
 ```
 
 ### **Common Hooks**
-- `single_value_hook` - For single values
-- `selected_option_hook` - For selection option
-- `available_options_hook` - For available options
-- `list_value_hook` - For entire lists
+- **`ObservableSingleValue`**: `.hook` - Access to the value
+- **`ObservableList/Set/Dict/Tuple`**: `.value_hook` - Access to the collection, `.length_hook` - Length/size
+- **`ObservableSelectionOption`**: `.selected_option_hook`, `.available_options_hook`
 
 ## 🚀 **Next Steps**
 

@@ -1,26 +1,26 @@
 # Observables - Centralized Reactive Programming
 
-A Python library for creating observable objects with **centralized value storage** and **automatic transitive binding**. Unlike traditional reactive libraries that duplicate data across observables, this system stores each value in exactly one central location, providing efficient and reliable state management.
+A Python library for creating observable objects with centralized value storage and automatic transitive binding. The library stores each value in a single central location (HookNexus) rather than duplicating data across observables.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://badge.fury.io/py/observables.svg)](https://badge.fury.io/py/observables)
 [![Tests](https://github.com/yourusername/observables/workflows/Tests/badge.svg)](https://github.com/yourusername/observables/actions)
 
-## 🚀 **Centralized Architecture**
+## Architecture
 
-**This library uses a unique centralized value storage approach:**
+The library uses a centralized value storage approach:
 
-- **🎯 Single Source of Truth**: Each value is stored in exactly one `HookNexus`
-- **🔄 Transitive Binding**: When you bind A→B and B→C, A automatically connects to C
-- **🔀 Dynamic Centralization**: HookNexus instances merge when observables bind
-- **💾 Memory Efficient**: Values are never copied between observables
-- **⚡ Atomic Updates**: All bound observables see changes simultaneously
+- **Centralized Storage**: Each value is stored in exactly one HookNexus
+- **Hook-Based Binding**: Observables connect through hooks, managed by NexusManager
+- **Transitive Binding**: When you bind A→B and B→C, all three share the same HookNexus
+- **No Data Copying**: Values are never duplicated between observables
+- **Atomic Updates**: All connected hooks see changes simultaneously
 
-## 🌟 **Key Features**
+## Key Features
 
-### **🔄 Bidirectional Binding**
-This library provides bidirectional binding through shared storage:
+### **Bidirectional Binding**
+Observables connected through hooks share the same HookNexus storage:
 
 ```python
 # Create two observables
@@ -28,7 +28,7 @@ temp_celsius = ObservableSingleValue(25.0)
 temp_fahrenheit = ObservableSingleValue(77.0)
 
 # Bind them bidirectionally - celsius value takes precedence
-temp_celsius.attach(temp_fahrenheit.value_hook, "value", "use_caller_value")
+temp_celsius.connect_hook(temp_fahrenheit.hook, "value", "use_caller_value")
 
 # 🔄 Changes propagate in BOTH directions
 temp_celsius.value = 30.0
@@ -68,8 +68,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.attach(obs2.value_hook, "value", "use_caller_value")
-obs2.attach(obs3.value_hook, "value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs2.connect_hook(obs3.hook, "value", "use_caller_value")
 
 # obs1 is automatically connected to obs3 through transitive binding
 
@@ -87,17 +87,17 @@ obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
 
 print(f"Initial HookNexus IDs:")
-print(f"  Obs1: {id(obs1._component_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._component_hooks['value'].hook_nexus)}")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
 # Output: Different IDs - separate storage
 
 # Bind them together (merges their HookNexus instances)
 # Using "use_target_value" means obs1 adopts obs2's value
-obs1.attach(obs2.value_hook, "value", "use_target_value")
+obs1.connect_hook(obs2.hook, "value", "use_target_value")
 
 print(f"After binding - HookNexus IDs:")
-print(f"  Obs1: {id(obs1._component_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._component_hooks['value'].hook_nexus)}")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
 # Output: Same ID - shared storage!
 ```
 
@@ -113,8 +113,8 @@ obs2 = ObservableList(large_dataset)
 obs3 = ObservableList(large_dataset)
 
 # Bind them together
-obs1.attach(obs2.list_value_hook, "list_value", "use_target_value")
-obs2.attach(obs3.list_value_hook, "list_value", "use_target_value")
+obs1.connect_hook(obs2.value_hook, "value", "use_target_value")
+obs2.connect_hook(obs3.value_hook, "value", "use_target_value")
 
 # Now all three share the same HookNexus
 print(f"Memory efficiency:")
@@ -125,7 +125,7 @@ print(f"  Savings: 20,000 items = 160,000 bytes (64-bit)")
 
 ## Features
 
-- **🎯 Centralized Value Storage**: Revolutionary HookNexus architecture
+- **🎯 Centralized Value Storage**: HookNexus architecture for shared state
 - **🔄 Transitive Binding**: Automatic network formation
 - **🔀 Dynamic Centralization**: HookNexus instances merge automatically
 - **💾 Memory Efficient**: Zero data duplication
@@ -185,8 +185,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind them in a chain - this creates transitive behavior!
-obs1.attach(obs2.value_hook, "value", "use_target_value")
-obs2.attach(obs3.value_hook, "value", "use_target_value")
+obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs2.connect_hook(obs3.hook, "value", "use_target_value")
 
 # Now obs1 is automatically connected to obs3!
 obs1.value = 500
@@ -216,8 +216,8 @@ view2 = ObservableList(large_dataset)  # References same data
 view3 = ObservableList(large_dataset)  # References same data
 
 # Bind them together (all share same HookNexus)
-view1.attach(view2.list_value_hook, "list_value", "use_target_value")
-view2.attach(view3.list_value_hook, "list_value", "use_target_value")
+view1.connect_hook(view2.value_hook, "value", "use_target_value")
+view2.connect_hook(view3.value_hook, "value", "use_target_value")
 
 # All views automatically stay synchronized
 # Memory usage: 1 copy of data + 3 lightweight references
@@ -227,7 +227,7 @@ print(f"All views updated: {len(view1.value)} = {len(view2.value)} = {len(view3.
 
 ## 🎯 **Use Cases**
 
-### **Perfect For:**
+### **Common Use Cases:**
 - **UI State Management**: Multiple components sharing the same data
 - **Configuration Systems**: Centralized settings with automatic propagation
 - **Data Pipelines**: Complex data flow networks with automatic synchronization
@@ -290,17 +290,27 @@ The system automatically adapts to your binding patterns, centralizing storage w
 
 ### **Core Binding Methods**
 
-#### **`attach(hook, component_name, initial_sync_mode)`**
+#### **`connect_hook(hook, to_key, initial_sync_mode)`**
 Binds this observable to another observable's hook, merging their HookNexus instances for bidirectional synchronization.
 
 **Parameters:**
 - `hook: HookLike` - The hook of the target observable to bind to
-- `component_name: str` - Name of the component being bound (e.g., "value", "list_value")
+- `to_key: str` - Name of the component being bound (e.g., "value")
 - `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - Which value to use initially
 
 **Initial Sync Modes:**
 - `"use_caller_value"`: Caller's value takes precedence, target adopts it
 - `"use_target_value"`: Target's value takes precedence, caller adopts it
+
+**Example:**
+```python
+source = ObservableSingleValue(10)
+target = ObservableSingleValue(20)
+
+# Connect source to target - target becomes 10
+source.connect_hook(target.hook, "value", "use_caller_value")
+print(target.value)  # 10
+```
 
 #### **`detach()`**
 Disconnects this observable from all bindings, creating its own isolated HookNexus.
@@ -309,26 +319,31 @@ Disconnects this observable from all bindings, creating its own isolated HookNex
 
 Each observable provides hooks for different aspects of its data:
 
-- **`value_hook`**: Access to observable values for all types
+- **`ObservableSingleValue`**: `.hook` - Access to the single value
+- **`ObservableList`**: `.value_hook` - Access to the list, `.length_hook` - Access to list length
+- **`ObservableSet`**: `.value_hook` - Access to the set, `.length_hook` - Access to set size
+- **`ObservableDict`**: `.value_hook` - Access to the dict, `.length_hook` - Access to dict size
+- **`ObservableTuple`**: `.value_hook` - Access to the tuple, `.length_hook` - Access to tuple length
+- **`ObservableSelectionOption`**: `.selected_option_hook`, `.available_options_hook`
 
 ## 💡 **Best Practices**
 
 ### **1. Leverage Transitive Binding**
 ```python
 # Instead of manually binding every pair
-obs1.attach(obs2.value_hook, "value", "use_caller_value")
-obs2.attach(obs3.value_hook, "value", "use_caller_value")
-obs1.attach(obs3.value_hook, "value", "use_caller_value")  # ❌ Redundant!
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.connect_hook(obs3.hook, "value", "use_caller_value")  # ❌ Redundant!
 
 # Just create the chain - transitive binding handles the rest
-obs1.attach(obs2.value_hook, "value", "use_caller_value")
-obs2.attach(obs3.value_hook, "value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs2.connect_hook(obs3.hook, "value", "use_caller_value")
 # ✅ obs1 automatically connects to obs3
 ```
 
 ### **2. Use Centralized Storage for Large Data**
 ```python
-# Perfect for sharing large datasets across multiple views
+# Useful for sharing large datasets across multiple views
 large_dataset = ObservableList([...])  # Stored once
 
 view1 = ObservableList(large_dataset)  # References same data
@@ -367,7 +382,7 @@ scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
 
 # Create bindings (automatic HookNexus merging)
 name_display = ObservableSingleValue("")
-name_display.attach(name.value_hook, "value", "use_target_value")
+name_display.connect_hook(name.hook, "value", "use_target_value")
 
 # Changes propagate automatically
 name.value = "Jane"  # Updates both name and name_display

@@ -44,12 +44,12 @@ source = ObservableSingleValue(100)
 target = ObservableSingleValue(200)
 
 # Use caller's value (100) for initial synchronization
-source.attach(target.single_value_hook, "single_value", "use_caller_value")
-print(target.single_value)  # 100
+source.connect_hook(target.hook, "value", "use_caller_value")
+print(target.value)  # 100
 
 # Use target's value (200) for initial synchronization  
-source.attach(target.single_value_hook, "single_value", "use_target_value")
-print(source.single_value)  # 200
+source.connect_hook(target.hook, "value", "use_target_value")
+print(source.value)  # 200
 ```
 
 After the initial binding completes, both observables share the same underlying storage and all subsequent changes propagate bidirectionally regardless of which mode was used initially.
@@ -82,17 +82,17 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind obs1 to obs2 with bidirectional sync
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 
 # Now changes propagate in both directions
-obs1.single_value = 100
-print(obs2.single_value)  # 100
+obs1.value = 100
+print(obs2.value)  # 100
 
-obs2.single_value = 200  
-print(obs1.single_value)  # 200
+obs2.value = 200  
+print(obs1.value)  # 200
 ```
 
-#### **`connect_multiple(hook_dict, initial_sync_mode, logger=None)`**
+#### **`connect_hooks(hook_dict, initial_sync_mode, logger=None)`**
 
 Atomically binds multiple components to hooks from another observable. This method prevents validation errors that can occur when binding components with dependencies.
 
@@ -121,7 +121,7 @@ obs1 = ObservableSelectionOption("red", {"red", "green", "blue"})
 obs2 = ObservableSelectionOption("yellow", {"yellow", "orange", "purple"})
 
 # Bind both selected_option AND available_options atomically
-obs1.connect_multiple({
+obs1.connect_hooks({
     "selected_option": obs2.selected_option_hook,
     "available_options": obs2.available_options_hook
 }, "use_target_value")
@@ -135,7 +135,7 @@ obs1.selected_option = "orange"
 print(f"obs2 selected: {obs2.selected_option}")   # "orange"
 ```
 
-**Why Use connect_multiple:**
+**Why Use connect_hooks:**
 - **Prevents validation errors**: Binding available_options before selected_option could temporarily create invalid states
 - **Atomic operation**: All bindings succeed or fail together
 - **Better performance**: Single validation pass for all components
@@ -155,15 +155,15 @@ obs2 = ObservableSingleValue(20)
 obs3 = ObservableSingleValue(30)
 
 # Create binding chain
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
-obs2.attach(obs3.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs2.connect_hook(obs3.hook, "value", "use_caller_value")
 
 # Detach obs2 - obs1 and obs3 remain connected
 obs2.detach()
 
-obs1.single_value = 100
-print(obs2.single_value)  # 20 (isolated)
-print(obs3.single_value)  # 100 (still connected to obs1)
+obs1.value = 100
+print(obs2.value)  # 20 (isolated)
+print(obs3.value)  # 100 (still connected to obs1)
 ```
 
 #### **`is_attached_to(other_observable)`**
@@ -182,7 +182,7 @@ obs2 = ObservableSingleValue(20)
 
 print(obs1.is_attached_to(obs2))  # False
 
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 print(obs1.is_attached_to(obs2))  # True
 ```
 
@@ -202,10 +202,10 @@ Adds a listener function that will be called when the observable changes.
 obs = ObservableSingleValue(10)
 
 def on_change():
-    print(f"Value changed to: {obs.single_value}")
+    print(f"Value changed to: {obs.value}")
 
 obs.add_listener(on_change)
-obs.single_value = 20  # Prints: "Value changed to: 20"
+obs.value = 20  # Prints: "Value changed to: 20"
 ```
 
 #### **`remove_listener(callback)`**
@@ -243,7 +243,7 @@ def __init__(self, single_value: Union[T, HookLike[T]], logger: Optional[Logger]
 obs1 = ObservableSingleValue(42)
 
 # Create bound to another observable
-obs2 = ObservableSingleValue(obs1.single_value_hook)  # Shares storage with obs1
+obs2 = ObservableSingleValue(obs1.value_hook)  # Shares storage with obs1
 ```
 
 ### **Properties**
@@ -257,10 +257,10 @@ The current value. Reading and writing this property maintains bidirectional syn
 **Example:**
 ```python
 obs = ObservableSingleValue("hello")
-print(obs.single_value)  # "hello"
+print(obs.value)  # "hello"
 
-obs.single_value = "world"
-print(obs.single_value)  # "world"
+obs.value = "world"
+print(obs.value)  # "world"
 ```
 
 #### **`single_value_hook: HookLike[T]`**
@@ -273,7 +273,7 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind using hooks
-obs1.attach(obs2.single_value_hook, "single_value", "use_caller_value")
+obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 ```
 
 ### **Methods**
@@ -306,10 +306,10 @@ The current list. Returns a copy to prevent external mutation.
 **Example:**
 ```python
 obs = ObservableList([1, 2, 3])
-print(obs.list_value)  # [1, 2, 3]
+print(obs.value)  # [1, 2, 3]
 
-obs.list_value = [4, 5, 6]
-print(obs.list_value)  # [4, 5, 6]
+obs.value = [4, 5, 6]
+print(obs.value)  # [4, 5, 6]
 ```
 
 #### **`list_value_hook: HookLike[List[T]]`**
@@ -348,14 +348,14 @@ obs1 = ObservableList([1, 2, 3])
 obs2 = ObservableList([])
 
 # Bind lists bidirectionally
-obs1.attach(obs2.list_value_hook, "list_value", "use_caller_value")
+obs1.connect_hook(obs2.value_hook, "list_value", "use_caller_value")
 
 # Changes propagate in both directions
 obs1.append(4)
-print(obs2.list_value)  # [1, 2, 3, 4]
+print(obs2.value)  # [1, 2, 3, 4]
 
 obs2.remove(2)
-print(obs1.list_value)  # [1, 3, 4]
+print(obs1.value)  # [1, 3, 4]
 ```
 
 ## 🗂️ **ObservableDict[K, V]**
@@ -481,7 +481,7 @@ primary = ObservableSelectionOption("option1", {"option1", "option2", "option3"}
 secondary = ObservableSelectionOption("option1", {"option1", "option2"})
 
 # Bind selected options bidirectionally
-primary.attach(secondary.selected_option_hook, "selected_option", "use_caller_value")
+primary.connect_hook(secondary.selected_option_hook, "selected_option", "use_caller_value")
 
 # Changes propagate in both directions
 primary.selected_option = "option2"
@@ -737,7 +737,7 @@ room_temp = ObservableTemperature(22.0, min_temp=10.0, max_temp=35.0)
 outdoor_temp = ObservableTemperature(15.0, min_temp=-20.0, max_temp=45.0)
 
 # Bind temperatures bidirectionally
-room_temp.attach(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
+room_temp.connect_hook(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
 
 # Changes propagate with validation
 room_temp.temperature = 25.0
@@ -769,7 +769,7 @@ logger.addHandler(handler)
 obs = ObservableSingleValue(10, logger=logger)
 
 # Operations will log detailed information
-obs.single_value = 20  # Logs validation and update details
+obs.value = 20  # Logs validation and update details
 ```
 
 ### **Validation State Inspection**
@@ -796,12 +796,12 @@ Loggers add significant overhead to operations. Avoid them in performance-sensit
 # ❌ Slow: Logger adds overhead to every operation
 obs = ObservableSingleValue(0, logger=logger)
 for i in range(1000):
-    obs.single_value = i  # Each operation logs detailed information
+    obs.value = i  # Each operation logs detailed information
 
 # ✅ Fast: No logger for performance-critical operations  
 obs = ObservableSingleValue(0)  # No logger parameter
 for i in range(1000):
-    obs.single_value = i  # Direct operations without logging overhead
+    obs.value = i  # Direct operations without logging overhead
 
 # ✅ Conditional logging: Use logger only when debugging
 DEBUG = False
@@ -809,17 +809,17 @@ logger = logging.getLogger(__name__) if DEBUG else None
 obs = ObservableSingleValue(0, logger=logger)
 ```
 
-#### **Use connect_multiple for Atomic Multi-Component Binding**
+#### **Use connect_hooks for Atomic Multi-Component Binding**
 
-When binding observables with multiple dependent components, use `connect_multiple` for better performance and reliability:
+When binding observables with multiple dependent components, use `connect_hooks` for better performance and reliability:
 
 ```python
 # ❌ Slower: Sequential binding with potential validation conflicts
-obs1.attach(obs2.selected_option_hook, "selected_option", "use_target_value")
-obs1.attach(obs2.available_options_hook, "available_options", "use_target_value")
+obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value")
+obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value")
 
 # ✅ Faster: Atomic multi-binding
-obs1.connect_multiple({
+obs1.connect_hooks({
     "selected_option": obs2.selected_option_hook,
     "available_options": obs2.available_options_hook
 }, "use_target_value")
@@ -852,10 +852,10 @@ Select the sync mode that minimizes unnecessary value transfers:
 
 ```python
 # If you want to keep the caller's values
-obs1.attach(obs2.hook, "component", "use_caller_value")
+obs1.connect_hook(obs2.hook, "component", "use_caller_value")
 
 # If you want to adopt the target's values
-obs1.attach(obs2.hook, "component", "use_target_value")
+obs1.connect_hook(obs2.hook, "component", "use_target_value")
 ```
 
 #### **Performance Test Guidelines**
@@ -869,14 +869,14 @@ import time
 start_time = time.time()
 for _ in range(1000):
     obs = ObservableSingleValue(0)  # No logger
-    obs.single_value = 42
+    obs.value = 42
 end_time = time.time()
 
 # ❌ Inaccurate performance test (logger overhead dominates)
 start_time = time.time()
 for _ in range(1000):
     obs = ObservableSingleValue(0, logger=logger)  # Logger adds overhead
-    obs.single_value = 42
+    obs.value = 42
 end_time = time.time()
 ```
 

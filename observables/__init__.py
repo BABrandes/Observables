@@ -84,6 +84,11 @@ Example Usage:
 
 For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
+
+Advanced Usage:
+    For building custom observables or extending the library, import from the core module:
+    >>> from observables.core import BaseObservable, Hook, HookNexus
+    >>> # Create custom observable types with low-level components
 """
 
 from ._build_in_observables.observable_dict import ObservableDict, ObservableDictLike
@@ -98,27 +103,13 @@ from ._other_observables.observable_transfer import ObservableTransfer
 from ._other_observables.observable_sync import ObservableSync
 from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
 from ._other_observables.observable_rooted_paths import ObservableRootedPaths
-from ._utils.base_observable import BaseObservable
-from ._utils.initial_sync_mode import InitialSyncMode
-from ._hooks.owned_hook import OwnedHook
-from ._hooks.hook_like import HookLike
-from ._utils.hook_nexus import HookNexus
-from ._hooks.owned_hook_like import OwnedHookLike
+from ._other_observables.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
 from ._hooks.floating_hook_like import FloatingHookLike
-from ._hooks.hook import Hook
-from ._utils.system_analysis import write_report    
-from ._utils.base_carries_hooks import CarriesHooksLike
-from ._utils.nexus_manager import NexusManager
-from ._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from ._utils.base_carries_hooks import BaseCarriesHooks
+from ._utils.system_analysis import write_report
 from ._utils.observable_serializable import ObservableSerializable
-from ._other_observables.observable_raise_none import ObservableRaiseNone
-from ._hooks.hook_with_reaction_mixin import HookWithReactionMixin
-from ._hooks.hook_with_validation_mixin import HookWithValidationMixin
-from ._utils.base_listening import BaseListeningLike, BaseListening
-
 __all__ = [
+    # Observable types
     'ObservableDict',
     'ObservableList',
     'ObservableSet',
@@ -129,6 +120,15 @@ __all__ = [
     'ObservableMultiSelectionOption',
     'ObservableTransfer',
     'ObservableSync',
+    'ObservableSelectionDict',
+    'ObservableOptionalSelectionDict',
+    'ObservableDefaultSelectionDict',
+    'ObservableOptionalDefaultSelectionDict',
+    'ObservableRootedPaths',
+    'ObservableSelectionEnum',
+    'ObservableOptionalSelectionEnum',
+    'ObservableRaiseNone',
+    # Protocol types for type hints
     'ObservableDictLike',
     'ObservableListLike',
     'ObservableSetLike',
@@ -137,42 +137,20 @@ __all__ = [
     'ObservableSelectionOptionLike',
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
-    'ObservableSelectionDict',
-    'ObservableOptionalSelectionDict',
-    'ObservableDefaultSelectionDict',
-    'ObservableOptionalDefaultSelectionDict',
-    'ObservableRootedPaths',
-    'ObservableSelectionEnum',
-    'ObservableOptionalSelectionEnum',
-    'BaseObservable',
-    'OwnedHook',
-    'HookLike',
-    'Hook',
-    'HookNexus',
-    'OwnedHookLike',
+    # Floating hooks (user-facing)
     'FloatingHook',
     'FloatingHookLike',
-    'BaseCarriesHooks',
-    'CarriesHooksLike',
-    'InitialSyncMode',
+    # Utilities
     'ObservableSerializable',
     'write_report',
-    'NexusManager',
-    'DEFAULT_NEXUS_MANAGER',
-    'ObservableRootedPaths',
-    'ObservableRaiseNone',
-    'HookWithReactionMixin',
-    'HookWithValidationMixin',
-    'BaseListeningLike',
-    'BaseListening',
 ]
 
 # Package metadata
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
-    __version__ = "3.0.48"
-    __version_tuple__ = (3, 0, 48)
+    __version__ = "4.0.0"
+    __version_tuple__ = (4, 0, 0)
 
 __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'

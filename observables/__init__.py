@@ -106,6 +106,7 @@ from ._other_observables.observable_rooted_paths import ObservableRootedPaths
 from ._other_observables.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
 from ._hooks.floating_hook_like import FloatingHookLike
+from ._hooks.hook_like import HookLike
 from ._utils.system_analysis import write_report
 from ._utils.observable_serializable import ObservableSerializable
 __all__ = [
@@ -137,7 +138,8 @@ __all__ = [
     'ObservableSelectionOptionLike',
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
-    # Floating hooks (user-facing)
+    # hooks (user-facing)
+    'HookLike',
     'FloatingHook',
     'FloatingHookLike',
     # Utilities
@@ -149,8 +151,8 @@ __all__ = [
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
-    __version__ = "5.0.0"
-    __version_tuple__ = (5, 0, 0)
+    __version__ = "4.0.1"
+    __version_tuple__ = (4, 0, 1)
 
 __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'

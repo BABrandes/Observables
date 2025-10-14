@@ -27,8 +27,8 @@ This library provides bidirectional binding through shared storage:
 temp_celsius = ObservableSingleValue(25.0)
 temp_fahrenheit = ObservableSingleValue(77.0)
 
-# Bind them bidirectionally
-temp_celsius.attach(temp_fahrenheit.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+# Bind them bidirectionally - celsius value takes precedence
+temp_celsius.attach(temp_fahrenheit.value_hook, "value", "use_caller_value")
 
 # 🔄 Changes propagate in BOTH directions
 temp_celsius.value = 30.0
@@ -68,8 +68,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.attach(obs2.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
-obs2.attach(obs3.value_hook, "value", InitialSyncMode.USE_CALLER_VALUE)
+obs1.attach(obs2.value_hook, "value", "use_caller_value")
+obs2.attach(obs3.value_hook, "value", "use_caller_value")
 
 # obs1 is automatically connected to obs3 through transitive binding
 
@@ -92,7 +92,8 @@ print(f"  Obs2: {id(obs2._component_hooks['value'].hook_nexus)}")
 # Output: Different IDs - separate storage
 
 # Bind them together (merges their HookNexus instances)
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
+# Using "use_target_value" means obs1 adopts obs2's value
+obs1.attach(obs2.value_hook, "value", "use_target_value")
 
 print(f"After binding - HookNexus IDs:")
 print(f"  Obs1: {id(obs1._component_hooks['value'].hook_nexus)}")
@@ -112,8 +113,8 @@ obs2 = ObservableList(large_dataset)
 obs3 = ObservableList(large_dataset)
 
 # Bind them together
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.list_value_hook, "list_value", "use_target_value")
+obs2.attach(obs3.list_value_hook, "list_value", "use_target_value")
 
 # Now all three share the same HookNexus
 print(f"Memory efficiency:")
@@ -176,7 +177,7 @@ age.value = 26       # Prints: "Age changed to: 26"
 ### Transitive Binding (Automatic Network Formation)
 
 ```python
-from observables import ObservableSingleValue, InitialSyncMode
+from observables import ObservableSingleValue
 
 # Create three observables
 obs1 = ObservableSingleValue(100)
@@ -184,8 +185,8 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind them in a chain - this creates transitive behavior!
-obs1.bind_to(obs2, InitialSyncMode.SELF_IS_UPDATED)
-obs2.bind_to(obs3, InitialSyncMode.SELF_IS_UPDATED)
+obs1.attach(obs2.value_hook, "value", "use_target_value")
+obs2.attach(obs3.value_hook, "value", "use_target_value")
 
 # Now obs1 is automatically connected to obs3!
 obs1.value = 500
@@ -204,7 +205,7 @@ print(obs2.value)  # 500 (unchanged, no longer bound)
 ### Memory-Efficient Data Sharing
 
 ```python
-from observables import ObservableList, InitialSyncMode
+from observables import ObservableList
 
 # Create a large dataset (stored once in central HookNexus)
 large_dataset = ObservableList(list(range(10000)))
@@ -215,8 +216,8 @@ view2 = ObservableList(large_dataset)  # References same data
 view3 = ObservableList(large_dataset)  # References same data
 
 # Bind them together (all share same HookNexus)
-view1.bind_to(view2, InitialSyncMode.SELF_IS_UPDATED)
-view2.bind_to(view3, InitialSyncMode.SELF_IS_UPDATED)
+view1.attach(view2.list_value_hook, "list_value", "use_target_value")
+view2.attach(view3.list_value_hook, "list_value", "use_target_value")
 
 # All views automatically stay synchronized
 # Memory usage: 1 copy of data + 3 lightweight references
@@ -289,16 +290,17 @@ The system automatically adapts to your binding patterns, centralizing storage w
 
 ### **Core Binding Methods**
 
-#### **`bind_to(observable, initial_sync_mode=InitialSyncMode.SELF_IS_UPDATED)`**
-Binds this observable to another observable, merging their HookNexus instances.
+#### **`attach(hook, component_name, initial_sync_mode)`**
+Binds this observable to another observable's hook, merging their HookNexus instances for bidirectional synchronization.
 
 **Parameters:**
-- `observable`: The target observable to bind to
-- `initial_sync_mode`: How values should be synchronized initially
+- `hook: HookLike` - The hook of the target observable to bind to
+- `component_name: str` - Name of the component being bound (e.g., "value", "list_value")
+- `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - Which value to use initially
 
 **Initial Sync Modes:**
-- `SELF_IS_UPDATED`: This observable gets the target's value
-- `SELF_UPDATES`: Target gets this observable's value
+- `"use_caller_value"`: Caller's value takes precedence, target adopts it
+- `"use_target_value"`: Target's value takes precedence, caller adopts it
 
 #### **`detach()`**
 Disconnects this observable from all bindings, creating its own isolated HookNexus.
@@ -314,13 +316,13 @@ Each observable provides hooks for different aspects of its data:
 ### **1. Leverage Transitive Binding**
 ```python
 # Instead of manually binding every pair
-obs1.bind_to(obs2)
-obs2.bind_to(obs3)
-obs1.bind_to(obs3)  # ❌ Redundant!
+obs1.attach(obs2.value_hook, "value", "use_caller_value")
+obs2.attach(obs3.value_hook, "value", "use_caller_value")
+obs1.attach(obs3.value_hook, "value", "use_caller_value")  # ❌ Redundant!
 
 # Just create the chain - transitive binding handles the rest
-obs1.bind_to(obs2)
-obs2.bind_to(obs3)
+obs1.attach(obs2.value_hook, "value", "use_caller_value")
+obs2.attach(obs3.value_hook, "value", "use_caller_value")
 # ✅ obs1 automatically connects to obs3
 ```
 
@@ -365,7 +367,7 @@ scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
 
 # Create bindings (automatic HookNexus merging)
 name_display = ObservableSingleValue("")
-name_display.bind_to(name, InitialSyncMode.SELF_IS_UPDATED)
+name_display.attach(name.value_hook, "value", "use_target_value")
 
 # Changes propagate automatically
 name.value = "Jane"  # Updates both name and name_display

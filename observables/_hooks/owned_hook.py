@@ -88,3 +88,15 @@ class OwnedHook(Hook[T], OwnedHookLike[T], BaseListening, Generic[T]):
         with self._lock:
             owner = self._owner
             return owner
+
+    #########################################################
+    # Debugging convenience methods
+    #########################################################
+
+    def __repr__(self) -> str:
+        """Get the string representation of this hook."""
+        return f"OwnedHook(v={self.value}, id={id(self)})"
+
+    def __str__(self) -> str:
+        """Get the string representation of this hook."""
+        return f"OwnedHook(v={self.value}, id={id(self)})"

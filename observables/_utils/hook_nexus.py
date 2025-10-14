@@ -260,3 +260,15 @@ class HookNexus(Generic[T]):
             hook._replace_hook_nexus(merged_nexus) # type: ignore
 
         return True, "Successfully connected hooks"
+
+    #########################################################
+    # Debugging convenience methods
+    #########################################################
+
+    def __repr__(self) -> str:
+        """Get the string representation of this hook nexus."""
+        return f"HookNexus(v={self.value}, id={id(self)}, {len(self._get_hooks())} hooks)"
+    
+    def __str__(self) -> str:
+        """Get the string representation of this hook nexus."""
+        return f"HookNexus(v={self.value}, id={id(self)})"

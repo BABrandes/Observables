@@ -192,3 +192,15 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
             self._hook_nexus = hook_nexus
         
         log(self, "replace_hook_nexus", self._logger, True, "Successfully replaced hook nexus")
+
+    #########################################################
+    # Debugging convenience methods
+    #########################################################
+
+    def __repr__(self) -> str:
+        """Get the string representation of this hook."""
+        return f"Hook(v={self.value}, id={id(self)})"
+
+    def __str__(self) -> str:
+        """Get the string representation of this hook."""
+        return f"Hook(v={self.value}, id={id(self)})"

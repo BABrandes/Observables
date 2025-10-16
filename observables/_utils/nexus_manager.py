@@ -130,14 +130,14 @@ class NexusManager:
             A tuple containing the value and hook dict corresponding to the owner
         """
 
-        from .._hooks.owned_hook_like import OwnedHookLike
+        from .._hooks.hook_with_owner_like import HookWithOwnerLike
         from .._hooks.hook_like import HookLike
 
         key_and_value_dict: dict[Any, Any] = {}
         key_and_hook_dict: dict[Any, HookLike[Any]] = {}
         for nexus, value in nexus_and_values.items():
             for hook in nexus.hooks:
-                if isinstance(hook, OwnedHookLike):
+                if isinstance(hook, HookWithOwnerLike):
                     if hook.owner is owner:
                         hook_key: Any = owner.get_hook_key(hook)
                         key_and_value_dict[hook_key] = value
@@ -219,8 +219,8 @@ class NexusManager:
             # Step 5: Return the nexus and values
             return number_of_inserted_items, "Successfully updated nexus and values"
 
-        from .._hooks.owned_hook_like import OwnedHookLike
-        from .._hooks.floating_hook_like import FloatingHookLike
+        from .._hooks.hook_with_owner_like import HookWithOwnerLike
+        from .._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
             
         while True:
 
@@ -229,9 +229,9 @@ class NexusManager:
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     match hook:
-                        case OwnedHookLike():
+                        case HookWithOwnerLike():
                             owners_to_check_for_additional_nexus_and_values.add(hook.owner)
-                        case FloatingHookLike():
+                        case HookWithIsolatedValidationLike():
                             pass
                         case _:
                             pass
@@ -266,9 +266,9 @@ class NexusManager:
             - "Check values": Only validates without updating
         """
 
-        from .._hooks.owned_hook_like import OwnedHookLike
-        from .._hooks.hook_with_validation_mixin import HookWithValidationMixin
-        from .._hooks.hook_with_reaction_mixin import HookWithReactionMixin
+        from .._hooks.hook_with_owner_like import HookWithOwnerLike
+        from .._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
+        from .._hooks.hook_with_reaction_like import HookWithReactionLike
 
         #########################################################
         # Check if the values are even different from the current values
@@ -308,17 +308,17 @@ class NexusManager:
 
         # Step 2: Collect the owners and floating hooks to validate, react to, and notify
         owners_that_are_affected: set["CarriesHooksLike[Any, Any]"] = set()
-        hooks_with_validation: set[HookWithValidationMixin[Any]] = set()
-        hooks_with_reaction: set[HookWithReactionMixin[Any]] = set()
+        hooks_with_validation: set[HookWithIsolatedValidationLike[Any]] = set()
+        hooks_with_reaction: set[HookWithReactionLike[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
-                if isinstance(hook, HookWithReactionMixin):
+                if isinstance(hook, HookWithReactionLike):
                     hooks_with_reaction.add(hook)
-                if isinstance(hook, HookWithValidationMixin):
+                if isinstance(hook, HookWithIsolatedValidationLike):
                     # Hooks that are owned by an observable are validated by the observable. They do not need to be validated in isolation.
-                    if not isinstance(hook, OwnedHookLike):
+                    if not isinstance(hook, HookWithOwnerLike):
                         hooks_with_validation.add(hook)
-                if isinstance(hook, OwnedHookLike):
+                if isinstance(hook, HookWithOwnerLike):
                     owners_that_are_affected.add(hook.owner)
 
         #########################################################

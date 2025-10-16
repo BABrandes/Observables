@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, TypeVar, Optional, final, Mapping, Generic, Callable, Literal
+from typing import Any, TypeVar, Optional, final, Mapping, Generic, Callable, Literal
 from logging import Logger
 from abc import ABC, abstractmethod
 from .base_listening import BaseListeningLike
@@ -6,13 +6,11 @@ from threading import RLock
 from .carries_hooks_like import CarriesHooksLike
 from .nexus_manager import NexusManager
 from .hook_nexus import HookNexus
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-import weakref
+from .._hooks.hook_like import HookLike
 
-if TYPE_CHECKING:
-    from .._hooks.owned_hook_like import OwnedHookLike
-    from .._hooks.hook_like import HookLike
-    from .hook_nexus import HookNexus
+import weakref
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
@@ -41,7 +39,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
     Abstract Methods (Must Implement):
     Subclasses must implement these 4 abstract methods to define their specific behavior:
     
-    1. _get_hook(key: HK) -> OwnedHookLike[HV]
+    1. _get_hook(key: HK) -> HookWithOwnerLike[HV]
        - Get a hook by its key
        - Must return the hook associated with the given key
        
@@ -54,7 +52,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
        - Get all keys of the hooks managed by this observable
        - Must return the complete set of hook keys
        
-    4. _get_hook_key(hook_or_nexus: OwnedHookLike[HV]|HookNexus[HV]) -> HK
+    4. _get_hook_key(hook_or_nexus: HookWithOwnerLike[HV]|HookNexus[HV]) -> HK
        - Get the key for a given hook or nexus
        - Must return the key that identifies the hook/nexus
        - Should raise ValueError if hook/nexus not found
@@ -73,7 +71,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 super().__init__()
                 self._hooks = {"value": OwnedHook(self, "initial")}
                 
-            def _get_hook(self, key: str) -> OwnedHookLike[Any]:
+            def _get_hook(self, key: str) -> HookWithOwnerLike[Any]:
                 return self._hooks[key]
                 
             def _get_value_reference_of_hook(self, key: str) -> Any:
@@ -82,7 +80,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
             def _get_hook_keys(self) -> set[str]:
                 return set(self._hooks.keys())
                 
-            def _get_hook_key(self, hook_or_nexus: OwnedHookLike[Any]|HookNexus[Any]) -> str:
+            def _get_hook_key(self, hook_or_nexus: HookWithOwnerLike[Any]|HookNexus[Any]) -> str:
                 for key, hook in self._hooks.items():
                     if hook is hook_or_nexus or hook.hook_nexus is hook_or_nexus:
                         return key
@@ -111,7 +109,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         self._lock = RLock()
 
     @abstractmethod
-    def _get_hook(self, key: HK) -> "OwnedHookLike[HV]":
+    def _get_hook(self, key: HK) -> HookWithOwnerLike[HV]:
         """
         Get a hook by its key.
 
@@ -146,7 +144,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         ...
 
     @abstractmethod
-    def _get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
+    def _get_hook_key(self, hook_or_nexus: HookWithOwnerLike[HV]|HookNexus[HV]) -> HK:
         """
         Get the key for a hook or nexus.
 
@@ -173,7 +171,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         return self._nexus_manager
 
     @final
-    def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
+    def get_hook(self, key: HK) -> HookWithOwnerLike[HV]:
         """
         Get a hook by its key.
         """
@@ -197,7 +195,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
             return self._get_hook_keys()
 
     @final
-    def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
+    def get_hook_key(self, hook_or_nexus: HookWithOwnerLike[HV]|HookNexus[HV]) -> HK:
         """
         Get the key of a hook or nexus.
         """
@@ -255,18 +253,18 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 return value_as_reference # type: ignore
 
     @final
-    def _get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
+    def _get_dict_of_hooks(self) ->  dict[HK, HookWithOwnerLike[HV]]:
         """
         Get a dictionary of hooks.
         """
-        hook_dict: dict[HK, "OwnedHookLike[Any]"] = {}
+        hook_dict: dict[HK, HookWithOwnerLike[Any]] = {}
         for key in self._get_hook_keys():
             hook_dict[key] = self._get_hook(key)
         return hook_dict
 
 
     @final
-    def get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
+    def get_dict_of_hooks(self) ->  dict[HK, HookWithOwnerLike[HV]]:
         """
         Get a dictionary of hooks.
         """
@@ -325,7 +323,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
                 return {}
 
     @final
-    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hook(self, hook: HookLike[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
@@ -340,7 +338,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
 
         with self._lock:
             if to_key in self._get_hook_keys():
-                hook_of_observable: "OwnedHookLike[HV]" = self.get_hook(to_key)
+                hook_of_observable: HookWithOwnerLike[HV] = self.get_hook(to_key)
                 success, msg = hook_of_observable.connect_hook(hook, initial_sync_mode)
                 if not success:
                     raise ValueError(msg)
@@ -361,7 +359,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         """
 
         with self._lock:
-            hook_pairs: list[tuple["HookLike[HV]", "HookLike[HV]"]] = []
+            hook_pairs: list[tuple[HookLike[HV], HookLike[HV]]] = []
             for key, hook in hooks.items():
                 hook_of_observable = self._get_hook(key)
                 match initial_sync_mode:
@@ -416,7 +414,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         """
 
         with self._lock:
-            hook: "OwnedHookLike[Any]" = self._get_hook(hook_key)
+            hook: HookWithOwnerLike[Any] = self._get_hook(hook_key)
 
             success, msg = self._nexus_manager.submit_values({hook.hook_nexus: value}, mode="Check values")
             if success == False:

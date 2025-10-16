@@ -8,31 +8,54 @@ create custom observable types or extend the library's functionality.
 Core Components:
 - BaseObservable: Base class for all observable types
 - Hook/HookLike: Core hook implementations and protocols
-- OwnedHook/OwnedHookLike: Owned hook implementations and protocols
+- OwnedHook/HookWithOwnerLike: Owned hook implementations and protocols
+- FloatingHook: Advanced hook with validation and reaction capabilities
 - HookNexus: Central storage for actual data values
 - BaseCarriesHooks/CarriesHooksLike: Base classes for hook carriers
-- HookWithReactionMixin: Mixin for adding reaction capabilities to hooks
-- HookWithValidationMixin: Mixin for adding validation capabilities to hooks
+- HookWithIsolatedValidationLike: Protocol for hooks with custom validation
+- HookWithReactionLike: Protocol for hooks that react to changes
 - BaseListening/BaseListeningLike: Base classes for listener management
 - DEFAULT_NEXUS_MANAGER: The default nexus manager instance
 - default_nexus_manager: Module containing configuration (e.g., FLOAT_ACCURACY)
 
-Example Usage:
-    >>> from observables.core import BaseObservable, Hook, HookNexus
+Example Usage with New Protocol-Based Architecture:
+    >>> from observables.core import BaseObservable, OwnedHook, HookWithOwnerLike
     >>> 
-    >>> # Create a custom observable type
+    >>> # Create a custom observable type using the new architecture
     >>> class MyCustomObservable(BaseObservable):
     ...     def __init__(self, initial_value):
-    ...         super().__init__()
-    ...         self._hook = Hook(HookNexus(initial_value))
+    ...         # Create owned hook
+    ...         self._value_hook = OwnedHook(owner=self, initial_value=initial_value)
+    ...         super().__init__({"value": self._value_hook})
     ...     
     ...     @property
     ...     def value(self):
-    ...         return self._hook.get_value()
+    ...         return self._value_hook.value
     ...     
     ...     @value.setter
     ...     def value(self, new_value):
-    ...         self._hook.set_value(new_value)
+    ...         self._value_hook.submit_value(new_value)
+    ...     
+    ...     @property
+    ...     def value_hook(self) -> HookWithOwnerLike[Any]:
+    ...         return self._value_hook
+
+Advanced Usage with FloatingHook:
+    >>> from observables.core import FloatingHook
+    >>> 
+    >>> def validate_value(value):
+    ...     return value >= 0, "Value must be non-negative"
+    >>> 
+    >>> def on_change():
+    ...     print("Value changed!")
+    ...     return True, "Reaction completed"
+    >>> 
+    >>> # Create floating hook with validation and reaction
+    >>> hook = FloatingHook(
+    ...     value=42,
+    ...     isolated_validation_callback=validate_value,
+    ...     reaction_callback=on_change
+    ... )
 
 Configuring Float Tolerance:
     >>> from observables import core
@@ -45,16 +68,12 @@ For normal usage of the library, import from the main package:
 """
 
 from ._utils.base_observable import BaseObservable
-from ._hooks.hook import Hook
-from ._hooks.hook_like import HookLike
+from ._hooks.hook_with_owner_like import HookWithOwnerLike
+from ._hooks.hook_with_reaction_like import HookWithReactionLike
+from ._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
 from ._utils.hook_nexus import HookNexus
 from ._hooks.owned_hook import OwnedHook
-from ._hooks.owned_hook_like import OwnedHookLike
-from ._hooks.floating_hook import FloatingHook
-from ._hooks.floating_hook_like import FloatingHookLike
 from ._utils.base_carries_hooks import BaseCarriesHooks, CarriesHooksLike
-from ._hooks.hook_with_reaction_mixin import HookWithReactionMixin
-from ._hooks.hook_with_validation_mixin import HookWithValidationMixin
 from ._utils.base_listening import BaseListening, BaseListeningLike
 from ._utils.nexus_manager import NexusManager
 from ._utils import default_nexus_manager
@@ -67,17 +86,13 @@ DEFAULT_NEXUS_MANAGER = default_nexus_manager.DEFAULT_NEXUS_MANAGER
 
 __all__ = [
     'BaseObservable',
-    'Hook',
-    'HookLike',
+    'HookWithOwnerLike',
+    'HookWithReactionLike',
+    'HookWithIsolatedValidationLike',
     'HookNexus',
     'OwnedHook',
-    'OwnedHookLike',
-    'FloatingHook',
-    'FloatingHookLike',
     'BaseCarriesHooks',
     'CarriesHooksLike',
-    'HookWithReactionMixin',
-    'HookWithValidationMixin',
     'BaseListening',
     'BaseListeningLike',
     'NexusManager',

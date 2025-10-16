@@ -1,8 +1,8 @@
 import unittest
 from typing import Any, Literal, Mapping, Optional
 from logging import Logger
-from observables import ObservableSelectionDict, ObservableOptionalSelectionDict
-from observables.core import OwnedHook, FloatingHook, BaseObservable
+from observables import ObservableSelectionDict, ObservableOptionalSelectionDict, FloatingHook
+from observables.core import OwnedHook, BaseObservable
 # Set up logging for tests
 import logging
 logging.basicConfig(level=logging.DEBUG)

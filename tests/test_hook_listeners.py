@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import Mock
 from typing import Any
 
-from observables.core import BaseCarriesHooks, HookLike, OwnedHook
+from observables import HookLike
+from observables.core import BaseCarriesHooks, OwnedHook
 from observables._utils.hook_nexus import HookNexus
 
 

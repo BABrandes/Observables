@@ -13,8 +13,8 @@ from pathlib import Path
 from typing import Optional
 from unittest.mock import Mock
 
-from observables import ObservableSingleValue, ObservableRootedPaths
-from observables.core import OwnedHookLike, HookLike
+from observables import ObservableSingleValue, ObservableRootedPaths, HookLike
+from observables.core import HookWithOwnerLike
 from observables._other_observables.observable_rooted_paths import ROOT_PATH_KEY
 
 class TestObservableRootedPaths(unittest.TestCase):
@@ -298,7 +298,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         self.assertEqual(key, ROOT_PATH_KEY)
         
         # Test getting key from element hook
-        data_hook: OwnedHookLike[Optional[str]] = manager.get_relative_path_hook("data")
+        data_hook: HookWithOwnerLike[Optional[str]] = manager.get_relative_path_hook("data")
         key = manager.get_hook_key(data_hook) # type: ignore
         self.assertEqual(key, "data_relative_path")
 
@@ -551,7 +551,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         relative_path_observable = ObservableSingleValue[str|None]("data/")
         
         # Connect the relative path hook to the observable
-        relative_path_hook: OwnedHookLike[Optional[str]] = manager.get_relative_path_hook("data")
+        relative_path_hook: HookWithOwnerLike[Optional[str]] = manager.get_relative_path_hook("data")
         relative_path_hook.connect_hook(relative_path_observable.hook, "use_caller_value")
         
         # Verify initial state
@@ -584,7 +584,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         absolute_path_observable = ObservableSingleValue[Path|None](self.test_root / "data/")
         
         # Connect the absolute path hook to the observable
-        absolute_path_hook: OwnedHookLike[Optional[Path]] = manager.get_absolute_path_hook("data")
+        absolute_path_hook: HookWithOwnerLike[Optional[Path]] = manager.get_absolute_path_hook("data")
         absolute_path_hook.connect_hook(absolute_path_observable.hook, "use_caller_value")
         
         # Verify initial state
@@ -626,13 +626,13 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_hook: HookLike[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
         observable_root_path_hook: HookLike[Path|None] = root_observable.hook # type: ignore
         root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
-        data_relative_hook: OwnedHookLike[Optional[str]] = manager.get_relative_path_hook("data")
+        data_relative_hook: HookWithOwnerLike[Optional[str]] = manager.get_relative_path_hook("data")
         observable_data_relative_hook: HookLike[Optional[str]] = data_relative_observable.hook # type: ignore
         data_relative_hook.connect_hook(observable_data_relative_hook, "use_caller_value")
-        config_relative_hook: OwnedHookLike[Optional[str]] = manager.get_relative_path_hook("config")
+        config_relative_hook: HookWithOwnerLike[Optional[str]] = manager.get_relative_path_hook("config")
         observable_config_relative_hook: HookLike[Optional[str]] = config_relative_observable.hook # type: ignore
         config_relative_hook.connect_hook(observable_config_relative_hook, "use_caller_value")
-        logs_absolute_hook: OwnedHookLike[Optional[Path]] = manager.get_absolute_path_hook("logs")
+        logs_absolute_hook: HookWithOwnerLike[Optional[Path]] = manager.get_absolute_path_hook("logs")
         observable_logs_absolute_hook: HookLike[Optional[Path]] = logs_absolute_observable.hook # type: ignore
         logs_absolute_hook.connect_hook(observable_logs_absolute_hook, "use_caller_value")
         

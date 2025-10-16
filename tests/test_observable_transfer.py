@@ -3,8 +3,8 @@ import threading
 import time
 from typing import Any, Literal, Mapping, Optional, cast
 from logging import Logger
-from observables import ObservableTransfer, ObservableSingleValue
-from observables.core import BaseObservable, HookLike
+from observables import ObservableTransfer, ObservableSingleValue, HookLike
+from observables.core import BaseObservable
 from observables._hooks.owned_hook import OwnedHook
 # Set up logging for tests
 import logging

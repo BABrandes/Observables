@@ -1,6 +1,6 @@
 from typing import Callable, Generic, Mapping, Optional, TypeVar, Any
 from logging import Logger
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
 from .hook_nexus import HookNexus
@@ -106,8 +106,8 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
         #-------------------------------- Initialization start --------------------------------
 
         # Initialize fields
-        self._primary_hooks: dict[PHK, OwnedHookLike[PHV]] = {}
-        self._secondary_hooks: dict[SHK, OwnedHookLike[SHV]] = {}
+        self._primary_hooks: dict[PHK, HookWithOwnerLike[PHV]] = {}
+        self._secondary_hooks: dict[SHK, HookWithOwnerLike[SHV]] = {}
         self._secondary_values: dict[SHK, SHV] = {}
         """Just to ensure that the secondary values cannot be modified from outside. They can be different, but only within the nexus manager's equality check. These values are never used for anything else."""
 
@@ -209,10 +209,10 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
                 initial_value = value
 
             initial_primary_hook_values[key] = initial_value
-            hook: OwnedHookLike[PHV] = OwnedHook(self, initial_value, logger, nexus_manager) # type: ignore
+            hook = OwnedHook(self, initial_value, logger, nexus_manager) # type: ignore
             self._primary_hooks[key] = hook
             
-            if isinstance(value, OwnedHookLike):
+            if isinstance(value, HookWithOwnerLike):
                 value.connect_hook(hook, "value", "use_target_value") # type: ignore
 
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
@@ -220,7 +220,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
             self._secondary_hook_callbacks[key] = _callback
             value = _callback(initial_primary_hook_values)
             self._secondary_values[key] = value
-            secondary_hook: OwnedHookLike[SHV] = OwnedHook[SHV](self, value, logger, nexus_manager)
+            secondary_hook = OwnedHook[SHV](self, value, logger, nexus_manager)
             self._secondary_hooks[key] = secondary_hook
 
         #-------------------------------- Initialize finished --------------------------------
@@ -229,7 +229,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
     # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
-    def _get_hook(self, key: PHK|SHK) -> OwnedHookLike[PHV|SHV]:
+    def _get_hook(self, key: PHK|SHK) -> HookWithOwnerLike[PHV|SHV]:
         
         if key in self._primary_hooks:
             return self._primary_hooks[key] # type: ignore
@@ -249,7 +249,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
     def _get_hook_keys(self) -> set[PHK|SHK]:
         return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "OwnedHookLike[PHV|SHV]|HookNexus[PHV|SHV]") -> PHK|SHK:
+    def _get_hook_key(self, hook_or_nexus: "HookWithOwnerLike[PHV|SHV]|HookNexus[PHV|SHV]") -> PHK|SHK:
         """
         Get the key for a hook or nexus.
 
@@ -270,7 +270,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
                 if hook.hook_nexus == hook_or_nexus:
                     return key
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
-        elif isinstance(hook_or_nexus, OwnedHookLike): # type: ignore
+        elif isinstance(hook_or_nexus, HookWithOwnerLike): #type: ignore
             for key, hook in self._primary_hooks.items():
                 if hook == hook_or_nexus:
                     return key
@@ -285,7 +285,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
     # Other private methods
     #########################################################################
 
-    def _get_key_for_primary_hook(self, hook_or_nexus: OwnedHookLike[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK:
+    def _get_key_for_primary_hook(self, hook_or_nexus: HookWithOwnerLike[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK:
         """
         Get the key for a hook using O(1) cache lookup with lazy population.
         """
@@ -294,7 +294,7 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a primary hook!")
 
-    def _get_key_for_secondary_hook(self, hook_or_nexus: OwnedHookLike[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
+    def _get_key_for_secondary_hook(self, hook_or_nexus: HookWithOwnerLike[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
         """
         Get the key for an secondary hook using O(1) cache lookup with lazy population.
         """
@@ -314,14 +314,14 @@ class BaseObservable(BaseListening, BaseCarriesHooks[PHK|SHK, PHV|SHV, O], Gener
     #########################################################################
 
     @property
-    def primary_hooks(self) -> dict[PHK, OwnedHookLike[PHV]]:
+    def primary_hooks(self) -> dict[PHK, HookWithOwnerLike[PHV]]:
         """
         Get the primary hooks of the observable.
         """
         return self._primary_hooks.copy()
     
     @property
-    def secondary_hooks(self) -> dict[SHK, OwnedHookLike[SHV]]:
+    def secondary_hooks(self) -> dict[SHK, HookWithOwnerLike[SHV]]:
         """
         Get the secondary hooks of the observable.
         """

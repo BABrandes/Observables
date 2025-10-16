@@ -1,7 +1,7 @@
 from logging import Logger
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
 from .._hooks.hook_like import HookLike
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
 from .._utils.observable_serializable import ObservableSerializable
@@ -31,7 +31,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         ...
 
     @property
-    def value_hook(self) -> OwnedHookLike[dict[K, V]]:
+    def value_hook(self) -> HookWithOwnerLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
@@ -51,7 +51,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         ...
     
     @property
-    def length_hook(self) -> OwnedHookLike[int]:
+    def length_hook(self) -> HookWithOwnerLike[int]:
         """
         Get the hook for the dictionary length.
         """
@@ -180,7 +180,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
             raise SubmissionError(msg, new_dict, "value")
 
     @property
-    def value_hook(self) -> OwnedHookLike[dict[K, V]]:
+    def value_hook(self) -> HookWithOwnerLike[dict[K, V]]:
         """
         Get the hook for the dictionary.
         
@@ -196,7 +196,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         return len(self._primary_hooks["value"].value) # type: ignore
     
     @property
-    def length_hook(self) -> OwnedHookLike[int]:
+    def length_hook(self) -> HookWithOwnerLike[int]:
         """
         Get the hook for the dictionary length.
         

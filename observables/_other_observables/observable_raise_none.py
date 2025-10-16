@@ -2,7 +2,7 @@ from typing import Generic, TypeVar, Literal, Optional, Mapping
 from logging import Logger
 
 from observables._utils.base_carries_hooks import BaseCarriesHooks
-from observables._hooks.owned_hook_like import OwnedHookLike
+from observables._hooks.hook_with_owner_like import HookWithOwnerLike
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_like import HookLike
 from observables._utils.hook_nexus import HookNexus
@@ -45,11 +45,11 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     
     Attributes
     ----------
-    hook_with_None : OwnedHookLike[Optional[T]]
+    hook_with_None : HookWithOwnerLike[Optional[T]]
         The internal hook typed as Optional[T]. Despite the type allowing None,
         submitting None will raise a ValueError.
         
-    hook_without_None : OwnedHookLike[T]
+    hook_without_None : HookWithOwnerLike[T]
         The internal hook typed as T (non-optional). This hook is guaranteed
         to never contain None values.
     
@@ -233,7 +233,7 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
-    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> OwnedHookLike[T]:
+    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> HookWithOwnerLike[T]:
         """
         Get a hook by its key.
         """
@@ -273,14 +273,14 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     #########################################################################
 
     @property
-    def hook_with_None(self) -> OwnedHookLike[Optional[T]]:
+    def hook_with_None(self) -> HookWithOwnerLike[Optional[T]]:
         """
         Get the hook with None.
         """
         return self._hook_with_None
 
     @property
-    def hook_without_None(self) -> OwnedHookLike[T]:
+    def hook_without_None(self) -> HookWithOwnerLike[T]:
         """
         Get the hook without None.
         """

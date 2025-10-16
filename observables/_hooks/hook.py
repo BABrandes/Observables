@@ -15,7 +15,7 @@ T = TypeVar("T")
 
 class Hook(HookLike[T], BaseListening, Generic[T]):
     """
-    A standalone hook in the new hook-based architecture.
+    A standalone hook.
     
     This represents a single value that can participate in the sync system without
     being owned by a specific observable. Hooks are grouped into HookNexus instances

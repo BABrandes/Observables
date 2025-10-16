@@ -3,7 +3,7 @@ from logging import Logger
 
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
-    from .._hooks.owned_hook_like import OwnedHookLike
+    from .._hooks.hook_with_owner_like import HookWithOwnerLike
     from .hook_nexus import HookNexus
     from .nexus_manager import NexusManager
     from .base_listening import BaseListeningLike
@@ -13,14 +13,14 @@ HV = TypeVar("HV")
 
 class CarriesHooksLike(Protocol[HK, HV]):
     """
-    A base class for observables that carry a set of hooks.
+    Protocol for objects that carry a set of hooks.
     """
 
     #########################################################################
     # Methods to get hooks and values
     #########################################################################
 
-    def get_hook(self, key: HK) -> "OwnedHookLike[HV]":
+    def get_hook(self, key: HK) -> "HookWithOwnerLike[HV]":
         """
         Get a hook by its key.
         """
@@ -38,7 +38,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
         """
         ...
 
-    def get_hook_key(self, hook_or_nexus: "OwnedHookLike[HV]|HookNexus[HV]") -> HK:
+    def get_hook_key(self, hook_or_nexus: "HookWithOwnerLike[HV]|HookNexus[HV]") -> HK:
         """
         Get the key of a hook or nexus.
         """
@@ -52,7 +52,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
         """
         ...
 
-    def get_dict_of_hooks(self) ->  "dict[HK, OwnedHookLike[HV]]":
+    def get_dict_of_hooks(self) ->  "dict[HK, HookWithOwnerLike[HV]]":
         """
         Get a dictionary of hooks.
         """
@@ -209,7 +209,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
 
     @property
     @final
-    def dict_of_hooks(self) -> "dict[HK, OwnedHookLike[HV]]":
+    def dict_of_hooks(self) -> "dict[HK, HookWithOwnerLike[HV]]":
         """
         Get a dictionary of hooks.
         """

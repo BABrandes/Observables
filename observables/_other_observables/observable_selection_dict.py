@@ -4,7 +4,7 @@
 
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from .._hooks.hook_like import HookLike
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._hooks.owned_hook import OwnedHook
 from logging import Logger
 from .._utils.base_carries_hooks import BaseCarriesHooks
@@ -157,7 +157,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
     # CarriesHooks interface
     ########################################################
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> HookWithOwnerLike[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -268,7 +268,7 @@ class ObservableSelectionDict(BaseCarriesHooks[Literal["dict", "key", "value"], 
         """
 
         _inferred_value = dict_value[key_value]
-        OwnedHookLike[Any].submit_values(
+        HookWithOwnerLike[Any].submit_values(
             {
                 self._dict_hook: dict_value, 
                 self._key_hook: key_value,
@@ -474,7 +474,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> HookWithOwnerLike[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -575,7 +575,7 @@ class ObservableOptionalSelectionDict(BaseCarriesHooks[Literal["dict", "key", "v
         else:
             _inferred_value = dict_value[key_value]
 
-        OwnedHookLike[Any].submit_values(
+        HookWithOwnerLike[Any].submit_values(
             {
                 self._dict_hook: dict_value,
                 self._key_hook: key_value,
@@ -772,7 +772,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> HookWithOwnerLike[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -888,7 +888,7 @@ class ObservableDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "key", "va
 
         inferred_value = dict_value[key_value]
 
-        OwnedHookLike[Any].submit_values(
+        HookWithOwnerLike[Any].submit_values(
             {
                 self._dict_hook: dict_value,
                 self._key_hook: key_value,
@@ -1106,7 +1106,7 @@ class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "k
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> "OwnedHookLike[Any]":
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> HookWithOwnerLike[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -1214,7 +1214,7 @@ class ObservableOptionalDefaultSelectionDict(BaseCarriesHooks[Literal["dict", "k
         else:
             inferred_value = dict_value[key_value]
 
-        OwnedHookLike[Any].submit_values(
+        HookWithOwnerLike[Any].submit_values(
             {
                 self._dict_hook: dict_value,
                 self._key_hook: key_value,

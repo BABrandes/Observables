@@ -105,7 +105,7 @@ from ._other_observables.observable_selection_dict import ObservableSelectionDic
 from ._other_observables.observable_rooted_paths import ObservableRootedPaths
 from ._other_observables.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
-from ._hooks.floating_hook_like import FloatingHookLike
+from ._hooks.hook import Hook
 from ._hooks.hook_like import HookLike
 from ._utils.system_analysis import write_report
 from ._utils.observable_serializable import ObservableSerializable
@@ -139,9 +139,9 @@ __all__ = [
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
     # hooks (user-facing)
+    'Hook',
     'HookLike',
     'FloatingHook',
-    'FloatingHookLike',
     # Utilities
     'ObservableSerializable',
     'write_report',

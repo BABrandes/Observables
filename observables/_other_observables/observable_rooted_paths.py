@@ -5,7 +5,7 @@ from logging import Logger
 from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.observable_serializable import ObservableSerializable
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.hook_nexus import HookNexus
 
 EK = TypeVar("EK", bound=str)
@@ -59,12 +59,12 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
     ):
 
         self._rooted_element_keys: set[EK] = set(rooted_elements_initial_relative_path_values.keys())
-        self._rooted_element_path_hooks: dict[str, OwnedHookLike[Optional[str|Path]]] = {}
+        self._rooted_element_path_hooks: dict[str, HookWithOwnerLike[Optional[str|Path]]] = {}
 
         # Initialize the hooks
 
         # root
-        self._root_path_hook: OwnedHookLike[Optional[Path]] = OwnedHook[Optional[Path]](
+        self._root_path_hook = OwnedHook[Optional[Path]](
             self,
             root_path_initial_value,
             logger=logger,
@@ -76,7 +76,7 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
             # relative paths
             relative_path_key: str = self.element_key_to_relative_path_key(key)
             relative_path_initial_value: Optional[str] = rooted_elements_initial_relative_path_values[key]
-            relative_path_hook: OwnedHookLike[Optional[str]] = OwnedHook[Optional[str]](
+            relative_path_hook = OwnedHook[Optional[str]](
                 self,
                 relative_path_initial_value,
                 logger=logger,
@@ -86,7 +86,7 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
             # absolute paths
             absolute_path_key: str = self.element_key_to_absolute_path_key(key)
             absolute_path_initial_value: Optional[Path] = root_path_initial_value / relative_path_initial_value if root_path_initial_value is not None and relative_path_initial_value is not None else None
-            absolute_path_hook: OwnedHookLike[Optional[Path]] = OwnedHook[Optional[Path]](
+            absolute_path_hook = OwnedHook[Optional[Path]](
                 self,
                 absolute_path_initial_value,
                 logger=logger,
@@ -189,10 +189,10 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         if not success:
             raise ValueError(msg)
 
-    def get_relative_path_hook(self, key: EK) -> OwnedHookLike[Optional[str]]:
+    def get_relative_path_hook(self, key: EK) -> HookWithOwnerLike[Optional[str]]:
         return self._get_hook(self.element_key_to_relative_path_key(key)) # type: ignore
 
-    def get_absolute_path_hook(self, key: EK) -> OwnedHookLike[Optional[Path]]:
+    def get_absolute_path_hook(self, key: EK) -> HookWithOwnerLike[Optional[Path]]:
         return self._get_hook(self.element_key_to_absolute_path_key(key)) # type: ignore
 
     def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
@@ -212,8 +212,8 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         return self._rooted_element_keys
 
     @property
-    def rooted_element_relative_path_hooks(self) -> dict[str, OwnedHookLike[Optional[str]]]:
-        relative_path_hooks: dict[str, OwnedHookLike[Optional[str]]] = {}
+    def rooted_element_relative_path_hooks(self) -> dict[str, HookWithOwnerLike[Optional[str]]]:
+        relative_path_hooks: dict[str, HookWithOwnerLike[Optional[str]]] = {}
         for key in self._rooted_element_keys:
             if key not in self._rooted_element_path_hooks:
                 raise ValueError(f"Key {key} not found in rooted_element_relative_path_hooks")
@@ -221,8 +221,8 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
         return relative_path_hooks
 
     @property
-    def rooted_element_absolute_path_hooks(self) -> dict[str, OwnedHookLike[Optional[Path]]]:
-        absolute_path_hooks: dict[str, OwnedHookLike[Optional[Path]]] = {}
+    def rooted_element_absolute_path_hooks(self) -> dict[str, HookWithOwnerLike[Optional[Path]]]:
+        absolute_path_hooks: dict[str, HookWithOwnerLike[Optional[Path]]] = {}
         for key in self._rooted_element_keys:
             if key not in self._rooted_element_path_hooks:
                 raise ValueError(f"Key {key} not found in rooted_element_absolute_path_hooks")
@@ -233,7 +233,7 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
     # CarriesHooks interface implementation
     ##########################################
 
-    def _get_hook(self, key: str) -> OwnedHookLike[Path|str|None]:
+    def _get_hook(self, key: str) -> HookWithOwnerLike[Path|str|None]:
         """
         Get a hook by its key.
         """
@@ -265,11 +265,11 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
             keys.add(self.element_key_to_absolute_path_key(key))
         return keys
 
-    def _get_hook_key(self, hook_or_nexus: OwnedHookLike[Path|str|None]|HookNexus[Path|str|None]) -> EK:
+    def _get_hook_key(self, hook_or_nexus: HookWithOwnerLike[Path|str|None]|HookNexus[Path|str|None]) -> EK:
         """
         Get the key of a hook or nexus.
         """
-        if isinstance(hook_or_nexus, OwnedHookLike):
+        if isinstance(hook_or_nexus, HookWithOwnerLike):
             if hook_or_nexus is self._root_path_hook:
                 return ROOT_PATH_KEY # type: ignore
             else:
@@ -286,7 +286,7 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
                         return hook_key # type: ignore
             raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
         else:
-            raise ValueError(f"Expected OwnedHookLike or HookNexus, got {type(hook_or_nexus)}")
+            raise ValueError(f"Expected HookWithOwnerLike or HookNexus, got {type(hook_or_nexus)}")
 
     #### ObservableSerializable implementation ####
     

@@ -71,7 +71,7 @@ from logging import Logger
 
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.base_listening import BaseListening
 from .._utils.base_carries_hooks import BaseCarriesHooks
 from .._utils.hook_nexus import HookNexus
@@ -290,7 +290,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
     # BaseCarriesHooks abstract methods
     #########################################################################
 
-    def _get_hook(self, key: IHK|OHK) -> "OwnedHookLike[IHV|OHV]":
+    def _get_hook(self, key: IHK|OHK) -> "HookWithOwnerLike[IHV|OHV]":
         """Get a hook by its key (either input or output)."""
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore

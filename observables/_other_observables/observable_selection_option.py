@@ -90,7 +90,7 @@ from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Prot
 from logging import Logger
 
 from .._hooks.hook_like import HookLike
-from .._hooks.owned_hook_like import OwnedHookLike
+from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.base_observable import BaseObservable
 from .._utils.carries_hooks_like import CarriesHooksLike
 
@@ -126,7 +126,7 @@ class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protoc
         ...
 
     @property
-    def selected_option_hook(self) -> OwnedHookLike[T]:
+    def selected_option_hook(self) -> HookWithOwnerLike[T]:
         ...
 
     def change_selected_option(self, selected_option: T) -> None:
@@ -147,7 +147,7 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
         ...
 
     @property
-    def selected_option_hook(self) -> OwnedHookLike[Optional[T]]:
+    def selected_option_hook(self) -> HookWithOwnerLike[Optional[T]]:
         ...
 
     def change_selected_option(self, selected_option: Optional[T]) -> None:
@@ -373,7 +373,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
             raise ValueError(msg)
 
     @property
-    def selected_option_hook(self) -> OwnedHookLike[T]:
+    def selected_option_hook(self) -> HookWithOwnerLike[T]:
         return self._primary_hooks["selected_option"] # type: ignore
     
     def change_selected_option(self, selected_option: T) -> None:
@@ -511,7 +511,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
         self.submit_values({"selected_option": selected_option})
 
     @property
-    def selected_option_hook(self) -> OwnedHookLike[Optional[T]]:
+    def selected_option_hook(self) -> HookWithOwnerLike[Optional[T]]:
         return self.get_hook("selected_option") # type: ignore
     
     def change_selected_option(self, selected_option: Optional[T]) -> None:
@@ -523,7 +523,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         self.submit_values({"selected_option": selected_option, "available_options": available_options})
 
-    def _get_single_value_hook(self) -> OwnedHookLike[Optional[T]]:
+    def _get_single_value_hook(self) -> HookWithOwnerLike[Optional[T]]:
         return self._primary_hooks["selected_option"] # type: ignore
 
     def __eq__(self, other: Any) -> bool:

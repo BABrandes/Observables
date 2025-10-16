@@ -39,7 +39,7 @@ class TestSimpleMemoryLeaks(unittest.TestCase):
             return True, "Successfully validated"
         
         # Create a hook with callback
-        hook = FloatingHook("test_value", validate_value_in_isolation_callback=callback)
+        hook = FloatingHook("test_value", isolated_validation_callback=callback)
         hook_ref = weakref.ref(hook)
         
         # Verify the hook exists

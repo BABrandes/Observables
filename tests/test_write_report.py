@@ -24,7 +24,7 @@ from observables import (
 from observables._utils.system_analysis import write_report
 from enum import Enum
 from observables._utils.base_carries_hooks import BaseCarriesHooks
-from observables._hooks.owned_hook_like import OwnedHookLike
+from observables._hooks.hook_with_owner_like import HookWithOwnerLike
 from typing import Any, cast
 
 class UserRole(Enum):
@@ -114,8 +114,8 @@ class TestWriteReport(unittest.TestCase):
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[TaskStatus] = ObservableMultiSelectionOption(set(), available_statuses)
         status_backup.connect_hooks({
-            "selected_options": cast(OwnedHookLike[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
-            "available_options": cast(OwnedHookLike[set[TaskStatus] | int], current_task_statuses.available_options_hook)
+            "selected_options": cast(HookWithOwnerLike[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
+            "available_options": cast(HookWithOwnerLike[set[TaskStatus] | int], current_task_statuses.available_options_hook)
         }, "use_target_value")
         
         print("✅ Bindings created")

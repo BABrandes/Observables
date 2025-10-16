@@ -4,7 +4,7 @@ This document provides detailed technical information about the Observables libr
 
 ## 🏗️ Architecture Overview
 
-The Observables library is built around a sophisticated hook-based architecture that provides automatic synchronization, change propagation, and binding management. The system is designed to be efficient, thread-safe, and maintainable.
+The Observables library is built around a sophisticated protocol-based hook architecture that provides automatic synchronization, change propagation, and binding management. The system is designed to be efficient, thread-safe, maintainable, and highly extensible.
 
 ### Core Components
 
@@ -19,48 +19,149 @@ The Observables library is built around a sophisticated hook-based architecture 
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                         Hook Layer                             │
+│                    Protocol-Based Hook Layer                   │
 ├─────────────────────────────────────────────────────────────────┤
-│  Hook[T]  ←→  HookNexus[T]  ←→  HookLike[T]                  │
-│     │              │                    │                      │
-│     └──────────────┼────────────────────┘                      │
-│                    ▼                                            │
-│            CarriesDistinct*Hook Protocols                      │
+│  HookLike[T] (Base Protocol)                                   │
+│  ├── HookWithOwnerLike[T]                                      │
+│  ├── HookWithIsolatedValidationLike[T]                         │
+│  └── HookWithReactionLike[T]                                   │
+│                                                                 │
+│  Hook Implementations:                                          │
+│  ├── Hook[T] (Standalone)                                      │
+│  ├── OwnedHook[T] (Hook + HookWithOwnerLike)                   │
+│  └── FloatingHook[T] (Hook + Validation + Reaction)            │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Binding System                             │
+│                     HookNexus & Binding System                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  Initial Sync  ←→  HookNexus Merging  ←→  Validation          │
+│  HookNexus[T]  ←→  NexusManager  ←→  Validation & Sync         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 🔗 Hook System Deep Dive
 
-### Hook Class
+### Protocol-Based Architecture
 
-The `Hook[T]` class is the fundamental unit of the binding system. Each hook represents a single data component that can be synchronized with other hooks.
+The new hook system uses Python's `Protocol` classes to define clear interfaces for different hook capabilities. This design provides excellent type safety, extensibility, and maintainability.
 
-#### Key Properties
+#### Core Protocols
 
-- **`owner`**: The observable object that owns this hook
-- **`get_callback`**: Function to retrieve the current value
-- **`set_callback`**: Function to set a new value
-- **`hook_group`**: The group this hook belongs to
-- **`can_send`**: Whether this hook can provide values
-- **`can_receive`**: Whether this hook can accept values
+##### `HookLike[T]` - Base Protocol
 
-#### Hook States
+The foundation protocol that all hooks must implement:
 
 ```python
-class Hook[T]:
-    def __init__(self, owner, get_callback, set_callback):
+@runtime_checkable
+class HookLike(BaseListeningLike, Protocol[T]):
+    """Protocol for hook objects."""
+    
+    @property
+    def nexus_manager(self) -> "NexusManager": ...
+    @property
+    def value(self) -> T: ...
+    @property
+    def value_reference(self) -> T: ...
+    @property
+    def previous_value(self) -> T: ...
+    @property
+    def hook_nexus(self) -> "HookNexus[T]": ...
+    @property
+    def lock(self) -> RLock: ...
+    
+    def connect_hook(self, target_hook: "HookLike[T]", 
+                    initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]: ...
+    def disconnect(self) -> None: ...
+    def is_connected_to(self, hook: "HookLike[T]") -> bool: ...
+```
+
+##### `HookWithOwnerLike[T]` - Owner Protocol
+
+For hooks that belong to observables:
+
+```python
+@runtime_checkable
+class HookWithOwnerLike(HookLike[T], Protocol[T]):
+    """Protocol for hook objects that have an owner."""
+    
+    @property
+    def owner(self) -> "CarriesHooksLike[Any, Any]": ...
+```
+
+##### `HookWithIsolatedValidationLike[T]` - Validation Protocol
+
+For hooks with custom validation logic:
+
+```python
+@runtime_checkable
+class HookWithIsolatedValidationLike(HookLike[T], Protocol[T]):
+    """Protocol for hook objects that can validate values in isolation."""
+    
+    def validate_value_in_isolation(self, value: T) -> tuple[bool, str]: ...
+```
+
+##### `HookWithReactionLike[T]` - Reaction Protocol
+
+For hooks that react to value changes:
+
+```python
+@runtime_checkable
+class HookWithReactionLike(HookLike[T], Protocol[T]):
+    """Protocol for hook objects that can react to value changes."""
+    
+    def react_to_value_changed(self) -> None: ...
+```
+
+### Hook Implementations
+
+#### `Hook[T]` - Standalone Hook
+
+The basic hook implementation for standalone use:
+
+```python
+class Hook(HookLike[T], BaseListening, Generic[T]):
+    """A standalone hook."""
+    
+    def __init__(self, value: T, nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER, 
+                 logger: Optional[logging.Logger] = None):
+        BaseListening.__init__(self, logger)
+        self._value = value
+        self._nexus_manager = nexus_manager
+        self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
+        self._lock = RLock()
+```
+
+#### `OwnedHook[T]` - Observable Hook
+
+For hooks that belong to observables:
+
+```python
+class OwnedHook(Hook[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
+    """A hook that belongs to an observable."""
+    
+    def __init__(self, owner: CarriesHooksLike[Any, Any], initial_value: T, 
+                 logger: Optional[Logger] = None, nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER):
+        BaseListening.__init__(self, logger)
+        Hook.__init__(self, initial_value, nexus_manager=nexus_manager, logger=logger)
         self._owner = owner
-        self._get_callback = get_callback
-        self._set_callback = set_callback
-        self._hook_nexus = HookNexus(initial_value)  # Starts with its own nexus
-        self._lock = threading.Lock()
+```
+
+#### `FloatingHook[T]` - Advanced Hook
+
+For hooks with validation and reaction capabilities:
+
+```python
+class FloatingHook(Hook[T], HookWithIsolatedValidationLike[T], HookWithReactionLike[T], BaseListening, Generic[T]):
+    """A floating hook with validation and reaction capabilities."""
+    
+    def __init__(self, value: T, reaction_callback: Optional[Callable[[], tuple[bool, str]]] = None,
+                 isolated_validation_callback: Optional[Callable[[T], tuple[bool, str]]] = None,
+                 logger: Optional[Logger] = None, nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER):
+        self._reaction_callback = reaction_callback
+        self._isolated_validation_callback = isolated_validation_callback
+        BaseListening.__init__(self, logger)
+        Hook.__init__(self, value=value, nexus_manager=nexus_manager, logger=logger)
 ```
 
 ### HookNexus - Central Value Storage
@@ -308,6 +409,87 @@ import logging
 logging.getLogger('observables.hook').setLevel(logging.DEBUG)
 ```
 
+## 🎯 Benefits of the New Protocol-Based Architecture
+
+### Type Safety and Extensibility
+
+The new protocol-based design provides several key advantages:
+
+#### 1. **Clear Interface Contracts**
+```python
+# Protocols define clear contracts
+def process_hook(hook: HookLike[str]) -> None:
+    # Can work with any hook implementation
+    value = hook.value
+    hook.submit_value("new_value")
+
+# Type checker ensures compatibility
+hook: HookWithOwnerLike[int] = OwnedHook(owner, 42)
+process_hook(hook)  # ✅ Type safe
+```
+
+#### 2. **Composition Over Inheritance**
+```python
+# Easy to create new hook types by combining protocols
+class CachedHook(Hook[T], HookWithCachingLike[T]):
+    """Hook with caching capabilities."""
+    pass
+
+class PersistentHook(Hook[T], HookWithPersistenceLike[T]):
+    """Hook with persistence capabilities."""
+    pass
+
+# Multiple capabilities
+class AdvancedHook(Hook[T], HookWithCachingLike[T], HookWithPersistenceLike[T]):
+    """Hook with both caching and persistence."""
+    pass
+```
+
+#### 3. **Runtime Type Checking**
+```python
+# Protocols are runtime checkable
+if isinstance(hook, HookWithOwnerLike):
+    owner = hook.owner
+    print(f"Hook belongs to: {owner}")
+
+if isinstance(hook, HookWithIsolatedValidationLike):
+    success, msg = hook.validate_value_in_isolation(new_value)
+    if not success:
+        raise ValueError(msg)
+```
+
+#### 4. **Easy Testing and Mocking**
+```python
+# Easy to create test doubles
+class MockHook:
+    def __init__(self, value):
+        self._value = value
+    
+    @property
+    def value(self):
+        return self._value
+    
+    def submit_value(self, value):
+        self._value = value
+
+# MockHook automatically implements HookLike protocol
+mock_hook: HookLike[str] = MockHook("test")
+```
+
+### Performance Benefits
+
+1. **Protocol Overhead**: Minimal runtime overhead compared to traditional inheritance
+2. **Memory Efficiency**: No additional memory per protocol interface
+3. **Fast Dispatch**: Direct method calls without virtual function overhead
+4. **Optimized Type Checking**: `@runtime_checkable` provides efficient isinstance checks
+
+### Maintainability Benefits
+
+1. **Single Responsibility**: Each protocol has one clear purpose
+2. **Easy Debugging**: Clear separation of concerns makes issues easier to trace
+3. **Documentation**: Protocols serve as living documentation
+4. **Backward Compatibility**: Existing code continues to work unchanged
+
 ## 🔮 Future Enhancements
 
 ### Planned Features
@@ -319,10 +501,39 @@ logging.getLogger('observables.hook').setLevel(logging.DEBUG)
 
 ### Extension Points
 
-The hook system is designed to be extensible:
+The new protocol-based hook system is highly extensible:
 
+#### **New Protocol Capabilities**
+```python
+# Easy to add new capabilities
+class HookWithCachingLike(HookLike[T], Protocol[T]):
+    def cache_value(self) -> None: ...
+    def get_cached_value(self) -> Optional[T]: ...
+
+class HookWithPersistenceLike(HookLike[T], Protocol[T]):
+    def save_to_storage(self) -> None: ...
+    def load_from_storage(self) -> None: ...
+
+class HookWithMetricsLike(HookLike[T], Protocol[T]):
+    def get_metrics(self) -> Dict[str, Any]: ...
+    def reset_metrics(self) -> None: ...
+```
+
+#### **Custom Hook Implementations**
+```python
+# Combine protocols for specialized hooks
+class DatabaseHook(Hook[T], HookWithPersistenceLike[T], HookWithMetricsLike[T]):
+    """Hook that persists to database and tracks metrics."""
+    pass
+
+class CacheHook(Hook[T], HookWithCachingLike[T], HookWithMetricsLike[T]):
+    """Hook with caching and performance metrics."""
+    pass
+```
+
+#### **Advanced Validation Strategies**
 - **Custom Hook Types**: Implement new hook behaviors
-- **Advanced Validation**: Custom validation logic
+- **Advanced Validation**: Custom validation logic with protocol composition
 - **Binding Strategies**: Alternative binding algorithms
 - **Group Management**: Custom group organization strategies
 

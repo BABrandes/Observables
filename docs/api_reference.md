@@ -22,7 +22,8 @@ from observables import (
 )
 
 # Hook types (for advanced usage)
-from observables import Hook, HookLike, HookNexus
+from observables import Hook, HookLike, OwnedHook, FloatingHook, HookNexus
+from observables import HookWithOwnerLike, HookWithIsolatedValidationLike, HookWithReactionLike
 
 # Utility types
 from observables import BaseObservable
@@ -651,22 +652,87 @@ Like `ObservableEnum`, but allows `None` as a valid enum value.
 
 ## 🔧 **Advanced API**
 
-### **Hook Classes**
+### **Hook Classes and Protocols**
 
-#### **`Hook[T]`**
+#### **`HookLike[T]`** - Base Protocol
 
-Core hook implementation providing binding functionality.
+The foundation protocol that all hooks must implement. Provides the core interface for value management, binding, and synchronization.
+
+**Key Properties:**
+- `nexus_manager: NexusManager` - The nexus manager this hook belongs to
+- `value: T` - The current value (returns a copy)
+- `value_reference: T` - The value reference (do not modify!)
+- `previous_value: T` - The previous value
+- `hook_nexus: HookNexus[T]` - The hook nexus this hook belongs to
+- `lock: RLock` - Thread safety lock
+
+**Key Methods:**
+- `connect_hook(target_hook: HookLike[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
+- `disconnect() -> None`
+- `is_connected_to(hook: HookLike[T]) -> bool`
+
+#### **`Hook[T]`** - Standalone Hook
+
+Basic hook implementation for standalone use without an owner.
 
 **Constructor:**
 ```python
 def __init__(
     self, 
-    owner: Any, 
     value: T, 
-    invalidate_callback: Optional[Callable[[T], Tuple[bool, str]]] = None,
+    nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER,
     logger: Optional[Logger] = None
 )
 ```
+
+#### **`OwnedHook[T]`** - Observable Hook
+
+Hook implementation for hooks that belong to observables.
+
+**Constructor:**
+```python
+def __init__(
+    self, 
+    owner: CarriesHooksLike[Any, Any], 
+    initial_value: T, 
+    logger: Optional[Logger] = None,
+    nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER
+)
+```
+
+**Additional Properties:**
+- `owner: CarriesHooksLike[Any, T]` - The observable that owns this hook
+
+#### **`FloatingHook[T]`** - Advanced Hook
+
+Hook with validation and reaction capabilities for advanced use cases.
+
+**Constructor:**
+```python
+def __init__(
+    self, 
+    value: T, 
+    reaction_callback: Optional[Callable[[], tuple[bool, str]]] = None,
+    isolated_validation_callback: Optional[Callable[[T], tuple[bool, str]]] = None,
+    logger: Optional[Logger] = None,
+    nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER
+)
+```
+
+**Additional Methods:**
+- `validate_value_in_isolation(value: T) -> tuple[bool, str]`
+- `react_to_value_changed() -> None`
+
+#### **Hook Protocols**
+
+##### **`HookWithOwnerLike[T]`**
+Protocol for hooks that have an owner (implemented by `OwnedHook`).
+
+##### **`HookWithIsolatedValidationLike[T]`**
+Protocol for hooks with custom validation logic (implemented by `FloatingHook`).
+
+##### **`HookWithReactionLike[T]`**
+Protocol for hooks that react to value changes (implemented by `FloatingHook`).
 
 #### **`HookNexus[T]`**
 
@@ -678,29 +744,29 @@ Central storage for values shared between bound hooks.
 
 ### **Custom Observable Implementation**
 
-You can create custom observable types by extending `BaseObservable`:
+You can create custom observable types by extending `BaseObservable` and using the new hook architecture:
 
 ```python
-from observables import BaseObservable, Hook
-from typing import Optional
+from observables import BaseObservable, OwnedHook
+from observables import HookWithOwnerLike
+from typing import Optional, Tuple
 import logging
 
 class ObservableTemperature(BaseObservable):
-    """Custom observable with temperature validation."""
+    """Custom observable with temperature validation using the new hook architecture."""
     
     def __init__(self, celsius: float, min_temp: float = -273.15, max_temp: float = 1000.0, logger: Optional[logging.Logger] = None):
         self.min_temp = min_temp
         self.max_temp = max_temp
         
-        # Create hook with validation
-        self._temperature_hook = Hook(
+        # Create owned hook with validation
+        self._temperature_hook = OwnedHook(
             owner=self,
-            value=celsius,
-            invalidate_callback=self._validate_temperature,
+            initial_value=celsius,
             logger=logger
         )
         
-        # Initialize base class
+        # Initialize base class with the hook
         super().__init__({"temperature": self._temperature_hook}, logger)
         
         # Validate initial value
@@ -725,18 +791,21 @@ class ObservableTemperature(BaseObservable):
     @temperature.setter
     def temperature(self, value: float) -> None:
         """Set temperature with validation."""
-        self._temperature_hook.value = value
+        # Validate before setting
+        if not self._is_valid_temperature(value):
+            raise ValueError(f"Temperature {value} outside range [{self.min_temp}, {self.max_temp}]")
+        self._temperature_hook.submit_value(value)
     
     @property
-    def temperature_hook(self) -> Hook[float]:
+    def temperature_hook(self) -> HookWithOwnerLike[float]:
         """Get temperature hook for binding."""
         return self._temperature_hook
 
-# Usage
+# Usage with the new architecture
 room_temp = ObservableTemperature(22.0, min_temp=10.0, max_temp=35.0)
 outdoor_temp = ObservableTemperature(15.0, min_temp=-20.0, max_temp=45.0)
 
-# Bind temperatures bidirectionally
+# Bind temperatures bidirectionally using the new connect_hook method
 room_temp.connect_hook(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
 
 # Changes propagate with validation
@@ -748,6 +817,30 @@ try:
     outdoor_temp.temperature = 50.0  # Outside room_temp's valid range
 except ValueError as e:
     print(f"Validation error: {e}")
+
+# Advanced usage with FloatingHook for custom validation
+from observables import FloatingHook
+
+def validate_temperature_range(temp: float) -> Tuple[bool, str]:
+    """Custom validation function."""
+    if -50.0 <= temp <= 100.0:
+        return True, "Valid temperature"
+    return False, f"Temperature {temp} outside safe range [-50, 100]"
+
+def on_temperature_change() -> Tuple[bool, str]:
+    """Reaction to temperature changes."""
+    print("Temperature changed!")
+    return True, "Reaction completed"
+
+# Create a floating hook with custom validation and reaction
+floating_temp = FloatingHook(
+    value=20.0,
+    isolated_validation_callback=validate_temperature_range,
+    reaction_callback=on_temperature_change
+)
+
+# Use the floating hook
+floating_temp.submit_value(25.0)  # Triggers validation and reaction
 ```
 
 ## 🛠️ **Debugging and Logging**

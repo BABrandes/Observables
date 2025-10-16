@@ -227,7 +227,7 @@ class TestHookCapabilities(unittest.TestCase):
         hook.connect_hook(hook2, "use_caller_value")  # type: ignore
         
         # Now disconnect the first hook
-        hook.disconnect()
+        hook.disconnect_hook()
         
         # Verify the hook is now in a new, separate hook nexus
         self.assertNotEqual(hook.hook_nexus, original_nexus)
@@ -258,7 +258,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # First disconnect should work and create a new nexus
         original_nexus = hook.hook_nexus
-        hook.disconnect()
+        hook.disconnect_hook()
         
         # Should create a new hook nexus
         self.assertNotEqual(hook.hook_nexus, original_nexus)
@@ -267,7 +267,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Second disconnect should do nothing since hook is already isolated
         nexus_after_first_disconnect = hook.hook_nexus
-        hook.disconnect()
+        hook.disconnect_hook()
         
         # Should still be the same nexus
         self.assertEqual(hook.hook_nexus, nexus_after_first_disconnect)
@@ -600,7 +600,7 @@ class TestHookCapabilities(unittest.TestCase):
                         initial_value="value",
                     )
                     hook.connect_hook(hook2, "use_caller_value")  # type: ignore
-                    hook.disconnect()
+                    hook.disconnect_hook()
                     time.sleep(0.003)
                 except Exception:
                     pass

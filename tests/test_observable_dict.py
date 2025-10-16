@@ -114,7 +114,7 @@ class TestObservableDict(ObservableTestCase):
         self.assertEqual(target.value, {"key1": 100, "key2": 200})
         
         # Unbind them
-        target.disconnect()
+        target.disconnect_hook()
         
         # Change source, target should not update
         source.set_item("key3", 300)
@@ -243,7 +243,7 @@ class TestObservableDict(ObservableTestCase):
         obs2 = ObservableDict({"key2": 20})
         
         obs1.connect_hook(obs2.value_hook, "value", "use_caller_value") # type: ignore
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # Changes should no longer propagate
         obs1.set_item("key3", 50)
@@ -271,7 +271,7 @@ class TestObservableDict(ObservableTestCase):
         self.assertEqual(obs3.value, {"key1": 10, "key4": 100})  # obs3 also gets updated since all three are bound
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.disconnect_hook()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.set_item("key5", 200)

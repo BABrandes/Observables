@@ -115,7 +115,7 @@ class TestObservableTuple(ObservableTestCase):
         self.assertEqual(target.value, (200, 300))
         
         # Unbind them
-        target.disconnect()
+        target.disconnect_hook()
         
         # Change source, target should not update
         source.value = (400, 500)
@@ -237,7 +237,7 @@ class TestObservableTuple(ObservableTestCase):
         obs2 = ObservableTuple((20,))
         
         obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # Changes should no longer propagate
         obs1.value = (50, 60)
@@ -265,7 +265,7 @@ class TestObservableTuple(ObservableTestCase):
         self.assertEqual(obs3.value, (100, 200))  # obs3 also gets updated since all three are bound
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.disconnect_hook()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.value = (300, 400)
@@ -572,7 +572,7 @@ class TestObservableIntegration(unittest.TestCase):
         self.assertEqual(obs_c.value, 100)
         
         # Remove binding between B and C
-        obs_b.disconnect()
+        obs_b.disconnect_hook()
         
         # Change A, B should NOT update (obs_b is now detached from everything)
         # But obs_c should update because obs_a and obs_c are still bound (transitive binding)

@@ -668,7 +668,7 @@ The foundation protocol that all hooks must implement. Provides the core interfa
 
 **Key Methods:**
 - `connect_hook(target_hook: HookLike[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
-- `disconnect() -> None`
+- `disconnect_hook() -> None`
 - `is_connected_to(hook: HookLike[T]) -> bool`
 
 #### **`Hook[T]`** - Standalone Hook

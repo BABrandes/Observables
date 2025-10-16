@@ -120,7 +120,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.assertEqual(target.selected_option, "Green")
         
         # Unbind them
-        target.disconnect()
+        target.disconnect_hook()
         
         # Change source, target should not update
         # Note: source can only use its own available options {"Red", "Green"}
@@ -258,7 +258,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.assertEqual(obs1.selected_option, "Blue")
         self.assertEqual(obs1.available_options, {"Red", "Green", "Blue"})
         
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # After disconnecting, obs2 keeps its current values but changes no longer propagate
         self.assertEqual(obs2.selected_option, "Blue")
@@ -290,7 +290,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.assertEqual(obs3.selected_option, "Green")
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.disconnect_hook()
         
         # Change obs1, obs2 should update since they remain bound after obs2.disconnect()
         # Note: obs1 can only use its own available options {"Red", "Green", "Blue"}

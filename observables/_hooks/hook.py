@@ -128,14 +128,14 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 
             return success, msg
     
-    def disconnect(self) -> None:
+    def disconnect_hook(self) -> None:
         """
         Disconnect this hook from the hook nexus.
 
         If this is the corresponding nexus has only this one hook, nothing will happen.
         """
 
-        log(self, "disconnect", self._logger, True, "Disconnecting hook initiated")
+        log(self, "disconnect_hook", self._logger, True, "Disconnecting hook initiated")
 
         with self._lock:
 

@@ -63,7 +63,7 @@ class TestCachePerformance:
         
         # Clean up
         for obs in bound_observables: # type: ignore
-            obs.disconnect("value")
+            obs.disconnect_hook("value")
 
     def test_secondary_hook_cache_performance(self):
         """Test that secondary hook lookups are cached."""
@@ -163,7 +163,7 @@ class TestScalabilityPerformance:
             
             # Clean up
             for obs in bound_observables:
-                obs.disconnect("value")
+                obs.disconnect_hook("value")
         
         # Performance should not degrade dramatically with scale
         # (With O(1) cache, it should be roughly linear or better)

@@ -372,7 +372,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
             HookNexus[HV].connect_hook_pairs(*hook_pairs)
 
     @final
-    def disconnect(self, key: Optional[HK] = None) -> None:
+    def disconnect_hook(self, key: Optional[HK] = None) -> None:
         """
         Disconnect a hook by its key.
 
@@ -383,9 +383,9 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         with self._lock:
             if key is None:
                 for hook in self._get_dict_of_hooks().values():
-                    hook.disconnect()
+                    hook.disconnect_hook()
             else:
-                self._get_hook(key).disconnect()
+                self._get_hook(key).disconnect_hook()
 
     @final
     def destroy(self) -> None:
@@ -403,7 +403,7 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         """
 
         with self._lock:
-            self.disconnect(None)
+            self.disconnect_hook(None)
             if isinstance(self, BaseListeningLike):
                 self.remove_all_listeners()
 

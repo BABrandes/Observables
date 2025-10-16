@@ -78,7 +78,7 @@ class HookLike(BaseListeningLike, Protocol[T]):
         """
         ...
 
-    def disconnect(self) -> None:
+    def disconnect_hook(self) -> None:
         """
         Disconnect this hook from the hook nexus.
 

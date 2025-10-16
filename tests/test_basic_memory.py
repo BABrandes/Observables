@@ -130,7 +130,7 @@ class TestEssentialMemoryManagement:
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
-        obs1.disconnect("value")
+        obs1.disconnect_hook("value")
         obs1.value = "detached_value"
         assert obs2.value == "bound_value"  # Should not change
         

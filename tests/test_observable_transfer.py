@@ -289,14 +289,14 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(external_hook, "x", "use_caller_value")  # type: ignore
         
         # Test detach
-        transfer.disconnect("x")
+        transfer.disconnect_hook("x")
         
         # Test invalid key for attach/detach
         with self.assertRaises(ValueError):
             transfer.connect_hook(external_hook, "invalid", "use_caller_value")  # type: ignore
         
         with self.assertRaises(ValueError):
-            transfer.disconnect("invalid")
+            transfer.disconnect_hook("invalid")
 
     def test_dictionary_access_scenario(self):
         """Test dictionary access transformation scenario."""
@@ -587,8 +587,8 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test reverse transformation by changing outputs
         # Note: We need to disconnect the hooks first to avoid nexus conflicts
-        transfer.disconnect("sum")
-        transfer.disconnect("product")
+        transfer.disconnect_hook("sum")
+        transfer.disconnect_hook("product")
         
         # Create new observables for reverse testing
         sum_reverse_obs = ObservableSingleValue(7, logger=logger)

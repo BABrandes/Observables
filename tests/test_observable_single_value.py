@@ -111,7 +111,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20, logger=logger)
         
         obs1.connect_hook(obs2.hook, "value", "use_caller_value")  # type: ignore
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # Changes should no longer propagate
         obs1.value = 50
@@ -123,10 +123,10 @@ class TestObservableSingleValue(unittest.TestCase):
         obs2 = ObservableSingleValue(20, logger=logger)
         
         obs1.connect_hook(obs2.hook, "value", "use_target_value")  # type: ignore
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # Second unbind should not raise an error (current behavior)
-        obs1.disconnect()  # This should not raise an error
+        obs1.disconnect_hook()  # This should not raise an error
         
         # Changes should still not propagate
         obs1.value = 50
@@ -160,7 +160,7 @@ class TestObservableSingleValue(unittest.TestCase):
         self.assertEqual(obs3.value, 100)
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.disconnect_hook()
         
         # After detach, obs2 should be isolated from both obs1 and obs3
         # However, obs1 and obs3 remain bound together in the same hook group
@@ -309,7 +309,7 @@ class TestObservableSingleValue(unittest.TestCase):
         self.assertEqual(target.value, 200)
         
         # Unbind them
-        target.disconnect()
+        target.disconnect_hook()
         
         # Change source, target should not update
         source.value = 300

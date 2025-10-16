@@ -114,7 +114,7 @@ class TestObservableSet(ObservableTestCase):
         self.assertEqual(target.value, {100, 200})
         
         # Unbind them
-        target.disconnect()
+        target.disconnect_hook()
         
         # Change source, target should not update
         source.add(300)
@@ -235,7 +235,7 @@ class TestObservableSet(ObservableTestCase):
         obs2 = ObservableSet({20})
         
         obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs1.disconnect()
+        obs1.disconnect_hook()
         
         # Changes should no longer propagate
         obs1.add(50)
@@ -264,7 +264,7 @@ class TestObservableSet(ObservableTestCase):
         self.assertEqual(obs3.value, {10, 100})
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect()
+        obs2.disconnect_hook()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.add(200)

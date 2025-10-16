@@ -76,7 +76,7 @@ class TestThreadSafety:
                     _ = obs2.value
                     
                     # Detach
-                    obs1.disconnect("value")
+                    obs1.disconnect_hook("value")
                     
                     time.sleep(0.001)  # Small delay
                     
@@ -270,8 +270,8 @@ class TestThreadSafetyEdgeCases:
                     obs1.value = f"new_value_{i}"
                     
                     # Break the chain
-                    obs1.disconnect("value")
-                    obs2.disconnect("value")
+                    obs1.disconnect_hook("value")
+                    obs2.disconnect_hook("value")
                     
             except Exception as e:
                 errors.append(f"Rapid binder error: {e}")
@@ -366,7 +366,7 @@ class TestThreadSafetyEdgeCases:
                         # Binding operations
                         obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
-                        obs1.disconnect("value")
+                        obs1.disconnect_hook("value")
                     elif i % 4 == 1:
                         # Listener operations
                         listener = Mock()

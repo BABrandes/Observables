@@ -314,7 +314,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         self.assertEqual(selection_dict.value, 2)
         
         # Disconnect
-        selection_dict.disconnect("key")
+        selection_dict.disconnect_hook("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_invalidation(self):

@@ -91,7 +91,7 @@ class TestMemoryLeaks(unittest.TestCase):
         self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
         
         # Disconnect hook1
-        hook1.disconnect()
+        hook1.disconnect_hook()
         
         # Verify they're now disconnected (different nexuses)
         self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)

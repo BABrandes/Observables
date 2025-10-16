@@ -161,7 +161,7 @@ class CarriesHooksLike(Protocol[HK, HV]):
         """
         ...
 
-    def disconnect(self, key: Optional[HK]) -> None:
+    def disconnect_hook(self, key: Optional[HK]) -> None:
         """
         Disconnect a hook by its key.
 

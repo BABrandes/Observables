@@ -39,7 +39,7 @@ def test_disconnect_connect_race_condition():
         """Thread 1: Disconnect hook1"""
         try:
             time.sleep(0.001)  # Small delay to increase chance of race
-            hook1.disconnect()
+            hook1.disconnect_hook()
         except Exception as e:
             errors.append(("disconnect", e))
     
@@ -102,7 +102,7 @@ def test_disconnect_replace_nexus_concurrent():
         
         def thread_disconnect():
             try:
-                hook1.disconnect()
+                hook1.disconnect_hook()
             except Exception as e:
                 errors.append(e)
         

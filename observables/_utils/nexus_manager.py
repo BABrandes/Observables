@@ -1,4 +1,4 @@
-from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable, Literal
+from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable, Literal, Sequence
 from threading import RLock, local
 from logging import Logger
 
@@ -406,7 +406,7 @@ class NexusManager:
 
     def submit_values(
         self,
-        nexus_and_values: Mapping["HookNexus[Any]", Any],
+        nexus_and_values: Mapping["HookNexus[Any]", Any]|Sequence[tuple["HookNexus[Any]", Any]],
         mode: Literal["Normal submission", "Forced submission", "Check values"] = "Normal submission",
         not_notifying_listeners_after_submission: set[BaseListeningLike] = set(),
         logger: Optional[Logger] = None
@@ -483,7 +483,7 @@ class NexusManager:
         
         Parameters
         ----------
-        nexus_and_values : Mapping[HookNexus[Any], Any]
+        nexus_and_values : Mapping[HookNexus[Any], Any]|Sequence[tuple[HookNexus[Any], Any]]
             Mapping of hook nexuses to their new values. The values are used by reference
             only - no copies are created. Each nexus will be updated with its corresponding
             value, and all hooks in that nexus will reflect the change.
@@ -671,6 +671,14 @@ class NexusManager:
         BaseCarriesHooks.submit_values : Higher-level interface for submitting values to observables
         FloatingHook.submit_value : Convenient method for submitting a single value to a floating hook
         """
+
+        if isinstance(nexus_and_values, Sequence):
+            # check if the sequence is a list of tuples of (HookNexus[Any], Any) and that the hook nexuses are unique
+            if not all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], HookNexus) for item in nexus_and_values): # type: ignore
+                raise ValueError("The sequence must be a list of tuples of (HookNexus[Any], Any)")
+            if len(set(item[0] for item in nexus_and_values)) != len(nexus_and_values):
+                raise ValueError("The hook nexuses must be unique")
+            nexus_and_values = dict(nexus_and_values)
         
         # Get the set of hook nexuses being submitted
         new_nexuses = set(nexus_and_values.keys())

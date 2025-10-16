@@ -10,7 +10,6 @@ from .nexus_manager import NexusManager
 from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .base_listening import BaseListening
 
-
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
 PHV = TypeVar("PHV", covariant=True)

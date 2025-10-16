@@ -6,24 +6,15 @@ from logging import Logger
 if TYPE_CHECKING:
     from .._utils.hook_nexus import HookNexus
     from .._utils.nexus_manager import NexusManager
-
+    from .._utils.has_nexus_manager_like import HasNexusManagerLike
+    
 T = TypeVar("T")
 
 @runtime_checkable
-class HookLike(BaseListeningLike, Protocol[T]):
+class HookLike(BaseListeningLike, HasNexusManagerLike, Protocol[T]):
     """
     Protocol for hook objects.
-    """
-    
-    # Properties
-
-    @property
-    def nexus_manager(self) -> "NexusManager":
-        """
-        Get the nexus manager that this hook belongs to.
-        """
-        ...
-
+    """    
     @property
     def value(self) -> T:
         """

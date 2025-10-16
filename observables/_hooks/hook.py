@@ -9,11 +9,11 @@ from .._utils.base_listening import BaseListening
 from .._utils.nexus_manager import NexusManager
 from .._utils.hook_nexus import HookNexus
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-
+from .._utils.has_nexus_manager import HasNexusManager
 T = TypeVar("T")
 
 
-class Hook(HookLike[T], BaseListening, Generic[T]):
+class Hook(HasNexusManager, HookLike[T], BaseListening, Generic[T]):
     """
     A standalone hook.
     
@@ -36,6 +36,8 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
         ) -> None:
 
         from .._utils.hook_nexus import HookNexus
+
+        HasNexusManager.__init__(self, nexus_manager)
 
         BaseListening.__init__(self, logger)
         self._value = value

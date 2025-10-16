@@ -9,6 +9,7 @@ from .hook_nexus import HookNexus
 from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._hooks.hook_like import HookLike
+from .._utils.has_nexus_manager import HasNexusManager
 
 import weakref
 
@@ -16,7 +17,7 @@ HK = TypeVar("HK")
 HV = TypeVar("HV")
 O = TypeVar("O", bound="BaseCarriesHooks[Any, Any, Any]")
 
-class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
+class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
     """
     Base class for observables in the new hook-based architecture.
     
@@ -98,6 +99,9 @@ class BaseCarriesHooks(CarriesHooksLike[HK, HV], Generic[HK, HV, O], ABC):
         """
         Initialize the CarriesHooksBase.
         """
+
+        HasNexusManager.__init__(self, nexus_manager)
+
         # Store weak references to callbacks to avoid circular references
         self._self_ref = weakref.ref(self)
         self._invalidate_callback = invalidate_callback

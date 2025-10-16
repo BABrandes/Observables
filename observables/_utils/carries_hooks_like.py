@@ -7,11 +7,12 @@ if TYPE_CHECKING:
     from .hook_nexus import HookNexus
     from .nexus_manager import NexusManager
     from .base_listening import BaseListeningLike
+    from .has_nexus_manager_like import HasNexusManagerLike
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
 
-class CarriesHooksLike(Protocol[HK, HV]):
+class CarriesHooksLike(HasNexusManagerLike, Protocol[HK, HV]):
     """
     Protocol for objects that carry a set of hooks.
     """

@@ -111,6 +111,7 @@ from ._utils.system_analysis import write_report
 from ._utils.observable_serializable import ObservableSerializable
 from ._other_observables.observable_subscriber import ObservableSubscriber
 from ._utils.publisher import Publisher
+from ._utils.value_publisher import ValuePublisher
 
 __all__ = [
     # Observable types
@@ -151,6 +152,7 @@ __all__ = [
 
     # Other
     'Publisher',
+    'ValuePublisher',
 
     # Utilities
     'ObservableSerializable',

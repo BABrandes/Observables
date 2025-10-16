@@ -76,6 +76,7 @@ from ._hooks.owned_hook import OwnedHook
 from ._utils.base_carries_hooks import BaseCarriesHooks, CarriesHooksLike
 from ._utils.base_listening import BaseListening, BaseListeningLike
 from ._utils.nexus_manager import NexusManager
+from ._utils.subscriber import Subscriber
 from ._utils import default_nexus_manager
 
 # Re-export the module for easy access to configuration
@@ -98,5 +99,6 @@ __all__ = [
     'NexusManager',
     'DEFAULT_NEXUS_MANAGER',
     'default_nexus_manager',  # Export module for configuration access
+    'Subscriber',
 ]
 

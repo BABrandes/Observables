@@ -109,6 +109,9 @@ from ._hooks.hook import Hook
 from ._hooks.hook_like import HookLike
 from ._utils.system_analysis import write_report
 from ._utils.observable_serializable import ObservableSerializable
+from ._other_observables.observable_subscriber import ObservableSubscriber
+from ._utils.publisher import Publisher
+
 __all__ = [
     # Observable types
     'ObservableDict',
@@ -129,6 +132,8 @@ __all__ = [
     'ObservableSelectionEnum',
     'ObservableOptionalSelectionEnum',
     'ObservableRaiseNone',
+    'ObservableSubscriber',
+
     # Protocol types for type hints
     'ObservableDictLike',
     'ObservableListLike',
@@ -138,10 +143,15 @@ __all__ = [
     'ObservableSelectionOptionLike',
     'ObservableOptionalSelectionOptionLike',
     'ObservableMultiSelectionOptionLike',
+
     # hooks (user-facing)
     'Hook',
     'HookLike',
     'FloatingHook',
+
+    # Other
+    'Publisher',
+
     # Utilities
     'ObservableSerializable',
     'write_report',

@@ -32,8 +32,14 @@ class HookNexus(Generic[T]):
         value: T,
         hooks: set["HookLike[T]"] = set(),
         logger: Optional[logging.Logger] = None,
-        nexus_manager: Optional["NexusManager"] = None):
+        nexus_manager: Optional["NexusManager"] = None
+        ) -> None:
+        """
+        Initialize the HookNexus.
+        """
+        
         from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
+        
         if nexus_manager is None:
             nexus_manager = DEFAULT_NEXUS_MANAGER
 

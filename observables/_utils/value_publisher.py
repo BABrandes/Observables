@@ -1,15 +1,18 @@
 from typing import Generic, TypeVar
+
+from _utils.base_listening import BaseListening
 from .publisher import Publisher
 
 T = TypeVar("T")
 
-class ValuePublisher(Publisher, Generic[T]):
+class ValuePublisher(Publisher, BaseListening, Generic[T]):
     """
     A publisher that publishes a value.
     """
 
     def __init__(self, value: T):
-        super().__init__()
+        BaseListening.__init__(self)
+        Publisher.__init__(self)
         self._value = value
 
     def publish(self):

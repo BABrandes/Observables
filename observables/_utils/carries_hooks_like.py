@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final, Literal
 from logging import Logger
+from .has_nexus_manager_like import HasNexusManagerLike
 
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
@@ -7,7 +8,6 @@ if TYPE_CHECKING:
     from .hook_nexus import HookNexus
     from .nexus_manager import NexusManager
     from .base_listening import BaseListeningLike
-    from .has_nexus_manager_like import HasNexusManagerLike
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")

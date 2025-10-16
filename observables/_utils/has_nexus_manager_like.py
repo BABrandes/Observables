@@ -1,18 +1,19 @@
-from .nexus_manager import NexusManager
-from typing import Mapping, Any, Optional, Sequence
-from .hook_nexus import HookNexus
+from typing import Mapping, Any, Optional, Sequence, Protocol, final, TYPE_CHECKING
 from logging import Logger
-from .._hooks.hook_like import HookLike
-from typing import Protocol, final
+
+if TYPE_CHECKING:
+    from .nexus_manager import NexusManager
+    from .hook_nexus import HookNexus
+    from .._hooks.hook_like import HookLike
 
 class HasNexusManagerLike(Protocol):
 
     @property
-    def nexus_manager(self) -> NexusManager:
+    def nexus_manager(self) -> "NexusManager":
         ...
     
     @final
-    def batch_submit_values(self, hooks_and_values: Mapping[HookLike[Any], Any]|Sequence[tuple[HookLike[Any], Any]], logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def batch_submit_values(self, hooks_and_values: Mapping["HookLike[Any]", Any]|Sequence[tuple["HookLike[Any]", Any]], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to the nexus manager in a batch.
 
@@ -27,7 +28,7 @@ class HasNexusManagerLike(Protocol):
         if len(hooks_and_values) == 0:
             return True, "No values provided"
 
-        nexus_and_values: dict[HookNexus[Any], Any] = {}
+        nexus_and_values: dict["HookNexus[Any]", Any] = {}
         if isinstance(hooks_and_values, Mapping):
             for hook, value in hooks_and_values.items():
                 if hook.nexus_manager != self.nexus_manager:

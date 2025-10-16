@@ -1,12 +1,12 @@
 from threading import RLock
 from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional, Literal
 from .._utils.base_listening import BaseListeningLike
+from .._utils.has_nexus_manager_like import HasNexusManagerLike
 from logging import Logger
 
 if TYPE_CHECKING:
     from .._utils.hook_nexus import HookNexus
     from .._utils.nexus_manager import NexusManager
-    from .._utils.has_nexus_manager_like import HasNexusManagerLike
     
 T = TypeVar("T")
 

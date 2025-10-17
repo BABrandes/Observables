@@ -13,6 +13,7 @@ from .._nexus_system.has_nexus_manager import HasNexusManager
 from .._hooks.hook_like import HookLike
 
 from .carries_hooks_like import CarriesHooksLike
+from .carries_single_hook_like import CarriesSingleHookLike
 
 import weakref
 
@@ -329,7 +330,7 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return {}
 
-    def connect_hook(self, hook: HookLike[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hook(self, hook: HookLike[HV]|CarriesSingleHookLike[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
@@ -345,6 +346,9 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
         with self._lock:
             if to_key in self._get_hook_keys():
                 hook_of_observable: HookWithOwnerLike[HV] = self.get_hook(to_key)
+
+                if isinstance(hook, CarriesSingleHookLike):
+                    hook = hook.hook
                 success, msg = hook_of_observable.connect_hook(hook, initial_sync_mode)
                 if not success:
                     raise ValueError(msg)

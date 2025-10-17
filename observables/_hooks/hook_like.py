@@ -9,6 +9,7 @@ from .._publisher_subscriber.publisher_like import PublisherLike
 if TYPE_CHECKING:
     from .._nexus_system.hook_nexus import HookNexus
     from .._nexus_system.nexus_manager import NexusManager
+    from .._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
 
 T = TypeVar("T")
 
@@ -61,13 +62,16 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
         """
         ...
 
-    def connect_hook(self, target_hook: "HookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookLike[T]|CarriesSingleHookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook.
 
         Args:
-            target_hook: The hook to connect to
+            target_hook: The hook or CarriesSingleHookLike to connect to
             initial_sync_mode: The initial synchronization mode
+
+        Returns:
+            A tuple containing a boolean indicating if the connection was successful and a string message
         """
         ...
 
@@ -79,9 +83,15 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
         """
         ...
 
-    def is_connected_to(self, hook: "HookLike[T]") -> bool:
+    def is_connected_to(self, hook: "HookLike[T]|CarriesSingleHookLike[T]") -> bool:
         """
-        Check if this hook is connected to another hook.
+        Check if this hook is connected to another hook or CarriesSingleHookLike.
+
+        Args:
+            hook: The hook or CarriesSingleHookLike to check if it is connected to
+
+        Returns:
+            True if the hook is connected to the other hook or CarriesSingleHookLike, False otherwise
         """
         ...
 

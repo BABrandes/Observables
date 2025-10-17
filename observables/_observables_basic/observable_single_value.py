@@ -3,6 +3,7 @@ from logging import Logger
 
 from .._hooks.hook_like import HookLike
 from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+from .._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
 from .._carries_hooks.base_observable import BaseObservable
 from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._nexus_system.submission_error import SubmissionError
@@ -10,7 +11,7 @@ from .._nexus_system.submission_error import SubmissionError
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesHooksLike[Any, T], Protocol[T]):
+class ObservableSingleValueLike(CarriesSingleHookLike[T], CarriesHooksLike[Any, T], Protocol[T]):
     """
     Protocol for observable single value objects.
     """

@@ -10,7 +10,7 @@ from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.hook_nexus import HookNexus
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._nexus_system.has_nexus_manager import HasNexusManager
-
+from .._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
 from .._publisher_subscriber.publisher import Publisher
 
 T = TypeVar("T")
@@ -176,7 +176,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect_hook(self, target_hook: "HookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookLike[T]|CarriesSingleHookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook in the new architecture.
 
@@ -185,11 +185,11 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
         system with a more flexible hook-based approach.
 
         Args:
-            target_hook: The hook to connect to
+            target_hook: The hook or CarriesSingleHookLike to connect to
             initial_sync_mode: The initial synchronization mode
             
         Returns:
-            Tuple of (success: bool, message: str)
+            A tuple containing a boolean indicating if the connection was successful and a string message
         """
 
         from .._nexus_system.hook_nexus import HookNexus
@@ -198,6 +198,9 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
 
             if target_hook is None: # type: ignore
                 raise ValueError("Cannot connect to None hook")
+
+            if isinstance(target_hook, CarriesSingleHookLike):
+                target_hook = target_hook.hook
             
             if initial_sync_mode == "use_caller_value":
                 success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))
@@ -255,12 +258,20 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
             # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others
 
-    def is_connected_to(self, hook: "HookLike[T]") -> bool:
+    def is_connected_to(self, hook: "HookLike[T]|CarriesSingleHookLike[T]") -> bool:
         """
-        Check if this hook is connected to another hook.
+        Check if this hook is connected to another hook or CarriesSingleHookLike.
+
+        Args:
+            hook: The hook or CarriesSingleHookLike to check if it is connected to
+
+        Returns:
+            True if the hook is connected to the other hook or CarriesSingleHookLike, False otherwise
         """
 
         with self._lock:
+            if isinstance(hook, CarriesSingleHookLike):
+                hook = hook.hook
             return hook in self._hook_nexus.hooks
     
     def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:

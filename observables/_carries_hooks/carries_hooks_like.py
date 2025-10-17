@@ -4,6 +4,7 @@ from logging import Logger
 from .._nexus_system.has_nexus_manager_like import HasNexusManagerLike
 
 if TYPE_CHECKING:
+    from .carries_single_hook_like import CarriesSingleHookLike
     from .._hooks.hook_like import HookLike
     from .._hooks.hook_with_owner_like import HookWithOwnerLike
     from .._nexus_system.hook_nexus import HookNexus
@@ -135,7 +136,7 @@ class CarriesHooksLike(HasNexusManagerLike, Protocol[HK, HV]):
     # Methods to connect and disconnect hooks
     #########################################################################
 
-    def connect_hook(self, hook: "HookLike[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hook(self, hook: "HookLike[HV]|CarriesSingleHookLike[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 

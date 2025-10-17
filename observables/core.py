@@ -80,10 +80,12 @@ from ._nexus_system.hook_nexus import HookNexus
 from ._hooks.owned_hook import OwnedHook
 from ._hooks.hook_base import HookBase
 from ._carries_hooks.carries_hooks_like import CarriesHooksLike
+from ._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
 from ._auxiliary.base_listening import BaseListening, BaseListeningLike
 from ._nexus_system.nexus_manager import NexusManager
 from ._publisher_subscriber.subscriber import Subscriber
 from ._nexus_system import default_nexus_manager
+from ._nexus_system.submission_error import SubmissionError
 
 # Re-export the module for easy access to configuration
 # Users should modify: observables.core.default_nexus_manager.FLOAT_ACCURACY
@@ -101,11 +103,13 @@ __all__ = [
     'HookBase',
     'BaseCarriesHooks',
     'CarriesHooksLike',
+    'CarriesSingleHookLike',
     'BaseListening',
     'BaseListeningLike',
     'NexusManager',
     'DEFAULT_NEXUS_MANAGER',
     'default_nexus_manager',  # Export module for configuration access
     'Subscriber',
+    'SubmissionError',
 ]
 

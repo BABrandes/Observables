@@ -107,32 +107,32 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
     #########################################################
 
     @final
-    def submit_value(self, value: T, *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
+    def submit_value(self, value: T, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit a value to this hook. This will not invalidate the hook!
 
         Args:
             value: The value to submit
             logger: The logger to use
-            raise_submision_error_flag: Whether to raise a SubmissionError if the submission fails
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
         success, msg = self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", logger=logger)
-        if not success and raise_submision_error_flag:
+        if not success and raise_submission_error_flag:
             raise SubmissionError(msg, value)
         return success, msg
 
 
     @final
     @staticmethod
-    def submit_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
+    def submit_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit values to this hook. This will not invalidate the hook!
 
         Args:
             values: The values to submit
             logger: The logger to use
-            raise_submision_error_flag: Whether to raise a SubmissionError if the submission fails
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
         if len(values) == 0:
@@ -144,7 +144,7 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
                 raise ValueError("The nexus managers must be the same")
             hook_nexus_and_values[hook.hook_nexus] = value
         success, msg = hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", logger=logger)
-        if not success and raise_submision_error_flag:
+        if not success and raise_submission_error_flag:
             raise SubmissionError(msg, values)
         return success, msg
 

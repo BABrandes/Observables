@@ -11,6 +11,7 @@ from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._nexus_system.has_nexus_manager import HasNexusManager
 from .._hooks.hook_like import HookLike
+from .._nexus_system.submission_error import SubmissionError
 
 from .carries_hooks_like import CarriesHooksLike
 from .carries_single_hook_like import CarriesSingleHookLike
@@ -444,18 +445,30 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return False, msg
 
-    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
+    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit a value to the observable.
+        
+        Args:
+            key: The key of the hook to submit the value to
+            value: The value to submit
+            logger: Optional logger for debugging
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
+            
+        Returns:
+            Tuple of (success: bool, message: str)
         """
         with self._lock:
-            return self._nexus_manager.submit_values(
+            success, msg = self._nexus_manager.submit_values(
                 {self._get_hook(key).hook_nexus: value},
                 mode="Normal submission",
                 logger=logger
             )
+            if not success and raise_submission_error_flag:
+                raise SubmissionError(msg, value)
+            return success, msg
 
-    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
+    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit values to the observable using the new hook-based sync system.
         
@@ -472,16 +485,20 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
         Args:
             values: Mapping of hook keys to their new values
             logger: Optional logger for debugging
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
             
         Returns:
             Tuple of (success: bool, message: str)
         """
         with self._lock:
             nexus_and_values: dict[HookNexus[Any], Any] = self.get_nexus_and_values(values)
-            return self._nexus_manager.submit_values(
+            success, msg = self._nexus_manager.submit_values(
                 nexus_and_values,
                 logger=logger
             )
+            if not success and raise_submission_error_flag:
+                raise SubmissionError(msg, values)
+            return success, msg
 
     def get_nexus_and_values(self, values: Mapping[HK, HV]) -> dict[HookNexus[Any], Any]:
         """

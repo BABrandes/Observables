@@ -26,7 +26,7 @@ class TestSecondaryHookProtection:
         
         # Try to submit a different length value directly to the length hook
         # This should fail because length is a secondary value derived from the list
-        success, msg = obs_list.submit_values({"length": 5})
+        success, msg = obs_list.submit_values({"length": 5}, raise_submission_error_flag=False)
         assert not success
         assert "Internal secondary value" in msg or "Hook nexus already in nexus" in msg
         
@@ -90,7 +90,7 @@ class TestSecondaryHookProtection:
         _ = ObservableSingleValue(obs_list.length_hook)
         
         # Try to submit both primary and wrong secondary value
-        success, msg = obs_list.submit_values({"value": [1, 2], "length": 5})
+        success, msg = obs_list.submit_values({"value": [1, 2], "length": 5}, raise_submission_error_flag=False)
         assert not success
         assert "Internal secondary value" in msg or "Hook nexus already in nexus" in msg
         
@@ -177,7 +177,7 @@ class TestSecondaryHookProtection:
         assert obs_list.length == 0
         
         # Try to directly set length to non-zero on empty list (should fail)
-        success, msg = obs_list.submit_values({"length": 5})
+        success, msg = obs_list.submit_values({"length": 5}, raise_submission_error_flag=False)
         assert not success
         assert "Internal secondary value" in msg or "Hook nexus already in nexus" in msg
         

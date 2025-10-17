@@ -197,15 +197,15 @@ class ObservableRootedPaths(BaseCarriesHooks[str, str|Path|None, "ObservableRoot
 
     def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
         """Set the root path value."""
-        return self._root_path_hook.submit_value(path)
+        return self._root_path_hook.submit_value(path, raise_submission_error_flag=False)
 
     def set_relative_path(self, key: EK, path: Optional[str]) -> tuple[bool, str]:
         """Set the relative path for a specific element."""
-        return self.get_relative_path_hook(key).submit_value(path)
+        return self.get_relative_path_hook(key).submit_value(path, raise_submission_error_flag=False)
 
     def set_absolute_path(self, key: EK, path: Optional[Path]) -> tuple[bool, str]:
         """Set the absolute path for a specific element (usually not recommended)."""
-        return self.get_absolute_path_hook(key).submit_value(path)
+        return self.get_absolute_path_hook(key).submit_value(path, raise_submission_error_flag=False)
 
     @property
     def rooted_element_keys(self) -> set[EK]:

@@ -261,7 +261,72 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
 
 class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
     """
-    An observable that manages a selection from a set of options.
+    Observable for selecting one option from a set of available options.
+    
+    ObservableSelectionOption manages a selection state where exactly one option must
+    be selected from a set of available options. It enforces validation ensuring the
+    selected option is always in the available options set.
+    
+    Type Parameters:
+        T: The type of options. Can be any hashable type - str, int, Enum, custom objects
+           with __hash__ and __eq__, etc. Must be hashable to work in a set.
+    
+    Hooks:
+        - **selected_option_hook**: Primary hook for the currently selected option (type T)
+        - **available_options_hook**: Primary hook for the set of available options (type set[T])
+        - **number_of_available_options_hook**: Secondary hook for count (type int, read-only)
+    
+    Validation:
+        The observable automatically validates that:
+        - Selected option must be in available options
+        - Available options must be a non-empty set
+        - Changes that would violate these rules are rejected with ValueError
+    
+    Key Features:
+        - **Enforced Validity**: Selected option always exists in available options
+        - **Atomic Updates**: Change both selection and options atomically
+        - **Bidirectional Binding**: Bind selection to other observables
+        - **Secondary Hooks**: Automatically computed number of options
+        - **Type Safety**: Generic type ensures type consistency
+    
+    Example:
+        Basic usage::
+        
+            from observables import ObservableSelectionOption
+            
+            # Create selector
+            theme = ObservableSelectionOption("dark", {"dark", "light", "auto"})
+            
+            # Access selected value
+            print(theme.selected_option)  # "dark"
+            
+            # Change selection
+            theme.selected_option = "light"  # ✓ Valid
+            
+            # Invalid selection raises error
+            try:
+                theme.selected_option = "rainbow"  # ✗ Not in options
+            except ValueError as e:
+                print(f"Validation error: {e}")
+        
+        Atomic updates::
+        
+            # Change both selection and options together
+            theme.change_selected_option_and_available_options(
+                "blue",
+                {"blue", "red", "green"}
+            )
+        
+        With binding::
+        
+            user_theme = ObservableSelectionOption("dark", {"dark", "light"})
+            display_theme = ObservableSelectionOption("light", {"dark", "light"})
+            
+            # Bind them - both must have same options for validation
+            user_theme.connect_hooks({
+                "selected_option": display_theme.selected_option_hook,
+                "available_options": display_theme.available_options_hook
+            }, "use_caller_value")
     """
 
     @overload
@@ -285,6 +350,57 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         ...
 
     def __init__(self, selected_option: T | HookLike[T] | ObservableSelectionOptionLike[T], available_options: set[T] | HookLike[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+        """
+        Initialize an ObservableSelectionOption.
+        
+        This constructor supports multiple initialization patterns with flexible combinations
+        of values and hooks for both selected_option and available_options.
+        
+        Args:
+            selected_option: The initial selected option. Can be:
+                - T: A direct value (must be in available_options)
+                - HookLike[T]: A hook to bind the selection to
+                - ObservableSelectionOptionLike[T]: Another observable to bind to (copies both hooks)
+            available_options: The set of options to choose from. Can be:
+                - set[T]: A direct set of options (selected_option must be in this set)
+                - HookLike[set[T]]: A hook to bind the available options to
+                - None: If selected_option is an ObservableSelectionOptionLike, options are copied from it
+            logger: Optional logger for debugging operations. Default is None.
+        
+        Raises:
+            ValueError: If selected_option is not in available_options during initialization.
+        
+        Note:
+            When binding to hooks or observables, both selected_option and available_options
+            are bound. This ensures validation consistency - the selected option will always
+            be valid for the current set of available options.
+        
+        Example:
+            Multiple initialization patterns::
+            
+                # 1. Direct values
+                color = ObservableSelectionOption("red", {"red", "green", "blue"})
+                
+                # 2. From another observable (binds both hooks)
+                color_copy = ObservableSelectionOption(color)
+                color.selected_option = "blue"  # Both update
+                
+                # 3. Mixed: direct selection, hook for options
+                options_source = ObservableSelectionOption("A", {"A", "B"})
+                mixed = ObservableSelectionOption(
+                    "A", 
+                    options_source.available_options_hook
+                )
+                
+                # 4. With logging
+                import logging
+                logger = logging.getLogger(__name__)
+                logged = ObservableSelectionOption(
+                    "option1",
+                    {"option1", "option2", "option3"},
+                    logger=logger
+                )
+        """
         
         if isinstance(selected_option, ObservableSelectionOptionLike):
             initial_selected_option: T = selected_option.selected_option # type: ignore

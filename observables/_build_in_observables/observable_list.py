@@ -58,34 +58,64 @@ class ObservableListLike(CarriesHooksLike[Any, Any], Protocol[T]):
 
 class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableListLike[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
     """
-    An observable wrapper around a list that supports bidirectional bindings and reactive updates.
+    Observable wrapper for Python lists with full list interface and bidirectional binding.
     
-    This class provides a reactive wrapper around Python lists, allowing other objects to
-    observe changes and establish bidirectional bindings. It implements the full list interface
-    while maintaining reactivity and binding capabilities.
+    ObservableList provides a reactive wrapper around standard Python lists, implementing
+    the complete list interface while adding listener notifications, validation, and
+    bidirectional synchronization capabilities.
     
-    Features:
-    - Bidirectional bindings with other ObservableList instances
-    - Full list interface compatibility (append, extend, insert, remove, etc.)
-    - Listener notification system for change events
-    - Automatic copying to prevent external modification
-    - Type-safe generic implementation
+    Type Parameters:
+        T: The type of elements in the list. All elements must be of type T.
+           Common examples: int, str, float, custom objects, etc.
+    
+    Multiple Inheritance:
+        - BaseObservable: Core observable functionality with two hooks (value, length)
+        - ObservableListLike[T]: Protocol defining the observable list interface
+        - ObservableSerializable: Support for serialization callbacks
+        - Generic[T]: Type-safe element storage and operations
+    
+    Hooks:
+        - **value_hook**: Primary hook for the entire list (bidirectional, can be modified)
+        - **length_hook**: Secondary hook for list length (read-only, computed from value)
+    
+    Key Features:
+        - **Full List Interface**: append(), extend(), insert(), remove(), pop(), clear(), etc.
+        - **Automatic Copying**: Input lists are copied to prevent external modification
+        - **Bidirectional Binding**: Connect multiple lists to share the same data
+        - **Change Notifications**: Listeners triggered on any modification
+        - **Secondary Hooks**: Length hook automatically updates when list changes
+        - **Thread Safety**: All operations protected by NexusManager's lock
+        - **Memory Efficient**: Bound lists share centralized storage via HookNexus
     
     Example:
-        >>> # Create an observable list
-        >>> todo_list = ObservableList(["Buy groceries", "Walk dog"])
-        >>> todo_list.add_listeners(lambda: print("List changed!"))
-        >>> todo_list.append("Read book")  # Triggers listener
-        List changed!
+        Basic list operations::
         
-        >>> # Create bidirectional binding
-        >>> todo_copy = ObservableList(todo_list)
-        >>> todo_copy.append("Exercise")  # Updates both lists
-        >>> print(todo_list.value, todo_copy.value)
-        ['Buy groceries', 'Walk dog', 'Read book', 'Exercise'] ['Buy groceries', 'Walk dog', 'Read book', 'Exercise']
-    
-    Args:
-        value: Initial list, another ObservableList to bind to, or None for empty list
+            from observables import ObservableList
+            
+            # Create observable list
+            tasks = ObservableList(["Buy milk", "Walk dog"])
+            
+            # Add listener
+            tasks.add_listeners(lambda: print(f"Tasks: {len(tasks.value)} items"))
+            
+            # Modify list (triggers listener)
+            tasks.append("Read book")  # Prints: "Tasks: 3 items"
+            tasks.extend(["Exercise", "Cook"])  # Prints: "Tasks: 5 items"
+            
+            # Access length via secondary hook
+            print(tasks.length_hook.value)  # 5
+        
+        Bidirectional binding::
+        
+            tasks1 = ObservableList(["Task A"])
+            tasks2 = ObservableList(["Task B"])
+            
+            # Bind them - both adopt tasks1's value
+            tasks1.connect_hook(tasks2.value_hook, "value", "use_caller_value")
+            
+            # Now both share the same underlying list
+            tasks1.append("Task C")
+            print(tasks2.value)  # ["Task A", "Task C"]
     """
 
     @overload
@@ -110,13 +140,50 @@ class ObservableList(BaseObservable[Literal["value"], Literal["length"], list[T]
 
     def __init__(self, observable_or_hook_or_value: list[T] | HookLike[list[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
-        Initialize the ObservableList.
+        Initialize an ObservableList.
+        
+        This constructor supports four initialization patterns:
+        
+        1. **Direct list**: Pass a list directly (will be copied)
+        2. **From hook**: Pass a HookLike[list[T]] to bind to
+        3. **From observable**: Pass another ObservableList to bind to
+        4. **Empty list**: Pass None to create an empty list
         
         Args:
-            value: Initial list, observable list to bind to, or None for empty list
-
+            observable_or_hook_or_value: Can be one of four types:
+                - list[T]: A Python list (will be copied to prevent external modification)
+                - HookLike[list[T]]: A hook to bind to (establishes bidirectional connection)
+                - ObservableListLike[T]: Another observable list to bind to
+                - None: Creates an empty list
+            logger: Optional logger for debugging observable operations. If provided,
+                operations like appending, extending, value changes, and hook connections
+                will be logged. Default is None.
+        
         Raises:
-            ValueError: If the initial list is not a list
+            ValueError: If the value is not a list type (validation failure).
+        
+        Note:
+            When initialized with a direct list, the list is **copied** to prevent
+            external code from modifying the internal state. This ensures that all
+            changes go through the observable's methods and trigger proper notifications.
+        
+        Example:
+            Four initialization patterns::
+            
+                # 1. Direct list (copied)
+                todos = ObservableList(["Task 1", "Task 2"])
+                
+                # 2. Empty list
+                empty = ObservableList()  # or ObservableList(None)
+                
+                # 3. From another observable (creates binding)
+                todos_copy = ObservableList(todos)
+                todos.append("Task 3")  # Both update
+                
+                # 4. With logging
+                import logging
+                logger = logging.getLogger(__name__)
+                logged_list = ObservableList([1, 2, 3], logger=logger)
         """
 
         if observable_or_hook_or_value is None:

@@ -44,23 +44,40 @@ HV = TypeVar("HV")
 
 class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscriber"], Subscriber, Generic[HK, HV]):
     """
-    An Observable that automatically updates in response to Publisher publications.
+    Observable that automatically updates in response to Publisher publications.
     
     ObservableSubscriber bridges the Publisher-Subscriber pattern with the Observable
-    framework. It subscribes to one or more Publishers and updates its observable
-    values whenever any of them publishes an update, using a callback function to
-    determine the new values.
-    
-    This is particularly useful for creating reactive data flows where observables
-    need to react to external events or data sources.
+    framework, creating reactive data flows where observable values automatically update
+    in response to external events. It combines the async/unidirectional nature of
+    pub-sub with the validation and binding capabilities of observables.
     
     Type Parameters:
-        HK: The type of keys in the observable's value mapping.
-        HV: The type of values in the observable's value mapping.
+        HK: The type of keys in the observable's hook mapping. Typically str for named
+            hooks like "temperature", "humidity", etc.
+        HV: The type of values stored in the observable's hooks. Can be any type - int,
+            float, str, list, dict, custom objects, etc.
+    
+    Multiple Inheritance:
+        - BaseObservable: Core observable functionality with hooks and validation
+        - Subscriber: Async reaction to publisher notifications
+        - Generic[HK, HV]: Type-safe key-value storage
+    
+    Architecture:
+        1. **Subscription**: Subscribes to one or more Publishers
+        2. **Publication**: When publisher publishes, `_react_to_publication` is called
+        3. **Callback**: Callback function generates new values based on publication
+        4. **Update**: Observable updates its values via `submit_values()`
+        5. **Propagation**: Bindings, listeners, and subscribers are notified
+    
+    Use Cases:
+        - React to external data sources (sensors, APIs, databases)
+        - Aggregate data from multiple publishers
+        - Create derived observables from async events
+        - Bridge async operations into the observable system
     
     Attributes:
-        _on_publication_callback: Callback function that generates new values.
-        All BaseObservable and Subscriber attributes are also available.
+        _on_publication_callback: Callback function that generates new values when
+            publishers publish. Called with the publishing Publisher (or None initially).
     
     Example:
         Simple reactive observable::
@@ -132,19 +149,29 @@ class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscri
         """
         Initialize a new ObservableSubscriber.
         
-        The subscriber automatically subscribes to the provided publisher(s) and
-        will update its values whenever any of them publishes. The callback function
-        is used to determine what values the observable should contain.
+        The observable automatically subscribes to the provided publisher(s) and updates
+        its hook values whenever any of them publishes. The callback function determines
+        what values should be set based on which publisher triggered the notification.
         
         Args:
-            publisher: A single Publisher or a set of Publishers to subscribe to.
-                The observable will react to publications from any of them.
-            on_publication_callback: A function that takes an Optional[Publisher]
-                and returns a Mapping of observable values. It's called with None
-                during initialization and with the publishing Publisher during updates.
-            logger: Optional logger for error reporting. Passed to the base Observable.
-            nexus_manager: The NexusManager to use for hook management. Defaults to
-                the global DEFAULT_NEXUS_MANAGER.
+            publisher: Publisher(s) to subscribe to. Can be either:
+                - Single Publisher: Subscribe to one data source
+                - Set[Publisher]: Subscribe to multiple sources (reacts to any of them)
+                The observable will automatically call `publisher.add_subscriber(self)`.
+            on_publication_callback: Function that generates observable values when
+                publications occur. Signature: (publisher: None|Publisher) -> Mapping[HK, HV]
+                - Called with None during initialization to get initial values
+                - Called with the publishing Publisher during updates
+                - Must return a mapping where keys are hook keys (type HK) and values
+                  are the new values for those hooks (type HV)
+                Example: lambda pub: {"temp": 20.0, "humidity": 50.0}
+            logger: Optional logger for debugging. If provided, logs observable operations,
+                value changes, validation errors, and hook connections. Passed to both
+                the BaseObservable and Subscriber base classes. Default is None.
+            nexus_manager: The NexusManager that coordinates value updates and validation.
+                Uses the global DEFAULT_NEXUS_MANAGER by default, which is shared across
+                the entire application. Custom managers can be used for isolated systems.
+                Default is DEFAULT_NEXUS_MANAGER.
         
         Example:
             With a single publisher::

@@ -16,17 +16,57 @@ T = TypeVar("T")
 
 class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
     """
-    A standalone hook.
+    A standalone floating hook for independent value management.
     
-    This represents a single value that can participate in the sync system without
-    being owned by a specific observable. Hooks are grouped into HookNexus instances
-    that share the same value and can be synchronized together.
+    Hook represents a single value that can participate in the synchronization system
+    without being owned by a specific observable. It provides a lightweight way to
+    create reactive values with full hook system capabilities.
     
-    In the new architecture, hooks replace the old binding system and provide:
-    - Value storage and retrieval
-    - Validation through callbacks
-    - Listener notification support
-    - Connection to other hooks via HookNexus
+    Type Parameters:
+        T: The type of value stored in this hook. Can be any Python type - primitives,
+           collections, custom objects, etc.
+    
+    Multiple Inheritance:
+        - HasNexusManager: Integration with the centralized nexus management system
+        - Publisher: Can publish notifications to subscribers (async, sync, direct modes)
+        - HookLike[T]: Implements the hook interface for binding and value access
+        - BaseListening: Support for listener callbacks (synchronous notifications)
+        - Generic[T]: Type-safe generic value storage
+    
+    Key Capabilities:
+        - **Value Storage**: Stores value in a centralized HookNexus
+        - **Bidirectional Binding**: Can connect to other hooks for value synchronization
+        - **Validation**: Supports validation callbacks before value changes
+        - **Listeners**: Synchronous callbacks on value changes
+        - **Publishing**: Asynchronous subscriber notifications
+        - **Thread Safety**: All operations protected by reentrant lock
+    
+    Three Notification Mechanisms:
+        1. **Listeners**: Synchronous callbacks via `add_listeners()`
+        2. **Subscribers**: Async notifications via `add_subscriber()` (Publisher)
+        3. **Connected Hooks**: Bidirectional sync via `connect_hook()`
+    
+    Example:
+        Basic standalone hook usage::
+        
+            from observables._hooks.hook import Hook
+            
+            # Create a hook
+            temperature = Hook(20.0)
+            
+            # Add listener
+            temperature.add_listeners(lambda: print(f"Temp: {temperature.value}"))
+            
+            # Change value
+            temperature.submit_value(25.0)  # Prints: "Temp: 25.0"
+            
+            # Connect to another hook
+            display = Hook(0.0)
+            temperature.connect_hook(display, "use_caller_value")
+            
+            # Now they're synchronized
+            temperature.submit_value(30.0)
+            print(display.value)  # 30.0
     """
 
     def __init__(
@@ -35,6 +75,41 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
         nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER,
         logger: Optional[logging.Logger] = None
         ) -> None:
+        """
+        Initialize a new standalone Hook.
+        
+        Args:
+            value: The initial value for this hook. Can be any Python type.
+            nexus_manager: The NexusManager that coordinates value updates and
+                validation across all hooks. If not provided, uses the global
+                DEFAULT_NEXUS_MANAGER which is shared across the entire application.
+                Default is DEFAULT_NEXUS_MANAGER.
+            logger: Optional logger for debugging hook operations. If provided,
+                operations like connection, disconnection, and value changes will
+                be logged. Default is None.
+        
+        Note:
+            The hook is created with publishing disabled by default 
+            (preferred_publish_mode="off"). This is because hooks are typically
+            used with the listener pattern rather than pub-sub. You can enable
+            publishing by adding subscribers and calling publish() explicitly.
+        
+        Example:
+            Create hooks with different configurations::
+            
+                # Simple hook with default settings
+                counter = Hook(0)
+                
+                # Hook with custom nexus manager
+                from observables._utils.nexus_manager import NexusManager
+                custom_manager = NexusManager()
+                custom_hook = Hook(42, nexus_manager=custom_manager)
+                
+                # Hook with logging enabled
+                import logging
+                logger = logging.getLogger(__name__)
+                logged_hook = Hook("data", logger=logger)
+        """
 
         from .._utils.hook_nexus import HookNexus
 

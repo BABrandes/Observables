@@ -43,41 +43,82 @@ class ObservableSingleValueLike(CarriesHooksLike[Any, T], Protocol[T]):
     
 class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueLike[T], ObservableSerializable[Literal["value"], T], Generic[T]):
     """
-    An observable wrapper around a single value that supports bidirectional bindings and validation.
+    Observable wrapper for a single value with validation and bidirectional binding.
     
-    This class provides a reactive wrapper around any value type, allowing other objects to
-    observe changes and establish bidirectional bindings. It supports custom validation,
-    listener notifications, and automatic synchronization with other observables.
+    ObservableSingleValue wraps any value type in a reactive container that supports
+    listeners, validation, and bidirectional synchronization. It's the simplest and
+    most commonly used observable type.
     
-    Features:
-    - Bidirectional bindings with other ObservableSingleValue instances
-    - Custom validation through validator functions
-    - Listener notification system for change events
-    - Rich comparison and arithmetic operations
-    - Type-safe generic implementation
+    Type Parameters:
+        T: The type of value being stored. Can be any Python type - int, str, float,
+           list, dict, custom objects, etc. The type is preserved through binding and
+           validated through the validator function if provided.
+    
+    Multiple Inheritance:
+        - BaseObservable: Core observable functionality with hook management
+        - ObservableSingleValueLike[T]: Protocol for single value interface
+        - ObservableSerializable: Support for serialization callbacks
+        - Generic[T]: Type-safe value storage and operations
+    
+    Three Notification Mechanisms:
+        1. **Listeners**: Synchronous callbacks via `add_listeners()`
+        2. **Subscribers**: Async notifications via `add_subscriber()` (if Publisher mixin)
+        3. **Connected Hooks**: Bidirectional sync via `connect_hook()`
+    
+    Key Features:
+        - **Type Safety**: Full generic type support with type checking
+        - **Validation**: Optional validator function called before value changes
+        - **Bidirectional Binding**: Changes propagate in both directions
+        - **Listener Notifications**: Callbacks triggered on value changes
+        - **Thread Safety**: All operations protected by NexusManager's lock
+        - **Memory Efficient**: Shares centralized storage via HookNexus
     
     Example:
-        >>> # Create an observable with validation
-        >>> age = ObservableSingleValue(25, validator=lambda x: 0 <= x <= 150)
-        >>> age.add_listeners(lambda: print("Age changed!"))
-        >>> age.value = 30  # Triggers listener and validation
-        Age changed!
+        Basic usage::
         
-        >>> # Create bidirectional binding
-        >>> age_copy = ObservableSingleValue(age)
-        >>> age_copy.value = 35  # Updates both observables
-        >>> print(age.value, age_copy.value)
-        35 35
+            from observables import ObservableSingleValue
+            
+            # Simple observable
+            name = ObservableSingleValue("John")
+            print(name.value)  # "John"
+            
+            # With validation
+            def validate_age(age):
+                if 0 <= age <= 150:
+                    return True, "Valid age"
+                return False, "Age must be between 0 and 150"
+            
+            age = ObservableSingleValue(25, validator=validate_age)
+            age.value = 30  # ✓ Valid
+            
+            try:
+                age.value = 200  # ✗ Raises ValueError
+            except ValueError as e:
+                print(f"Validation failed: {e}")
         
-        >>> # Lambda-friendly method for event handlers
-        >>> button.on_click(lambda: age.change_value(40))
-    
-    Args:
-        value: The initial value or another ObservableSingleValue to bind to
-        validator: Optional function to validate values before setting them
-    
-    Raises:
-        ValueError: If the initial value fails validation
+        Bidirectional binding::
+        
+            # Create two observables
+            celsius = ObservableSingleValue(25.0)
+            display = ObservableSingleValue(0.0)
+            
+            # Bind them - display adopts celsius value
+            celsius.connect_hook(display.hook, "value", "use_caller_value")
+            
+            # Changes propagate bidirectionally
+            celsius.value = 30.0
+            print(display.value)  # 30.0
+            
+            display.value = 20.0
+            print(celsius.value)  # 20.0
+        
+        With listeners::
+        
+            counter = ObservableSingleValue(0)
+            counter.add_listeners(lambda: print(f"Count: {counter.value}"))
+            
+            counter.value = 1  # Prints: "Count: 1"
+            counter.value = 2  # Prints: "Count: 2"
     """
 
     @overload
@@ -97,14 +138,49 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
 
     def __init__(self, observable_or_hook_or_value: T | HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
-        Initialize the ObservableSingleValue.
+        Initialize an ObservableSingleValue.
+        
+        This constructor supports three initialization patterns:
+        
+        1. **Direct value**: Pass a value directly
+        2. **From hook**: Pass a HookLike to bind to
+        3. **From observable**: Pass another ObservableSingleValue to bind to
         
         Args:
-            value: Initial value or observable to bind to
-            validator: Optional validation function
-
+            observable_or_hook_or_value: Can be one of three types:
+                - T: A direct value (int, str, list, custom object, etc.)
+                - HookLike[T]: A hook to bind to (establishes bidirectional connection)
+                - ObservableSingleValueLike[T]: Another observable to bind to
+            validator: Optional validation function that takes a value and returns
+                (success: bool, message: str). Called before any value change.
+                If validation fails (success=False), the change is rejected with
+                ValueError. Default is None (no validation).
+            logger: Optional logger for debugging observable operations. If provided,
+                hook connections, value changes, and errors will be logged.
+                Default is None.
+        
         Raises:
-            ValueError: If the initial value fails validation
+            ValueError: If validator is provided and the initial value fails validation.
+        
+        Example:
+            Three initialization patterns::
+            
+                # 1. Direct value
+                age = ObservableSingleValue(25)
+                
+                # 2. From another observable (creates binding)
+                age_copy = ObservableSingleValue(age)
+                age_copy.value = 30  # Both update to 30
+                
+                # 3. With validation
+                def validate_positive(x):
+                    return (x > 0, "Must be positive")
+                
+                count = ObservableSingleValue(
+                    10,
+                    validator=validate_positive,
+                    logger=my_logger
+                )
         """
 
         if isinstance(observable_or_hook_or_value, HookLike):

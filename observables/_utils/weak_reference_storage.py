@@ -5,13 +5,79 @@ import time
 T = TypeVar("T")
 
 class WeakReferenceStorage(Generic[T]):
+    """
+    Generic storage for weak references with automatic cleanup.
+    
+    This class provides a reusable container for managing weak references to objects
+    of type T. It automatically cleans up dead references based on time and size
+    thresholds, preventing memory leaks from accumulating garbage collected objects.
+    
+    Type Parameters:
+        T: The type of objects being stored as weak references. Can be any class
+           that supports weak referencing (most Python objects except some built-ins).
+    
+    Attributes:
+        _references: Set of weak references to objects of type T.
+        _cleanup_interval: Time threshold (seconds) for triggering cleanup.
+        _max_references_before_cleanup: Size threshold for triggering cleanup.
+        _last_cleanup_time: Timestamp of the last cleanup operation.
+    
+    Example:
+        Basic usage::
+        
+            from observables._utils.weak_reference_storage import WeakReferenceStorage
+            
+            # Create storage for any object type
+            storage = WeakReferenceStorage[MyClass](
+                cleanup_interval=30.0,
+                max_references_before_cleanup=50
+            )
+            
+            # Add objects
+            obj = MyClass()
+            storage.add_reference(weakref.ref(obj))
+            
+            # Access references
+            for ref in storage.weak_references:
+                obj = ref()
+                if obj is not None:
+                    process(obj)
+            
+            # Automatic cleanup when thresholds met
+            storage.cleanup()
+    """
 
     def __init__(
         self,
         cleanup_interval: float = 60.0,  # seconds
         max_references_before_cleanup: int = 1000
         ) -> None:
-
+        """
+        Initialize a new WeakReferenceStorage.
+        
+        Args:
+            cleanup_interval: Time in seconds between automatic cleanup operations.
+                When this much time has passed since the last cleanup, dead references
+                will be removed on the next cleanup() call. Default is 60 seconds.
+            max_references_before_cleanup: Maximum number of references to store
+                before triggering automatic cleanup. When this threshold is reached,
+                dead references are immediately removed. Default is 1000 references.
+        
+        Example:
+            Create storage with custom thresholds::
+            
+                # Aggressive cleanup (every 10 seconds or 50 references)
+                fast_storage = WeakReferenceStorage[MyClass](
+                    cleanup_interval=10.0,
+                    max_references_before_cleanup=50
+                )
+                
+                # Relaxed cleanup (every 5 minutes or 10000 references)
+                lazy_storage = WeakReferenceStorage[MyClass](
+                    cleanup_interval=300.0,
+                    max_references_before_cleanup=10000
+                )
+        """
         self._references: set[weakref.ref[T]] = set()
         self._cleanup_interval = cleanup_interval
         self._max_references_before_cleanup = max_references_before_cleanup

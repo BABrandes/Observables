@@ -10,21 +10,56 @@ T = TypeVar("T")
 
 class HookNexus(Generic[T]):
     """
-    A nexus of hooks in the new hook-based architecture.
+    Central storage for synchronized hook values in the hook-based architecture.
 
     A HookNexus represents a group of hooks that share the same value and are
-    synchronized together. This is the core concept of the new architecture,
-    replacing the old binding system.
+    synchronized together. This is the fundamental building block for bidirectional
+    binding and centralized state management.
     
-    Key features:
-    - Groups hooks that should have the same value
-    - Manages value synchronization between connected hooks
-    - Handles hook connection and disconnection
-    - Provides thread-safe operations
+    Type Parameters:
+        T: The type of value stored in this nexus. All hooks in this nexus must
+           have compatible types with T.
     
-    When hooks are connected, their nexuses are merged, allowing them to
-    share values and stay synchronized. When disconnected, hooks get their
-    own isolated nexus.
+    Architecture:
+        - **Centralized Storage**: Each nexus stores exactly one value
+        - **Multiple Hooks**: Many hooks can reference the same nexus
+        - **Automatic Merging**: When hooks connect, their nexuses merge
+        - **Weak References**: Hooks are stored as weak refs for automatic cleanup
+        - **Synchronous Updates**: All hooks see value changes simultaneously
+    
+    Key Features:
+        - Value storage with previous value tracking
+        - Hook group management via weak references
+        - Thread-safe operations (relies on NexusManager's lock)
+        - Automatic dead reference cleanup
+        - Integration with NexusManager for validation
+    
+    Lifecycle:
+        1. **Creation**: Created with initial value and set of hooks
+        2. **Merging**: Multiple nexuses can merge when hooks connect
+        3. **Updates**: Values updated through NexusManager.submit_values()
+        4. **Cleanup**: Dead hook references automatically cleaned up
+    
+    Example:
+        Direct nexus usage (typically created automatically)::
+        
+            from observables._utils.hook_nexus import HookNexus
+            from observables._hooks.hook import Hook
+            
+            # Create hooks
+            hook1 = Hook(42)
+            hook2 = Hook(42)
+            
+            # Create a shared nexus
+            shared_nexus = HookNexus(
+                value=100,
+                hooks={hook1, hook2},
+                nexus_manager=DEFAULT_NEXUS_MANAGER
+            )
+            
+            # Both hooks now share the same value
+            print(hook1.value)  # 100
+            print(hook2.value)  # 100
     """
 
     def __init__(
@@ -35,7 +70,35 @@ class HookNexus(Generic[T]):
         nexus_manager: Optional["NexusManager"] = None
         ) -> None:
         """
-        Initialize the HookNexus.
+        Initialize a new HookNexus.
+        
+        Args:
+            value: The initial value to store in this nexus. This is the shared value
+                that all hooks in this nexus will reference.
+            hooks: Set of Hook instances that should share this value. Each hook will
+                be stored as a weak reference for automatic cleanup. Default is empty set.
+            logger: Optional logger for debugging hook operations. If provided, logs
+                will be generated for hook addition, removal, and merging. Default is None.
+            nexus_manager: The NexusManager responsible for coordinating value updates
+                and validation. If None, uses the global DEFAULT_NEXUS_MANAGER.
+        
+        Example:
+            Create nexus with specific hooks::
+            
+                hook1 = Hook(0)
+                hook2 = Hook(0)
+                
+                # Create nexus containing both hooks
+                nexus = HookNexus(
+                    value=42,
+                    hooks={hook1, hook2},
+                    logger=my_logger,
+                    nexus_manager=custom_manager
+                )
+                
+                # All hooks in the nexus share the same value
+                assert hook1.value == 42
+                assert hook2.value == 42
         """
         
         from .default_nexus_manager import DEFAULT_NEXUS_MANAGER

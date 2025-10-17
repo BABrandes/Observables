@@ -2,6 +2,11 @@
 
 Get up and running with the Observables library in just 5 minutes! This guide covers the essential concepts and patterns you need to build reactive applications with guaranteed bidirectional binding and rigorous state validation.
 
+> **⚠️ DEVELOPMENT STATUS WARNING**
+> 
+> This library is **under active development** and **NOT production ready**. API may change without notice.
+> Use for experimental and development purposes only.
+
 ## 🚀 **Installation**
 
 ```bash

@@ -1,6 +1,10 @@
 """
 Observables - Centralized Reactive Programming
 
+⚠️ DEVELOPMENT STATUS: NOT PRODUCTION READY
+This library is under active development. API may change without notice.
+Use for experimental and development purposes only.
+
 A Python library for reactive programming and centralized value management.
 This library provides observable data structures that support bidirectional bindings 
 through a centralized value storage system. Unlike traditional reactive libraries that 
@@ -181,7 +185,7 @@ __project_urls__ = {
 
 # Development status
 __classifiers__ = [
-    'Development Status :: 4 - Beta',
+    'Development Status :: 3 - Alpha',  # Not production ready
     'Intended Audience :: Developers',
     'License :: OSI Approved :: Apache Software License',
     'Operating System :: OS Independent',

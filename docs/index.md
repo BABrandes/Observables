@@ -2,6 +2,17 @@
 
 The Observables library provides a Python framework for reactive programming with centralized value storage and automatic transitive binding. The architecture stores each value in a single central location rather than duplicating data across observables.
 
+> **⚠️ IMPORTANT: DEVELOPMENT STATUS**
+> 
+> This library is currently **under active development** and is **NOT production ready**.
+> 
+> - API may change without notice
+> - Not yet battle-tested in production environments
+> - Comprehensive test coverage (599 tests) but limited real-world usage
+> - Use at your own risk for experimental and development purposes
+> 
+> Feedback, contributions, and bug reports are welcome!
+
 ## Architecture Overview
 
 ### **Core Components**

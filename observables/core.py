@@ -1,6 +1,10 @@
 """
 Observables Core - Advanced API for extending the library
 
+⚠️ DEVELOPMENT STATUS: NOT PRODUCTION READY
+This library is under active development. API may change without notice.
+Use for experimental and development purposes only.
+
 This module contains the core components and base classes for building on top of the 
 Observables library. These are lower-level abstractions meant for users who want to 
 create custom observable types or extend the library's functionality.

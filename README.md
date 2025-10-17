@@ -7,6 +7,14 @@ A Python library for creating observable objects with centralized value storage 
 [![PyPI version](https://badge.fury.io/py/observables.svg)](https://badge.fury.io/py/observables)
 [![Tests](https://github.com/yourusername/observables/workflows/Tests/badge.svg)](https://github.com/yourusername/observables/actions)
 
+> **⚠️ DEVELOPMENT STATUS: NOT PRODUCTION READY**
+> 
+> This library is currently under active development and is **not yet suitable for production use**.
+> The API may change without notice, and while we have comprehensive test coverage (599 tests, 71% coverage),
+> the library has not been battle-tested in production environments.
+> 
+> **Use at your own risk.** Contributions, feedback, and bug reports are welcome!
+
 ## Architecture
 
 The library uses a centralized value storage approach with three distinct notification philosophies:

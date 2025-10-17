@@ -44,7 +44,7 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
         self._value = value
         self._nexus_manager = nexus_manager
 
-        Publisher.__init__(self, logger)
+        Publisher.__init__(self, preferred_publish_mode="off", logger=logger)
 
         self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
         self._lock = RLock()

@@ -396,7 +396,7 @@ class NexusManager:
 
         # Step 5c: Publish the value changes
         for publisher in publishers:
-            publisher.publish()
+            publisher.publish(None)
 
         # Step 5d: Notify the listeners
 

@@ -25,7 +25,7 @@ def read_version() -> str:
                     return line.split("=")[1].strip().strip('"\'')
         raise FileNotFoundError("Version file not found")
     except FileNotFoundError:
-        return "4.1.6"  # fallback version
+        return "4.1.7"  # fallback version
 
 setup(
     name="observables",

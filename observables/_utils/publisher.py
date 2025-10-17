@@ -113,6 +113,7 @@ class Publisher(PublisherLike):
 
     def __init__(
         self,
+        preferred_publish_mode: Literal["async", "sync", "direct", "off"] = "sync",
         logger: Optional[Logger] = None,
         cleanup_interval: float = 60.0,  # seconds
         max_subscribers_before_cleanup: int = 100
@@ -121,6 +122,12 @@ class Publisher(PublisherLike):
         Initialize a new Publisher.
         
         Args:
+            preferred_publish_mode: The default publication mode to use when 
+                publish(mode=None) is called. Defaults to "sync".
+                - "async": Non-blocking, returns immediately
+                - "sync": Blocking, waits for completion (good for testing)
+                - "direct": Synchronous without asyncio overhead
+                - "off": Disables publishing (no notifications sent)
             logger: Optional logger for error reporting. If provided, subscriber
                 errors will be logged. If None, errors will raise RuntimeError.
             cleanup_interval: Time in seconds between automatic cleanup of dead
@@ -131,19 +138,27 @@ class Publisher(PublisherLike):
         Example:
             Create publishers with different configurations::
             
-                # Default configuration
+                # Default configuration (sync mode)
                 pub1 = Publisher()
+                
+                # With async as preferred mode
+                pub2 = Publisher(preferred_publish_mode="async")
                 
                 # With logging and custom cleanup
                 import logging
                 logger = logging.getLogger(__name__)
-                pub2 = Publisher(
+                pub3 = Publisher(
+                    preferred_publish_mode="direct",
                     logger=logger,
                     cleanup_interval=30.0,
                     max_subscribers_before_cleanup=50
                 )
+                
+                # With publishing disabled by default
+                pub4 = Publisher(preferred_publish_mode="off")
         """
         self._logger: Optional[Logger] = logger
+        self._preferred_publish_mode: Literal["async", "sync", "direct", "off"] = preferred_publish_mode
 
         self._subscriber_storage: WeakReferenceStorage[Subscriber] = WeakReferenceStorage(
             cleanup_interval=cleanup_interval,
@@ -254,7 +269,7 @@ class Publisher(PublisherLike):
 
         elif isinstance(subscriber, Callable): # type: ignore
             self._callback_storage.remove(subscriber)
-            
+
         else:
             raise ValueError(f"Subscriber is not a Subscriber or Callable: {subscriber}")
 
@@ -325,7 +340,7 @@ class Publisher(PublisherLike):
                 # Re-raise if no logger is configured so the error isn't silently ignored
                 raise RuntimeError(error_msg) from e
 
-    def publish(self, mode: Literal["async", "sync", "direct"] = "async") -> None:
+    def publish(self, mode: Literal["async", "sync", "direct", "off", None]) -> None:
         """
         Publish an update to all subscribed subscribers and/or callbacks.
         
@@ -394,10 +409,26 @@ class Publisher(PublisherLike):
         
         **Use Case:** Fast synchronous notifications, listener-like behavior, no async needed
         
+        **Off Mode - Disabled Publishing**
+        
+        In off mode (mode="off"), the publish method returns immediately without 
+        notifying any subscribers or executing any callbacks. This is useful for
+        temporarily disabling notifications without removing subscribers.
+        
+        **Use Case:** Temporarily disable notifications, batch operations, performance optimization
+        
+        **None Mode - Use Preferred Mode**
+        
+        When mode=None (default when calling publish() without arguments), the 
+        publisher uses its `preferred_publish_mode` setting (configured during initialization).
+        This allows you to set a default behavior for all publish calls.
+        
+        **Use Case:** Consistent default behavior, easy mode switching
+        
         **Cleanup**
         
-        Dead subscriber references are automatically skipped. If cleanup thresholds
-        are met, dead references are cleaned up before publishing.
+        Dead subscriber references are automatically skipped in all modes (except "off").
+        If cleanup thresholds are met, dead references are cleaned up before publishing.
         
         **Error Handling**
         
@@ -408,21 +439,26 @@ class Publisher(PublisherLike):
         
         **Parameters**
         
-        mode : Literal["async", "sync", "direct"], default="async"
+        mode : Literal["async", "sync", "direct", "off", None], default=None
             Publication mode:
             
+            - None (default): Uses the `preferred_publish_mode` setting
             - "async": Non-blocking with asyncio, returns immediately, reactions run in background
             - "sync": Blocking with asyncio, waits for all reactions to complete before returning
             - "direct": Synchronous without asyncio, both subscribers and callbacks, no event loop overhead
+            - "off": Disables publishing entirely, returns immediately without notifications
         
         **Important Notes**
         
-        - In async mode (default): returns immediately, before subscriber reactions complete
+        - When mode=None: uses the `preferred_publish_mode` property
+        - In async mode: returns immediately, before subscriber reactions complete
         - In sync mode: blocks until all subscriber reactions complete, uses asyncio
         - In direct mode: blocks until all reactions complete, no asyncio, pure synchronous calls
+        - In off mode: returns immediately without any notifications (useful for batch operations)
         - Subscriber reactions cannot influence the publisher's state (unidirectional)
         - Subscribers receive publications after values are already committed
         - Direct mode requires Subscribers to have synchronous `_react_to_publication()` methods
+        - The preferred mode can be changed at runtime via the `preferred_publish_mode` property
         
         Example:
             Publishing with async reactions (default)::
@@ -496,6 +532,9 @@ class Publisher(PublisherLike):
         """
         # Check if we should do a full cleanup before publishing
         self._subscriber_storage.cleanup()
+
+        if mode is None:
+            mode = self.preferred_publish_mode
 
         match mode:
             case "async":
@@ -599,6 +638,24 @@ class Publisher(PublisherLike):
                             self._logger.error(error_msg, exc_info=True)
                         else:
                             raise RuntimeError(error_msg) from e
+
+            case "off":
+                # Do nothing
+                pass
                     
             case _: # type: ignore
                 raise ValueError(f"Invalid mode: {mode}")
+
+    @property
+    def preferred_publish_mode(self) -> Literal["async", "sync", "direct", "off"]:
+        """
+        Get the preferred publish mode for this publisher.
+        """
+        return self._preferred_publish_mode
+
+    @preferred_publish_mode.setter
+    def preferred_publish_mode(self, mode: Literal["async", "sync", "direct", "off"]) -> None:
+        """
+        Set the preferred publish mode for this publisher.
+        """
+        self._preferred_publish_mode = mode

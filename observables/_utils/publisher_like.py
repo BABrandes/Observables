@@ -18,8 +18,22 @@ class PublisherLike(Protocol):
         """
         ...
 
-    def publish(self, mode: Literal["async", "sync"] = "async") -> None:
+    def publish(self, mode: Literal["async", "sync", "direct", "off", None]) -> None:
         """
         Publish an update to all subscribed subscribers asynchronously.
+        """
+        ...
+
+    @property
+    def preferred_publish_mode(self) -> Literal["async", "sync", "direct", "off"]:
+        """
+        Get the preferred publish mode for this publisher.
+        """
+        ...
+
+    @preferred_publish_mode.setter
+    def preferred_publish_mode(self, mode: Literal["async", "sync", "direct", "off"]) -> None:
+        """
+        Set the preferred publish mode for this publisher.
         """
         ...

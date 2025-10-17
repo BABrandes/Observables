@@ -145,7 +145,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
         - This is unidirectional: changes to subscribers don't affect the source
     """
 
-    def __init__(self, value: T):
+    def __init__(self, value: T, mode: Literal["async", "sync", "direct", "off"] = "sync"):
         """
         Initialize a new ValuePublisher with an initial value.
         
@@ -169,30 +169,11 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
                 # Custom objects
                 user = ValuePublisher(User(name="Alice"))
         """
+        self._mode: Literal["async", "sync", "direct", "off"] = mode
         BaseListening.__init__(self)
         Publisher.__init__(self)
         self._value = value
-
-    def publish(self, mode: Literal["async", "sync", "direct"] = "async") -> None:
-        """
-        Publish the current value to all subscribers.
-        
-        This method is called automatically when the value property is set, but
-        can also be called manually to trigger a publication without changing
-        the value (useful for forcing a re-sync).
-        
-        Example:
-            Manual publishing::
-            
-                publisher = ValuePublisher({"count": 0})
-                
-                # Automatic publish via setter
-                publisher.value = {"count": 1}  # Publishes automatically
-                
-                # Manual publish (value unchanged)
-                publisher.publish()  # Forces re-publication
-        """
-        super().publish(mode)
+        self.publish(mode)
 
     @property
     def value(self) -> T:
@@ -271,7 +252,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
                 source.value = {"counter": 1}
         """
         self._value = value
-        self.publish()
+        self.publish(mode=self._mode)
 
     def change_value(self, value: T) -> None:
         """
@@ -330,4 +311,4 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
             - Use whichever style (property or method) fits your code better
         """
         self.value = value
-        self.publish()
+        self.publish(mode=self._mode)

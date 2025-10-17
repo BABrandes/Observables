@@ -41,7 +41,7 @@ Example:
         # observable automatically receives the new value
 """
 
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from .base_listening import BaseListening
 from .publisher import Publisher
@@ -173,7 +173,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
         Publisher.__init__(self)
         self._value = value
 
-    def publish(self) -> None:
+    def publish(self, mode: Literal["async", "sync", "direct"] = "async") -> None:
         """
         Publish the current value to all subscribers.
         
@@ -192,7 +192,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
                 # Manual publish (value unchanged)
                 publisher.publish()  # Forces re-publication
         """
-        super().publish()
+        super().publish(mode)
 
     @property
     def value(self) -> T:

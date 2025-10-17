@@ -1,10 +1,10 @@
-from typing import Generic, TypeVar
+from typing import Generic, Iterable, TypeVar
 import weakref
 import time
 
 T = TypeVar("T")
 
-class StoresWeakReferences(Generic[T]):
+class WeakReferenceStorage(Generic[T]):
 
     def __init__(
         self,
@@ -17,7 +17,25 @@ class StoresWeakReferences(Generic[T]):
         self._max_references_before_cleanup = max_references_before_cleanup
         self._last_cleanup_time = time.time()
 
-    def _cleanup(self) -> None:
+    def add_reference(self, reference: weakref.ref[T]) -> None:
+        self.cleanup()
+        self._references.add(reference)
+
+    def remove_reference(self, reference: weakref.ref[T]) -> None:
+        self.cleanup()
+        self._references.remove(reference)
+
+    @property
+    def weak_references(self) -> Iterable[weakref.ref[T]]:
+        for reference in self._references:
+            yield reference
+
+    @property
+    def references(self) -> Iterable[T | None]:
+        for reference in self._references:
+            yield reference()
+
+    def cleanup(self) -> None:
         """
         Check if a cleanup is needed based on time or size thresholds.
         """
@@ -25,9 +43,9 @@ class StoresWeakReferences(Generic[T]):
         size_threshold_reached = len(self._references) >= self._max_references_before_cleanup
         
         if time_threshold_reached or size_threshold_reached:
-            self._remove_dead_references()
+            self.remove_dead_references()
 
-    def _remove_dead_references(self) -> None:
+    def remove_dead_references(self) -> None:
         """
         Remove all dead references and update the last cleanup time.
         """

@@ -264,7 +264,7 @@ class TestObservableSubscriberEdgeCases(ObservableTestCase):
         )
         
         # Should initialize successfully with no publishers
-        self.assertEqual(len(observable._references), 0) # type: ignore
+        self.assertEqual(len(list(observable._publisher_storage.weak_references)), 0) # type: ignore
     
     def test_initial_callback_with_none(self):
         """Test that initial callback receives None"""

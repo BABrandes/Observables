@@ -21,6 +21,42 @@ The Observables library provides a Python framework for reactive programming wit
 - Validation when values change
 - Synchronization of hook connections
 - Thread-safe operations across the system
+- Orchestrates all three notification mechanisms
+
+### **Three Notification Philosophies**
+
+The observables system provides three distinct notification mechanisms, each designed for different communication patterns:
+
+#### **1. Listeners (Synchronous Unidirectional)**
+- **Pattern**: Observer pattern with callbacks
+- **Execution**: Synchronous - runs immediately during value changes
+- **Direction**: Unidirectional - listeners cannot validate or reject changes
+- **Registration**: `observable.add_listeners(callback)`
+- **Use Case**: UI updates, logging, simple reactions to state changes
+- **Thread Safety**: Protected by the same lock as value submission
+- **Characteristics**: Simple, fast, blocking
+
+#### **2. Publish-Subscribe (Asynchronous Unidirectional)**
+- **Pattern**: Publisher/Subscriber with asyncio integration
+- **Execution**: Asynchronous - runs in event loop (non-blocking)
+- **Direction**: Unidirectional - subscribers cannot validate or reject publications
+- **Registration**: `publisher.add_subscriber(subscriber)`
+- **Publication Modes**:
+  - `async` (default): Non-blocking, returns immediately, reactions in background
+  - `sync`: Blocking, waits for all async reactions to complete
+  - `direct`: Synchronous without asyncio, fastest for simple callbacks
+- **Use Case**: Decoupled components, async I/O, database syncing, network calls
+- **Thread Safety**: Each subscriber reaction runs independently in event loop
+- **Characteristics**: Decoupled, non-blocking, ideal for I/O operations
+
+#### **3. Hooks (Synchronous Bidirectional with Validation)**
+- **Pattern**: Value synchronization with bidirectional binding
+- **Execution**: Synchronous - integrated into value submission flow
+- **Direction**: Bidirectional - any connected hook can validate and reject changes
+- **Connection**: `observable.connect_hook(target_hook, key, sync_mode)`
+- **Use Case**: Maintaining invariants, bidirectional data binding, enforcing valid state
+- **Thread Safety**: Protected by the same lock as value submission
+- **Characteristics**: Validates before changes, enforces consistency, bidirectional
 
 ### **Key Features**
 
@@ -28,6 +64,7 @@ The Observables library provides a Python framework for reactive programming wit
 - **Hook-Based Binding**: Observables bind via their hooks, not directly
 - **Transitive Binding**: When A's hook connects to B's hook and B's hook connects to C's hook, all three share the same HookNexus
 - **Automatic Synchronization**: NexusManager ensures all hooks referencing a HookNexus see the same value
+- **Multiple Notification Paths**: Choose the right notification mechanism for your use case
 
 ## How It Works
 
@@ -39,15 +76,34 @@ When you connect two observables:
 3. Behind the scenes, the hooks merge to reference the same HookNexus
 4. Both observables now read and write to the same central storage
 
-### **Value Updates**
+### **Value Updates and Notifications**
 
-When you change a value:
-1. Observable submits the new value through its hook
-2. NexusManager receives the submission
-3. NexusManager validates the value
-4. If valid, NexusManager updates the HookNexus
-5. All hooks referencing that HookNexus see the updated value
-6. Listeners on all connected observables are notified
+When you change a value, the NexusManager orchestrates a comprehensive 6-phase submission flow:
+
+**Phase 1: Value Equality Check**
+- Compares new values with current values (unless forced)
+
+**Phase 2: Value Completion**
+- Completes missing related values (e.g., dict item → full dict)
+
+**Phase 3: Value Collection**
+- Collects affected observables, hooks, and publishers
+
+**Phase 4: Value Validation**
+- Validates all values before any changes
+- If validation fails, entire submission is rejected (atomicity)
+
+**Phase 5: Value Update**
+- Updates all HookNexus instances with new values
+- All connected hooks see changes simultaneously
+
+**Phase 6: Notifications** (Four mechanisms in order)
+1. **Invalidation** (Synchronous): Observable state recomputation
+2. **Reactions** (Synchronous): Hook reaction callbacks
+3. **Publishing** (Asynchronous): Subscriber notifications via asyncio tasks (non-blocking!)
+4. **Listeners** (Synchronous): Observer pattern callbacks
+
+This multi-phase approach ensures consistency, validation, and proper notification of all affected components while supporting both synchronous and asynchronous notification patterns.
 
 ### **Transitive Binding**
 

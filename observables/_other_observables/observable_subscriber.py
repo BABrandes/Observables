@@ -29,7 +29,7 @@ Example:
         data_source.publish()
 """
 
-from typing import Generic, TypeVar, Callable, Mapping, Optional
+from typing import Generic, TypeVar, Callable, Mapping, Optional, Literal
 from logging import Logger
 
 from .._utils.base_observable import BaseObservable
@@ -204,7 +204,7 @@ class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscri
             for pub in publisher:
                 pub.add_subscriber(self)
 
-    async def _react_to_publication(self, publisher: Publisher) -> None:
+    def _react_to_publication(self, publisher: Publisher, mode: Literal["async", "sync", "direct"]) -> None:
         """
         React to a publication by updating the observable's values.
         
@@ -214,6 +214,7 @@ class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscri
         
         Args:
             publisher: The Publisher that triggered this update.
+            mode: The mode of publication.
         
         Raises:
             Any exception raised by the callback function or submit_values will

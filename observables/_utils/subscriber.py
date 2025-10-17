@@ -5,37 +5,58 @@ This module provides the abstract base Subscriber class that receives and reacts
 to publications from Publishers. Subscribers use weak references to track their
 publishers for automatic memory management.
 
+**Asynchronous Reaction Pattern**
+
+Subscribers implement asynchronous reactions to publications:
+
+- **Async Execution**: Reactions are defined as `async def` methods and run
+  independently in the event loop without blocking the publisher or other
+  subscribers.
+  
+- **Non-Blocking**: Reactions can perform I/O operations, network calls, or
+  other async operations without affecting the publisher's performance.
+  
+- **Unidirectional**: Subscribers observe publications but cannot validate or
+  reject them. By the time a subscriber reacts, the publisher's state has
+  already been committed.
+
 Example:
-    Creating a custom subscriber::
+    Creating a custom subscriber with async operations::
 
         from observables._utils.subscriber import Subscriber
         from observables._utils.publisher import Publisher
+        import asyncio
         
-        class MySubscriber(Subscriber):
+        class DatabaseSubscriber(Subscriber):
             async def _react_to_publication(self, publisher: Publisher) -> None:
-                # Custom reaction logic here
+                # This runs asynchronously without blocking the publisher
                 print(f"Received publication from {publisher}")
-                # Perform async operations
-                await some_async_operation()
+                
+                # Perform async operations (network, database, file I/O)
+                await save_to_database()
+                await send_notification()
+                
+                print("Async reaction complete")
         
         # Usage
         publisher = Publisher()
-        subscriber = MySubscriber()
+        subscriber = DatabaseSubscriber()
         publisher.add_subscriber(subscriber)
         
-        # Trigger reaction
+        # Trigger async reaction (returns immediately)
         publisher.publish()
+        print("Published! (reaction happening in background)")
 """
 
 import weakref
 import asyncio
-from typing import TYPE_CHECKING
-from .stores_weak_references import StoresWeakReferences
+from typing import TYPE_CHECKING, Literal
+from .weak_reference_storage import WeakReferenceStorage
 
 if TYPE_CHECKING:
     from .publisher import Publisher
 
-class Subscriber(StoresWeakReferences["Publisher"]):
+class Subscriber():
     """
     Abstract base class for objects that subscribe to and react to Publishers.
     
@@ -43,14 +64,31 @@ class Subscriber(StoresWeakReferences["Publisher"]):
     `react_to_publication` method. Concrete subclasses must implement the
     `_react_to_publication` async method to define their reaction behavior.
     
+    **Asynchronous Non-Blocking Architecture**
+    
+    - Reactions are executed as asyncio tasks that run independently
+    - The `react_to_publication` method creates a task and returns immediately
+    - Multiple subscribers react in parallel without blocking each other
+    - Ideal for I/O-bound operations: network requests, database writes, file operations
+    - Exceptions in one subscriber's reaction don't affect other subscribers
+    
+    **Unidirectional Communication**
+    
+    - Subscribers can only observe and react to publications
+    - Cannot validate, reject, or influence the publisher's state
+    - Reactions occur after the publisher's state is already committed
+    - Suitable for side effects and external system synchronization
+    
+    **Automatic Memory Management**
+    
     The Subscriber uses weak references to track publishers, enabling automatic
     cleanup when publishers are garbage collected. It supports threshold-based
     cleanup (time and size) to maintain performance.
     
     Attributes:
-        _references (set): Set of weak references to publishers (inherited).
-        _cleanup_interval (float): Time threshold for cleanup (inherited).
-        _max_references_before_cleanup (int): Size threshold for cleanup (inherited).
+        _publisher_storage (WeakReferenceStorage): Manages weak references to publishers.
+        _cleanup_interval (float): Time threshold for cleanup (default: 60 seconds).
+        _max_publishers_before_cleanup (int): Size threshold for cleanup (default: 1000).
     
     Example:
         Implementing a custom subscriber::
@@ -86,7 +124,11 @@ class Subscriber(StoresWeakReferences["Publisher"]):
         implemented, NotImplementedError will be raised when a publication occurs.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        cleanup_interval: float = 60.0,  # seconds
+        max_publishers_before_cleanup: int = 1000
+        ) -> None:
         """
         Initialize a new Subscriber.
         
@@ -98,7 +140,10 @@ class Subscriber(StoresWeakReferences["Publisher"]):
         modifying the StoresWeakReferences initialization in subclasses if needed.
         """
 
-        StoresWeakReferences.__init__(self, 60.0, 1000) # type: ignore
+        self._publisher_storage: WeakReferenceStorage[Publisher] = WeakReferenceStorage(
+            cleanup_interval=cleanup_interval,
+            max_references_before_cleanup=max_publishers_before_cleanup
+        )
 
     def _add_publisher_called_by_subscriber(self, publisher: "Publisher") -> None:
         """
@@ -115,8 +160,8 @@ class Subscriber(StoresWeakReferences["Publisher"]):
             Use Publisher.add_subscriber() instead to properly establish
             the publisher-subscriber relationship.
         """
-        self._cleanup()
-        self._references.add(weakref.ref(publisher))
+        self._publisher_storage.cleanup()
+        self._publisher_storage.add_reference(weakref.ref(publisher))
 
     def _remove_publisher_called_by_subscriber(self, publisher: "Publisher") -> None:
         """
@@ -136,18 +181,18 @@ class Subscriber(StoresWeakReferences["Publisher"]):
             Use Publisher.remove_subscriber() instead to properly break
             the publisher-subscriber relationship.
         """
-        self._cleanup()
+        self._publisher_storage.cleanup()
         publisher_ref_to_remove = None
-        for publisher_ref in self._references:
+        for publisher_ref in self._publisher_storage.weak_references:
             pub = publisher_ref()
             if pub is publisher:
                 publisher_ref_to_remove = publisher_ref
                 break
         if publisher_ref_to_remove is None:
             raise ValueError("Publisher not found")
-        self._references.remove(publisher_ref_to_remove)
+        self._publisher_storage.remove_reference(publisher_ref_to_remove)
 
-    def react_to_publication(self, publisher: "Publisher") -> asyncio.Task[None]:
+    def react_to_publication_task(self, publisher: "Publisher", mode: Literal["async", "sync"]) -> asyncio.Task[None]:
         """
         React to a publication from a publisher (entry point for async reaction).
         
@@ -179,11 +224,17 @@ class Subscriber(StoresWeakReferences["Publisher"]):
                   ↓
                 # Your custom _react_to_publication logic runs asynchronously
         """
-        self._cleanup()
+        self._publisher_storage.cleanup()
         loop = asyncio.get_event_loop()
-        return loop.create_task(self._react_to_publication(publisher))
+        return loop.create_task(self._react_async_to_publication(publisher, mode))
 
-    async def _react_to_publication(self, publisher: "Publisher") -> None:
+    async def _react_async_to_publication(self, publisher: "Publisher", mode: Literal["async", "sync"]) -> None:
+        self._react_to_publication(publisher, mode)
+
+    def _react_to_publication_direct(self, publisher: "Publisher") -> None:
+        self._react_to_publication(publisher, "direct")
+
+    def _react_to_publication(self, publisher: "Publisher", mode: Literal["async", "sync", "direct"]) -> None:
         """
         Abstract method to define how this subscriber reacts to a publication.
         

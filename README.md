@@ -9,13 +9,43 @@ A Python library for creating observable objects with centralized value storage 
 
 ## Architecture
 
-The library uses a centralized value storage approach:
+The library uses a centralized value storage approach with three distinct notification philosophies:
 
+### **Centralized Storage**
 - **Centralized Storage**: Each value is stored in exactly one HookNexus
 - **Hook-Based Binding**: Observables connect through hooks, managed by NexusManager
 - **Transitive Binding**: When you bind A→B and B→C, all three share the same HookNexus
 - **No Data Copying**: Values are never duplicated between observables
 - **Atomic Updates**: All connected hooks see changes simultaneously
+
+### **Three Notification Philosophies**
+
+The system supports three distinct notification mechanisms, each optimized for different use cases:
+
+#### **1. Listeners (Synchronous Unidirectional)**
+- Callbacks registered via `add_listener()` on observables or hooks
+- Execute synchronously during value changes
+- **Unidirectional**: Listeners observe changes but cannot validate or reject them
+- **Use Case**: UI updates, logging, simple reactions to state changes
+- **Example**: `observable.add_listeners(lambda: print(observable.value))`
+
+#### **2. Publish-Subscribe (Asynchronous Unidirectional)**
+- Based on Publisher/Subscriber pattern with asyncio
+- Execute asynchronously via event loop (non-blocking)
+- **Unidirectional**: Subscribers react to publications but cannot validate or reject them
+- **Three Modes**:
+  - `async` (default): Non-blocking, returns immediately, reactions in background
+  - `sync`: Blocking, waits for all async reactions to complete
+  - `direct`: Pure synchronous calls, no asyncio overhead, fastest option
+- **Use Case**: Decoupled components, async I/O operations, external system notifications
+- **Example**: `publisher.publish(mode="async")  # Non-blocking!`
+
+#### **3. Hooks (Synchronous Bidirectional with Validation)**
+- Connected hooks share values through HookNexus
+- Validation occurs before value changes (enforces valid state)
+- **Bidirectional**: Any connected hook can reject changes via validation
+- **Use Case**: Maintaining invariants across connected state, bidirectional data binding
+- **Example**: `obs1.connect_hook(obs2.hook, "value", "use_caller_value")`
 
 ## Key Features
 
@@ -148,30 +178,93 @@ pip install observables[dev]
 
 ## Quick Start
 
-### Basic Usage
+### Basic Usage - All Three Notification Philosophies
 
 ```python
-from observables import ObservableSingleValue, ObservableList, ObservableDict
+from observables import ObservableSingleValue, Publisher
+from observables.core import Subscriber
 
 # Create observable values (each has its own central HookNexus)
-name = ObservableSingleValue("John")
-age = ObservableSingleValue(25)
-scores = ObservableList([85, 90, 78])
-user_data = ObservableDict({"city": "New York", "country": "USA"})
+temperature = ObservableSingleValue(20.0)
+display_temp = ObservableSingleValue(0.0)
 
-# Add listeners
-def on_name_change():
-    print(f"Name changed to: {name.value}")
+# 1️⃣ LISTENERS (Synchronous Unidirectional)
+# Simple callbacks that react to changes
+def on_temp_change():
+    print(f"🔔 Listener: Temperature changed to {temperature.value}°C")
 
-def on_age_change():
-    print(f"Age changed to: {age.value}")
+temperature.add_listeners(on_temp_change)
 
-name.add_listeners(on_name_change)
-age.add_listeners(on_age_change)
+# 2️⃣ PUBLISH-SUBSCRIBE (Asynchronous Unidirectional)  
+# Non-blocking async reactions for I/O operations
+class DatabaseSubscriber(Subscriber):
+    def _react_to_publication(self, publisher, mode):
+        print(f"💾 Subscriber: Saving temperature to database...")
+        # In real code: await save_to_database(temperature.value)
 
-# Changes automatically trigger notifications
-name.value = "Jane"  # Prints: "Name changed to: Jane"
-age.value = 26       # Prints: "Age changed to: 26"
+# Observables can also be publishers!
+if isinstance(temperature, Publisher):
+    temperature.add_subscriber(DatabaseSubscriber())
+
+# 3️⃣ HOOKS (Synchronous Bidirectional with Validation)
+# True bidirectional binding with state validation
+display_temp.connect_hook(temperature.hook, "value", "use_target_value")
+
+# Now observe all three in action:
+print("\nChanging temperature to 25°C...")
+temperature.value = 25.0
+# Output:
+# 🔔 Listener: Temperature changed to 25°C (synchronous)
+# 💾 Subscriber: Saving temperature to database... (async, non-blocking)
+# display_temp.value == 25.0 (bidirectional sync via hooks)
+
+# Bidirectional! Change display, updates source
+display_temp.value = 30.0
+print(f"Original temperature: {temperature.value}°C")  # 30.0!
+```
+
+### Publish-Subscribe Pattern (Async Notifications)
+
+The library includes a powerful publish-subscribe pattern for asynchronous, non-blocking notifications:
+
+```python
+from observables import Publisher
+from observables.core import Subscriber
+
+# Create a publisher (observables can also be publishers!)
+data_source = Publisher()
+
+# Create subscribers for async operations
+class DatabaseSync(Subscriber):
+    def _react_to_publication(self, publisher, mode):
+        # In async/sync mode, can use await
+        # In direct mode, runs synchronously
+        print(f"💾 Syncing to database... (mode: {mode})")
+
+class NetworkNotifier(Subscriber):
+    def _react_to_publication(self, publisher, mode):
+        print(f"📡 Sending network notification... (mode: {mode})")
+
+# Subscribe
+data_source.add_subscriber(DatabaseSync())
+data_source.add_subscriber(NetworkNotifier())
+
+# Three publication modes:
+
+# 1. Async mode (default) - non-blocking
+data_source.publish(mode="async")  
+print("Published! (reactions happening in background)")
+# Continues immediately, reactions happen in event loop
+
+# 2. Sync mode - blocking with asyncio
+data_source.publish(mode="sync")
+print("All async reactions completed!")
+# Waits for all reactions before continuing
+
+# 3. Direct mode - synchronous, no asyncio overhead
+data_source.publish(mode="direct")
+print("All reactions completed!")
+# Fastest option for simple synchronous callbacks
 ```
 
 ### Transitive Binding (Automatic Network Formation)

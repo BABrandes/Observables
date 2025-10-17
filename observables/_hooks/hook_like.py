@@ -3,15 +3,16 @@ from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping,
 from .._utils.base_listening import BaseListeningLike
 from .._utils.has_nexus_manager_like import HasNexusManagerLike
 from logging import Logger
+from .._utils.publisher_like import PublisherLike
 
 if TYPE_CHECKING:
     from .._utils.hook_nexus import HookNexus
     from .._utils.nexus_manager import NexusManager
-    
+
 T = TypeVar("T")
 
 @runtime_checkable
-class HookLike(BaseListeningLike, HasNexusManagerLike, Protocol[T]):
+class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T]):
     """
     Protocol for hook objects.
     """    

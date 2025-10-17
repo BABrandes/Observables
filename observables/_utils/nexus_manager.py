@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from .._hooks.hook_like import HookLike
 from .base_listening import BaseListeningLike
 from .hook_nexus import HookNexus
+from .._utils.publisher_like import PublisherLike
 
 class NexusManager:
     """
@@ -21,10 +22,38 @@ class NexusManager:
     2. Completes missing values using add_values_to_be_updated_callback
     3. Validates all values using validation callbacks
     4. Updates hook nexuses with new values
-    5. Triggers invalidation and listener notifications
+    5. Triggers invalidation, reactions, publishing, and listener notifications
     
     This replaces the old binding system with a more flexible hook-based approach
     where observables can define custom logic for value completion and validation.
+    
+    Three Notification Philosophies
+    --------------------------------
+    This system supports three distinct notification mechanisms, each with different
+    characteristics and use cases:
+    
+    1. **Listeners (Synchronous Unidirectional)**
+       - Callbacks registered via `add_listener()` on observables or hooks
+       - Executed synchronously during `submit_values()` (Phase 6)
+       - Unidirectional: listeners observe changes but cannot validate or reject them
+       - Use case: UI updates, logging, simple reactions to state changes
+       - Thread-safe: protected by the same lock as value submission
+    
+    2. **Publish-Subscribe (Asynchronous Unidirectional)**
+       - Based on Publisher/Subscriber pattern with weak reference management
+       - Executed asynchronously via asyncio tasks (Phase 6)
+       - Unidirectional: subscribers react to publications but cannot validate or reject them
+       - Use case: Decoupled components, async I/O operations, external system notifications
+       - Thread-safe: each subscriber reaction runs independently in the event loop
+       - Non-blocking: publishing returns immediately, reactions happen in background
+    
+    3. **Hooks (Synchronous Bidirectional with Validation)**
+       - Connected hooks share values through HookNexus (value synchronization)
+       - Validation occurs before value changes (Phase 4)
+       - Bidirectional: any connected hook can reject changes via validation
+       - Enforces valid state: all hooks in a nexus always have consistent, validated values
+       - Use case: Maintaining invariants across connected state, bidirectional data binding
+       - Thread-safe: protected by the same lock as value submission
     
     Thread Safety
     -------------
@@ -310,6 +339,7 @@ class NexusManager:
         owners_that_are_affected: set["CarriesHooksLike[Any, Any]"] = set()
         hooks_with_validation: set[HookWithIsolatedValidationLike[Any]] = set()
         hooks_with_reaction: set[HookWithReactionLike[Any]] = set()
+        publishers: set[PublisherLike] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
                 if isinstance(hook, HookWithReactionLike):
@@ -320,6 +350,9 @@ class NexusManager:
                         hooks_with_validation.add(hook)
                 if isinstance(hook, HookWithOwnerLike):
                     owners_that_are_affected.add(hook.owner)
+                    if isinstance(hook.owner, PublisherLike):
+                        publishers.add(hook.owner)
+                publishers.add(hook)
 
         #########################################################
         # Value Validation
@@ -361,7 +394,11 @@ class NexusManager:
         for hook in hooks_with_reaction:
             hook.react_to_value_changed()
 
-        # Step 5c: Notify the listeners
+        # Step 5c: Publish the value changes
+        for publisher in publishers:
+            publisher.publish()
+
+        # Step 5d: Notify the listeners
 
         # Optimize: Only notify hooks that are actually affected by the value changes
         hooks_to_be_notified: set[HookLike[Any]] = set()
@@ -449,6 +486,7 @@ class NexusManager:
             - All observables (owners) that own hooks in the affected nexuses
             - All floating hooks with validation mixins
             - All hooks with reaction mixins
+            - All publishers (observables and hooks that implement PublisherLike)
             
             This step prepares the sets of objects that will be processed in later phases.
         
@@ -469,17 +507,27 @@ class NexusManager:
             - Assigns new value to `_value` (reference assignment only)
             - All hooks in the nexus immediately see the new value
         
-        **Phase 6: Invalidation, Reaction, and Notification**
+        **Phase 6: Invalidation, Reaction, Publishing, and Notification**
             Propagates changes to all affected components:
             
-            - **Invalidation**: Calls `invalidate()` on all affected observables
+            - **Invalidation** (Synchronous): Calls `invalidate()` on all affected observables
               (allows observables to recompute derived state)
-            - **Reaction**: Calls `react_to_value_changed()` on hooks with reaction mixins
+              
+            - **Reaction** (Synchronous): Calls `react_to_value_changed()` on hooks with reaction mixins
               (enables custom side effects like logging, caching, etc.)
-            - **Notification**: Triggers `_notify_listeners()` on:
+              
+            - **Publishing** (Asynchronous): Calls `publish()` on all publishers (observables and hooks)
+              * Publications are executed asynchronously via asyncio tasks
+              * The `publish()` call returns immediately without blocking
+              * Subscriber reactions run independently in the event loop
+              * Useful for decoupled async operations like network calls, file I/O, etc.
+              * Subscribers cannot affect the current submission (already committed)
+              
+            - **Listener Notification** (Synchronous): Triggers `_notify_listeners()` on:
               * All affected observables (if they implement BaseListeningLike)
               * All hooks in affected nexuses
               * Respects `not_notifying_listeners_after_submission` exclusions
+              * Listener callbacks execute synchronously before `submit_values()` returns
         
         Parameters
         ----------

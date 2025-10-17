@@ -5,33 +5,55 @@ This module provides a lightweight, async-enabled Publisher class that manages
 subscriptions and publishes updates to subscribers using weak references for
 automatic memory management.
 
+**Asynchronous Unidirectional Notifications**
+
+The Publisher-Subscriber pattern in this module is designed for asynchronous,
+unidirectional communication:
+
+- **Asynchronous**: Publications trigger async subscriber reactions that run
+  independently in the event loop. The `publish()` method returns immediately
+  without blocking for subscriber reactions to complete.
+  
+- **Unidirectional**: Subscribers can only observe and react to publications.
+  They cannot validate, reject, or influence the publisher's state.
+  
+- **Non-blocking**: Ideal for decoupled components performing I/O operations,
+  network calls, database writes, or other async operations that should not
+  block the main execution flow.
+
 Example:
-    Basic usage::
+    Basic publisher-subscriber setup::
 
         from observables._utils.publisher import Publisher
         from observables._utils.subscriber import Subscriber
         
-        # Create a publisher
-        publisher = Publisher(logger=logger)
+        # Create a custom subscriber
+        class MySubscriber(Subscriber):
+            async def _react_to_publication(self, publisher):
+                # This runs asynchronously, doesn't block the publisher
+                await perform_async_operation()
         
-        # Create and subscribe a subscriber
+        publisher = Publisher(logger=logger)
         subscriber = MySubscriber()
         publisher.add_subscriber(subscriber)
         
-        # Publish to all subscribers
+        # Publish to all subscribers (returns immediately)
         publisher.publish()
+        # Subscriber reactions happen in the background
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import Callable, Literal, Optional, TYPE_CHECKING
+import warnings
 import weakref
 import asyncio
 from logging import Logger
-from .stores_weak_references import StoresWeakReferences
+from .weak_reference_storage import WeakReferenceStorage
+from .publisher_like import PublisherLike
 
 if TYPE_CHECKING:
     from .subscriber import Subscriber
 
-class Publisher(StoresWeakReferences["Subscriber"]):
+class Publisher(PublisherLike):
     """
     A Publisher that manages subscribers and publishes updates asynchronously.
     
@@ -39,8 +61,20 @@ class Publisher(StoresWeakReferences["Subscriber"]):
     cleanup when subscribers are garbage collected. It supports threshold-based
     cleanup (time and size) to maintain performance with many subscribers.
     
+    **Asynchronous Non-Blocking Design**
+    
     Publications are executed asynchronously, allowing subscribers to react
-    independently without blocking the publisher or each other.
+    independently without blocking the publisher or each other. When `publish()`
+    is called, it:
+    
+    1. Returns immediately without waiting for subscriber reactions
+    2. Creates asyncio tasks for each subscriber's `react_to_publication()` method
+    3. Subscriber reactions execute independently in the event loop
+    4. Errors in subscriber reactions are handled without affecting other subscribers
+    
+    This design is ideal for scenarios where reactions may involve I/O operations,
+    network calls, or other potentially slow operations that should not block the
+    publisher or other subscribers.
     
     Attributes:
         _logger (Optional[Logger]): Logger for error reporting.
@@ -110,7 +144,12 @@ class Publisher(StoresWeakReferences["Subscriber"]):
                 )
         """
         self._logger: Optional[Logger] = logger
-        StoresWeakReferences.__init__(self, cleanup_interval, max_subscribers_before_cleanup) # type: ignore
+
+        self._subscriber_storage: WeakReferenceStorage[Subscriber] = WeakReferenceStorage(
+            cleanup_interval=cleanup_interval,
+            max_references_before_cleanup=max_subscribers_before_cleanup
+        )
+        self._callback_storage: set[Callable[[], None]] = set()
 
     def add_subscriber(self, subscriber: "Subscriber") -> None:
         """
@@ -140,9 +179,21 @@ class Publisher(StoresWeakReferences["Subscriber"]):
                 # Now both will receive publications
                 publisher.publish()
         """
-        self._cleanup()
+        self._subscriber_storage.cleanup()
         subscriber._add_publisher_called_by_subscriber(self) # type: ignore
-        self._references.add(weakref.ref(subscriber))
+        self._subscriber_storage.add_reference(weakref.ref(subscriber))
+
+    def add_callback(self, callback: Callable[[], None]) -> None:
+        """
+        Add a callback to be called when the publisher publishes.
+        """
+        self._callback_storage.add(callback)
+
+    def remove_callback(self, callback: Callable[[], None]) -> None:
+        """
+        Remove a callback from being called when the publisher publishes.
+        """
+        self._callback_storage.remove(callback)
 
     def remove_subscriber(self, subscriber: "Subscriber") -> None:
         """
@@ -170,16 +221,16 @@ class Publisher(StoresWeakReferences["Subscriber"]):
                 publisher.remove_subscriber(subscriber)
                 assert not publisher.is_subscribed(subscriber)
         """
-        self._cleanup()
+        self._subscriber_storage.cleanup()
         subscriber_ref_to_remove = None
-        for subscriber_ref in self._references:
+        for subscriber_ref in self._subscriber_storage.weak_references:
             sub = subscriber_ref()
             if sub is subscriber:
                 subscriber_ref_to_remove = subscriber_ref
                 break
         if subscriber_ref_to_remove is None:
             raise ValueError("Subscriber not found")
-        self._references.remove(subscriber_ref_to_remove)
+        self._subscriber_storage.remove_reference(subscriber_ref_to_remove)
         subscriber._remove_publisher_called_by_subscriber(self) # type: ignore
 
     def is_subscribed(self, subscriber: "Subscriber") -> bool:
@@ -203,15 +254,15 @@ class Publisher(StoresWeakReferences["Subscriber"]):
                 publisher.add_subscriber(subscriber)
                 print(publisher.is_subscribed(subscriber))  # True
         """
-        self._cleanup()
-        for subscriber_ref in self._references:
+        self._subscriber_storage.cleanup()
+        for subscriber_ref in self._subscriber_storage.weak_references:
             sub = subscriber_ref()
             if sub is subscriber:
                 return True
 
         return False
 
-    def _handle_task_exception(self, task: asyncio.Task[None], subscriber: "Subscriber") -> None:
+    def _handle_task_exception(self, task: asyncio.Task[None], subscriber_or_callback: "Subscriber"|Callable[[], None]) -> None:
         """
         Handle exceptions that occur in subscriber reaction tasks.
         
@@ -234,56 +285,295 @@ class Publisher(StoresWeakReferences["Subscriber"]):
         try:
             task.result()  # This will raise the exception if one occurred
         except Exception as e:
-            error_msg = f"Subscriber {subscriber} failed to react to publication: {e}"
+
+            if isinstance(subscriber_or_callback, Subscriber):
+                error_msg = f"Subscriber {subscriber_or_callback} failed to react to publication: {e}"
+            elif isinstance(subscriber_or_callback, Callable[[], None]): # type: ignore
+                error_msg = f"Callback {subscriber_or_callback} failed to react to publication: {e}"
+            else:
+                error_msg = f"subscriber_or_callback is not a Subscriber or Callable: {subscriber_or_callback}"
+                warnings.warn(f"subscriber_or_callback is not a Subscriber or Callable: {subscriber_or_callback}")
+
             if self._logger:
                 self._logger.error(error_msg, exc_info=True)
             else:
                 # Re-raise if no logger is configured so the error isn't silently ignored
                 raise RuntimeError(error_msg) from e
 
-    def publish(self) -> None:
+    def publish(self, mode: Literal["async", "sync", "direct"] = "async") -> None:
         """
-        Publish an update to all subscribed subscribers asynchronously.
+        Publish an update to all subscribed subscribers and/or callbacks.
         
-        This method triggers the `react_to_publication` method on each subscriber.
-        All reactions execute asynchronously and independently - they do not block
-        the publisher or each other.
+        This method supports three publication modes: asynchronous (default), synchronous, 
+        and direct.
+        
+        **Async Mode (Default) - Non-Blocking with Asyncio**
+        
+        In async mode (mode="async"), the method triggers the `react_to_publication` 
+        method on each subscriber and **returns immediately** without waiting for 
+        reactions to complete. All reactions execute asynchronously and independently 
+        in the event loop - they do not block the publisher, each other, or the calling code.
+        
+        **Async Execution Flow:**
+        
+        1. Method is called (e.g., during Phase 6 of `submit_values()`)
+        2. Asyncio tasks are created for each subscriber's reaction and callback
+        3. Method returns immediately to caller
+        4. Subscriber reactions execute in the background
+        5. Each reaction completes independently
+        
+        This design ensures that slow subscriber reactions (network I/O, database
+        operations, file writes, etc.) never block the main execution flow or
+        affect the performance of value submissions.
+        
+        **Use Case:** Production code with I/O-bound operations, decoupled async components
+        
+        **Sync Mode - Blocking with Asyncio**
+        
+        In sync mode (mode="sync"), the method waits for each subscriber reaction
+        to complete before returning. Reactions are executed sequentially using
+        `loop.run_until_complete()`, blocking the calling code until all subscribers
+        have finished reacting.
+        
+        **Sync Execution Flow:**
+        
+        1. Method is called
+        2. For each subscriber, run their async reaction to completion
+        3. Wait for reaction to finish before moving to next subscriber
+        4. Method returns only after all reactions complete
+        
+        Sync mode is useful when you need guaranteed completion before proceeding,
+        such as in testing or when reactions must complete before the next operation.
+        
+        **Use Case:** Testing, debugging, ensuring all async operations complete
+        
+        **Direct Mode - Synchronous without Asyncio**
+        
+        In direct mode (mode="direct"), both subscribers and callbacks are executed 
+        directly as regular function calls without any asyncio machinery. This provides 
+        the fastest, simplest execution path with minimal overhead - just like the 
+        listener pattern.
+        
+        **Direct Execution Flow:**
+        
+        1. Method is called
+        2. Each subscriber's `_react_to_publication_direct()` is called synchronously
+        3. Each callback is called directly as a regular function
+        4. No asyncio tasks, no event loop, no coroutines
+        5. Method returns after all reactions complete
+        
+        **Important Requirements:**
+        - Subscribers must implement `_react_to_publication()` as a regular (non-async) method
+        - Only synchronous callbacks are supported (no async functions)
+        - If async callback is encountered, it's skipped with error logged
+        
+        **Use Case:** Fast synchronous notifications, listener-like behavior, no async needed
+        
+        **Cleanup**
         
         Dead subscriber references are automatically skipped. If cleanup thresholds
         are met, dead references are cleaned up before publishing.
         
-        Error Handling:
-            - If a subscriber's reaction raises an exception and a logger is
-              configured, the error is logged and other subscribers continue.
-            - If no logger is configured, the error raises a RuntimeError.
+        **Error Handling**
+        
+        - If a subscriber's reaction raises an exception and a logger is
+          configured, the error is logged and other subscribers continue.
+        - If no logger is configured, the error raises a RuntimeError.
+        - Errors in one subscriber never affect other subscribers.
+        
+        **Parameters**
+        
+        mode : Literal["async", "sync", "direct"], default="async"
+            Publication mode:
+            
+            - "async": Non-blocking with asyncio, returns immediately, reactions run in background
+            - "sync": Blocking with asyncio, waits for all reactions to complete before returning
+            - "direct": Synchronous without asyncio, both subscribers and callbacks, no event loop overhead
+        
+        **Important Notes**
+        
+        - In async mode (default): returns immediately, before subscriber reactions complete
+        - In sync mode: blocks until all subscriber reactions complete, uses asyncio
+        - In direct mode: blocks until all reactions complete, no asyncio, pure synchronous calls
+        - Subscriber reactions cannot influence the publisher's state (unidirectional)
+        - Subscribers receive publications after values are already committed
+        - Direct mode requires Subscribers to have synchronous `_react_to_publication()` methods
         
         Example:
-            Publish to subscribers::
+            Publishing with async reactions (default)::
+            
+                import asyncio
+                from observables._utils.publisher import Publisher
+                from observables._utils.subscriber import Subscriber
+                
+                class NetworkSubscriber(Subscriber):
+                    async def _react_to_publication(self, publisher):
+                        # This runs asynchronously without blocking
+                        await send_network_request()
+                        await save_to_database()
+                
+                publisher = Publisher(logger=logger)
+                publisher.add_subscriber(NetworkSubscriber())
+                
+                # Publish - returns immediately
+                publisher.publish()
+                print("Published! (reactions happening in background)")
+                
+                # Continue with other work without waiting
+                # Subscriber reactions complete independently
+            
+            Publishing with sync reactions (blocking with asyncio)::
             
                 publisher = Publisher(logger=logger)
+                publisher.add_subscriber(DatabaseSubscriber())
                 
-                # Add subscribers
-                publisher.add_subscriber(subscriber1)
-                publisher.add_subscriber(subscriber2)
+                # Publish and wait for all reactions to complete
+                publisher.publish(mode="sync")
+                print("All async reactions completed!")
                 
-                # Publish - both subscribers react asynchronously
-                publisher.publish()
+                # Can safely assert on side effects now
+                assert database_was_updated()
+            
+            Publishing with direct mode (synchronous subscribers and callbacks)::
+            
+                from observables._utils.subscriber import Subscriber
                 
-                # The publish() method returns immediately
-                # Subscribers react in the background
+                publisher = Publisher(logger=logger)
+                
+                # Add synchronous subscriber (non-async _react_to_publication!)
+                class SyncSubscriber(Subscriber):
+                    def _react_to_publication(self, publisher):
+                        # Regular synchronous method (not async)
+                        print("Subscriber reacted immediately!")
+                        update_database()
+                
+                publisher.add_subscriber(SyncSubscriber())
+                
+                # Add synchronous callback
+                def on_publish():
+                    print("Callback executed immediately!")
+                    update_counter()
+                
+                publisher.add_callback(on_publish)
+                
+                # Publish in direct mode - no asyncio overhead
+                publisher.publish(mode="direct")
+                print("All reactions completed!")
+                
+                # No waiting needed - everything already executed
+                assert database_was_updated()
+                assert counter_was_updated()
         
-        Note:
-            This method returns immediately. Subscriber reactions execute
-            asynchronously in the event loop. Use `await asyncio.sleep(0)`
-            or similar to allow reactions to complete if needed for testing.
+        Testing Note:
+            - Async mode: use `await asyncio.sleep(0)` to allow reactions to complete
+            - Sync mode: reactions complete before return, no waiting needed
+            - Direct mode: callbacks execute immediately, no waiting needed, fastest option
         """
         # Check if we should do a full cleanup before publishing
-        self._cleanup()
-        
-        for subscriber_ref in self._references:
-            subscriber: Subscriber | None = subscriber_ref()
-            if subscriber is not None:
-                task: asyncio.Task[None] = subscriber.react_to_publication(self) # type: ignore
-                task.add_done_callback(
-                    lambda t, s=subscriber: self._handle_task_exception(t, s)
-                )
+        self._subscriber_storage.cleanup()
+
+        match mode:
+            case "async":
+                for subscriber_ref in self._subscriber_storage.weak_references:
+                    subscriber: Subscriber | None = subscriber_ref()
+                    if subscriber is not None:
+                        task: asyncio.Task[None] = subscriber.react_to_publication_task(self, "async") # type: ignore
+                        task.add_done_callback(
+                            lambda task, subscriber=subscriber: self._handle_task_exception(task, subscriber)
+                        )
+                for callback in self._callback_storage:
+                    # Handle both sync and async callbacks
+                    if asyncio.iscoroutinefunction(callback):
+                        task = asyncio.create_task(callback()) # type: ignore
+                        task.add_done_callback(
+                            lambda t, c=callback: self._handle_task_exception(t, callback)
+                        )
+                    else:
+                        # Wrap sync callback in async task
+                        async def run_sync_callback(cb: Callable[[], None]) -> None:
+                            cb()
+                        task = asyncio.create_task(run_sync_callback(callback)) # type: ignore
+                        task.add_done_callback(
+                            lambda task, callback=callback: self._handle_task_exception(task, callback)
+                        )
+
+            case "sync":
+                # Synchronous mode: wait for each subscriber reaction to complete
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    # No event loop in this thread, create a new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                for subscriber_ref in self._subscriber_storage.weak_references:
+                    subscriber = subscriber_ref()
+                    if subscriber is not None:
+                        try:
+                            # Run the async reaction synchronously
+                            loop.run_until_complete(subscriber._react_async_to_publication(self, "sync")) # type: ignore
+                        except Exception as e:
+                            error_msg = f"Subscriber {subscriber} failed to react to publication: {e}"
+                            if self._logger:
+                                self._logger.error(error_msg, exc_info=True)
+                            else:
+                                raise RuntimeError(error_msg) from e
+                
+                for callback in self._callback_storage:
+                    try:
+                        if asyncio.iscoroutinefunction(callback):
+                            loop.run_until_complete(callback())
+                        else:
+                            callback()
+                    except Exception as e:
+                        error_msg = f"Callback {callback} failed to react to publication: {e}"
+                        if self._logger:
+                            self._logger.error(error_msg, exc_info=True)
+                        else:
+                            raise RuntimeError(error_msg) from e
+            
+            case "direct":
+                # Direct mode: pure synchronous execution without asyncio overhead
+                # Both subscribers and callbacks execute synchronously
+                
+                # Execute subscribers directly (synchronous)
+                for subscriber_ref in self._subscriber_storage.weak_references:
+                    subscriber = subscriber_ref()
+                    if subscriber is not None:
+                        try:
+                            # Direct synchronous call
+                            subscriber._react_to_publication(self, "direct") # type: ignore
+                        except Exception as e:
+                            error_msg = f"Subscriber {subscriber} failed to react in direct mode: {e}"
+                            if self._logger:
+                                self._logger.error(error_msg, exc_info=True)
+                            else:
+                                raise RuntimeError(error_msg) from e
+                
+                # Execute callbacks directly without asyncio
+                for callback in self._callback_storage:
+                    try:
+                        # Check if callback is async (not supported in direct mode)
+                        if asyncio.iscoroutinefunction(callback):
+                            error_msg = (
+                                f"Direct mode does not support async callbacks. "
+                                f"Callback {callback} is async. Use 'async' or 'sync' mode instead, "
+                                f"or provide a synchronous callback."
+                            )
+                            if self._logger:
+                                self._logger.error(error_msg)
+                            else:
+                                raise RuntimeError(error_msg)
+                            continue
+                        
+                        # Direct synchronous call
+                        callback()
+                    except Exception as e:
+                        error_msg = f"Callback {callback} failed in direct mode: {e}"
+                        if self._logger:
+                            self._logger.error(error_msg, exc_info=True)
+                        else:
+                            raise RuntimeError(error_msg) from e
+                    
+            case _: # type: ignore
+                raise ValueError(f"Invalid mode: {mode}")

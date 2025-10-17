@@ -10,10 +10,11 @@ from .._utils.nexus_manager import NexusManager
 from .._utils.hook_nexus import HookNexus
 from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._utils.has_nexus_manager import HasNexusManager
+from .._utils.publisher import Publisher
 T = TypeVar("T")
 
 
-class Hook(HasNexusManager, HookLike[T], BaseListening, Generic[T]):
+class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
     """
     A standalone hook.
     
@@ -42,6 +43,8 @@ class Hook(HasNexusManager, HookLike[T], BaseListening, Generic[T]):
         BaseListening.__init__(self, logger)
         self._value = value
         self._nexus_manager = nexus_manager
+
+        Publisher.__init__(self, logger)
 
         self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
         self._lock = RLock()

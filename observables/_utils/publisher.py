@@ -151,59 +151,74 @@ class Publisher(PublisherLike):
         )
         self._callback_storage: set[Callable[[], None]] = set()
 
-    def add_subscriber(self, subscriber: "Subscriber") -> None:
+    def add_subscriber(self, subscriber: "Subscriber|Callable[[], None]") -> None:
         """
-        Add a subscriber to receive publications from this publisher.
+        Add a subscriber or callback to receive publications from this publisher.
         
-        The subscriber is stored as a weak reference, so it will be automatically
-        removed when garbage collected. This method also updates the subscriber's
-        internal list of publishers (bidirectional reference).
+        This method supports two types of subscriptions:
+        
+        1. **Subscriber objects**: Full subscriber pattern with async reactions.
+           Stored as weak references with automatic cleanup and bidirectional tracking.
+           
+        2. **Callback functions**: Simple callable functions for direct notifications.
+           Stored as strong references.
         
         Args:
-            subscriber: The Subscriber instance to add.
+            subscriber: Either a Subscriber instance or a callable function.
+                - Subscriber: Must implement `_react_to_publication(publisher, mode)`
+                - Callable: Regular function with signature `() -> None`
         
         Raises:
-            No exceptions are raised. If cleanup thresholds are met, dead
-            references are automatically cleaned up.
+            ValueError: If the argument is neither a Subscriber nor a Callable.
         
         Example:
-            Add subscribers to a publisher::
+            Add subscribers and callbacks::
             
-                publisher = Publisher()
-                subscriber1 = MySubscriber()
-                subscriber2 = MySubscriber()
+                from observables._utils.publisher import Publisher
+                from observables._utils.subscriber import Subscriber
                 
-                publisher.add_subscriber(subscriber1)
-                publisher.add_subscriber(subscriber2)
+                publisher = Publisher()
+                
+                # Add a Subscriber instance
+                class MySubscriber(Subscriber):
+                    def _react_to_publication(self, publisher, mode):
+                        print(f"Subscriber reacted in {mode} mode")
+                
+                publisher.add_subscriber(MySubscriber())
+                
+                # Add a callback function
+                def my_callback():
+                    print("Callback executed")
+                
+                publisher.add_subscriber(my_callback)
                 
                 # Now both will receive publications
                 publisher.publish()
         """
-        self._subscriber_storage.cleanup()
-        subscriber._add_publisher_called_by_subscriber(self) # type: ignore
-        self._subscriber_storage.add_reference(weakref.ref(subscriber))
 
-    def add_callback(self, callback: Callable[[], None]) -> None:
-        """
-        Add a callback to be called when the publisher publishes.
-        """
-        self._callback_storage.add(callback)
+        from .subscriber import Subscriber
 
-    def remove_callback(self, callback: Callable[[], None]) -> None:
-        """
-        Remove a callback from being called when the publisher publishes.
-        """
-        self._callback_storage.remove(callback)
+        if isinstance(subscriber, Subscriber):
+            self._subscriber_storage.cleanup()
+            subscriber._add_publisher_called_by_subscriber(self) # type: ignore
+            self._subscriber_storage.add_reference(weakref.ref(subscriber)) # type: ignore
 
-    def remove_subscriber(self, subscriber: "Subscriber") -> None:
+        elif callable(subscriber):
+            # It's a callback function
+            self._callback_storage.add(subscriber) # type: ignore
+
+        else:
+            raise ValueError(f"Subscriber must be a Subscriber instance or callable, got: {type(subscriber)}")
+
+    def remove_subscriber(self, subscriber: "Subscriber|Callable[[], None]") -> None:
         """
         Remove a subscriber so it no longer receives publications.
         
-        This method removes the subscriber from both the publisher's subscriber
+        This method removes the subscriber or callback from both the publisher's subscriber
         list and the subscriber's publisher list (bidirectional cleanup).
         
         Args:
-            subscriber: The Subscriber instance to remove.
+            subscriber_or_callback: The Subscriber or Callable instance to remove.
         
         Raises:
             ValueError: If the subscriber is not currently subscribed to this
@@ -221,17 +236,27 @@ class Publisher(PublisherLike):
                 publisher.remove_subscriber(subscriber)
                 assert not publisher.is_subscribed(subscriber)
         """
-        self._subscriber_storage.cleanup()
-        subscriber_ref_to_remove = None
-        for subscriber_ref in self._subscriber_storage.weak_references:
-            sub = subscriber_ref()
-            if sub is subscriber:
-                subscriber_ref_to_remove = subscriber_ref
-                break
-        if subscriber_ref_to_remove is None:
-            raise ValueError("Subscriber not found")
-        self._subscriber_storage.remove_reference(subscriber_ref_to_remove)
-        subscriber._remove_publisher_called_by_subscriber(self) # type: ignore
+
+        from .subscriber import Subscriber
+
+        if isinstance(subscriber, Subscriber):
+            self._subscriber_storage.cleanup()
+            subscriber_ref_to_remove = None
+            for subscriber_ref in self._subscriber_storage.weak_references:
+                sub = subscriber_ref()
+                if sub is subscriber:
+                    subscriber_ref_to_remove = subscriber_ref
+                    break
+            if subscriber_ref_to_remove is None:
+                raise ValueError("Subscriber not found")
+            self._subscriber_storage.remove_reference(subscriber_ref_to_remove)
+            subscriber._remove_publisher_called_by_subscriber(self) # type: ignore
+
+        elif isinstance(subscriber, Callable): # type: ignore
+            self._callback_storage.remove(subscriber)
+            
+        else:
+            raise ValueError(f"Subscriber is not a Subscriber or Callable: {subscriber}")
 
     def is_subscribed(self, subscriber: "Subscriber") -> bool:
         """

@@ -6,27 +6,15 @@ if TYPE_CHECKING:
 @runtime_checkable
 class PublisherLike(Protocol):
 
-    def add_subscriber(self, subscriber: "Subscriber") -> None:
+    def add_subscriber(self, subscriber: "Subscriber|Callable[[], None]") -> None:
         """
-        Add a subscriber to receive publications from this publisher.
-        """
-        ...
-
-    def add_callback(self, callback: Callable[[], None]) -> None:
-        """
-        Add a callback to be called when the publisher publishes.
+        Add a subscriber or callback to receive publications from this publisher.
         """
         ...
 
-    def remove_subscriber(self, subscriber: "Subscriber") -> None:
+    def remove_subscriber(self, subscriber: "Subscriber|Callable[[], None]") -> None:
         """
-        Remove a subscriber so it no longer receives publications.
-        """
-        ...
-
-    def remove_callback(self, callback: Callable[[], None]) -> None:
-        """
-        Remove a callback from being called when the publisher publishes.
+        Remove a subscriber or callback so it no longer receives publications.
         """
         ...
 

@@ -31,7 +31,7 @@ class TestPublishModes(unittest.TestCase):
         def sync_callback():
             results.append("executed")
         
-        publisher.add_callback(sync_callback)
+        publisher.add_subscriber(sync_callback)
         
         # Direct mode should execute callback immediately
         publisher.publish(mode="direct")
@@ -53,9 +53,9 @@ class TestPublishModes(unittest.TestCase):
         def callback3():
             results.append(3)
         
-        publisher.add_callback(callback1)
-        publisher.add_callback(callback2)
-        publisher.add_callback(callback3)
+        publisher.add_subscriber(callback1)
+        publisher.add_subscriber(callback2)
+        publisher.add_subscriber(callback3)
         
         # All callbacks should execute (order not guaranteed - set storage)
         publisher.publish(mode="direct")
@@ -71,7 +71,7 @@ class TestPublishModes(unittest.TestCase):
         async def async_callback() -> None:
             results.append("async")
         
-        publisher.add_callback(async_callback) # type: ignore
+        publisher.add_subscriber(async_callback) # type: ignore
         
         # Direct mode should skip async callback
         publisher.publish(mode="direct")
@@ -93,9 +93,9 @@ class TestPublishModes(unittest.TestCase):
         def sync_callback2():
             results.append("sync2")
         
-        publisher.add_callback(sync_callback1)
-        publisher.add_callback(async_callback) # type: ignore
-        publisher.add_callback(sync_callback2)
+        publisher.add_subscriber(sync_callback1)
+        publisher.add_subscriber(async_callback) # type: ignore
+        publisher.add_subscriber(sync_callback2)
         
         # Only sync callbacks should execute
         publisher.publish(mode="direct")
@@ -133,7 +133,7 @@ class TestPublishModes(unittest.TestCase):
             results.append("before_error")
             raise ValueError("Test error")
         
-        publisher.add_callback(callback_that_fails)
+        publisher.add_subscriber(callback_that_fails)
         
         # Should raise the error since no logger
         with self.assertRaises(RuntimeError):
@@ -155,8 +155,8 @@ class TestPublishModes(unittest.TestCase):
         def callback_after_error():
             results.append("after_error")
         
-        publisher.add_callback(callback_that_fails)
-        publisher.add_callback(callback_after_error)
+        publisher.add_subscriber(callback_that_fails)
+        publisher.add_subscriber(callback_after_error)
         
         # With logger, should not raise
         publisher.publish(mode="direct")
@@ -172,7 +172,7 @@ class TestPublishModes(unittest.TestCase):
         def sync_callback() -> None:
             results.append("executed")
         
-        publisher.add_callback(sync_callback)
+        publisher.add_subscriber(sync_callback)
         
         # Sync mode should execute and wait for completion
         publisher.publish(mode="sync")
@@ -188,7 +188,7 @@ class TestPublishModes(unittest.TestCase):
             def callback() -> None:
                 results.append("executed")
             
-            publisher.add_callback(callback)
+            publisher.add_subscriber(callback)
             
             # Async mode should return immediately
             publisher.publish(mode="async")
@@ -214,7 +214,7 @@ class TestPublishModes(unittest.TestCase):
             def callback_async():
                 results_async.append(1)
             
-            publisher_async.add_callback(callback_async)
+            publisher_async.add_subscriber(callback_async)
             publisher_async.publish(mode="async")
             self.assertEqual(len(results_async), 0, "Async: immediate return")
             await asyncio.sleep(0.01)
@@ -227,7 +227,7 @@ class TestPublishModes(unittest.TestCase):
             def callback_sync():
                 results_sync.append(1)
             
-            publisher_sync.add_callback(callback_sync)
+            publisher_sync.add_subscriber(callback_sync)
             publisher_sync.publish(mode="sync")
             self.assertEqual(len(results_sync), 1, "Sync: waits for completion")
             
@@ -238,7 +238,7 @@ class TestPublishModes(unittest.TestCase):
             def callback_direct():
                 results_direct.append(1)
             
-            publisher_direct.add_callback(callback_direct)
+            publisher_direct.add_subscriber(callback_direct)
             publisher_direct.publish(mode="direct")
             self.assertEqual(len(results_direct), 1, "Direct: immediate execution")
         
@@ -260,7 +260,7 @@ class TestPublishModes(unittest.TestCase):
         def callback():
             results.append("no_event_loop_needed")
         
-        publisher.add_callback(callback)
+        publisher.add_subscriber(callback)
         
         # Should work fine without event loop
         publisher.publish(mode="direct")
@@ -276,7 +276,7 @@ class TestPublishModes(unittest.TestCase):
         def fast_callback():
             call_count[0] += 1
         
-        publisher.add_callback(fast_callback)
+        publisher.add_subscriber(fast_callback)
         
         # Should be very fast (no asyncio overhead)
         import time

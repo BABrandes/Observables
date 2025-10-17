@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from .._hooks.hook_with_owner_like import HookWithOwnerLike
     from .._nexus_system.hook_nexus import HookNexus
     from .._nexus_system.nexus_manager import NexusManager
-    from .._auxiliary.base_listening import BaseListeningLike
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")
@@ -120,13 +119,13 @@ class CarriesHooksLike(HasNexusManagerLike, Protocol[HK, HV]):
         """
         ...
 
-    def submit_value(self, key: HK, value: HV, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit a value to the observable.
         """
         ...
 
-    def submit_values(self, values: Mapping[HK, HV], not_notifying_listeners_after_submission: set["BaseListeningLike"] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to the observable.
         """

@@ -440,7 +440,7 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return False, msg
 
-    def submit_value(self, key: HK, value: HV, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit a value to the observable.
         """
@@ -451,7 +451,7 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
                 logger=logger
             )
 
-    def submit_values(self, values: Mapping[HK, HV], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to the observable using the new hook-based sync system.
         
@@ -467,7 +467,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
         
         Args:
             values: Mapping of hook keys to their new values
-            not_notifying_listeners_after_submission: Set of listeners to skip notification
             logger: Optional logger for debugging
             
         Returns:
@@ -477,7 +476,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             nexus_and_values: dict[HookNexus[Any], Any] = self.get_nexus_and_values(values)
             return self._nexus_manager.submit_values(
                 nexus_and_values,
-                not_notifying_listeners_after_submission=not_notifying_listeners_after_submission,
                 logger=logger
             )
 

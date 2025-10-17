@@ -96,28 +96,26 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
     #########################################################
 
     @final
-    def submit_value(self, value: T, not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_value(self, value: T, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit a value to this hook. This will not invalidate the hook!
 
         Args:
             value: The value to submit
-            not_notifying_listeners_after_submission: Whether to not notify listeners on certain objects after submission
             logger: The logger to use
         """
 
-        return self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", not_notifying_listeners_after_submission=not_notifying_listeners_after_submission, logger=logger)
+        return self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", logger=logger)
 
 
     @final
     @staticmethod
-    def submit_values(values: Mapping["HookLike[Any]", Any], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to this hook. This will not invalidate the hook!
 
         Args:
             values: The values to submit
-            not_notifying_listeners_after_submission: Whether to not notify listeners on certain objects after submission
             logger: The logger to use
         """
 
@@ -129,10 +127,10 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
             if hook.nexus_manager != hook_manager:
                 raise ValueError("The nexus managers must be the same")
             hook_nexus_and_values[hook.hook_nexus] = value
-        return hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", not_notifying_listeners_after_submission=not_notifying_listeners_after_submission, logger=logger)
+        return hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", logger=logger)
 
     @final
-    def validate_value(self, value: T, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def validate_value(self, value: T, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Check if the value is valid for submission.
         """
@@ -141,7 +139,7 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
 
     @staticmethod
     @final
-    def validate_values(values: Mapping["HookLike[Any]", Any], logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def validate_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Check if the values are valid for submission.
         """

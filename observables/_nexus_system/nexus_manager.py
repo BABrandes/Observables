@@ -280,7 +280,7 @@ class NexusManager:
 
         return True, "Successfully updated nexus and values"
 
-    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Internal implementation of submit_values.
 
@@ -404,9 +404,6 @@ class NexusManager:
         hooks_to_be_notified: set[HookLike[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
             hooks_of_nexus: set[HookLike[Any]] = set(nexus.hooks)
-            for obj in not_notifying_listeners_after_submission:
-                if obj in hooks_of_nexus:
-                    hooks_of_nexus.remove(obj) # type: ignore
             hooks_to_be_notified.update(hooks_of_nexus)
 
         def notify_listeners(obj: "BaseListeningLike | HookLike[Any]"):
@@ -427,8 +424,7 @@ class NexusManager:
         # Notify owners and hooks that are owned        
         for owner in owners_that_are_affected:
             if isinstance(owner, BaseListeningLike):
-                if owner not in not_notifying_listeners_after_submission:
-                    notify_listeners(owner)
+                notify_listeners(owner)
             # Only notify hooks that are actually affected
             for hook in owner.get_dict_of_hooks().values():
                 if hook in hooks_to_be_notified:
@@ -445,7 +441,6 @@ class NexusManager:
         self,
         nexus_and_values: Mapping["HookNexus[Any]", Any]|Sequence[tuple["HookNexus[Any]", Any]],
         mode: Literal["Normal submission", "Forced submission", "Check values"] = "Normal submission",
-        not_notifying_listeners_after_submission: set[BaseListeningLike] = set(),
         logger: Optional[Logger] = None
         ) -> tuple[bool, str]:
         """
@@ -526,7 +521,6 @@ class NexusManager:
             - **Listener Notification** (Synchronous): Triggers `_notify_listeners()` on:
               * All affected observables (if they implement BaseListeningLike)
               * All hooks in affected nexuses
-              * Respects `not_notifying_listeners_after_submission` exclusions
               * Listener callbacks execute synchronously before `submit_values()` returns
         
         Parameters
@@ -552,12 +546,6 @@ class NexusManager:
             - **"Check values"**: Performs only phases 2-4 (value completion and validation) without
               actually updating values (phase 5) or triggering notifications (phase 6). Useful for
               pre-validation of potential changes without committing them.
-            
-        not_notifying_listeners_after_submission : set[BaseListeningLike], default=set()
-            Set of observables or hooks that should NOT have their listeners notified during
-            phase 6. Useful for preventing notification loops or when the caller wants to
-            handle notifications manually. Objects in this set will still be updated and
-            validated, but their `_notify_listeners()` will not be called.
             
         logger : Optional[Logger], default=None
             Optional logger for debugging the submission process. Currently not actively
@@ -672,20 +660,6 @@ class NexusManager:
         >>> manager.submit_values({nexus: large_dict})
         (True, 'Values are submitted')
         
-        Suppressing notifications:
-        
-        >>> hook = FloatingHook[int](42)
-        >>> def listener():
-        ...     print("Value changed!")
-        >>> hook.add_listeners(listener)
-        >>> nexus = hook.hook_nexus
-        >>> # Update without triggering listener
-        >>> manager.submit_values({nexus: 100}, not_notifying_listeners_after_submission={hook})
-        (True, 'Values are submitted')
-        >>> # Listener was not called, but value was updated
-        >>> hook.value
-        100
-        
         Independent recursive submissions (allowed):
         
         >>> hook1 = FloatingHook[int](1)
@@ -752,7 +726,7 @@ class NexusManager:
             self._thread_local.active_nexuses.update(new_nexuses) # type: ignore
             
             try:
-                return self._internal_submit_values(nexus_and_values, mode, not_notifying_listeners_after_submission, logger)
+                return self._internal_submit_values(nexus_and_values, mode, logger)
             finally:
                 # Always remove the nexuses we added, even if an error occurs
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore

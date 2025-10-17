@@ -120,13 +120,13 @@ class CarriesHooksLike(HasNexusManagerLike, Protocol[HK, HV]):
         """
         ...
 
-    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_value(self, key: HK, value: HV, *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit a value to the observable.
         """
         ...
 
-    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_values(self, values: Mapping[HK, HV], *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit values to the observable.
         """

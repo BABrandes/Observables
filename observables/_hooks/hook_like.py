@@ -5,6 +5,7 @@ from logging import Logger
 from .._auxiliary.base_listening import BaseListeningLike
 from .._nexus_system.has_nexus_manager_like import HasNexusManagerLike
 from .._publisher_subscriber.publisher_like import PublisherLike
+from .._nexus_system.submission_error import SubmissionError
 
 if TYPE_CHECKING:
     from .._nexus_system.hook_nexus import HookNexus
@@ -106,27 +107,32 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
     #########################################################
 
     @final
-    def submit_value(self, value: T, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_value(self, value: T, *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit a value to this hook. This will not invalidate the hook!
 
         Args:
             value: The value to submit
             logger: The logger to use
+            raise_submision_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
-        return self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", logger=logger)
+        success, msg = self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", logger=logger)
+        if not success and raise_submision_error_flag:
+            raise SubmissionError(msg, value)
+        return success, msg
 
 
     @final
     @staticmethod
-    def submit_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def submit_values(values: Mapping["HookLike[Any]", Any], *, logger: Optional[Logger] = None, raise_submision_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit values to this hook. This will not invalidate the hook!
 
         Args:
             values: The values to submit
             logger: The logger to use
+            raise_submision_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
         if len(values) == 0:
@@ -137,7 +143,10 @@ class HookLike(BaseListeningLike, PublisherLike, HasNexusManagerLike, Protocol[T
             if hook.nexus_manager != hook_manager:
                 raise ValueError("The nexus managers must be the same")
             hook_nexus_and_values[hook.hook_nexus] = value
-        return hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", logger=logger)
+        success, msg = hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", logger=logger)
+        if not success and raise_submision_error_flag:
+            raise SubmissionError(msg, values)
+        return success, msg
 
     @final
     def validate_value(self, value: T, *, logger: Optional[Logger] = None) -> tuple[bool, str]:

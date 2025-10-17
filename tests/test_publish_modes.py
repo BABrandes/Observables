@@ -251,6 +251,77 @@ class TestPublishModes(unittest.TestCase):
         with self.assertRaises(ValueError):
             publisher.publish(mode="invalid")  # type: ignore
     
+    def test_off_mode_disables_publishing(self):
+        """Test that off mode disables all notifications."""
+        publisher = Publisher()
+        results: list[str] = []
+        
+        def callback():
+            results.append("executed")
+        
+        class TestSubscriber(Subscriber):
+            def _react_to_publication(self, publisher: Publisher, mode: Literal["async", "sync", "direct"]) -> None:
+                results.append("subscriber")
+        
+        publisher.add_subscriber(callback)
+        publisher.add_subscriber(TestSubscriber())
+        
+        # Off mode should not execute anything
+        publisher.publish(mode="off")
+        
+        self.assertEqual(len(results), 0, "Off mode should not notify anyone")
+    
+    def test_none_mode_uses_preferred(self):
+        """Test that None mode uses preferred_publish_mode."""
+        # Test with async preferred
+        publisher_async = Publisher(preferred_publish_mode="async")
+        self.assertEqual(publisher_async.preferred_publish_mode, "async")
+        
+        # Test with sync preferred
+        publisher_sync = Publisher(preferred_publish_mode="sync")
+        self.assertEqual(publisher_sync.preferred_publish_mode, "sync")
+        
+        # Test with direct preferred
+        publisher_direct = Publisher(preferred_publish_mode="direct")
+        results: list[str] = []
+        
+        def callback():
+            results.append("direct")
+        
+        publisher_direct.add_subscriber(callback)
+        
+        # mode=None should use preferred (direct)
+        publisher_direct.publish(mode=None)
+        self.assertEqual(len(results), 1)
+        
+        # mode=None is also the default
+        publisher_direct.publish()
+        self.assertEqual(len(results), 2)
+    
+    def test_preferred_mode_change_at_runtime(self):
+        """Test changing preferred_publish_mode at runtime."""
+        publisher = Publisher(preferred_publish_mode="off")
+        results: list[str] = []
+        
+        def callback():
+            results.append("executed")
+        
+        publisher.add_subscriber(callback)
+        
+        # Initially off
+        publisher.publish()  # Uses preferred (off)
+        self.assertEqual(len(results), 0)
+        
+        # Change to direct
+        publisher.preferred_publish_mode = "direct"
+        publisher.publish()  # Now uses direct
+        self.assertEqual(len(results), 1)
+        
+        # Override with explicit mode (ignores preferred)
+        publisher.preferred_publish_mode = "off"
+        publisher.publish(mode="direct")  # Explicit mode overrides
+        self.assertEqual(len(results), 2)
+    
     def test_direct_mode_no_asyncio_needed(self):
         """Test that direct mode works without event loop."""
         # This test runs in regular unittest context (no event loop)

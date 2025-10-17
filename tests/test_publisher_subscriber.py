@@ -231,12 +231,12 @@ class TestPublisherSubscriberErrorHandling(ObservableTestCase):
     
     def test_subscriber_error_without_logger(self):
         """Test that subscriber errors raise when no logger is provided"""
-        publisher = Publisher()  # No logger
+        publisher = Publisher(preferred_publish_mode="async")  # No logger, async mode
         subscriber = TestSubscriber()
         subscriber.should_raise = True
         
         publisher.add_subscriber(subscriber)
-        publisher.publish()
+        publisher.publish()  # Uses async mode
         
         # The error happens in the callback which is raised through the event loop
         # We need to let the loop process the callback
@@ -356,7 +356,7 @@ class TestPublisherSubscriberAsync(ObservableTestCase):
     
     def test_async_execution(self):
         """Test that reactions execute asynchronously"""
-        publisher = Publisher(logger=logger)
+        publisher = Publisher(preferred_publish_mode="async", logger=logger)
         
         # Create async-aware subscribers with delays
         class SlowSubscriber(Subscriber):
@@ -385,8 +385,8 @@ class TestPublisherSubscriberAsync(ObservableTestCase):
         publisher.add_subscriber(subscriber1)
         publisher.add_subscriber(subscriber2)
         
-        # Publish returns immediately
-        publisher.publish()
+        # Publish returns immediately (async mode)
+        publisher.publish()  # Uses async mode from preferred
         
         # In async mode, publish returns immediately before reactions complete
         self.assertEqual(subscriber2.reaction_count, 0)

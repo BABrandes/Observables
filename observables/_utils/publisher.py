@@ -340,7 +340,7 @@ class Publisher(PublisherLike):
                 # Re-raise if no logger is configured so the error isn't silently ignored
                 raise RuntimeError(error_msg) from e
 
-    def publish(self, mode: Literal["async", "sync", "direct", "off", None]) -> None:
+    def publish(self, mode: Literal["async", "sync", "direct", "off", None] = None) -> None:
         """
         Publish an update to all subscribed subscribers and/or callbacks.
         
@@ -524,11 +524,42 @@ class Publisher(PublisherLike):
                 # No waiting needed - everything already executed
                 assert database_was_updated()
                 assert counter_was_updated()
+            
+            Publishing with off mode (disabled)::
+            
+                publisher = Publisher()
+                subscriber = MySubscriber()
+                publisher.add_subscriber(subscriber)
+                
+                # Temporarily disable publishing
+                publisher.publish(mode="off")
+                # Nothing happens - subscriber not notified
+                
+                # Re-enable with explicit mode
+                publisher.publish(mode="direct")
+                # Now subscriber is notified
+            
+            Using preferred_publish_mode (None)::
+            
+                # Set preferred mode during initialization
+                publisher = Publisher(preferred_publish_mode="direct")
+                
+                # Publish using preferred mode
+                publisher.publish()  # mode=None, uses "direct"
+                
+                # Change preferred mode at runtime
+                publisher.preferred_publish_mode = "async"
+                publisher.publish()  # Now uses "async"
+                
+                # Or override with explicit mode
+                publisher.publish(mode="sync")  # Uses "sync" regardless of preferred
         
         Testing Note:
             - Async mode: use `await asyncio.sleep(0)` to allow reactions to complete
             - Sync mode: reactions complete before return, no waiting needed
             - Direct mode: callbacks execute immediately, no waiting needed, fastest option
+            - Off mode: nothing executes, instant return
+            - None mode: uses preferred_publish_mode, behavior depends on preference
         """
         # Check if we should do a full cleanup before publishing
         self._subscriber_storage.cleanup()

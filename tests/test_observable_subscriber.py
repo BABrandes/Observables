@@ -5,7 +5,6 @@ Test cases for ObservableSubscriber
 from typing import Optional, Mapping
 import asyncio
 
-import unittest
 
 from observables import Publisher, ObservableSubscriber
 
@@ -15,8 +14,8 @@ from tests.run_tests import console_logger as logger
 class TestObservableSubscriber(ObservableTestCase):
     """Test ObservableSubscriber functionality"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.publisher = Publisher(logger=logger)
@@ -46,11 +45,11 @@ class TestObservableSubscriber(ObservableTestCase):
         )
         
         # Callback should be called once with None for initial values
-        self.assertEqual(self.callback_call_count, 1)
-        self.assertIsNone(self.last_publisher)
+        assert self.callback_call_count == 1
+        assert self.last_publisher is None
         
         # Should be subscribed to publisher
-        self.assertTrue(self.publisher.is_subscribed(observable))
+        assert self.publisher.is_subscribed(observable)
     
     def test_initialization_with_multiple_publishers(self):
         """Test creating ObservableSubscriber with multiple publishers"""
@@ -66,9 +65,9 @@ class TestObservableSubscriber(ObservableTestCase):
         )
         
         # Should be subscribed to all publishers
-        self.assertTrue(self.publisher.is_subscribed(observable))
-        self.assertTrue(publisher2.is_subscribed(observable))
-        self.assertTrue(publisher3.is_subscribed(observable))
+        assert self.publisher.is_subscribed(observable)
+        assert publisher2.is_subscribed(observable)
+        assert publisher3.is_subscribed(observable)
     
     def test_reaction_to_publication(self):
         """Test that ObservableSubscriber reacts to publications"""
@@ -86,8 +85,8 @@ class TestObservableSubscriber(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Callback should have been called again
-        self.assertEqual(self.callback_call_count, initial_count + 1)
-        self.assertIs(self.last_publisher, self.publisher)
+        assert self.callback_call_count == initial_count + 1
+        assert self.last_publisher is self.publisher
     
     def test_multiple_publications(self):
         """Test multiple publications"""
@@ -105,7 +104,7 @@ class TestObservableSubscriber(ObservableTestCase):
             self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Callback should have been called 3 more times
-        self.assertEqual(self.callback_call_count, initial_count + 3)
+        assert self.callback_call_count == initial_count + 3
     
     def test_multiple_publishers_trigger_reactions(self):
         """Test that all publishers trigger reactions"""
@@ -131,7 +130,7 @@ class TestObservableSubscriber(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Callback should have been called 3 times
-        self.assertEqual(self.callback_call_count, initial_count + 3)
+        assert self.callback_call_count == initial_count + 3
     
     def test_callback_with_publisher_parameter(self):
         """Test that callback receives correct publisher"""
@@ -158,9 +157,9 @@ class TestObservableSubscriber(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Should have seen both publishers
-        self.assertEqual(len(publishers_seen), 2)
-        self.assertIn(self.publisher, publishers_seen)
-        self.assertIn(publisher2, publishers_seen)
+        assert len(publishers_seen) == 2
+        assert self.publisher in publishers_seen
+        assert publisher2 in publishers_seen
     
     def test_submit_values_called(self):
         """Test that submit_values is called with callback result"""
@@ -208,20 +207,20 @@ class TestObservableSubscriber(ObservableTestCase):
         publish_time = time.time()
         
         # Should return almost immediately
-        self.assertLess(publish_time - initial_time, 0.01)
+        assert publish_time - initial_time < 0.01
         
         # Wait for async execution
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Callback should have executed
-        self.assertGreater(len(call_times), 1)  # Initial + publication
+        assert len(call_times) > 1  # Initial + publication
 
 
 class TestObservableSubscriberEdgeCases(ObservableTestCase):
     """Test edge cases and error handling"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -259,7 +258,7 @@ class TestObservableSubscriberEdgeCases(ObservableTestCase):
         )
         
         # Should initialize successfully with no publishers
-        self.assertEqual(len(list(observable._publisher_storage.weak_references)), 0) # type: ignore
+        assert len(list(observable._publisher_storage.weak_references)) == 0 # type: ignore
     
     def test_initial_callback_with_none(self):
         """Test that initial callback receives None"""
@@ -276,14 +275,14 @@ class TestObservableSubscriberEdgeCases(ObservableTestCase):
         )
         
         # First call should have been with None
-        self.assertIsNone(received_values[0])
+        assert received_values[0] is None
 
 
 class TestObservableSubscriberIntegration(ObservableTestCase):
     """Integration tests for ObservableSubscriber"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -316,15 +315,15 @@ class TestObservableSubscriberIntegration(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Both should have reacted
-        self.assertEqual(count1[0], 1)
-        self.assertEqual(count2[0], 1)
+        assert count1[0] == 1
+        assert count2[0] == 1
         
         # Publish again
         publisher.publish()
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(count1[0], 2)
-        self.assertEqual(count2[0], 2)
+        assert count1[0] == 2
+        assert count2[0] == 2
     
     def test_chained_observables(self):
         """Test chaining Publishers and ObservableSubscribers"""
@@ -353,10 +352,6 @@ class TestObservableSubscriberIntegration(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Each should have reacted to its own publisher
-        self.assertEqual(len(values_from_pub1), 1)
-        self.assertEqual(len(values_from_pub2), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert len(values_from_pub1) == 1
+        assert len(values_from_pub2) == 1
 

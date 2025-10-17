@@ -3,95 +3,90 @@ Simplified memory leak test for observables.
 """
 
 from typing import Any
-
 import gc
 import weakref
-import unittest
 
 from observables import ObservableSingleValue, ObservableSelectionDict
 
-class TestObservableMemoryLeaks(unittest.TestCase):
-    """Test for observable memory leaks."""
 
-    def test_simple_observable_gc(self):
-        """Test that simple observables can be garbage collected."""
-        # Create an observable
-        obs = ObservableSingleValue("test_value")
-        obs_ref = weakref.ref(obs)
-        
-        # Verify it exists
-        self.assertIsNotNone(obs_ref())
-        
-        # Delete the observable
-        del obs
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify it was garbage collected
-        self.assertIsNone(obs_ref())
-
-    def test_complex_observable_gc(self):
-        """Test that complex observables can be garbage collected."""
-        # Create a complex observable
-        obs = ObservableSelectionDict(
-            dict_hook={"a": 1, "b": 2},
-            key_hook="a",
-            value_hook=None
-        )
-        obs_ref = weakref.ref(obs)
-        
-        # Verify it exists
-        self.assertIsNotNone(obs_ref())
-        
-        # Delete the observable
-        del obs
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify it was garbage collected
-        self.assertIsNone(obs_ref())
-
-    def test_observable_with_listeners_gc(self):
-        """Test that observables with listeners can be garbage collected."""
-        # Create an observable
-        obs = ObservableSingleValue("test_value")
-        obs_ref = weakref.ref(obs)
-        
-        # Add a listener
-        def listener():
-            pass
-        
-        obs.add_listeners(listener)
-        
-        # Delete the observable
-        del obs
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify it was garbage collected
-        self.assertIsNone(obs_ref())
-
-    def test_observable_with_validator_gc(self):
-        """Test that observables with validators can be garbage collected."""
-        def validator(value: Any) -> tuple[bool, str]:
-            return True, "Valid"
-        
-        # Create an observable with validator
-        obs = ObservableSingleValue("test_value", validator=validator)
-        obs_ref = weakref.ref(obs)
-        
-        # Delete the observable
-        del obs
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify it was garbage collected
-        self.assertIsNone(obs_ref())
+def test_simple_observable_gc():
+    """Test that simple observables can be garbage collected."""
+    # Create an observable
+    obs = ObservableSingleValue("test_value")
+    obs_ref = weakref.ref(obs)
+    
+    # Verify it exists
+    assert obs_ref() is not None
+    
+    # Delete the observable
+    del obs
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify it was garbage collected
+    assert obs_ref() is None
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_complex_observable_gc():
+    """Test that complex observables can be garbage collected."""
+    # Create a complex observable
+    obs = ObservableSelectionDict(
+        dict_hook={"a": 1, "b": 2},
+        key_hook="a",
+        value_hook=None
+    )
+    obs_ref = weakref.ref(obs)
+    
+    # Verify it exists
+    assert obs_ref() is not None
+    
+    # Delete the observable
+    del obs
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify it was garbage collected
+    assert obs_ref() is None
+
+
+def test_observable_with_listeners_gc():
+    """Test that observables with listeners can be garbage collected."""
+    # Create an observable
+    obs = ObservableSingleValue("test_value")
+    obs_ref = weakref.ref(obs)
+    
+    # Add a listener
+    def listener():
+        pass
+    
+    obs.add_listeners(listener)
+    
+    # Delete the observable
+    del obs
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify it was garbage collected
+    assert obs_ref() is None
+
+
+def test_observable_with_validator_gc():
+    """Test that observables with validators can be garbage collected."""
+    def validator(value: Any) -> tuple[bool, str]:
+        return True, "Valid"
+    
+    # Create an observable with validator
+    obs = ObservableSingleValue("test_value", validator=validator)
+    obs_ref = weakref.ref(obs)
+    
+    # Delete the observable
+    del obs
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify it was garbage collected
+    assert obs_ref() is None

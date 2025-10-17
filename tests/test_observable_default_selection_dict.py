@@ -1,9 +1,9 @@
 from typing import Any, Literal, Mapping, Optional
 from logging import Logger, basicConfig, getLogger, DEBUG
-import unittest
 
 from observables import ObservableDefaultSelectionDict, FloatingHook, HookLike
 from observables.core import OwnedHook, BaseObservable
+import pytest
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
@@ -28,10 +28,10 @@ class MockObservable(BaseObservable[Literal["value"], Any, Any, Any, "MockObserv
         pass
 
 
-class TestObservableDefaultSelectionDict(unittest.TestCase):
+class TestObservableDefaultSelectionDict:
     """Test ObservableDefaultSelectionDict functionality."""
 
-    def setUp(self):
+    def setup_method(self):
         """Set up test fixtures."""
         self.mock_owner = MockObservable("test_owner")
 
@@ -52,10 +52,10 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Verify creation
-        self.assertIsNotNone(selection_dict)
-        self.assertEqual(selection_dict.value, 2)  # Should be dict value, not default
-        self.assertEqual(selection_dict.key, test_key)
-        self.assertEqual(selection_dict.dict_hook.value, test_dict)
+        assert selection_dict is not None
+        assert selection_dict.value == 2  # Should be dict value, not default
+        assert selection_dict.key == test_key
+        assert selection_dict.dict_hook.value == test_dict
 
     def test_creation_with_missing_key(self):
         """Test creation with key not in dict creates default entry."""
@@ -72,10 +72,10 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Verify creation - should have added default entry
-        self.assertIsNotNone(selection_dict)
-        self.assertEqual(selection_dict.value, default_value)
-        self.assertEqual(selection_dict.key, "z")
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict is not None
+        assert selection_dict.value == default_value
+        assert selection_dict.key == "z"
+        assert selection_dict.dict_hook.value["z"] == default_value
 
     def test_creation_with_hooks(self):
         """Test creation with external hooks."""
@@ -95,10 +95,10 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Verify creation
-        self.assertIsNotNone(selection_dict)
-        self.assertEqual(selection_dict.value, 10)
-        self.assertEqual(selection_dict.key, "x")
-        self.assertEqual(selection_dict.dict_hook.value, {"x": 10, "y": 20})
+        assert selection_dict is not None
+        assert selection_dict.value == 10
+        assert selection_dict.key == "x"
+        assert selection_dict.dict_hook.value == {"x": 10, "y": 20}
 
     def test_default_value_behavior(self):
         """Test default value behavior when key is not in dict."""
@@ -114,19 +114,19 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Initially key "a" should give value 1
-        self.assertEqual(selection_dict.value, 1)
-        self.assertEqual(selection_dict.key, "a")
+        assert selection_dict.value == 1
+        assert selection_dict.key == "a"
         
         # Set key to "z" (not in dict) - should create default entry
         selection_dict.key = "z"
-        self.assertEqual(selection_dict.value, default_value)
-        self.assertEqual(selection_dict.key, "z")
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.value == default_value
+        assert selection_dict.key == "z"
+        assert selection_dict.dict_hook.value["z"] == default_value
         
         # Set key back to "b" - should use dict value
         selection_dict.key = "b"
-        self.assertEqual(selection_dict.value, 2)
-        self.assertEqual(selection_dict.key, "b")
+        assert selection_dict.value == 2
+        assert selection_dict.key == "b"
 
     def test_value_setting_with_missing_key(self):
         """Test setting value creates default entry when key not in dict."""
@@ -142,13 +142,13 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Should have created default entry
-        self.assertEqual(selection_dict.value, default_value)
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.value == default_value
+        assert selection_dict.dict_hook.value["z"] == default_value
         
         # Should be able to set value when key exists
         selection_dict.value = 123
-        self.assertEqual(selection_dict.value, 123)
-        self.assertEqual(selection_dict.dict_hook.value["z"], 123)
+        assert selection_dict.value == 123
+        assert selection_dict.dict_hook.value["z"] == 123
 
     def test_value_setting_with_valid_key(self):
         """Test setting value when key is valid."""
@@ -165,8 +165,8 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Should be able to set value when key is valid
         selection_dict.value = 777
-        self.assertEqual(selection_dict.value, 777)
-        self.assertEqual(selection_dict.dict_hook.value["a"], 777)
+        assert selection_dict.value == 777
+        assert selection_dict.dict_hook.value["a"] == 777
 
     def test_hook_interface(self):
         """Test CarriesHooks interface implementation."""
@@ -182,26 +182,26 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Test get_hook_keys
         keys = selection_dict.get_hook_keys()
-        self.assertEqual(keys, {"dict", "key", "value"})
+        assert keys == {"dict", "key", "value"}
         
         # Test get_hook
         dict_hook = selection_dict.get_hook("dict")
         key_hook = selection_dict.get_hook("key")
         value_hook = selection_dict.get_hook("value")
         
-        self.assertIsNotNone(dict_hook)
-        self.assertIsNotNone(key_hook)
-        self.assertIsNotNone(value_hook)
+        assert dict_hook is not None
+        assert key_hook is not None
+        assert value_hook is not None
         
         # Test get_hook_value_as_reference
-        self.assertEqual(selection_dict.get_value_reference_of_hook("dict"), test_dict)
-        self.assertEqual(selection_dict.get_value_reference_of_hook("key"), "a")
-        self.assertEqual(selection_dict.get_value_reference_of_hook("value"), 1)
+        assert selection_dict.get_value_reference_of_hook("dict") == test_dict
+        assert selection_dict.get_value_reference_of_hook("key") == "a"
+        assert selection_dict.get_value_reference_of_hook("value") == 1
         
         # Test get_hook_key
-        self.assertEqual(selection_dict.get_hook_key(dict_hook), "dict")
-        self.assertEqual(selection_dict.get_hook_key(key_hook), "key")
-        self.assertEqual(selection_dict.get_hook_key(value_hook), "value")
+        assert selection_dict.get_hook_key(dict_hook) == "dict"
+        assert selection_dict.get_hook_key(key_hook) == "key"
+        assert selection_dict.get_hook_key(value_hook) == "value"
 
     def test_verification_method(self):
         """Test the verification method."""
@@ -217,22 +217,22 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Test valid values with key
         success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
-        self.assertTrue(success)
+        assert success
         
         # Test invalid - None key (key must not be None)
         success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": default_value})
-        self.assertFalse(success)
-        self.assertIn("Key must not be None", msg)
+        assert not success
+        assert "Key must not be None" in msg
         
         # Test invalid - key not in dict
         success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
-        self.assertFalse(success)
-        self.assertIn("not in dictionary", msg)
+        assert not success
+        assert "not in dictionary" in msg
         
         # Test invalid - value doesn't match dictionary value
         success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
-        self.assertFalse(success)  # Should be invalid - value doesn't match dictionary
-        self.assertIn("not equal to value in dictionary", msg)
+        assert not success  # Should be invalid - value doesn't match dictionary
+        assert "not equal to value in dictionary" in msg
 
     def test_dict_key_change_propagation(self):
         """Test that changing dict or key updates the value."""
@@ -248,33 +248,32 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Change key
         selection_dict.key = "b"
-        self.assertEqual(selection_dict.value, 2)
+        assert selection_dict.value == 2
         
         # Change key to one not in dict - should create default entry
         selection_dict.key = "z"
-        self.assertEqual(selection_dict.value, default_value)
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.value == default_value
+        assert selection_dict.dict_hook.value["z"] == default_value
         
         # Try to change dict to one that doesn't contain current key "z" - should raise error
         new_dict_without_z = {"b": 200, "x": 100, "y": 300}
-        with self.assertRaises(KeyError) as context:
+        with pytest.raises(KeyError, match="not in submitted dictionary"):
             selection_dict.dict_hook.submit_value(new_dict_without_z)
-        self.assertIn("not in submitted dictionary", str(context.exception))
         
         # Dict should remain unchanged
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.dict_hook.value["z"] == default_value
         
         # First change key back to one that exists in both old and new dict
         selection_dict.key = "b"
-        self.assertEqual(selection_dict.value, 2)  # Still old value
+        assert selection_dict.value == 2  # Still old value
         
         # Now change dict to new dict - should succeed since "b" is in it
         new_dict = {"b": 200, "x": 100, "y": 300}
         success, msg = selection_dict.dict_hook.submit_value(new_dict)
-        self.assertTrue(success, f"Dict update should succeed when key is present: {msg}")
-        self.assertEqual(selection_dict.dict_hook.value["b"], 200)
-        self.assertEqual(selection_dict.dict_hook.value["x"], 100)
-        self.assertEqual(selection_dict.value, 200)
+        assert success, f"Dict update should succeed when key is present: {msg}"
+        assert selection_dict.dict_hook.value["b"] == 200
+        assert selection_dict.dict_hook.value["x"] == 100
+        assert selection_dict.value == 200
 
     def test_value_change_propagation(self):
         """Test that changing value updates the dict."""
@@ -290,8 +289,8 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Change value when key is set
         selection_dict.value = 777
-        self.assertEqual(selection_dict.dict_hook.value["a"], 777)
-        self.assertEqual(selection_dict.value, 777)
+        assert selection_dict.dict_hook.value["a"] == 777
+        assert selection_dict.value == 777
 
     def test_connect_disconnect(self):
         """Test connect and disconnect functionality."""
@@ -310,8 +309,8 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Connect to key hook
         selection_dict.connect_hook(external_hook, "key", "use_target_value")  # type: ignore
-        self.assertEqual(selection_dict.key, "b")
-        self.assertEqual(selection_dict.value, 2)
+        assert selection_dict.key == "b"
+        assert selection_dict.value == 2
         
         # Disconnect
         selection_dict.disconnect_hook("key")
@@ -331,8 +330,8 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Test invalidation
         success, msg = selection_dict.invalidate()
-        self.assertTrue(success)
-        self.assertEqual(msg, "No invalidate callback provided")
+        assert success
+        assert msg == "No invalidate callback provided"
 
     def test_set_dict_and_key(self):
         """Test set_dict_and_key method."""
@@ -349,16 +348,16 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         # Set valid dict and key
         new_dict = {"x": 100, "y": 200}
         selection_dict.set_dict_and_key(new_dict, "x")
-        self.assertEqual(selection_dict.dict_hook.value, new_dict)
-        self.assertEqual(selection_dict.key, "x")
-        self.assertEqual(selection_dict.value, 100)
+        assert selection_dict.dict_hook.value == new_dict
+        assert selection_dict.key == "x"
+        assert selection_dict.value == 100
         
         # Set dict and key not in dict - should create default entry
         selection_dict.set_dict_and_key(new_dict, "z")
-        self.assertEqual(selection_dict.key, "z")
-        self.assertEqual(selection_dict.value, default_value)
+        assert selection_dict.key == "z"
+        assert selection_dict.value == default_value
         # Dict should now have the "z" key with default value
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.dict_hook.value["z"] == default_value
 
     def test_error_handling(self):
         """Test error handling for invalid operations."""
@@ -366,7 +365,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         default_value = 999
         
         # Test creation with invalid value_hook
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ObservableDefaultSelectionDict(
                 dict_hook=test_dict,
                 key_hook="a",
@@ -388,9 +387,9 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
             logger=logger
         )
         
-        self.assertEqual(selection_dict.value, default_value)
-        self.assertEqual(selection_dict.key, "z")
-        self.assertEqual(selection_dict.dict_hook.value["z"], default_value)
+        assert selection_dict.value == default_value
+        assert selection_dict.key == "z"
+        assert selection_dict.dict_hook.value["z"] == default_value
         
         # Test with default value that equals a dict value
         test_dict = {"a": 999, "b": 2}
@@ -402,14 +401,14 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
             logger=logger
         )
         
-        self.assertEqual(selection_dict2.value, 999)
-        self.assertEqual(selection_dict2.key, "a")
+        assert selection_dict2.value == 999
+        assert selection_dict2.key == "a"
         
         # Set key to "c" (not in dict) - should create default entry with value 999
         selection_dict2.key = "c"
-        self.assertEqual(selection_dict2.value, 999)
-        self.assertEqual(selection_dict2.key, "c")
-        self.assertEqual(selection_dict2.dict_hook.value["c"], 999)
+        assert selection_dict2.value == 999
+        assert selection_dict2.key == "c"
+        assert selection_dict2.dict_hook.value["c"] == 999
 
     def test_properties(self):
         """Test property access."""
@@ -425,24 +424,24 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Test dict_hook property
         dict_hook = selection_dict.dict_hook
-        self.assertIsNotNone(dict_hook)
-        self.assertEqual(dict_hook.value, test_dict)
+        assert dict_hook is not None
+        assert dict_hook.value == test_dict
         
         # Test key_hook property
         key_hook = selection_dict.key_hook
-        self.assertIsNotNone(key_hook)
-        self.assertEqual(key_hook.value, "a")
+        assert key_hook is not None
+        assert key_hook.value == "a"
         
         # Test value_hook property
         value_hook = selection_dict.value_hook
-        self.assertIsNotNone(value_hook)
-        self.assertEqual(value_hook.value, 1)
+        assert value_hook is not None
+        assert value_hook.value == 1
         
         # Test value property
-        self.assertEqual(selection_dict.value, 1)
+        assert selection_dict.value == 1
         
         # Test key property
-        self.assertEqual(selection_dict.key, "a")
+        assert selection_dict.key == "a"
 
     def test_destroy(self):
         """Test destroy method."""
@@ -470,7 +469,7 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         
         # Trigger invalidation - listener should not be called
         selection_dict.invalidate()
-        self.assertFalse(listener_called)
+        assert not listener_called
 
     def test_callable_default_value(self):
         """Test using a callable as default value."""
@@ -489,17 +488,17 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Initial key "a" should use dict value
-        self.assertEqual(selection_dict.value, 1)
+        assert selection_dict.value == 1
         
         # Set key to "xyz" (not in dict) - should use callable to create default
         selection_dict.key = "xyz"
-        self.assertEqual(selection_dict.value, 300)  # len("xyz") * 100 = 300
-        self.assertEqual(selection_dict.dict_hook.value["xyz"], 300)
+        assert selection_dict.value == 300  # len("xyz") * 100 = 300
+        assert selection_dict.dict_hook.value["xyz"] == 300
         
         # Set key to "hello" (not in dict) - should use callable with different result
         selection_dict.key = "hello"
-        self.assertEqual(selection_dict.value, 500)  # len("hello") * 100 = 500
-        self.assertEqual(selection_dict.dict_hook.value["hello"], 500)
+        assert selection_dict.value == 500  # len("hello") * 100 = 500
+        assert selection_dict.dict_hook.value["hello"] == 500
 
     def test_callable_default_value_in_initialization(self):
         """Test callable default value during initialization."""
@@ -518,9 +517,5 @@ class TestObservableDefaultSelectionDict(unittest.TestCase):
         )
         
         # Should have created default entry using callable
-        self.assertEqual(selection_dict.value, ord("z"))  # 122
-        self.assertEqual(selection_dict.dict_hook.value["z"], ord("z"))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert selection_dict.value == ord("z")  # 122
+        assert selection_dict.dict_hook.value["z"] == ord("z")

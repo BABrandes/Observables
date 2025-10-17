@@ -1,11 +1,11 @@
 from typing import Any, Mapping, Optional
-import unittest
 import threading
 from logging import Logger
 
 from observables.core import OwnedHook, BaseObservable
 
 from tests.run_tests import console_logger as logger
+import pytest
 
 class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
@@ -32,7 +32,7 @@ class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
         # For testing purposes, return a dummy key
         return "dummy_key"
     
-class TestHookCapabilities(unittest.TestCase):
+class TestHookCapabilities:
     """Test hooks with different capabilities in the new hook-based system."""
 
     def test_hook_creation_with_invalidate_callback(self):
@@ -48,9 +48,9 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Verify the hook is created correctly
-        self.assertEqual(hook.value, "initial_value")
-        self.assertEqual(hook.owner, mock_owner)
-        self.assertIsNotNone(hook.hook_nexus)
+        assert hook.value == "initial_value"
+        assert hook.owner == mock_owner
+        assert hook.hook_nexus is not None
 
     def test_hook_creation_without_invalidate_callback(self):
         """Test hook creation without invalidate callback."""
@@ -65,9 +65,9 @@ class TestHookCapabilities(unittest.TestCase):
         )
             
         # Verify the hook is created correctly
-        self.assertEqual(hook.value, "initial_value")
-        self.assertEqual(hook.owner, mock_owner)
-        self.assertIsNotNone(hook.hook_nexus)
+        assert hook.value == "initial_value"
+        assert hook.owner == mock_owner
+        assert hook.hook_nexus is not None
 
     def test_value_hook_property(self):
         """Test the value property of hooks."""
@@ -82,10 +82,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test the value property
-        self.assertEqual(hook.value, "test_value")
+        assert hook.value == "test_value"
         
         # The value comes from the hook nexus, so it should be consistent
-        self.assertEqual(hook.hook_nexus.value, "test_value")
+        assert hook.hook_nexus.value == "test_value"
 
     def test_hook_owner_property(self):
         """Test the owner property of hooks."""
@@ -100,10 +100,10 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test the owner property
-        self.assertEqual(hook.owner, mock_owner)
+        assert hook.owner == mock_owner
         
         # Test that owner is the same instance
-        self.assertIs(hook.owner, mock_owner)
+        assert hook.owner is mock_owner
 
     def test_hook_hook_nexus_property(self):
         """Test the hook_nexus property of hooks."""
@@ -118,13 +118,13 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test the hook_nexus property
-        self.assertIsNotNone(hook.hook_nexus)
-        self.assertIn(hook, hook.hook_nexus.hooks)
+        assert hook.hook_nexus is not None
+        assert hook in hook.hook_nexus.hooks
         
         # Test that hook_nexus is consistent
         hook_nexus1 = hook.hook_nexus
         hook_nexus2 = hook.hook_nexus
-        self.assertIs(hook_nexus1, hook_nexus2)
+        assert hook_nexus1 is hook_nexus2
 
     def test_hook_lock_property(self):
         """Test the lock property of hooks."""
@@ -139,11 +139,11 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test the lock property
-        self.assertIsNotNone(hook.lock)
+        assert hook.lock is not None
         
         # Test that lock is a threading lock type
-        self.assertTrue(hasattr(hook.lock, 'acquire'))
-        self.assertTrue(hasattr(hook.lock, 'release'))
+        assert hasattr(hook.lock, 'acquire')
+        assert hasattr(hook.lock, 'release')
         
         # Test that lock can be acquired
         with hook.lock:
@@ -169,15 +169,15 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Initially, hooks are in separate hook nexuses
-        self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
+        assert hook1.hook_nexus != hook2.hook_nexus
         
         # Connect hook1 to hook2
         hook1.connect_hook(hook2, "use_caller_value")  # type: ignore
         
         # Now they should be in the same hook nexus
-        self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
-        self.assertIn(hook1, hook2.hook_nexus.hooks)
-        self.assertIn(hook2, hook1.hook_nexus.hooks)
+        assert hook1.hook_nexus == hook2.hook_nexus
+        assert hook1 in hook2.hook_nexus.hooks
+        assert hook2 in hook1.hook_nexus.hooks
 
     def test_hook_connect_to_invalid_sync_mode(self):
         """Test connect_to with invalid sync mode."""
@@ -198,10 +198,8 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Test with invalid sync mode
-        with self.assertRaises(ValueError) as cm:
+        with pytest.raises(ValueError, match="Invalid sync mode"):
             hook1.connect_hook(hook2, "invalid_mode")  # type: ignore
-        
-        self.assertIn("Invalid sync mode", str(cm.exception))
 
     def test_hook_detach(self):
         """Test the detach method of hooks."""
@@ -232,9 +230,9 @@ class TestHookCapabilities(unittest.TestCase):
         hook.disconnect_hook()
         
         # Verify the hook is now in a new, separate hook nexus
-        self.assertNotEqual(hook.hook_nexus, original_nexus)
-        self.assertIn(hook, hook.hook_nexus.hooks)
-        self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        assert hook.hook_nexus != original_nexus
+        assert hook in hook.hook_nexus.hooks
+        assert len(hook.hook_nexus.hooks) == 1
 
     def test_hook_detach_multiple_times(self):
         """Test calling detach multiple times."""
@@ -263,18 +261,18 @@ class TestHookCapabilities(unittest.TestCase):
         hook.disconnect_hook()
         
         # Should create a new hook nexus
-        self.assertNotEqual(hook.hook_nexus, original_nexus)
-        self.assertIn(hook, hook.hook_nexus.hooks)
-        self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        assert hook.hook_nexus != original_nexus
+        assert hook in hook.hook_nexus.hooks
+        assert len(hook.hook_nexus.hooks) == 1
         
         # Second disconnect should do nothing since hook is already isolated
         nexus_after_first_disconnect = hook.hook_nexus
         hook.disconnect_hook()
         
         # Should still be the same nexus
-        self.assertEqual(hook.hook_nexus, nexus_after_first_disconnect)
-        self.assertIn(hook, hook.hook_nexus.hooks)
-        self.assertEqual(len(hook.hook_nexus.hooks), 1)
+        assert hook.hook_nexus == nexus_after_first_disconnect
+        assert hook in hook.hook_nexus.hooks
+        assert len(hook.hook_nexus.hooks) == 1
 
     def test_hook_submit_value(self):
         """Test the submit_value method of hooks."""
@@ -290,10 +288,10 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test submitting a new value
         success, message = hook.submit_value("new_value")
-        self.assertTrue(success, f"Submit failed: {message}")
+        assert success, f"Submit failed: {message}"
         
         # The value should be updated in the hook nexus
-        self.assertEqual(hook.hook_nexus.value, "new_value")
+        assert hook.hook_nexus.value == "new_value"
 
     def test_hook_submit_value_without_callback(self):
         """Test submit_value on a hook without invalidate callback."""
@@ -309,7 +307,7 @@ class TestHookCapabilities(unittest.TestCase):
         
         # Test submitting a value - should still work as it goes through the hook nexus
         success, message = hook.submit_value("new_value")
-        self.assertTrue(success, f"Submit failed: {message}")
+        assert success, f"Submit failed: {message}"
 
     def test_hook_is_connected_to(self):
         """Test the is_connected_to method of hooks."""
@@ -330,15 +328,15 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Initially, hooks are not attached
-        self.assertFalse(hook1.is_connected_to(hook2))
-        self.assertFalse(hook2.is_connected_to(hook1))
+        assert not hook1.is_connected_to(hook2)
+        assert not hook2.is_connected_to(hook1)
         
         # Connect them
         hook1.connect_hook(hook2, "use_caller_value")  # type: ignore
         
         # Now they should be attached
-        self.assertTrue(hook1.is_connected_to(hook2))
-        self.assertTrue(hook2.is_connected_to(hook1))
+        assert hook1.is_connected_to(hook2)
+        assert hook2.is_connected_to(hook1)
 
     def test_hook_is_valid_value(self):
         """Test the is_valid_value method of hooks."""
@@ -355,8 +353,8 @@ class TestHookCapabilities(unittest.TestCase):
         # Test validation - should delegate to owner
         success, message = hook.validate_value("new_value")
         # The actual result depends on the owner's validation logic
-        self.assertIsInstance(success, bool)
-        self.assertIsInstance(message, str)
+        assert isinstance(success, bool)
+        assert isinstance(message, str)
 
     def test_hook_replace_hook_nexus(self):
         """Test the _replace_hook_nexus method."""
@@ -381,9 +379,9 @@ class TestHookCapabilities(unittest.TestCase):
         hook._replace_hook_nexus(new_nexus) #type: ignore
         
         # Verify the hook is now in the new hook nexus
-        self.assertEqual(hook.hook_nexus, new_nexus)
-        self.assertNotEqual(hook.hook_nexus, original_nexus)
-        self.assertIn(hook, new_nexus.hooks)
+        assert hook.hook_nexus == new_nexus
+        assert hook.hook_nexus != original_nexus
+        assert hook in new_nexus.hooks
 
     def test_hook_thread_safety_basic(self):
         """Test basic thread safety of hooks."""
@@ -429,7 +427,7 @@ class TestHookCapabilities(unittest.TestCase):
         writer_thread.join()
         
         # Verify no exceptions occurred during concurrent access
-        self.assertTrue(True, "Basic thread safety test completed without errors")
+        assert True, "Basic thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_property_access(self):
         """Test thread safety of hook properties under concurrent access."""
@@ -476,7 +474,7 @@ class TestHookCapabilities(unittest.TestCase):
         writer_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Property thread safety test completed without errors")
+        assert True, "Property thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_method_calls(self):
         """Test thread safety of hook methods under concurrent access."""
@@ -521,7 +519,7 @@ class TestHookCapabilities(unittest.TestCase):
         changer_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Method thread safety test completed without errors")
+        assert True, "Method thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_hook_nexus_operations(self):
         """Test thread safety of hook nexus operations under concurrent access."""
@@ -577,7 +575,7 @@ class TestHookCapabilities(unittest.TestCase):
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Hook nexus thread safety test completed without errors")
+        assert True, "Hook nexus thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_detach_operations(self):
         """Test thread safety of detach operations under concurrent access."""
@@ -629,7 +627,7 @@ class TestHookCapabilities(unittest.TestCase):
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Detach thread safety test completed without errors")
+        assert True, "Detach thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_submit_operations(self):
         """Test thread safety of submit operations under concurrent access."""
@@ -673,7 +671,7 @@ class TestHookCapabilities(unittest.TestCase):
         accessor_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Submit thread safety test completed without errors")
+        assert True, "Submit thread safety test completed without errors"
 
     def test_hook_thread_safety_concurrent_connect_operations(self):
         """Test thread safety of connect operations under concurrent access."""
@@ -724,7 +722,7 @@ class TestHookCapabilities(unittest.TestCase):
         checker_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Connect operations thread safety test completed without errors")
+        assert True, "Connect operations thread safety test completed without errors"
 
     def test_hook_thread_safety_stress_test(self):
         """Stress test for thread safety with many concurrent operations."""
@@ -768,7 +766,7 @@ class TestHookCapabilities(unittest.TestCase):
             thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Stress test thread safety test completed without errors")
+        assert True, "Stress test thread safety test completed without errors"
 
     def test_hook_thread_safety_lock_contention(self):
         """Test thread safety under lock contention scenarios."""
@@ -815,7 +813,7 @@ class TestHookCapabilities(unittest.TestCase):
         waiter_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Lock contention thread safety test completed without errors")
+        assert True, "Lock contention thread safety test completed without errors"
 
     def test_hook_thread_safety_race_conditions(self):
         """Test thread safety under potential race condition scenarios."""
@@ -860,7 +858,7 @@ class TestHookCapabilities(unittest.TestCase):
         observer_thread.join()
         
         # Verify no exceptions occurred
-        self.assertTrue(True, "Race condition thread safety test completed without errors")
+        assert True, "Race condition thread safety test completed without errors"
 
     def test_hook_with_different_types(self):
         """Test hooks with different data types."""
@@ -871,7 +869,7 @@ class TestHookCapabilities(unittest.TestCase):
             initial_value=42,
             logger=logger
         )
-        self.assertEqual(int_hook.value, 42)
+        assert int_hook.value == 42
         
         # Test with float
         float_hook = OwnedHook[float](
@@ -879,7 +877,7 @@ class TestHookCapabilities(unittest.TestCase):
             initial_value=3.14,
             logger=logger
         )
-        self.assertEqual(float_hook.value, 3.14)
+        assert float_hook.value == 3.14
         
         # Test with bool
         bool_hook = OwnedHook[bool](
@@ -887,7 +885,7 @@ class TestHookCapabilities(unittest.TestCase):
             initial_value=True,
             logger=logger
         )
-        self.assertEqual(bool_hook.value, True)
+        assert bool_hook.value == True
         
         # Test with list
         list_hook = OwnedHook[list[str]](
@@ -895,7 +893,7 @@ class TestHookCapabilities(unittest.TestCase):
             initial_value=["a", "b", "c"],
             logger=logger
         )
-        self.assertEqual(list_hook.value, ["a", "b", "c"])
+        assert list_hook.value == ["a", "b", "c"]
 
     def test_hook_equality_and_hash(self):
         """Test hook equality and hashing behavior."""
@@ -916,15 +914,15 @@ class TestHookCapabilities(unittest.TestCase):
         )
         
         # Hooks should not be equal (they're different instances)
-        self.assertNotEqual(hook1, hook2)
+        assert hook1 != hook2
         
         # Hooks should be hashable
-        self.assertIsInstance(hash(hook1), int)
-        self.assertIsInstance(hash(hook2), int)
+        assert isinstance(hash(hook1), int)
+        assert isinstance(hash(hook2), int)
         
         # Same hook should be equal to itself
-        self.assertEqual(hook1, hook1)
-        self.assertEqual(hook2, hook2)
+        assert hook1 == hook1
+        assert hook2 == hook2
 
     def test_hook_string_representation(self):
         """Test hook string representation."""
@@ -943,8 +941,8 @@ class TestHookCapabilities(unittest.TestCase):
         hook_repr = repr(hook)
         
         # Should contain useful information
-        self.assertIn("Hook", hook_str)
-        self.assertIn("Hook", hook_repr)
+        assert "Hook" in hook_str
+        assert "Hook" in hook_repr
 
     def test_hook_with_none_owner(self):
         """Test hook creation with None owner."""
@@ -957,10 +955,10 @@ class TestHookCapabilities(unittest.TestCase):
                 logger=logger
             )
             # If no exception is raised, that's the current behavior
-            self.assertIsNone(hook.owner)
+            assert hook.owner is None
         except Exception as e:
             # If an exception is raised, that's also acceptable
-            self.assertIsInstance(e, Exception)
+            assert isinstance(e, Exception)
 
 
     def test_hook_with_exception_handling_callbacks(self):

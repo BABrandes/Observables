@@ -1,12 +1,12 @@
 from typing import Any, Literal, Mapping, Optional, cast
 from logging import Logger, basicConfig, getLogger, DEBUG
-import unittest
 
 import time
 import threading
 
 from observables import ObservableTransfer, ObservableSingleValue, HookLike
 from observables.core import BaseObservable, OwnedHook
+import pytest
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
@@ -32,10 +32,10 @@ class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
         # For testing purposes, return a dummy key
         return "dummy_key"
 
-class TestObservableTransfer(unittest.TestCase):
+class TestObservableTransfer:
     """Test ObservableTransfer functionality."""
 
-    def setUp(self):
+    def setup_method(self):
         """Set up test fixtures."""
         self.mock_owner = MockObservable("test_owner")
 
@@ -61,13 +61,13 @@ class TestObservableTransfer(unittest.TestCase):
         )
         
         # Verify creation
-        self.assertIsNotNone(transfer)
-        self.assertEqual(len(transfer.get_hook_keys()), 4)  # 2 inputs + 2 outputs
+        assert transfer is not None
+        assert len(transfer.get_hook_keys()) == 4  # 2 inputs + 2 outputs
         
         # The transfer should have its own internal hooks, not the external ones
         # This is correct architecture - the transfer manages its own hooks
         transfer_hooks = transfer.get_dict_of_hooks().values()
-        self.assertEqual(len(transfer_hooks), 4)
+        assert len(transfer_hooks) == 4
         
         # Verify we can access the hooks by key
         x_internal_hook = transfer.get_hook("x")
@@ -76,14 +76,14 @@ class TestObservableTransfer(unittest.TestCase):
         product_internal_hook = transfer.get_hook("product")
         
         # These should be the transfer's internal hooks, not the external ones
-        self.assertNotEqual(x_internal_hook, x_hook)  # Different objects
-        self.assertNotEqual(y_internal_hook, y_hook)  # Different objects
-        self.assertNotEqual(sum_internal_hook, sum_hook)  # Different objects
-        self.assertNotEqual(product_internal_hook, product_hook)  # Different objects
+        assert x_internal_hook != x_hook  # Different objects
+        assert y_internal_hook != y_hook  # Different objects
+        assert sum_internal_hook != sum_hook  # Different objects
+        assert product_internal_hook != product_hook  # Different objects
         
         # But the values should be synchronized
-        self.assertEqual(x_internal_hook.value, x_hook.value)
-        self.assertEqual(y_internal_hook.value, y_hook.value)
+        assert x_internal_hook.value == x_hook.value
+        assert y_internal_hook.value == y_hook.value
 
     def test_hook_access(self):
         """Test hook access methods."""
@@ -107,22 +107,22 @@ class TestObservableTransfer(unittest.TestCase):
         sum_internal_hook = transfer.get_hook("sum")
         
         # These should be different objects (internal vs external hooks)
-        self.assertNotEqual(x_internal_hook, x_hook)
-        self.assertNotEqual(y_internal_hook, y_hook)
-        self.assertNotEqual(sum_internal_hook, sum_hook)
+        assert x_internal_hook != x_hook
+        assert y_internal_hook != y_hook
+        assert sum_internal_hook != sum_hook
         
         # But values should be synchronized
-        self.assertEqual(x_internal_hook.value, x_hook.value)
-        self.assertEqual(y_internal_hook.value, y_hook.value)
-        self.assertEqual(sum_internal_hook.value, sum_hook.value)
+        assert x_internal_hook.value == x_hook.value
+        assert y_internal_hook.value == y_hook.value
+        assert sum_internal_hook.value == sum_hook.value
         
         # Test that we can get all the hooks we expect
-        self.assertIsNotNone(x_internal_hook)
-        self.assertIsNotNone(y_internal_hook)
-        self.assertIsNotNone(sum_internal_hook)
+        assert x_internal_hook is not None
+        assert y_internal_hook is not None
+        assert sum_internal_hook is not None
         
         # Test invalid key
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             transfer.get_hook("invalid")
 
     def test_forward_transformation_single_output(self):
@@ -149,15 +149,15 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(sum_obs.hook, "sum", "use_caller_value")
         
         # Initially, sum should be calculated from initial values
-        self.assertEqual(sum_obs.value, 8)  # 5 + 3
+        assert sum_obs.value == 8  # 5 + 3
         
         # Trigger transformation by changing input value
         transform_called.clear()
         x_obs.value = 10  # This should trigger the transfer
         
         # Should have triggered transformation
-        self.assertTrue(transform_called)
-        self.assertEqual(sum_obs.value, 13)  # 10 + 3
+        assert transform_called
+        assert sum_obs.value == 13  # 10 + 3
 
     def test_forward_transformation_multiple_outputs(self):
         """Test forward transformation with multiple outputs."""
@@ -190,19 +190,19 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(diff_obs.hook, "difference", "use_caller_value")
         
         # Initially, outputs should be calculated from initial values
-        self.assertEqual(sum_obs.value, 14)    # 10 + 4
-        self.assertEqual(product_obs.value, 40)  # 10 * 4
-        self.assertEqual(diff_obs.value, 6)     # 10 - 4
+        assert sum_obs.value == 14    # 10 + 4
+        assert product_obs.value == 40  # 10 * 4
+        assert diff_obs.value == 6     # 10 - 4
         
         # Trigger transformation by changing input
         transform_called.clear()
         y_obs.value = 5  # Change from 4 to 5
         
         # Should have triggered transformation and updated all outputs
-        self.assertTrue(transform_called)
-        self.assertEqual(sum_obs.value, 15)    # 10 + 5
-        self.assertEqual(product_obs.value, 50)  # 10 * 5
-        self.assertEqual(diff_obs.value, 5)     # 10 - 5
+        assert transform_called
+        assert sum_obs.value == 15    # 10 + 5
+        assert product_obs.value == 50  # 10 * 5
+        assert diff_obs.value == 5     # 10 - 5
 
     def test_reverse_transformation(self):
         """Test reverse transformation (outputs → inputs)."""
@@ -234,14 +234,14 @@ class TestObservableTransfer(unittest.TestCase):
         # Test forward transformation
         forward_called.clear()
         x_obs.value = 7  # This should trigger forward transformation
-        self.assertTrue(forward_called)
-        self.assertEqual(result_obs.value, 14)  # 7 * 2
+        assert forward_called
+        assert result_obs.value == 14  # 7 * 2
         
         # Test reverse transformation
         reverse_called.clear()
         result_obs.value = 20  # This should trigger reverse transformation
-        self.assertTrue(reverse_called)
-        self.assertEqual(x_obs.value, 10)  # 20 // 2
+        assert reverse_called
+        assert x_obs.value == 10  # 20 // 2
 
     def test_bidirectional_temperature_conversion(self):
         """Test bidirectional transformation with temperature conversion."""
@@ -266,11 +266,11 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test forward: Change Celsius, check Fahrenheit
         celsius_obs.value = 0.0  # Freezing point
-        self.assertAlmostEqual(fahrenheit_obs.value, 32.0, places=1)
+        assert fahrenheit_obs.value == pytest.approx(32.0, abs=0.1)
         
         # Test reverse: Change Fahrenheit, check Celsius  
         fahrenheit_obs.value = 100.0
-        self.assertAlmostEqual(celsius_obs.value, 37.777777777777786, places=5)
+        assert celsius_obs.value == pytest.approx(37.777777777777786, abs=0.00001)
 
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
@@ -291,10 +291,10 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.disconnect_hook("x")
         
         # Test invalid key for attach/detach
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             transfer.connect_hook(external_hook, "invalid", "use_caller_value")  # type: ignore
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             transfer.disconnect_hook("invalid")
 
     def test_dictionary_access_scenario(self):
@@ -326,23 +326,23 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(exists_obs.hook, "exists", "use_caller_value") # type: ignore
         
         # Test initial state
-        self.assertEqual(value_obs.value, 1)      # dict["a"] = 1
-        self.assertTrue(exists_obs.value)         # "a" exists in dict
+        assert value_obs.value == 1      # dict["a"] = 1
+        assert exists_obs.value         # "a" exists in dict
         
         # Trigger transformation by changing key
         key_obs.value = "b"
-        self.assertEqual(value_obs.value, 2)      # dict["b"] = 2
-        self.assertTrue(exists_obs.value)         # "b" exists in dict
+        assert value_obs.value == 2      # dict["b"] = 2
+        assert exists_obs.value         # "b" exists in dict
         
         # Change key to non-existent value
         key_obs.value = "z"
-        self.assertIsNone(value_obs.value)        # dict["z"] = None
-        self.assertFalse(exists_obs.value)        # "z" doesn't exist
+        assert value_obs.value is None        # dict["z"] = None
+        assert not exists_obs.value        # "z" doesn't exist
         
         # Change dictionary
         dict_obs.value = {"x": 10, "y": 20, "z": 30}
-        self.assertEqual(value_obs.value, 30)     # dict["z"] = 30 now
-        self.assertTrue(exists_obs.value)         # "z" exists now
+        assert value_obs.value == 30     # dict["z"] = 30 now
+        assert exists_obs.value         # "z" exists now
 
     def test_thread_safety(self):
         """Test thread safety of transformations."""
@@ -385,7 +385,7 @@ class TestObservableTransfer(unittest.TestCase):
             thread.join()
         
         # Should have completed without errors
-        self.assertTrue(len(transform_count) > 0)
+        assert len(transform_count) > 0
 
     def test_listener_notifications(self):
         """Test that listeners are notified when transformations occur."""
@@ -409,7 +409,7 @@ class TestObservableTransfer(unittest.TestCase):
         x_obs.value = 10
         
         # Should have notified listeners
-        self.assertIn("transfer_notified", notifications)
+        assert "transfer_notified" in notifications
 
     def test_string_formatting_use_case(self):
         """Test string formatting use case."""
@@ -431,11 +431,11 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test initial transformation
         name_obs.value = "Alice"  # Trigger transformation
-        self.assertEqual(result_obs.value, "Hello, Alice!")
+        assert result_obs.value == "Hello, Alice!"
         
         # Change template
         template_obs.value = "Hi {name}, how are you?"
-        self.assertEqual(result_obs.value, "Hi Alice, how are you?")
+        assert result_obs.value == "Hi Alice, how are you?"
 
     def test_mathematical_operations_use_case(self):
         """Test mathematical operations use case."""
@@ -467,15 +467,15 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test calculation by changing input
         x_obs.value = 12.0  # Trigger transformation
-        self.assertEqual(sum_obs.value, 15.0)      # 12 + 3
-        self.assertEqual(product_obs.value, 36.0)  # 12 * 3
-        self.assertEqual(quotient_obs.value, 4.0)  # 12 / 3
+        assert sum_obs.value == 15.0      # 12 + 3
+        assert product_obs.value == 36.0  # 12 * 3
+        assert quotient_obs.value == 4.0  # 12 / 3
         
         # Test division by zero
         y_obs.value = 0.0
-        self.assertEqual(sum_obs.value, 12.0)      # 12 + 0
-        self.assertEqual(product_obs.value, 0.0)   # 12 * 0
-        self.assertEqual(quotient_obs.value, float('inf'))  # 12 / 0
+        assert sum_obs.value == 12.0      # 12 + 0
+        assert product_obs.value == 0.0   # 12 * 0
+        assert quotient_obs.value == float('inf')  # 12 / 0
 
     def test_reverse_callable_validation(self):
         """Test that reverse callable validation works correctly."""
@@ -516,9 +516,9 @@ class TestObservableTransfer(unittest.TestCase):
         # The validation should fail when we try to use the reverse transformation
         # Note: Must submit a DIFFERENT value than current (x=5 → result=10)
         # so it's not filtered out as unchanged
-        with self.assertRaises(ValueError) as context:
+        with pytest.raises(ValueError) as context:
             invalid_transfer.submit_values({"result": 20})  # Changed from 10 to 20
-        self.assertIn("Key wrong_key not found in hooks", str(context.exception))
+        assert "Key wrong_key not found in hooks" in str(context.value)
 
     def test_reverse_callable_inverse_validation(self):
         """Test that reverse callable is validated as inverse of forward callable."""
@@ -532,7 +532,7 @@ class TestObservableTransfer(unittest.TestCase):
             return {"x": outputs["result"] + 1}  # Not the inverse of *2
         
         # Test non-inverse reverse callable
-        with self.assertRaises(ValueError) as context:
+        with pytest.raises(ValueError) as context:
             ObservableTransfer[Literal["x"], Literal["result"], int, int](
                 input_trigger_hooks={"x": x_obs.hook},
                 output_trigger_hook_keys={"result"},
@@ -540,7 +540,7 @@ class TestObservableTransfer(unittest.TestCase):
                 reverse_callable=non_inverse_reverse_transform,
                 logger=logger
             )
-        self.assertIn("Reverse callable validation failed", str(context.exception))
+        assert "Reverse callable validation failed" in str(context.value)
 
     def test_bidirectional_math_operations(self):
         """Test bidirectional mathematical operations."""
@@ -581,8 +581,8 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(product_obs.hook, "product", "use_caller_value")
         
         # Test forward transformation
-        self.assertEqual(sum_obs.value, 13)    # 10 + 3
-        self.assertEqual(product_obs.value, 30)  # 10 * 3
+        assert sum_obs.value == 13    # 10 + 3
+        assert product_obs.value == 30  # 10 * 3
         
         # Test reverse transformation by changing outputs
         # Note: We need to disconnect the hooks first to avoid nexus conflicts
@@ -628,18 +628,18 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(full_obs.hook, "full", "use_caller_value")
         
         # Test forward transformation
-        self.assertEqual(full_obs.value, "Hello World")
+        assert full_obs.value == "Hello World"
         
         # Test that reverse callable is properly set up
         # We can test the reverse function directly without hook conflicts
         reverse_result = reverse_split({"full": "John Doe"})
-        self.assertEqual(reverse_result["first"], "John")
-        self.assertEqual(reverse_result["last"], "Doe")
+        assert reverse_result["first"] == "John"
+        assert reverse_result["last"] == "Doe"
         
         # Test reverse with single word
         reverse_result_single = reverse_split({"full": "Single"})
-        self.assertEqual(reverse_result_single["first"], "Single")
-        self.assertEqual(reverse_result_single["last"], "")
+        assert reverse_result_single["first"] == "Single"
+        assert reverse_result_single["last"] == ""
 
     def test_reverse_callable_with_validation_error(self):
         """Test reverse callable that fails validation."""
@@ -666,11 +666,11 @@ class TestObservableTransfer(unittest.TestCase):
         
         # Test normal operation
         x_obs.value = 10
-        self.assertEqual(result_obs.value, 20)
+        assert result_obs.value == 20
         
         # Test reverse transformation with valid value
         result_obs.value = 16
-        self.assertEqual(x_obs.value, 8)
+        assert x_obs.value == 8
         
         # Test reverse transformation with invalid value (should handle gracefully)
         # Note: The exact behavior depends on how the transfer handles validation errors
@@ -711,8 +711,8 @@ class TestObservableTransfer(unittest.TestCase):
         transfer.connect_hook(diff_obs.hook, "diff", "use_caller_value")
         
         # Test forward transformation
-        self.assertEqual(sum_obs.value, 5)    # 2 + 3
-        self.assertEqual(diff_obs.value, -1)  # 2 - 3
+        assert sum_obs.value == 5    # 2 + 3
+        assert diff_obs.value == -1  # 2 - 3
         
         # Test reverse transformation by directly submitting values to the transfer's output hooks
         # This bypasses the hook connection complexity and tests the reverse transformation directly
@@ -722,8 +722,8 @@ class TestObservableTransfer(unittest.TestCase):
         })
         
         # Should solve: a + b = 10, a - b = 4 => a = 7, b = 3
-        self.assertEqual(a_obs.value, 7)
-        self.assertEqual(b_obs.value, 3)
+        assert a_obs.value == 7
+        assert b_obs.value == 3
 
     def test_reverse_callable_without_forward_trigger(self):
         """Test that reverse callable works when only output hooks are invalidated."""
@@ -753,7 +753,7 @@ class TestObservableTransfer(unittest.TestCase):
         })
         
         # Should have triggered reverse transformation and updated the input observable
-        self.assertEqual(x_obs.value, 10)  # 20 // 2
+        assert x_obs.value == 10  # 20 // 2
 
 
 if __name__ == '__main__':

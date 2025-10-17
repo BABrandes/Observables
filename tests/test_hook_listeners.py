@@ -1,4 +1,3 @@
-import unittest
 from unittest.mock import Mock
 from typing import Any
 
@@ -7,6 +6,7 @@ from observables.core import BaseCarriesHooks, OwnedHook
 
 from observables._nexus_system.hook_nexus import HookNexus
 from observables._auxiliary.base_listening import BaseListening
+import pytest
 
 class MockCarriesHooks(BaseCarriesHooks[Any, Any, "MockCarriesHooks"]):
     """Mock class that implements CarriesHooks interface for testing."""
@@ -38,10 +38,10 @@ class MockCarriesHooks(BaseCarriesHooks[Any, Any, "MockCarriesHooks"]):
         """Return a mock value."""
         return "mock_value"
 
-class TestHookListeners(unittest.TestCase):
+class TestHookListeners:
     """Test the listener functionality of the Hook class."""
     
-    def setUp(self):
+    def setup_method(self):
         """Set up test fixtures."""
         self.owner = MockCarriesHooks("TestOwner") # type: ignore
         # Create a mock invalidate callback for testing
@@ -50,21 +50,21 @@ class TestHookListeners(unittest.TestCase):
     
     def test_hook_inherits_from_base_listening(self):
         """Test that Hook inherits from BaseListening."""
-        self.assertIsInstance(self.hook, BaseListening)
+        assert isinstance(self.hook, BaseListening)
     
     def test_initial_listeners_state(self):
         """Test initial state of listeners."""
-        self.assertEqual(len(self.hook.listeners), 0)
-        self.assertFalse(self.hook.is_listening_to(lambda: None))
+        assert len(self.hook.listeners) == 0
+        assert not self.hook.is_listening_to(lambda: None)
     
     def test_add_single_listener(self):
         """Test adding a single listener."""
         callback = Mock()
         self.hook.add_listeners(callback)
         
-        self.assertEqual(len(self.hook.listeners), 1)
-        self.assertTrue(self.hook.is_listening_to(callback))
-        self.assertIn(callback, self.hook.listeners)
+        assert len(self.hook.listeners) == 1
+        assert self.hook.is_listening_to(callback)
+        assert callback in self.hook.listeners
     
     def test_add_multiple_listeners(self):
         """Test adding multiple listeners at once."""
@@ -74,10 +74,10 @@ class TestHookListeners(unittest.TestCase):
         
         self.hook.add_listeners(callback1, callback2, callback3)
         
-        self.assertEqual(len(self.hook.listeners), 3)
-        self.assertTrue(self.hook.is_listening_to(callback1))
-        self.assertTrue(self.hook.is_listening_to(callback2))
-        self.assertTrue(self.hook.is_listening_to(callback3))
+        assert len(self.hook.listeners) == 3
+        assert self.hook.is_listening_to(callback1)
+        assert self.hook.is_listening_to(callback2)
+        assert self.hook.is_listening_to(callback3)
     
     def test_add_duplicate_listener_prevention(self):
         """Test that duplicate listeners are prevented."""
@@ -89,8 +89,8 @@ class TestHookListeners(unittest.TestCase):
         self.hook.add_listeners(callback)
         
         # Should only be added once
-        self.assertEqual(len(self.hook.listeners), 1)
-        self.assertTrue(self.hook.is_listening_to(callback))
+        assert len(self.hook.listeners) == 1
+        assert self.hook.is_listening_to(callback)
     
     def test_remove_single_listener(self):
         """Test removing a single listener."""
@@ -98,14 +98,14 @@ class TestHookListeners(unittest.TestCase):
         self.hook.add_listeners(callback)
         
         # Verify listener was added
-        self.assertEqual(len(self.hook.listeners), 1)
+        assert len(self.hook.listeners) == 1
         
         # Remove listener
         self.hook.remove_listeners(callback)
         
         # Verify listener was removed
-        self.assertEqual(len(self.hook.listeners), 0)
-        self.assertFalse(self.hook.is_listening_to(callback))
+        assert len(self.hook.listeners) == 0
+        assert not self.hook.is_listening_to(callback)
     
     def test_remove_multiple_listeners(self):
         """Test removing multiple listeners at once."""
@@ -114,16 +114,16 @@ class TestHookListeners(unittest.TestCase):
         callback3 = Mock()
         
         self.hook.add_listeners(callback1, callback2, callback3)
-        self.assertEqual(len(self.hook.listeners), 3)
+        assert len(self.hook.listeners) == 3
         
         # Remove two listeners
         self.hook.remove_listeners(callback1, callback3)
         
         # Verify only callback2 remains
-        self.assertEqual(len(self.hook.listeners), 1)
-        self.assertFalse(self.hook.is_listening_to(callback1))
-        self.assertTrue(self.hook.is_listening_to(callback2))
-        self.assertFalse(self.hook.is_listening_to(callback3))
+        assert len(self.hook.listeners) == 1
+        assert not self.hook.is_listening_to(callback1)
+        assert self.hook.is_listening_to(callback2)
+        assert not self.hook.is_listening_to(callback3)
     
     def test_remove_nonexistent_listener_safe(self):
         """Test that removing non-existent listeners is safe."""
@@ -133,7 +133,7 @@ class TestHookListeners(unittest.TestCase):
         self.hook.remove_listeners(callback)
         
         # Should not raise an error
-        self.assertEqual(len(self.hook.listeners), 0)
+        assert len(self.hook.listeners) == 0
     
     def test_remove_all_listeners(self):
         """Test removing all listeners at once."""
@@ -142,17 +142,17 @@ class TestHookListeners(unittest.TestCase):
         callback3 = Mock()
         
         self.hook.add_listeners(callback1, callback2, callback3)
-        self.assertEqual(len(self.hook.listeners), 3)
+        assert len(self.hook.listeners) == 3
         
         # Remove all listeners
         removed = self.hook.remove_all_listeners()
         
         # Verify all listeners were removed
-        self.assertEqual(len(self.hook.listeners), 0)
-        self.assertEqual(len(removed), 3)
-        self.assertIn(callback1, removed)
-        self.assertIn(callback2, removed)
-        self.assertIn(callback3, removed)
+        assert len(self.hook.listeners) == 0
+        assert len(removed) == 3
+        assert callback1 in removed
+        assert callback2 in removed
+        assert callback3 in removed
     
     
     def test_listeners_copy_is_returned(self):
@@ -166,8 +166,8 @@ class TestHookListeners(unittest.TestCase):
         listeners_copy.add(Mock())
         
         # Original hook listeners should be unchanged
-        self.assertEqual(len(self.hook.listeners), 1)
-        self.assertNotEqual(len(listeners_copy), len(self.hook.listeners))
+        assert len(self.hook.listeners) == 1
+        assert len(listeners_copy) != len(self.hook.listeners)
     
     def test_listener_notification_order(self):
         """Test that listeners are notified when called."""
@@ -188,10 +188,10 @@ class TestHookListeners(unittest.TestCase):
         self.hook._notify_listeners() # type: ignore
         
         # Verify all listeners were called (order doesn't matter for sets)
-        self.assertEqual(len(notifications), 3)
-        self.assertIn("first", notifications)
-        self.assertIn("second", notifications)
-        self.assertIn("third", notifications)
+        assert len(notifications) == 3
+        assert "first" in notifications
+        assert "second" in notifications
+        assert "third" in notifications
     
     def test_listener_removal_during_notification(self):
         """Test that removing listeners during notification doesn't break the system."""
@@ -216,9 +216,9 @@ class TestHookListeners(unittest.TestCase):
         callback3.assert_called_once()
         
         # Verify callback2 was removed
-        self.assertFalse(self.hook.is_listening_to(callback2))
-        self.assertTrue(self.hook.is_listening_to(callback1))
-        self.assertTrue(self.hook.is_listening_to(callback3))
+        assert not self.hook.is_listening_to(callback2)
+        assert self.hook.is_listening_to(callback1)
+        assert self.hook.is_listening_to(callback3)
     
     def test_multiple_hooks_independent_listeners(self):
         """Test that different hooks have independent listener sets."""
@@ -235,12 +235,12 @@ class TestHookListeners(unittest.TestCase):
         hook2.add_listeners(callback2)
         
         # Verify each hook has its own listeners
-        self.assertEqual(len(hook1.listeners), 1)
-        self.assertEqual(len(hook2.listeners), 1)
-        self.assertTrue(hook1.is_listening_to(callback1))
-        self.assertTrue(hook2.is_listening_to(callback2))
-        self.assertFalse(hook1.is_listening_to(callback2))
-        self.assertFalse(hook2.is_listening_to(callback1))
+        assert len(hook1.listeners) == 1
+        assert len(hook2.listeners) == 1
+        assert hook1.is_listening_to(callback1)
+        assert hook2.is_listening_to(callback2)
+        assert not hook1.is_listening_to(callback2)
+        assert not hook2.is_listening_to(callback1)
         
         # Trigger notification on hook1
         hook1._notify_listeners() # type: ignore
@@ -249,7 +249,3 @@ class TestHookListeners(unittest.TestCase):
         callback1.assert_called_once()
         callback2.assert_not_called()
     
-
-
-if __name__ == "__main__":
-    unittest.main()

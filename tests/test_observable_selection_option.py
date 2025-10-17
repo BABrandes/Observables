@@ -1,11 +1,11 @@
-import unittest
 
 from observables import ObservableSelectionOption, ObservableOptionalSelectionOption
+import pytest
 
-class TestObservableSelectionOption(unittest.TestCase):
+class TestObservableSelectionOption:
     """Test cases for ObservableSelectionOption"""
     
-    def setUp(self):
+    def setup_method(self):
         self.observable = ObservableSelectionOption("Apple", {"Apple", "Banana", "Cherry"})
         self.notification_count = 0
     
@@ -14,38 +14,38 @@ class TestObservableSelectionOption(unittest.TestCase):
     
     def test_initial_value(self):
         """Test that initial value is set correctly"""
-        self.assertEqual(self.observable.selected_option, "Apple")
-        self.assertEqual(self.observable.available_options, {"Apple", "Banana", "Cherry"})
+        assert self.observable.selected_option == "Apple"
+        assert self.observable.available_options == {"Apple", "Banana", "Cherry"}
     
     def test_set_selected_option(self):
         """Test setting a new selected option"""
         self.observable.selected_option = "Banana"
-        self.assertEqual(self.observable.selected_option, "Banana")
+        assert self.observable.selected_option == "Banana"
     
     def test_set_available_options(self):
         """Test setting new available options"""
         new_options = {"Apple", "Orange", "Grape"}
         self.observable.available_options = new_options
-        self.assertEqual(self.observable.available_options, new_options)
+        assert self.observable.available_options == new_options
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
         self.observable.add_listeners(self.notification_callback)
         self.observable.selected_option = "Cherry"
-        self.assertEqual(self.notification_count, 1)
+        assert self.notification_count == 1
     
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
         self.observable.add_listeners(self.notification_callback)
         self.observable.selected_option = "Apple"  # Same value
-        self.assertEqual(self.notification_count, 0)
+        assert self.notification_count == 0
     
     def test_remove_listeners(self):
         """Test removing a listener"""
         self.observable.add_listeners(self.notification_callback)
         self.observable.remove_listeners(self.notification_callback)
         self.observable.selected_option = "Banana"
-        self.assertEqual(self.notification_count, 0)
+        assert self.notification_count == 0
     
     def test_multiple_listeners(self):
         """Test multiple listeners"""
@@ -63,8 +63,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         self.observable.add_listeners(callback2)
         self.observable.selected_option = "Cherry"
         
-        self.assertEqual(count1, 1)
-        self.assertEqual(count2, 1)
+        assert count1 == 1
+        assert count2 == 1
     
     def test_initialization_with_carries_bindable_selection_option(self):
         """Test initialization with CarriesBindableSelectionOption"""
@@ -75,16 +75,16 @@ class TestObservableSelectionOption(unittest.TestCase):
         target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check that the target has the same initial value
-        self.assertEqual(target.selected_option, "Red")
-        self.assertEqual(target.available_options, {"Red", "Green", "Blue"})
+        assert target.selected_option == "Red"
+        assert target.available_options == {"Red", "Green", "Blue"}
         
         # Check that they are bound together
         source.selected_option = "Green"
-        self.assertEqual(target.selected_option, "Green")
+        assert target.selected_option == "Green"
         
         # Check bidirectional binding
         target.selected_option = "Blue"
-        self.assertEqual(source.selected_option, "Blue")
+        assert source.selected_option == "Blue"
     
     def test_initialization_with_carries_bindable_selection_option_chain(self):
         """Test initialization with CarriesBindableSelectionOption in a chain"""
@@ -94,21 +94,21 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3: ObservableSelectionOption[str] = ObservableSelectionOption(obs2)
         
         # Check initial values
-        self.assertEqual(obs1.selected_option, "Small")
-        self.assertEqual(obs2.selected_option, "Small")
-        self.assertEqual(obs3.selected_option, "Small")
+        assert obs1.selected_option == "Small"
+        assert obs2.selected_option == "Small"
+        assert obs3.selected_option == "Small"
         
         # Change the first observable
         obs1.selected_option = "Medium"
-        self.assertEqual(obs1.selected_option, "Medium")
-        self.assertEqual(obs2.selected_option, "Medium")
-        self.assertEqual(obs3.selected_option, "Medium")
+        assert obs1.selected_option == "Medium"
+        assert obs2.selected_option == "Medium"
+        assert obs3.selected_option == "Medium"
         
         # Change the middle observable
         obs2.selected_option = "Small"
-        self.assertEqual(obs1.selected_option, "Small")
-        self.assertEqual(obs2.selected_option, "Small")
-        self.assertEqual(obs3.selected_option, "Small")
+        assert obs1.selected_option == "Small"
+        assert obs2.selected_option == "Small"
+        assert obs3.selected_option == "Small"
     
     def test_initialization_with_carries_bindable_selection_option_unbinding(self):
         """Test that initialization with CarriesBindableSelectionOption can be unbound"""
@@ -116,9 +116,9 @@ class TestObservableSelectionOption(unittest.TestCase):
         target: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Verify they are bound
-        self.assertEqual(target.selected_option, "Red")
+        assert target.selected_option == "Red"
         source.selected_option = "Green"
-        self.assertEqual(target.selected_option, "Green")
+        assert target.selected_option == "Green"
         
         # Unbind them
         target.disconnect_hook()
@@ -126,11 +126,11 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Change source, target should not update
         # Note: source can only use its own available options {"Red", "Green"}
         source.selected_option = "Red"  # Use an option that exists in source's options
-        self.assertEqual(target.selected_option, "Green")  # Should remain unchanged
+        assert target.selected_option == "Green"  # Should remain unchanged
         
         # Change target, source should not update
         target.selected_option = "Red"
-        self.assertEqual(source.selected_option, "Red")  # Should remain at last set value
+        assert source.selected_option == "Red"  # Should remain at last set value
     
     def test_initialization_with_carries_bindable_selection_option_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
@@ -140,35 +140,35 @@ class TestObservableSelectionOption(unittest.TestCase):
         target3: ObservableSelectionOption[str] = ObservableSelectionOption(source)
         
         # Check initial values
-        self.assertEqual(target1.selected_option, "Red")
-        self.assertEqual(target2.selected_option, "Red")
-        self.assertEqual(target3.selected_option, "Red")
+        assert target1.selected_option == "Red"
+        assert target2.selected_option == "Red"
+        assert target3.selected_option == "Red"
         
         # Change source, all targets should update
         source.selected_option = "Green"
-        self.assertEqual(target1.selected_option, "Green")
-        self.assertEqual(target2.selected_option, "Green")
-        self.assertEqual(target3.selected_option, "Green")
+        assert target1.selected_option == "Green"
+        assert target2.selected_option == "Green"
+        assert target3.selected_option == "Green"
         
         # Change one target, source and other targets should update
         target1.selected_option = "Red"
-        self.assertEqual(source.selected_option, "Red")
-        self.assertEqual(target2.selected_option, "Red")
-        self.assertEqual(target3.selected_option, "Red")
+        assert source.selected_option == "Red"
+        assert target2.selected_option == "Red"
+        assert target3.selected_option == "Red"
     
     def test_initialization_with_carries_bindable_selection_option_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableSelectionOption"""
         # Test with None value in source
         source_none: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(None, {"Red", "Green"})
         target_none: ObservableOptionalSelectionOption[str] = ObservableOptionalSelectionOption(source_none)
-        self.assertIsNone(target_none.selected_option)
-        self.assertEqual(target_none.available_options, {"Red", "Green"})
+        assert target_none.selected_option is None
+        assert target_none.available_options == {"Red", "Green"}
         
         # Test with single option in source
         source_single = ObservableSelectionOption("Red", {"Red"})
         target_single: ObservableSelectionOption[str] = ObservableSelectionOption(source_single)
-        self.assertEqual(target_single.selected_option, "Red")
-        self.assertEqual(target_single.available_options, {"Red"})
+        assert target_single.selected_option == "Red"
+        assert target_single.available_options == {"Red"}
     
     def test_initialization_with_carries_bindable_selection_option_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableSelectionOption"""
@@ -180,8 +180,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        self.assertTrue(target.selected_option_hook.is_connected_to(source.selected_option_hook))
-        self.assertTrue(source.selected_option_hook.is_connected_to(target.selected_option_hook))
+        assert target.selected_option_hook.is_connected_to(source.selected_option_hook)
+        assert source.selected_option_hook.is_connected_to(target.selected_option_hook)
     
     def test_initialization_with_carries_bindable_selection_option_performance(self):
         """Test performance of initialization with CarriesBindableSelectionOption"""
@@ -197,12 +197,12 @@ class TestObservableSelectionOption(unittest.TestCase):
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
-        self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
+        assert end_time - start_time < 6.0, "Initialization should be fast"
         
         # Verify the last target is properly bound
         target = ObservableSelectionOption(source)
         source.selected_option = "Green"
-        self.assertEqual(target.selected_option, "Green")
+        assert target.selected_option == "Green"
     
     def test_binding_bidirectional(self):
         """Test bidirectional binding between obs1 and obs2"""
@@ -213,19 +213,19 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.connect_hooks({"available_options": obs2.available_options_hook, "selected_option": obs2.selected_option_hook}, "use_target_value") #type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
-        self.assertEqual(obs1.selected_option, "Blue")
-        self.assertEqual(obs1.available_options, {"Red", "Green", "Blue"})
+        assert obs1.selected_option == "Blue"
+        assert obs1.available_options == {"Red", "Green", "Blue"}
         
         # Change obs1, obs2 should update
         obs1.selected_option = "Green"
-        self.assertEqual(obs2.selected_option, "Green")
+        assert obs2.selected_option == "Green"
         
         # Change obs2 to a valid option, obs1 should also update (bidirectional)
         obs2.selected_option = "Red"
-        self.assertEqual(obs1.selected_option, "Red")
+        assert obs1.selected_option == "Red"
         
         # Try to set obs2 to an invalid option, should raise ValueError
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs2.selected_option = "Yellow"  # "Yellow" not in {"Red", "Green", "Blue"}
     
     def test_binding_initial_sync_modes(self):
@@ -237,7 +237,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
-        self.assertEqual(obs1.selected_option, "Blue")
+        assert obs1.selected_option == "Blue"
         
         # Test update_observable_from_self mode
         obs3 = ObservableSelectionOption("Small", {"Small", "Medium", "Large"})
@@ -245,7 +245,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3.connect_hook(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         obs3.connect_hook(obs4.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
-        self.assertEqual(obs3.selected_option, "Large")
+        assert obs3.selected_option == "Large"
     
     def test_unbinding(self):
         """Test unbinding observables"""
@@ -256,23 +256,23 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
-        self.assertEqual(obs1.selected_option, "Blue")
-        self.assertEqual(obs1.available_options, {"Red", "Green", "Blue"})
+        assert obs1.selected_option == "Blue"
+        assert obs1.available_options == {"Red", "Green", "Blue"}
         
         obs1.disconnect_hook()
         
         # After disconnecting, obs2 keeps its current values but changes no longer propagate
-        self.assertEqual(obs2.selected_option, "Blue")
-        self.assertEqual(obs2.available_options, {"Red", "Green", "Blue"})
+        assert obs2.selected_option == "Blue"
+        assert obs2.available_options == {"Red", "Green", "Blue"}
         
         # Changes should no longer propagate
         obs1.selected_option = "Green"
-        self.assertEqual(obs2.selected_option, "Blue")  # Should remain unchanged
+        assert obs2.selected_option == "Blue"  # Should remain unchanged
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs.connect_hook(obs.selected_option_hook, "selected_option", "use_target_value") # type: ignore
     
     def test_binding_chain_unbinding(self):
@@ -287,8 +287,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         
         # Verify chain works
         obs1.selected_option = "Green"
-        self.assertEqual(obs2.selected_option, "Green")
-        self.assertEqual(obs3.selected_option, "Green")
+        assert obs2.selected_option == "Green"
+        assert obs3.selected_option == "Green"
         
         # Break the chain by unbinding obs2 from obs3
         obs2.disconnect_hook()
@@ -296,31 +296,31 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Change obs1, obs2 should update since they remain bound after obs2.disconnect()
         # Note: obs1 can only use its own available options {"Red", "Green", "Blue"}
         obs1.selected_option = "Green"  # Use an option that exists in obs1's options
-        self.assertEqual(obs2.selected_option, "Green")  # Should update since obs1 and obs2 remain bound
-        self.assertEqual(obs3.selected_option, "Green")  # Should remain unchanged
+        assert obs2.selected_option == "Green"  # Should update since obs1 and obs2 remain bound
+        assert obs3.selected_option == "Green"  # Should remain unchanged
         
         # Change obs3, obs1 should update since obs1 and obs3 remain bound after obs2.disconnect()
         obs3.selected_option = "Blue"
-        self.assertEqual(obs1.selected_option, "Blue")  # Should update since obs1 and obs3 remain bound
-        self.assertEqual(obs2.selected_option, "Green")  # Should remain unchanged (isolated)
+        assert obs1.selected_option == "Blue"  # Should update since obs1 and obs3 remain bound
+        assert obs2.selected_option == "Green"  # Should remain unchanged (isolated)
     
     def test_string_representation(self):
         """Test string and repr methods"""
-        self.assertEqual(str(self.observable), "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})")
-        self.assertEqual(repr(self.observable), "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})")
+        assert str(self.observable) == "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})"
+        assert repr(self.observable) == "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})"
     
     def test_listener_management(self):
         """Test listener management methods"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         
         # Test is_listening_to
-        self.assertFalse(obs.is_listening_to(self.notification_callback))
+        assert not obs.is_listening_to(self.notification_callback)
         
         obs.add_listeners(self.notification_callback)
-        self.assertTrue(obs.is_listening_to(self.notification_callback))
+        assert obs.is_listening_to(self.notification_callback)
         
         obs.remove_listeners(self.notification_callback)
-        self.assertFalse(obs.is_listening_to(self.notification_callback))
+        assert not obs.is_listening_to(self.notification_callback)
     
     def test_multiple_bindings(self):
         """Test multiple bindings to the same observable"""
@@ -340,20 +340,20 @@ class TestObservableSelectionOption(unittest.TestCase):
         print(f'obs3: selected={obs3.selected_option}, options={obs3.available_options}')
         
         # All observables should have the same selected option due to transitive binding
-        self.assertEqual(obs1.selected_option, obs2.selected_option)
-        self.assertEqual(obs2.selected_option, obs3.selected_option)
+        assert obs1.selected_option == obs2.selected_option
+        assert obs2.selected_option == obs3.selected_option
         
         # Change obs1, both should update
         obs1.selected_option = "Green"
-        self.assertEqual(obs2.selected_option, "Green")
-        self.assertEqual(obs3.selected_option, "Green")
+        assert obs2.selected_option == "Green"
+        assert obs3.selected_option == "Green"
         
         # Change obs2 to a valid option, obs1 and obs3 should also update (bidirectional)
         # Due to transitive binding, all observables stay synchronized
         valid_option = "Green" if "Green" in obs2.available_options else list(obs2.available_options)[0]
         obs2.selected_option = valid_option
-        self.assertEqual(obs1.selected_option, valid_option)
-        self.assertEqual(obs3.selected_option, valid_option)
+        assert obs1.selected_option == valid_option
+        assert obs3.selected_option == valid_option
     
     def test_selection_option_methods(self):
         """Test standard selection option methods"""
@@ -361,16 +361,16 @@ class TestObservableSelectionOption(unittest.TestCase):
         
         # Test set_selected_option_and_available_options
         obs.change_selected_option_and_available_options("Blue", {"Blue", "Green"})
-        self.assertEqual(obs.selected_option, "Blue")
-        self.assertEqual(obs.available_options, {"Blue", "Green"})
+        assert obs.selected_option == "Blue"
+        assert obs.available_options == {"Blue", "Green"}
         
         # Test add_available_option
         obs.add_available_option("Red")
-        self.assertEqual(obs.available_options, {"Blue", "Green", "Red"})
+        assert obs.available_options == {"Blue", "Green", "Red"}
         
         # Test remove_available_option
         obs.remove_available_option("Green")
-        self.assertEqual(obs.available_options, {"Blue", "Red"})
+        assert obs.available_options == {"Blue", "Red"}
     
     def test_selection_option_copy_behavior(self):
         """Test that available_options returns a copy"""
@@ -383,22 +383,22 @@ class TestObservableSelectionOption(unittest.TestCase):
         options_copy.add("Yellow")
         
         # Original should not change
-        self.assertEqual(obs.available_options, {"Red", "Green", "Blue"})
+        assert obs.available_options == {"Red", "Green", "Blue"}
         
         # The copy should have the modification
-        self.assertEqual(options_copy, {"Red", "Green", "Blue", "Yellow"})
+        assert options_copy == {"Red", "Green", "Blue", "Yellow"}
     
     def test_selection_option_validation(self):
         """Test selection option validation"""
         # Test with valid selection option
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
-        self.assertEqual(obs.selected_option, "Red")
-        self.assertEqual(obs.available_options, {"Red", "Green"})
+        assert obs.selected_option == "Red"
+        assert obs.available_options == {"Red", "Green"}
         
         # Test with None value
         obs_none = ObservableOptionalSelectionOption(None, {"Red", "Green"})
-        self.assertIsNone(obs_none.selected_option)
-        self.assertEqual(obs_none.available_options, {"Red", "Green"})
+        assert obs_none.selected_option is None
+        assert obs_none.available_options == {"Red", "Green"}
     
     def test_selection_option_binding_edge_cases(self):
         """Test edge cases for selection option binding"""
@@ -409,8 +409,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # Use target value for sync → target gets caller's values
-        self.assertEqual(obs2.selected_option, "Red")
-        self.assertEqual(obs2.available_options, {"Red", "Green", "Yellow"})
+        assert obs2.selected_option == "Red"
+        assert obs2.available_options == {"Red", "Green", "Yellow"}
         
         # Test binding selection options with different options
         obs3 = ObservableSelectionOption("Red", {"Red", "Blue", "Green"})
@@ -418,7 +418,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs3.connect_hook(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         
         obs3.selected_option = "Blue"
-        self.assertEqual(obs4.selected_option, "Blue")
+        assert obs4.selected_option == "Blue"
     
     def test_selection_option_performance(self):
         """Test selection option performance characteristics"""
@@ -434,7 +434,7 @@ class TestObservableSelectionOption(unittest.TestCase):
         end_time = time.time()
         
         # Should complete in reasonable time
-        self.assertLess(end_time - start_time, 1.0, "Selected option access should be fast")
+        assert end_time - start_time < 1.0, "Selected option access should be fast"
         
         # Test binding performance
         source = ObservableSelectionOption("Red", {"Red", "Green"})
@@ -446,18 +446,18 @@ class TestObservableSelectionOption(unittest.TestCase):
         end_time = time.time()
         
         # Should complete in reasonable time
-        self.assertLess(end_time - start_time, 1.0, "Binding operations should be fast")
+        assert end_time - start_time < 1.0, "Binding operations should be fast"
     
     def test_selection_option_error_handling(self):
         """Test selection option error handling"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         
         # Test setting invalid selected option
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs.selected_option = "Blue"  # Not in available options
         
         # Test setting empty available options
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs.available_options = set()
     
     def test_selection_option_binding_consistency(self):
@@ -468,13 +468,13 @@ class TestObservableSelectionOption(unittest.TestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        self.assertTrue(target.selected_option_hook.is_connected_to(source.selected_option_hook))
-        self.assertTrue(source.selected_option_hook.is_connected_to(target.selected_option_hook))
+        assert target.selected_option_hook.is_connected_to(source.selected_option_hook)
+        assert source.selected_option_hook.is_connected_to(target.selected_option_hook)
     
     def test_selection_option_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs.connect_hook(None, "selected_option", "use_target_value")  # type: ignore
     
     def test_selection_option_binding_with_same_values(self):
@@ -485,8 +485,8 @@ class TestObservableSelectionOption(unittest.TestCase):
         obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
-        self.assertEqual(obs1.selected_option, "Blue")
-        self.assertEqual(obs1.available_options, {"Red", "Green", "Blue"})
+        assert obs1.selected_option == "Blue"
+        assert obs1.available_options == {"Red", "Green", "Blue"}
     
     def test_listener_duplicates(self):
         """Test that duplicate listeners are not added"""
@@ -494,10 +494,10 @@ class TestObservableSelectionOption(unittest.TestCase):
         callback = lambda: None
         
         obs.add_listeners(callback, callback)
-        self.assertEqual(len(obs.listeners), 1)
+        assert len(obs.listeners) == 1
         
         obs.add_listeners(callback)
-        self.assertEqual(len(obs.listeners), 1)
+        assert len(obs.listeners) == 1
     
     def test_remove_nonexistent_listener(self):
         """Test removing a listener that doesn't exist"""
@@ -506,8 +506,4 @@ class TestObservableSelectionOption(unittest.TestCase):
         
         # Should not raise an error
         obs.remove_listeners(callback)
-        self.assertEqual(len(obs.listeners), 0)
-
-
-if __name__ == '__main__':
-    unittest.main()
+        assert len(obs.listeners) == 0

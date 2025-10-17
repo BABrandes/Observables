@@ -7,14 +7,13 @@ when they are no longer referenced.
 
 import gc
 import weakref
-import unittest
 
 from observables import ObservableSingleValue, ObservableSelectionDict, FloatingHook
 
 from observables._nexus_system.hook_nexus import HookNexus
 
 
-class TestMemoryLeaks(unittest.TestCase):
+class TestMemoryLeaks:
     """Test for memory leaks in the hook-based architecture."""
 
     def test_hook_garbage_collection(self):
@@ -24,7 +23,7 @@ class TestMemoryLeaks(unittest.TestCase):
         hook_ref = weakref.ref(hook)
         
         # Verify the hook exists
-        self.assertIsNotNone(hook_ref())
+        assert hook_ref() is not None
         
         # Delete the hook
         del hook
@@ -33,7 +32,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the hook was garbage collected
-        self.assertIsNone(hook_ref())
+        assert hook_ref() is None
 
     def test_hook_nexus_garbage_collection(self):
         """Test that hook nexuses can be garbage collected when empty."""
@@ -42,7 +41,7 @@ class TestMemoryLeaks(unittest.TestCase):
         nexus_ref = weakref.ref(nexus)
         
         # Verify the nexus exists
-        self.assertIsNotNone(nexus_ref())
+        assert nexus_ref() is not None
         
         # Delete the nexus
         del nexus
@@ -51,7 +50,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the nexus was garbage collected
-        self.assertIsNone(nexus_ref())
+        assert nexus_ref() is None
 
     def test_hook_with_nexus_garbage_collection(self):
         """Test that hooks and their nexuses can be garbage collected together."""
@@ -61,8 +60,8 @@ class TestMemoryLeaks(unittest.TestCase):
         nexus_ref = weakref.ref(hook.hook_nexus)
         
         # Verify both exist
-        self.assertIsNotNone(hook_ref())
-        self.assertIsNotNone(nexus_ref())
+        assert hook_ref() is not None
+        assert nexus_ref() is not None
         
         # Delete the hook
         del hook
@@ -71,8 +70,8 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify both were garbage collected
-        self.assertIsNone(hook_ref())
-        self.assertIsNone(nexus_ref())
+        assert hook_ref() is None
+        assert nexus_ref() is None
 
     def test_connected_hooks_garbage_collection(self):
         """Test that connected hooks can be garbage collected when disconnected."""
@@ -85,16 +84,16 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them
         success, _ = hook1.connect_hook(hook2, "use_caller_value")
-        self.assertTrue(success)
+        assert success
         
         # Verify they're connected (same nexus)
-        self.assertEqual(hook1.hook_nexus, hook2.hook_nexus)
+        assert hook1.hook_nexus == hook2.hook_nexus
         
         # Disconnect hook1
         hook1.disconnect_hook()
         
         # Verify they're now disconnected (different nexuses)
-        self.assertNotEqual(hook1.hook_nexus, hook2.hook_nexus)
+        assert hook1.hook_nexus != hook2.hook_nexus
         
         # Delete hook1
         del hook1
@@ -103,8 +102,8 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify hook1 was garbage collected but hook2 still exists
-        self.assertIsNone(hook1_ref())
-        self.assertIsNotNone(hook2_ref())
+        assert hook1_ref() is None
+        assert hook2_ref() is not None
         
         # Delete hook2
         del hook2
@@ -113,7 +112,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify hook2 was also garbage collected
-        self.assertIsNone(hook2_ref())
+        assert hook2_ref() is None
 
     def test_observable_garbage_collection(self):
         """Test that observables and their hooks can be garbage collected."""
@@ -122,7 +121,7 @@ class TestMemoryLeaks(unittest.TestCase):
         obs_ref = weakref.ref(obs)
         
         # Verify the observable exists
-        self.assertIsNotNone(obs_ref())
+        assert obs_ref() is not None
         
         # Delete the observable
         del obs
@@ -131,7 +130,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the observable was garbage collected
-        self.assertIsNone(obs_ref())
+        assert obs_ref() is None
 
     def test_complex_observable_garbage_collection(self):
         """Test that complex observables can be garbage collected."""
@@ -144,7 +143,7 @@ class TestMemoryLeaks(unittest.TestCase):
         obs_ref = weakref.ref(obs)
         
         # Verify the observable exists
-        self.assertIsNotNone(obs_ref())
+        assert obs_ref() is not None
         
         # Delete the observable
         del obs
@@ -153,7 +152,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the observable was garbage collected
-        self.assertIsNone(obs_ref())
+        assert obs_ref() is None
 
     def test_nexus_manager_no_memory_leaks(self):
         """Test that NexusManager doesn't hold references to hooks."""
@@ -166,7 +165,7 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them through NexusManager
         success, _ = hook1.connect_hook(hook2, "use_caller_value")
-        self.assertTrue(success)
+        assert success
         
         # Delete the hooks
         del hook1
@@ -176,8 +175,8 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify hooks were garbage collected despite NexusManager still existing
-        self.assertIsNone(hook1_ref())
-        self.assertIsNone(hook2_ref())
+        assert hook1_ref() is None
+        assert hook2_ref() is None
 
     def test_circular_reference_prevention(self):
         """Test that circular references don't prevent garbage collection."""
@@ -187,7 +186,7 @@ class TestMemoryLeaks(unittest.TestCase):
         
         # Connect them (creates circular references through nexus)
         success, _ = hook1.connect_hook(hook2, "use_caller_value")
-        self.assertTrue(success)
+        assert success
         
         # Create weak references
         hook1_ref = weakref.ref(hook1)
@@ -202,9 +201,9 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify everything was garbage collected despite circular references
-        self.assertIsNone(hook1_ref())
-        self.assertIsNone(hook2_ref())
-        self.assertIsNone(nexus_ref())
+        assert hook1_ref() is None
+        assert hook2_ref() is None
+        assert nexus_ref() is None
 
     def test_listener_memory_leaks(self):
         """Test that listeners don't prevent garbage collection."""
@@ -225,7 +224,7 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the observable was garbage collected
-        self.assertIsNone(obs_ref())
+        assert obs_ref() is None
 
     def test_callback_memory_leaks(self):
         """Test that callbacks don't prevent garbage collection."""
@@ -241,7 +240,4 @@ class TestMemoryLeaks(unittest.TestCase):
         gc.collect()
         
         # Verify the observable was garbage collected
-        self.assertIsNone(obs_ref())
-
-if __name__ == "__main__":
-    unittest.main()
+        assert obs_ref() is None

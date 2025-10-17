@@ -1,15 +1,15 @@
 from typing import Any
-import unittest
 
 from observables import ObservableSingleValue
 
 from run_tests import console_logger as logger
+import pytest
 
 
-class TestObservableSingleValue(unittest.TestCase):
+class TestObservableSingleValue:
     """Test cases for ObservableSingleValue"""
     
-    def setUp(self):
+    def setup_method(self):
         self.observable = ObservableSingleValue(42, logger=logger)
         self.notification_count = 0
         self.last_notified_value: Any = None
@@ -22,12 +22,12 @@ class TestObservableSingleValue(unittest.TestCase):
     
     def test_initial_value(self):
         """Test that initial value is set correctly"""
-        self.assertEqual(self.observable.value, 42)
+        assert self.observable.value == 42
     
     def test_set_value(self):
         """Test setting a new value"""
         self.observable.value = 100
-        self.assertEqual(self.observable.value, 100)
+        assert self.observable.value == 100
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
@@ -36,7 +36,7 @@ class TestObservableSingleValue(unittest.TestCase):
         self.observable.add_listeners(self.notification_callback)
         self.observable.value = 50
         # In the new system, we need to check if the value was actually set
-        self.assertEqual(self.observable.value, 50)
+        assert self.observable.value == 50
         # The notification count should increase if listeners work
         # For now, we'll just verify the value change works
     
@@ -56,7 +56,7 @@ class TestObservableSingleValue(unittest.TestCase):
         self.observable.value = 75
         
         # In the new system, we'll just verify the value change works
-        self.assertEqual(self.observable.value, 75)
+        assert self.observable.value == 75
         # Note: Listener functionality may not work in the new hook-based system
     
     def test_remove_listener(self):
@@ -64,16 +64,16 @@ class TestObservableSingleValue(unittest.TestCase):
         self.observable.add_listeners(self.notification_callback)
         self.observable.remove_listeners(self.notification_callback)
         self.observable.value = 200
-        self.assertEqual(self.observable.value, 200)
+        assert self.observable.value == 200
         # Note: Listener functionality may not work in the new hook-based system
     
     def test_remove_all_listeners(self):
         """Test removing all listeners"""
         self.observable.add_listeners(self.notification_callback)
         removed = self.observable.remove_all_listeners()
-        self.assertEqual(len(removed), 1)
+        assert len(removed) == 1
         self.observable.value = 300
-        self.assertEqual(self.observable.value, 300)
+        assert self.observable.value == 300
         # Note: Listener functionality may not work in the new hook-based system
     
     def test_binding_bidirectional(self):
@@ -86,11 +86,11 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Change obs1, obs2 should update
         obs1.value = 30
-        self.assertEqual(obs2.value, 30)
+        assert obs2.value == 30
         
         # Change obs2, obs1 should also update (bidirectional)
         obs2.value = 40
-        self.assertEqual(obs1.value, 40)  # Should also update
+        assert obs1.value == 40  # Should also update
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
@@ -99,13 +99,13 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Test USE_CALLER_VALUE mode
         obs1.connect_hook(obs2.hook, "value", "use_caller_value")  # type: ignore
-        self.assertEqual(obs2.value, 100)  # obs2 gets obs1's value
+        assert obs2.value == 100  # obs2 gets obs1's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSingleValue(300, logger=logger)
         obs4 = ObservableSingleValue(400, logger=logger)
         obs3.connect_hook(obs4.hook, "value", "use_target_value")  # type: ignore
-        self.assertEqual(obs3.value, 400)  # obs3 gets updated with obs4's value
+        assert obs3.value == 400  # obs3 gets updated with obs4's value
     
     def test_unbinding(self):
         """Test unbinding observables"""
@@ -117,7 +117,7 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Changes should no longer propagate
         obs1.value = 50
-        self.assertEqual(obs2.value, 10)  # obs2 keeps its current bound value
+        assert obs2.value == 10  # obs2 keeps its current bound value
     
     def test_unbinding_multiple_times(self):
         """Test that unbinding multiple times raises ValueError"""
@@ -134,7 +134,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1.value = 50
         # Since we used USE_TARGET_VALUE, obs1 was updated to obs2's value (20) during binding
         # After unbinding, obs2 should still have its original value
-        self.assertEqual(obs2.value, 20)
+        assert obs2.value == 20
     
     def test_binding_to_self(self):
         """Test that binding to self raises an error"""
@@ -144,7 +144,7 @@ class TestObservableSingleValue(unittest.TestCase):
             obs.connect_hook(obs.hook, "value", "use_caller_value")  # type: ignore
             # If it doesn't raise an error, that's the current behavior
         except Exception as e:
-            self.assertIsInstance(e, ValueError)
+            assert isinstance(e, ValueError)
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -158,8 +158,8 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Verify chain works
         obs1.value = 100
-        self.assertEqual(obs2.value, 100)
-        self.assertEqual(obs3.value, 100)
+        assert obs2.value == 100
+        assert obs3.value == 100
         
         # Break the chain by unbinding obs2 from obs3
         obs2.disconnect_hook()
@@ -168,31 +168,31 @@ class TestObservableSingleValue(unittest.TestCase):
         # However, obs1 and obs3 remain bound together in the same hook group
         # Change obs1, obs2 should NOT update since it's detached
         obs1.value = 200
-        self.assertEqual(obs2.value, 100)  # Should remain unchanged
-        self.assertEqual(obs3.value, 200)  # Should update since obs1 and obs3 are still bound
+        assert obs2.value == 100  # Should remain unchanged
+        assert obs3.value == 200  # Should update since obs1 and obs3 are still bound
         
         # Change obs3, obs1 should update but obs2 should not
         obs3.value = 300
-        self.assertEqual(obs1.value, 300)  # Should update since obs1 and obs3 are still bound
-        self.assertEqual(obs2.value, 100)  # Should remain unchanged
+        assert obs1.value == 300  # Should update since obs1 and obs3 are still bound
+        assert obs2.value == 100  # Should remain unchanged
     
     def test_string_representation(self):
         """Test string representation of the observable."""
-        self.assertEqual(str(self.observable), "OSV(value=42)")
-        self.assertEqual(repr(self.observable), "ObservableSingleValue(42)")
+        assert str(self.observable) == "OSV(value=42)"
+        assert repr(self.observable) == "ObservableSingleValue(42)"
     
     def test_listener_management(self):
         """Test listener management methods"""
         obs = ObservableSingleValue(10, logger=logger)
         
         # Test is_listening_to
-        self.assertFalse(obs.is_listening_to(self.notification_callback))
+        assert not obs.is_listening_to(self.notification_callback)
         
         obs.add_listeners(self.notification_callback)
-        self.assertTrue(obs.is_listening_to(self.notification_callback))
+        assert obs.is_listening_to(self.notification_callback)
         
         obs.remove_listeners(self.notification_callback)
-        self.assertFalse(obs.is_listening_to(self.notification_callback))
+        assert not obs.is_listening_to(self.notification_callback)
     
     def test_multiple_bindings(self):
         """Test multiple bindings to the same observable"""
@@ -206,13 +206,13 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Change obs1, both should update
         obs1.value = 100
-        self.assertEqual(obs2.value, 100)
-        self.assertEqual(obs3.value, 100)
+        assert obs2.value == 100
+        assert obs3.value == 100
         
         # Change obs2, obs1 should also update (bidirectional), obs3 should also update
         obs2.value = 200
-        self.assertEqual(obs1.value, 200)  # Should also update
-        self.assertEqual(obs3.value, 200)  # Should also update
+        assert obs1.value == 200  # Should also update
+        assert obs3.value == 200  # Should also update
     
     def test_initialization_with_carries_bindable_single_value(self):
         """Test initialization with CarriesBindableSingleValue"""
@@ -223,15 +223,15 @@ class TestObservableSingleValue(unittest.TestCase):
         target: ObservableSingleValue[int] = ObservableSingleValue[int](source.hook, logger=logger)
         
         # Check that the target has the same initial value
-        self.assertEqual(target.value, 100)
+        assert target.value == 100
         
         # Check that they are bound together
         source.value = 200
-        self.assertEqual(target.value, 200)
+        assert target.value == 200
         
         # Check bidirectional binding
         target.value = 300
-        self.assertEqual(source.value, 300)
+        assert source.value == 300
     
     def test_initialization_with_carries_bindable_single_value_with_validator(self):
         """Test initialization with CarriesBindableSingleValue and validator"""
@@ -246,35 +246,35 @@ class TestObservableSingleValue(unittest.TestCase):
         target = ObservableSingleValue(source.hook, validator=validate_positive, logger=logger)
         
         # Check that the target has the same initial value
-        self.assertEqual(target.value, 50)
+        assert target.value == 50
         
         # Check that they are bound together
         source.value = 75
-        self.assertEqual(target.value, 75)
+        assert target.value == 75
         
         # Check that validation still works
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             source.value = -10
         
         # Target should still have the previous valid value
-        self.assertEqual(target.value, 75)
+        assert target.value == 75
     
     def test_initialization_with_carries_bindable_single_value_different_types(self):
         """Test initialization with CarriesBindableSingleValue of different types"""
         # Test with string type
         source_str = ObservableSingleValue("hello", logger=logger)
         target_str = ObservableSingleValue(source_str.hook, logger=logger)
-        self.assertEqual(target_str.value, "hello")
+        assert target_str.value == "hello"
         
         # Test with float type
         source_float = ObservableSingleValue(3.14, logger=logger)
         target_float = ObservableSingleValue(source_float.hook, logger=logger)
-        self.assertEqual(target_float.value, 3.14)
+        assert target_float.value == 3.14
         
         # Test with list type
         source_list = ObservableSingleValue([1, 2, 3], logger=logger)
         target_list = ObservableSingleValue(source_list.hook, logger=logger)
-        self.assertEqual(target_list.value, [1, 2, 3])
+        assert target_list.value == [1, 2, 3]
     
     def test_initialization_with_carries_bindable_single_value_chain(self):
         """Test initialization with CarriesBindableSingleValue in a chain"""
@@ -284,21 +284,21 @@ class TestObservableSingleValue(unittest.TestCase):
         obs3: ObservableSingleValue[int] = ObservableSingleValue[int](obs2.hook, logger=logger)
         
         # Check initial values
-        self.assertEqual(obs1.value, 10)
-        self.assertEqual(obs2.value, 10)
-        self.assertEqual(obs3.value, 10)
+        assert obs1.value == 10
+        assert obs2.value == 10
+        assert obs3.value == 10
         
         # Change the first observable
         obs1.value = 20
-        self.assertEqual(obs1.value, 20)
-        self.assertEqual(obs2.value, 20)
-        self.assertEqual(obs3.value, 20)
+        assert obs1.value == 20
+        assert obs2.value == 20
+        assert obs3.value == 20
         
         # Change the middle observable
         obs2.value = 30
-        self.assertEqual(obs1.value, 30)
-        self.assertEqual(obs2.value, 30)
-        self.assertEqual(obs3.value, 30)
+        assert obs1.value == 30
+        assert obs2.value == 30
+        assert obs3.value == 30
     
     def test_initialization_with_carries_bindable_single_value_unbinding(self):
         """Test that initialization with CarriesBindableSingleValue can be unbound"""
@@ -306,20 +306,20 @@ class TestObservableSingleValue(unittest.TestCase):
         target: ObservableSingleValue[int] = ObservableSingleValue[int](source.hook, logger=logger)
         
         # Verify they are bound
-        self.assertEqual(target.value, 100)
+        assert target.value == 100
         source.value = 200
-        self.assertEqual(target.value, 200)
+        assert target.value == 200
         
         # Unbind them
         target.disconnect_hook()
         
         # Change source, target should not update
         source.value = 300
-        self.assertEqual(target.value, 200)  # Should remain unchanged
+        assert target.value == 200  # Should remain unchanged
         
         # Change target, source should not update
         target.value = 400
-        self.assertEqual(source.value, 300)  # Should remain unchanged
+        assert source.value == 300  # Should remain unchanged
     
     def test_initialization_with_carries_bindable_single_value_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
@@ -329,38 +329,38 @@ class TestObservableSingleValue(unittest.TestCase):
         target3: ObservableSingleValue[int] = ObservableSingleValue[int](source.hook, logger=logger)
         
         # Check initial values
-        self.assertEqual(target1.value, 100)
-        self.assertEqual(target2.value, 100)
-        self.assertEqual(target3.value, 100)
+        assert target1.value == 100
+        assert target2.value == 100
+        assert target3.value == 100
         
         # Change source, all targets should update
         source.value = 200
-        self.assertEqual(target1.value, 200)
-        self.assertEqual(target2.value, 200)
-        self.assertEqual(target3.value, 200)
+        assert target1.value == 200
+        assert target2.value == 200
+        assert target3.value == 200
         
         # Change one target, source and other targets should update
         target1.value = 300
-        self.assertEqual(source.value, 300)
-        self.assertEqual(target2.value, 300)
-        self.assertEqual(target3.value, 300)
+        assert source.value == 300
+        assert target2.value == 300
+        assert target3.value == 300
     
     def test_initialization_with_carries_bindable_single_value_edge_cases(self):
         """Test edge cases for initialization with CarriesBindableSingleValue"""
         # Test with None value in source
         source_none = ObservableSingleValue(None, logger=logger)
         target_none = ObservableSingleValue(source_none.hook, logger=logger)
-        self.assertIsNone(target_none.value)
+        assert target_none.value is None
         
         # Test with zero value
         source_zero = ObservableSingleValue(0, logger=logger)
         target_zero = ObservableSingleValue(source_zero, logger=logger)
-        self.assertEqual(target_zero.value, 0)
+        assert target_zero.value == 0
         
         # Test with empty string
         source_empty = ObservableSingleValue("", logger=logger)
         target_empty = ObservableSingleValue(source_empty, logger=logger)
-        self.assertEqual(target_empty.value, "")
+        assert target_empty.value == ""
     
     def test_initialization_with_carries_bindable_single_value_validation_errors(self):
         """Test validation errors when initializing with CarriesBindableSingleValue"""
@@ -373,18 +373,18 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Target should initialize successfully with even value
         target = ObservableSingleValue(source, validator=validate_even, logger=logger)
-        self.assertEqual(target.value, 10)
+        assert target.value == 10
         
         # Try to set odd value in source, should fail
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             source.value = 11
         
         # Target should still have the previous valid value
-        self.assertEqual(target.value, 10)
+        assert target.value == 10
         
         # Set valid even value
         source.value = 12
-        self.assertEqual(target.value, 12)
+        assert target.value == 12
     
     def test_initialization_with_carries_bindable_single_value_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableSingleValue"""
@@ -393,13 +393,13 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Check binding consistency - the new system may not have this method
         # We'll test the basic binding functionality instead
-        self.assertEqual(target.value, 100)
+        assert target.value == 100
         source.value = 200
-        self.assertEqual(target.value, 200)
+        assert target.value == 200
         
         # Check that they are properly bound by testing bidirectional updates
         target.value = 300
-        self.assertEqual(source.value, 300)
+        assert source.value == 300
     
     def test_initialization_with_carries_bindable_single_value_performance(self):
         """Test performance of initialization with CarriesBindableSingleValue"""
@@ -415,17 +415,17 @@ class TestObservableSingleValue(unittest.TestCase):
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
-        self.assertLess(end_time - start_time, 6.0, "Initialization should be fast")
+        assert end_time - start_time < 6.0, "Initialization should be fast"
         
         # Verify the last target is properly bound
         target = ObservableSingleValue(source)
         source.value = 200
-        self.assertEqual(target.value, 200)
+        assert target.value == 200
 
     def test_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableSingleValue(10, logger=logger)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs.connect_hook(None, "value", "use_caller_value")  # type: ignore
     
     def test_binding_with_invalid_sync_mode(self):
@@ -433,7 +433,7 @@ class TestObservableSingleValue(unittest.TestCase):
         obs1 = ObservableSingleValue(10, logger=logger)
         obs2 = ObservableSingleValue(20, logger=logger)
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             obs1.connect_hook(obs2.hook, "value", "invalid_mode")  # type: ignore
     
     def test_binding_with_same_values(self):
@@ -443,8 +443,8 @@ class TestObservableSingleValue(unittest.TestCase):
         
         obs1.connect_hook(obs2.hook, "value", "use_caller_value")  # type: ignore
         # Both should still have the same value
-        self.assertEqual(obs1.value, 42)
-        self.assertEqual(obs2.value, 42)
+        assert obs1.value == 42
+        assert obs2.value == 42
     
     def test_listener_duplicates(self):
         """Test that duplicate listeners are not added"""
@@ -452,10 +452,10 @@ class TestObservableSingleValue(unittest.TestCase):
         callback = lambda: None
         
         obs.add_listeners(callback, callback)
-        self.assertEqual(len(obs.listeners), 1)
+        assert len(obs.listeners) == 1
         
         obs.add_listeners(callback)
-        self.assertEqual(len(obs.listeners), 1)
+        assert len(obs.listeners) == 1
     
     def test_remove_nonexistent_listener(self):
         """Test removing a listener that doesn't exist"""
@@ -464,7 +464,7 @@ class TestObservableSingleValue(unittest.TestCase):
         
         # Should not raise an error
         obs.remove_listeners(callback)
-        self.assertEqual(len(obs.listeners), 0)
+        assert len(obs.listeners) == 0
 
     def test_serialization(self):
         """Test the complete serialization and deserialization cycle."""
@@ -481,8 +481,8 @@ class TestObservableSingleValue(unittest.TestCase):
         serialized_data = obs.get_value_references_for_serialization()
         
         # Verify serialized data contains expected keys
-        self.assertIn("value", serialized_data)
-        self.assertEqual(serialized_data["value"], expected_value)
+        assert "value" in serialized_data
+        assert serialized_data["value"] == expected_value
         
         # Step 4: Delete the object
         del obs
@@ -491,13 +491,13 @@ class TestObservableSingleValue(unittest.TestCase):
         obs_restored = ObservableSingleValue(0, logger=logger)
         
         # Verify it starts with different value
-        self.assertEqual(obs_restored.value, 0)
+        assert obs_restored.value == 0
         
         # Step 6: Use "set_value_references_from_serialization"
         obs_restored.set_value_references_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
-        self.assertEqual(obs_restored.value, expected_value)
+        assert obs_restored.value == expected_value
 
 
 if __name__ == '__main__':

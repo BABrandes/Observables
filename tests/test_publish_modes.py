@@ -10,20 +10,20 @@ This module tests the three different publication modes available in the Publish
 from typing import Literal
 from logging import basicConfig, getLogger, DEBUG
 
-import unittest
 import asyncio
 
 from observables import Publisher
 from observables.core import Subscriber
+import pytest
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
 
-class TestPublishModes(unittest.TestCase):
+class TestPublishModes:
     """Test all three publish modes: async, sync, and direct."""
     
-    def setUp(self):
+    def setup_method(self):
         """Set up test fixtures."""
         self.logger = logger
     
@@ -40,8 +40,8 @@ class TestPublishModes(unittest.TestCase):
         # Direct mode should execute callback immediately
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(results), 1, "Callback should execute immediately in direct mode")
-        self.assertEqual(results[0], "executed")
+        assert len(results) == 1, "Callback should execute immediately in direct mode"
+        assert results[0] == "executed"
     
     def test_direct_mode_with_multiple_callbacks(self):
         """Test direct mode with multiple synchronous callbacks."""
@@ -64,8 +64,8 @@ class TestPublishModes(unittest.TestCase):
         # All callbacks should execute (order not guaranteed - set storage)
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(results), 3)
-        self.assertEqual(set(results), {1, 2, 3})
+        assert len(results) == 3
+        assert set(results) == {1, 2, 3}
     
     def test_direct_mode_skips_async_callbacks(self):
         """Test that direct mode skips async callbacks with error."""
@@ -81,7 +81,7 @@ class TestPublishModes(unittest.TestCase):
         publisher.publish(mode="direct")
         
         # Async callback should not have executed
-        self.assertEqual(len(results), 0, "Async callback should be skipped in direct mode")
+        assert len(results) == 0, "Async callback should be skipped in direct mode"
     
     def test_direct_mode_mixed_callbacks(self):
         """Test direct mode with mix of sync and async callbacks."""
@@ -104,10 +104,10 @@ class TestPublishModes(unittest.TestCase):
         # Only sync callbacks should execute
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(results), 2)
-        self.assertIn("sync1", results)
-        self.assertIn("sync2", results)
-        self.assertNotIn("async", results)
+        assert len(results) == 2
+        assert "sync1" in results
+        assert "sync2" in results
+        assert "async" not in results
     
     def test_direct_mode_with_sync_subscriber(self):
         """Test that direct mode works with synchronous subscribers."""
@@ -125,8 +125,8 @@ class TestPublishModes(unittest.TestCase):
         # Should execute subscriber synchronously
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], "subscriber_reacted_direct")
+        assert len(results) == 1
+        assert results[0] == "subscriber_reacted_direct"
     
     def test_direct_mode_callback_error_handling(self):
         """Test error handling in direct mode callbacks."""
@@ -140,12 +140,12 @@ class TestPublishModes(unittest.TestCase):
         publisher.add_subscriber(callback_that_fails)
         
         # Should raise the error since no logger
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             publisher.publish(mode="direct")
         
         # Callback should have executed before raising
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], "before_error")
+        assert len(results) == 1
+        assert results[0] == "before_error"
     
     def test_direct_mode_callback_error_with_logger(self):
         """Test error handling with logger doesn't stop other callbacks."""
@@ -166,7 +166,7 @@ class TestPublishModes(unittest.TestCase):
         publisher.publish(mode="direct")
         
         # Both callbacks should have been attempted
-        self.assertEqual(len(results), 2)
+        assert len(results) == 2
     
     def test_sync_mode_with_sync_callback(self):
         """Test sync mode with synchronous callbacks."""
@@ -181,7 +181,7 @@ class TestPublishModes(unittest.TestCase):
         # Sync mode should execute and wait for completion
         publisher.publish(mode="sync")
         
-        self.assertEqual(len(results), 1)
+        assert len(results) == 1
     
     def test_async_mode_comparison(self):
         """Test that async mode returns before callback completes."""
@@ -198,13 +198,13 @@ class TestPublishModes(unittest.TestCase):
             publisher.publish(mode="async")
             
             # Callback hasn't executed yet
-            self.assertEqual(len(results), 0, "Async mode should return before callback")
+            assert len(results) == 0, "Async mode should return before callback"
             
             # Wait for task to complete
             await asyncio.sleep(0.01)
             
             # Now callback should have executed
-            self.assertEqual(len(results), 1, "Callback should execute eventually")
+            assert len(results) == 1, "Callback should execute eventually"
         
         asyncio.run(test())
     
@@ -220,9 +220,9 @@ class TestPublishModes(unittest.TestCase):
             
             publisher_async.add_subscriber(callback_async)
             publisher_async.publish(mode="async")
-            self.assertEqual(len(results_async), 0, "Async: immediate return")
+            assert len(results_async) == 0, "Async: immediate return"
             await asyncio.sleep(0.01)
-            self.assertEqual(len(results_async), 1, "Async: eventually completes")
+            assert len(results_async) == 1, "Async: eventually completes"
             
             # Sync mode
             publisher_sync = Publisher()
@@ -233,7 +233,7 @@ class TestPublishModes(unittest.TestCase):
             
             publisher_sync.add_subscriber(callback_sync)
             publisher_sync.publish(mode="sync")
-            self.assertEqual(len(results_sync), 1, "Sync: waits for completion")
+            assert len(results_sync) == 1, "Sync: waits for completion"
             
             # Direct mode
             publisher_direct = Publisher()
@@ -244,7 +244,7 @@ class TestPublishModes(unittest.TestCase):
             
             publisher_direct.add_subscriber(callback_direct)
             publisher_direct.publish(mode="direct")
-            self.assertEqual(len(results_direct), 1, "Direct: immediate execution")
+            assert len(results_direct) == 1, "Direct: immediate execution"
         
         asyncio.run(test())
     
@@ -252,7 +252,7 @@ class TestPublishModes(unittest.TestCase):
         """Test that invalid mode raises ValueError."""
         publisher = Publisher()
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             publisher.publish(mode="invalid")  # type: ignore
     
     def test_off_mode_disables_publishing(self):
@@ -273,17 +273,17 @@ class TestPublishModes(unittest.TestCase):
         # Off mode should not execute anything
         publisher.publish(mode="off")
         
-        self.assertEqual(len(results), 0, "Off mode should not notify anyone")
+        assert len(results) == 0, "Off mode should not notify anyone"
     
     def test_none_mode_uses_preferred(self):
         """Test that None mode uses preferred_publish_mode."""
         # Test with async preferred
         publisher_async = Publisher(preferred_publish_mode="async")
-        self.assertEqual(publisher_async.preferred_publish_mode, "async")
+        assert publisher_async.preferred_publish_mode == "async"
         
         # Test with sync preferred
         publisher_sync = Publisher(preferred_publish_mode="sync")
-        self.assertEqual(publisher_sync.preferred_publish_mode, "sync")
+        assert publisher_sync.preferred_publish_mode == "sync"
         
         # Test with direct preferred
         publisher_direct = Publisher(preferred_publish_mode="direct")
@@ -296,11 +296,11 @@ class TestPublishModes(unittest.TestCase):
         
         # mode=None should use preferred (direct)
         publisher_direct.publish(mode=None)
-        self.assertEqual(len(results), 1)
+        assert len(results) == 1
         
         # mode=None is also the default
         publisher_direct.publish()
-        self.assertEqual(len(results), 2)
+        assert len(results) == 2
     
     def test_preferred_mode_change_at_runtime(self):
         """Test changing preferred_publish_mode at runtime."""
@@ -314,17 +314,17 @@ class TestPublishModes(unittest.TestCase):
         
         # Initially off
         publisher.publish()  # Uses preferred (off)
-        self.assertEqual(len(results), 0)
+        assert len(results) == 0
         
         # Change to direct
         publisher.preferred_publish_mode = "direct"
         publisher.publish()  # Now uses direct
-        self.assertEqual(len(results), 1)
+        assert len(results) == 1
         
         # Override with explicit mode (ignores preferred)
         publisher.preferred_publish_mode = "off"
         publisher.publish(mode="direct")  # Explicit mode overrides
-        self.assertEqual(len(results), 2)
+        assert len(results) == 2
     
     def test_direct_mode_no_asyncio_needed(self):
         """Test that direct mode works without event loop."""
@@ -340,8 +340,8 @@ class TestPublishModes(unittest.TestCase):
         # Should work fine without event loop
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], "no_event_loop_needed")
+        assert len(results) == 1
+        assert results[0] == "no_event_loop_needed"
     
     def test_direct_mode_performance_no_overhead(self):
         """Test that direct mode has minimal overhead."""
@@ -360,12 +360,12 @@ class TestPublishModes(unittest.TestCase):
             publisher.publish(mode="direct")
         elapsed = time.perf_counter() - start
         
-        self.assertEqual(call_count[0], 1000)
+        assert call_count[0] == 1000
         # Should complete very quickly (under 0.1 seconds for 1000 calls)
-        self.assertLess(elapsed, 0.1, f"Direct mode took {elapsed}s for 1000 calls")
+        assert elapsed < 0.1, f"Direct mode took {elapsed}s for 1000 calls"
 
 
-class TestPublishModesWithSubscribers(unittest.TestCase):
+class TestPublishModesWithSubscribers:
     """Test publish modes with Subscriber objects."""
     
     def test_async_mode_with_subscriber(self):
@@ -384,11 +384,11 @@ class TestPublishModesWithSubscribers(unittest.TestCase):
             
             # Async mode
             publisher.publish(mode="async")
-            self.assertEqual(len(reactions), 0, "Should return immediately")
+            assert len(reactions) == 0, "Should return immediately"
             
             await asyncio.sleep(0.02)
-            self.assertEqual(len(reactions), 1, "Subscriber should react")
-            self.assertEqual(reactions[0], "reacted_async")
+            assert len(reactions) == 1, "Subscriber should react"
+            assert reactions[0] == "reacted_async"
         
         asyncio.run(test())
     
@@ -406,8 +406,8 @@ class TestPublishModesWithSubscribers(unittest.TestCase):
         
         # Sync mode should wait
         publisher.publish(mode="sync")
-        self.assertEqual(len(reactions), 1, "Should wait for subscriber")
-        self.assertEqual(reactions[0], "reacted_sync")
+        assert len(reactions) == 1, "Should wait for subscriber"
+        assert reactions[0] == "reacted_sync"
     
     def test_direct_mode_with_subscriber(self):
         """Test that direct mode notifies subscribers synchronously."""
@@ -424,10 +424,6 @@ class TestPublishModesWithSubscribers(unittest.TestCase):
         # Direct mode should notify subscribers synchronously
         publisher.publish(mode="direct")
         
-        self.assertEqual(len(reactions), 1, "Subscribers should be notified in direct mode")
-        self.assertEqual(reactions[0], "reacted_direct")
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert len(reactions) == 1, "Subscribers should be notified in direct mode"
+        assert reactions[0] == "reacted_direct"
 

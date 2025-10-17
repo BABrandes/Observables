@@ -1,4 +1,3 @@
-import unittest
 from enum import Enum
 from observables import ObservableSelectionEnum, ObservableOptionalSelectionEnum
 
@@ -9,7 +8,7 @@ class Color(Enum):
     YELLOW = 4
 
 
-class TestObservableSelectionEnum(unittest.TestCase):
+class TestObservableSelectionEnum:
     """Test cases for ObservableSelectionEnum"""
 
     def test_serialization(self):
@@ -29,10 +28,10 @@ class TestObservableSelectionEnum(unittest.TestCase):
         serialized_data = obs.get_value_references_for_serialization()
         
         # Verify serialized data contains expected keys
-        self.assertIn("enum_value", serialized_data)
-        self.assertIn("enum_options", serialized_data)
-        self.assertEqual(serialized_data["enum_value"], expected_selected)
-        self.assertEqual(serialized_data["enum_options"], expected_options)
+        assert "enum_value" in serialized_data
+        assert "enum_options" in serialized_data
+        assert serialized_data["enum_value"] == expected_selected
+        assert serialized_data["enum_options"] == expected_options
         
         # Step 4: Delete the object
         del obs
@@ -41,18 +40,18 @@ class TestObservableSelectionEnum(unittest.TestCase):
         obs_restored = ObservableSelectionEnum(Color.RED, {Color.RED})
         
         # Verify it starts with different values
-        self.assertEqual(obs_restored.selected_option, Color.RED)
-        self.assertEqual(obs_restored.available_options, {Color.RED})
+        assert obs_restored.selected_option == Color.RED
+        assert obs_restored.available_options == {Color.RED}
         
         # Step 6: Use "set_value_references_from_serialization"
         obs_restored.set_value_references_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
-        self.assertEqual(obs_restored.selected_option, expected_selected)
-        self.assertEqual(obs_restored.available_options, expected_options)
+        assert obs_restored.selected_option == expected_selected
+        assert obs_restored.available_options == expected_options
 
 
-class TestObservableOptionalSelectionEnum(unittest.TestCase):
+class TestObservableOptionalSelectionEnum:
     """Test cases for ObservableOptionalSelectionEnum"""
 
     def test_serialization(self):
@@ -72,10 +71,10 @@ class TestObservableOptionalSelectionEnum(unittest.TestCase):
         serialized_data = obs.get_value_references_for_serialization()
         
         # Verify serialized data contains expected keys
-        self.assertIn("enum_value", serialized_data)
-        self.assertIn("enum_options", serialized_data)
-        self.assertEqual(serialized_data["enum_value"], expected_selected)
-        self.assertEqual(serialized_data["enum_options"], expected_options)
+        assert "enum_value" in serialized_data
+        assert "enum_options" in serialized_data
+        assert serialized_data["enum_value"] == expected_selected
+        assert serialized_data["enum_options"] == expected_options
         
         # Step 4: Delete the object
         del obs
@@ -84,15 +83,15 @@ class TestObservableOptionalSelectionEnum(unittest.TestCase):
         obs_restored = ObservableOptionalSelectionEnum(Color.RED, {Color.RED})
         
         # Verify it starts with different values
-        self.assertEqual(obs_restored.selected_option, Color.RED)
-        self.assertEqual(obs_restored.available_options, {Color.RED})
+        assert obs_restored.selected_option == Color.RED
+        assert obs_restored.available_options == {Color.RED}
         
         # Step 6: Use "set_value_references_from_serialization"
         obs_restored.set_value_references_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
-        self.assertEqual(obs_restored.selected_option, expected_selected)
-        self.assertEqual(obs_restored.available_options, expected_options)
+        assert obs_restored.selected_option == expected_selected
+        assert obs_restored.available_options == expected_options
 
     def test_serialization_with_value(self):
         """Test serialization when value is not None."""
@@ -110,10 +109,10 @@ class TestObservableOptionalSelectionEnum(unittest.TestCase):
         serialized_data = obs.get_value_references_for_serialization()
         
         # Verify serialized data contains expected keys
-        self.assertIn("enum_value", serialized_data)
-        self.assertIn("enum_options", serialized_data)
-        self.assertEqual(serialized_data["enum_value"], expected_selected)
-        self.assertEqual(serialized_data["enum_options"], expected_options)
+        assert "enum_value" in serialized_data
+        assert "enum_options" in serialized_data
+        assert serialized_data["enum_value"] == expected_selected
+        assert serialized_data["enum_options"] == expected_options
         
         # Step 4: Delete the object
         del obs
@@ -122,14 +121,14 @@ class TestObservableOptionalSelectionEnum(unittest.TestCase):
         obs_restored = ObservableOptionalSelectionEnum(None, {Color.RED})
         
         # Verify it starts with different values
-        self.assertIsNone(obs_restored.selected_option)
+        assert obs_restored.selected_option is None
         
         # Step 6: Use "set_value_references_from_serialization"
         obs_restored.set_value_references_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
-        self.assertEqual(obs_restored.selected_option, expected_selected)
-        self.assertEqual(obs_restored.available_options, expected_options)
+        assert obs_restored.selected_option == expected_selected
+        assert obs_restored.available_options == expected_options
 
 
 if __name__ == '__main__':

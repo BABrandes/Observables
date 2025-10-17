@@ -7,13 +7,13 @@ import asyncio
 import gc
 import weakref
 
-import unittest
 
 from observables import Publisher
 from observables.core import Subscriber
 
 from tests.test_base import ObservableTestCase
 from tests.run_tests import console_logger as logger
+import pytest
 
 class TestSubscriber(Subscriber):
     """Test implementation of Subscriber that tracks publications."""
@@ -40,8 +40,8 @@ class TestSubscriber(Subscriber):
 class TestPublisherSubscriberBasics(ObservableTestCase):
     """Test basic Publisher/Subscriber functionality"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.publisher = Publisher(logger=logger)
         self.subscriber = TestSubscriber()
         # Set up event loop for async operations
@@ -56,24 +56,24 @@ class TestPublisherSubscriberBasics(ObservableTestCase):
     def test_add_subscriber(self):
         """Test adding a subscriber to a publisher"""
         self.publisher.add_subscriber(self.subscriber)
-        self.assertTrue(self.publisher.is_subscribed(self.subscriber))
+        assert self.publisher.is_subscribed(self.subscriber)
     
     def test_is_subscribed_false(self):
         """Test is_subscribed returns False for non-subscribed subscriber"""
         other_subscriber = TestSubscriber()
-        self.assertFalse(self.publisher.is_subscribed(other_subscriber))
+        assert not self.publisher.is_subscribed(other_subscriber)
     
     def test_remove_subscriber(self):
         """Test removing a subscriber from a publisher"""
         self.publisher.add_subscriber(self.subscriber)
-        self.assertTrue(self.publisher.is_subscribed(self.subscriber))
+        assert self.publisher.is_subscribed(self.subscriber)
         
         self.publisher.remove_subscriber(self.subscriber)
-        self.assertFalse(self.publisher.is_subscribed(self.subscriber))
+        assert not self.publisher.is_subscribed(self.subscriber)
     
     def test_remove_nonexistent_subscriber_raises(self):
         """Test removing a subscriber that wasn't added raises ValueError"""
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             self.publisher.remove_subscriber(self.subscriber)
     
     def test_publish_to_single_subscriber(self):
@@ -84,9 +84,9 @@ class TestPublisherSubscriberBasics(ObservableTestCase):
         # Give async tasks time to complete
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(self.subscriber.reaction_count, 1)
-        self.assertEqual(len(self.subscriber.publications), 1)
-        self.assertIs(self.subscriber.publications[0], self.publisher)
+        assert self.subscriber.reaction_count == 1
+        assert len(self.subscriber.publications) == 1
+        assert self.subscriber.publications[0] is self.publisher
     
     def test_publish_to_multiple_subscribers(self):
         """Test publishing to multiple subscribers"""
@@ -102,9 +102,9 @@ class TestPublisherSubscriberBasics(ObservableTestCase):
         # Give async tasks time to complete
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(self.subscriber.reaction_count, 1)
-        self.assertEqual(subscriber2.reaction_count, 1)
-        self.assertEqual(subscriber3.reaction_count, 1)
+        assert self.subscriber.reaction_count == 1
+        assert subscriber2.reaction_count == 1
+        assert subscriber3.reaction_count == 1
     
     def test_multiple_publications(self):
         """Test multiple publications to the same subscriber"""
@@ -119,7 +119,7 @@ class TestPublisherSubscriberBasics(ObservableTestCase):
         self.publisher.publish()
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(self.subscriber.reaction_count, 3)
+        assert self.subscriber.reaction_count == 3
     
     def test_no_notification_after_removal(self):
         """Test subscriber doesn't receive publications after removal"""
@@ -133,14 +133,14 @@ class TestPublisherSubscriberBasics(ObservableTestCase):
         self.publisher.publish()
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(self.subscriber.reaction_count, 1)
+        assert self.subscriber.reaction_count == 1
 
 
 class TestPublisherSubscriberWeakReferences(ObservableTestCase):
     """Test weak reference behavior"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -169,14 +169,14 @@ class TestPublisherSubscriberWeakReferences(ObservableTestCase):
         gc.collect()
         
         # Verify they're gone
-        self.assertIsNone(weak_ref1())
-        self.assertIsNone(weak_ref2())
+        assert weak_ref1() is None
+        assert weak_ref2() is None
         
         # Publishing should only notify subscriber3
         publisher.publish()
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(subscriber3.reaction_count, 1)
+        assert subscriber3.reaction_count == 1
     
     def test_publisher_cleanup_on_deletion(self):
         """Test that deleted publishers are cleaned up from subscribers"""
@@ -194,20 +194,20 @@ class TestPublisherSubscriberWeakReferences(ObservableTestCase):
         gc.collect()
         
         # Verify it's gone
-        self.assertIsNone(weak_ref())
+        assert weak_ref() is None
         
         # Publishing from publisher2 should still work
         publisher2.publish()
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
-        self.assertEqual(subscriber.reaction_count, 1)
+        assert subscriber.reaction_count == 1
 
 
 class TestPublisherSubscriberErrorHandling(ObservableTestCase):
     """Test error handling in subscriber reactions"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -246,7 +246,7 @@ class TestPublisherSubscriberErrorHandling(ObservableTestCase):
             # This test is difficult to verify without inspecting loop exceptions
         except RuntimeError as e:
             # This is the expected path if exception propagates
-            self.assertIn("failed to react to publication", str(e))
+            assert "failed to react to publication" in str(e)
     
     def test_one_subscriber_error_doesnt_affect_others(self):
         """Test that error in one subscriber doesn't prevent others from reacting"""
@@ -266,15 +266,15 @@ class TestPublisherSubscriberErrorHandling(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # subscriber2 and subscriber3 should still have reacted
-        self.assertEqual(subscriber2.reaction_count, 1)
-        self.assertEqual(subscriber3.reaction_count, 1)
+        assert subscriber2.reaction_count == 1
+        assert subscriber3.reaction_count == 1
 
 
 class TestPublisherSubscriberCleanup(ObservableTestCase):
     """Test cleanup threshold behavior"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -307,7 +307,7 @@ class TestPublisherSubscriberCleanup(ObservableTestCase):
         self.loop.run_until_complete(asyncio.sleep(0.01))
         
         # Only subscriber2 should have reacted
-        self.assertEqual(subscriber2.reaction_count, 1)
+        assert subscriber2.reaction_count == 1
     
     def test_size_based_cleanup(self):
         """Test cleanup triggers after size threshold"""
@@ -336,15 +336,15 @@ class TestPublisherSubscriberCleanup(ObservableTestCase):
         
         # The dead refs should have been cleaned up after reaching threshold
         # The cleanup happens in add_subscriber when threshold is reached
-        self.assertIsNone(weak_ref1())
-        self.assertIsNone(weak_ref2())
+        assert weak_ref1() is None
+        assert weak_ref2() is None
 
 
 class TestPublisherSubscriberAsync(ObservableTestCase):
     """Test async behavior"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -387,22 +387,22 @@ class TestPublisherSubscriberAsync(ObservableTestCase):
         publisher.publish()  # Uses async mode from preferred
         
         # In async mode, publish returns immediately before reactions complete
-        self.assertEqual(subscriber2.reaction_count, 0)
-        self.assertEqual(subscriber1.reaction_count, 0)
+        assert subscriber2.reaction_count == 0
+        assert subscriber1.reaction_count == 0
         
         # Wait for reactions to complete
         self.loop.run_until_complete(asyncio.sleep(0.1))
         
         # Both should have completed
-        self.assertEqual(subscriber1.reaction_count, 1)
-        self.assertEqual(subscriber2.reaction_count, 1)
+        assert subscriber1.reaction_count == 1
+        assert subscriber2.reaction_count == 1
 
 
 class TestBidirectionalReferences(ObservableTestCase):
     """Test bidirectional references between Publisher and Subscriber"""
     
-    def setUp(self):
-        super().setUp()
+    def setup_method(self):
+        super().setup_method()
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
@@ -420,7 +420,7 @@ class TestBidirectionalReferences(ObservableTestCase):
         publisher2.add_subscriber(subscriber)
         
         # Subscriber should have references to both publishers
-        self.assertEqual(len(list(subscriber._publisher_storage.weak_references)), 2) # type: ignore
+        assert len(list(subscriber._publisher_storage.weak_references)) == 2 # type: ignore
     
     def test_remove_updates_both_sides(self):
         """Test that removing a subscriber updates both sides"""
@@ -430,17 +430,13 @@ class TestBidirectionalReferences(ObservableTestCase):
         publisher.add_subscriber(subscriber)
         
         # Both should have references
-        self.assertTrue(publisher.is_subscribed(subscriber))
-        self.assertEqual(len(list(subscriber._publisher_storage.weak_references)), 1) # type: ignore
+        assert publisher.is_subscribed(subscriber)
+        assert len(list(subscriber._publisher_storage.weak_references)) == 1 # type: ignore
         
         # Remove subscriber
         publisher.remove_subscriber(subscriber)
         
         # Both should be cleaned up
-        self.assertFalse(publisher.is_subscribed(subscriber))
-        self.assertEqual(len(list(subscriber._publisher_storage.weak_references)), 0) # type: ignore
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert not publisher.is_subscribed(subscriber)
+        assert len(list(subscriber._publisher_storage.weak_references)) == 0 # type: ignore
 

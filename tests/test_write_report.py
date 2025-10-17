@@ -7,7 +7,6 @@ This creates a sophisticated binding scenario and uses write_report to analyze i
 from typing import Any, cast
 from enum import Enum
 
-import unittest
 
 from observables import ObservableSingleValue, ObservableList, ObservableDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
 from observables.core import HookWithOwnerLike, BaseCarriesHooks
@@ -23,7 +22,7 @@ class TaskStatus(Enum):
     IN_PROGRESS = "in_progress"
     DONE = "done"
 
-class TestWriteReport(unittest.TestCase):
+class TestWriteReport:
     """Test the write_report function with complex hook systems"""
     
     def test_write_report_complex_system(self):
@@ -241,15 +240,15 @@ class TestWriteReport(unittest.TestCase):
         report: str = write_report(observables) # type: ignore
         
         # Verify the report contains expected information
-        self.assertIn("John", report)
-        self.assertIn("25", report)
-        self.assertIn("name:", report)
-        self.assertIn("age:", report)
-        self.assertIn("name_backup:", report)
+        assert "John" in report
+        assert "25" in report
+        assert "name:" in report
+        assert "age:" in report
+        assert "name_backup:" in report
         
         # Verify that name and name_backup share a nexus
-        self.assertIn("name:", report)
-        self.assertIn("name_backup:", report)
+        assert "name:" in report
+        assert "name_backup:" in report
         
         print("\nSimple system report:")
         print(report)
@@ -258,7 +257,7 @@ class TestWriteReport(unittest.TestCase):
         """Test write_report with an empty system"""
         
         report: str = write_report({}) # type: ignore
-        self.assertEqual(report, "No observables provided.\n")
+        assert report == "No observables provided.\n"
         
         print("\nEmpty system report (should be empty):")
         print(f"'{report}'")

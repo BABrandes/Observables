@@ -2,75 +2,69 @@
 Simple memory leak test to isolate the issue.
 """
 
-import unittest
 import gc
 import weakref
 
 from observables import FloatingHook
-
 from observables._nexus_system.hook_nexus import HookNexus
 
-class TestSimpleMemoryLeaks(unittest.TestCase):
-    """Simple test for memory leaks."""
 
-    def test_simple_hook_gc(self):
-        """Test simple hook garbage collection."""
-        # Create a hook
-        hook = FloatingHook("test_value")
-        hook_ref = weakref.ref(hook)
-        
-        # Verify the hook exists
-        self.assertIsNotNone(hook_ref())
-        
-        # Delete the hook
-        del hook
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify the hook was garbage collected
-        self.assertIsNone(hook_ref())
-
-    def test_hook_with_callback_gc(self):
-        """Test hook with callback garbage collection."""
-        # Create a callback that might hold a reference
-        def callback(value: str) -> tuple[bool, str]:
-            return True, "Successfully validated"
-        
-        # Create a hook with callback
-        hook = FloatingHook("test_value", isolated_validation_callback=callback)
-        hook_ref = weakref.ref(hook)
-        
-        # Verify the hook exists
-        self.assertIsNotNone(hook_ref())
-        
-        # Delete the hook
-        del hook
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify the hook was garbage collected
-        self.assertIsNone(hook_ref())
-
-    def test_nexus_gc(self):
-        """Test nexus garbage collection."""
-        # Create a nexus
-        nexus = HookNexus("test_value")
-        nexus_ref = weakref.ref(nexus)
-        
-        # Verify the nexus exists
-        self.assertIsNotNone(nexus_ref())
-        
-        # Delete the nexus
-        del nexus
-        
-        # Force garbage collection
-        gc.collect()
-        
-        # Verify the nexus was garbage collected
-        self.assertIsNone(nexus_ref())
+def test_simple_hook_gc():
+    """Test simple hook garbage collection."""
+    # Create a hook
+    hook = FloatingHook("test_value")
+    hook_ref = weakref.ref(hook)
+    
+    # Verify the hook exists
+    assert hook_ref() is not None
+    
+    # Delete the hook
+    del hook
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify the hook was garbage collected
+    assert hook_ref() is None
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_hook_with_callback_gc():
+    """Test hook with callback garbage collection."""
+    # Create a callback that might hold a reference
+    def callback(value: str) -> tuple[bool, str]:
+        return True, "Successfully validated"
+    
+    # Create a hook with callback
+    hook = FloatingHook("test_value", isolated_validation_callback=callback)
+    hook_ref = weakref.ref(hook)
+    
+    # Verify the hook exists
+    assert hook_ref() is not None
+    
+    # Delete the hook
+    del hook
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify the hook was garbage collected
+    assert hook_ref() is None
+
+
+def test_nexus_gc():
+    """Test nexus garbage collection."""
+    # Create a nexus
+    nexus = HookNexus("test_value")
+    nexus_ref = weakref.ref(nexus)
+    
+    # Verify the nexus exists
+    assert nexus_ref() is not None
+    
+    # Delete the nexus
+    del nexus
+    
+    # Force garbage collection
+    gc.collect()
+    
+    # Verify the nexus was garbage collected
+    assert nexus_ref() is None

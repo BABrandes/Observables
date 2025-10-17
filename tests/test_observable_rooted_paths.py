@@ -11,18 +11,18 @@ from pathlib import Path
 import tempfile
 import shutil
 
-import unittest
 from unittest.mock import Mock
 
 from observables import ObservableSingleValue, ObservableRootedPaths, HookLike
 from observables.core import HookWithOwnerLike
 
 from observables._observables_advanced.observable_rooted_paths import ROOT_PATH_KEY
+import pytest
 
-class TestObservableRootedPaths(unittest.TestCase):
+class TestObservableRootedPaths:
     """Test cases for ObservableRootedPaths."""
 
-    def setUp(self):
+    def setup_method(self):
         """Set up test fixtures."""
         # Create a temporary directory for testing
         self.temp_dir = tempfile.mkdtemp()
@@ -46,24 +46,24 @@ class TestObservableRootedPaths(unittest.TestCase):
         manager = ObservableRootedPaths[str]()
         
         # Check that root path is None
-        self.assertIsNone(manager.root_path)
+        assert manager.root_path is None
         
         # Check that no element keys are set
-        self.assertEqual(len(manager.rooted_element_keys), 0)
-        self.assertEqual(len(manager.rooted_element_relative_path_hooks), 0)
-        self.assertEqual(len(manager.rooted_element_absolute_path_hooks), 0)
+        assert len(manager.rooted_element_keys) == 0
+        assert len(manager.rooted_element_relative_path_hooks) == 0
+        assert len(manager.rooted_element_absolute_path_hooks) == 0
 
     def test_initialization_with_root_path_only(self):
         """Test initialization with only root path."""
         manager = ObservableRootedPaths[str](root_path_initial_value=self.test_root)
         
         # Check that root path is set correctly
-        self.assertEqual(manager.root_path, self.test_root)
+        assert manager.root_path == self.test_root
         
         # Check that no element keys are set
-        self.assertEqual(len(manager.rooted_element_keys), 0)
-        self.assertEqual(len(manager.rooted_element_relative_path_hooks), 0)
-        self.assertEqual(len(manager.rooted_element_absolute_path_hooks), 0)
+        assert len(manager.rooted_element_keys) == 0
+        assert len(manager.rooted_element_relative_path_hooks) == 0
+        assert len(manager.rooted_element_absolute_path_hooks) == 0
 
     def test_initialization_with_elements_only(self):
         """Test initialization with elements but no root path."""
@@ -78,15 +78,15 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Check that root path is None
-        self.assertIsNone(manager.root_path)
+        assert manager.root_path is None
         
         # Check that element keys are set
-        self.assertEqual(manager.rooted_element_keys, set(initial_values.keys()))
+        assert manager.rooted_element_keys == set(initial_values.keys())
         
         # Check that relative path hooks are created
         for key in initial_values:
             hook = manager.get_relative_path_hook(key)
-            self.assertEqual(hook.value, initial_values[key])
+            assert hook.value == initial_values[key]
 
     def test_initialization_with_root_and_elements(self):
         """Test initialization with both root path and elements."""
@@ -102,15 +102,15 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Check that root path is set correctly
-        self.assertEqual(manager.root_path, self.test_root)
+        assert manager.root_path == self.test_root
         
         # Check that element keys are set
-        self.assertEqual(manager.rooted_element_keys, set(initial_values.keys()))
+        assert manager.rooted_element_keys == set(initial_values.keys())
         
         # Check that relative path hooks are created
         for key in initial_values:
             hook = manager.get_relative_path_hook(key)
-            self.assertEqual(hook.value, initial_values[key])
+            assert hook.value == initial_values[key]
             
             # Check that absolute path hooks are created and computed correctly
             abs_hook = manager.get_absolute_path_hook(key)
@@ -118,19 +118,19 @@ class TestObservableRootedPaths(unittest.TestCase):
             assert relative_path is not None
             assert self.test_root is not None
             expected_abs_path = self.test_root / relative_path
-            self.assertEqual(abs_hook.value, expected_abs_path)
+            assert abs_hook.value == expected_abs_path
 
     def test_element_key_conversion_methods(self):
         """Test the element key to path key conversion methods."""
         manager = ObservableRootedPaths[str]()
         
         # Test relative path key conversion
-        self.assertEqual(manager.element_key_to_relative_path_key("data"), "data_relative_path")
-        self.assertEqual(manager.element_key_to_relative_path_key("config"), "config_relative_path")
+        assert manager.element_key_to_relative_path_key("data") == "data_relative_path"
+        assert manager.element_key_to_relative_path_key("config") == "config_relative_path"
         
         # Test absolute path key conversion
-        self.assertEqual(manager.element_key_to_absolute_path_key("data"), "data_absolute_path")
-        self.assertEqual(manager.element_key_to_absolute_path_key("config"), "config_absolute_path")
+        assert manager.element_key_to_absolute_path_key("data") == "data_absolute_path"
+        assert manager.element_key_to_absolute_path_key("config") == "config_absolute_path"
 
     def test_set_root_path(self):
         """Test setting the root path."""
@@ -138,13 +138,13 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Set root path
         success, _ = manager.set_root_path(self.test_root)
-        self.assertTrue(success)
-        self.assertEqual(manager.root_path, self.test_root)
+        assert success
+        assert manager.root_path == self.test_root
         
         # Set to None
         success, _ = manager.set_root_path(None)
-        self.assertTrue(success)
-        self.assertIsNone(manager.root_path)
+        assert success
+        assert manager.root_path is None
 
     def test_set_relative_path(self):
         """Test setting relative paths for elements."""
@@ -155,10 +155,10 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Set relative path
         success, _ = manager.set_relative_path("data", "new_data/")
-        self.assertTrue(success)
+        assert success
         
         hook = manager.get_relative_path_hook("data")
-        self.assertEqual(hook.value, "new_data/")
+        assert hook.value == "new_data/"
 
     def test_set_absolute_path(self):
         """Test setting absolute paths for elements (should be automatically calculated)."""
@@ -171,13 +171,13 @@ class TestObservableRootedPaths(unittest.TestCase):
         # The absolute path should be automatically calculated as root + relative
         expected_abs_path = self.test_root / "data/"
         hook = manager.get_absolute_path_hook("data")
-        self.assertEqual(hook.value, expected_abs_path)
+        assert hook.value == expected_abs_path
         
         # When we change the relative path, the absolute path should update automatically
         manager.set_relative_path("data", "new_data/")
         expected_abs_path = self.test_root / "new_data/"
         hook = manager.get_absolute_path_hook("data")
-        self.assertEqual(hook.value, expected_abs_path)
+        assert hook.value == expected_abs_path
 
     def test_get_relative_path_hook(self):
         """Test getting relative path hooks."""
@@ -188,10 +188,10 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Test getting existing hook
         hook = manager.get_relative_path_hook("data")
-        self.assertEqual(hook.value, "data/")
+        assert hook.value == "data/"
         
         # Test getting non-existing hook
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             manager.get_relative_path_hook("nonexistent")
 
     def test_get_absolute_path_hook(self):
@@ -205,10 +205,10 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Test getting existing hook
         hook = manager.get_absolute_path_hook("data")
         expected_path = self.test_root / "data/"
-        self.assertEqual(hook.value, expected_path)
+        assert hook.value == expected_path
         
         # Test getting non-existing hook
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             manager.get_absolute_path_hook("nonexistent")
 
     def test_validation_with_valid_values(self):
@@ -250,7 +250,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Check initial absolute path
         abs_hook = manager.get_absolute_path_hook("data")
         expected_path = self.test_root / "data/"
-        self.assertEqual(abs_hook.value, expected_path)
+        assert abs_hook.value == expected_path
         
         # Change root path
         new_root = Path(self.temp_dir) / "new_project"
@@ -260,7 +260,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Check that absolute path is updated
         abs_hook = manager.get_absolute_path_hook("data")
         expected_path = new_root / "data/"
-        self.assertEqual(abs_hook.value, expected_path)
+        assert abs_hook.value == expected_path
         
         # Change relative path
         manager.set_relative_path("data", "new_data/")
@@ -268,7 +268,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Check that absolute path is updated
         abs_hook = manager.get_absolute_path_hook("data")
         expected_path = new_root / "new_data/"
-        self.assertEqual(abs_hook.value, expected_path)
+        assert abs_hook.value == expected_path
 
     def test_hook_keys_retrieval(self):
         """Test getting all hook keys."""
@@ -280,12 +280,12 @@ class TestObservableRootedPaths(unittest.TestCase):
         hook_keys = manager.get_hook_keys()
         
         # Should include root path key
-        self.assertIn(ROOT_PATH_KEY, hook_keys)
+        assert ROOT_PATH_KEY in hook_keys
         
         # Should include relative path keys
         for key in initial_values:
-            self.assertIn(f"{key}_relative_path", hook_keys)
-            self.assertIn(f"{key}_absolute_path", hook_keys)
+            assert f"{key}_relative_path" in hook_keys
+            assert f"{key}_absolute_path" in hook_keys
 
     def test_hook_key_retrieval(self):
         """Test getting hook key from hook or nexus."""
@@ -297,12 +297,12 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Test getting key from root path hook
         root_hook = manager.get_hook(ROOT_PATH_KEY)
         key = manager.get_hook_key(root_hook)
-        self.assertEqual(key, ROOT_PATH_KEY)
+        assert key == ROOT_PATH_KEY
         
         # Test getting key from element hook
         data_hook: HookWithOwnerLike[Optional[str]] = manager.get_relative_path_hook("data")
         key = manager.get_hook_key(data_hook) # type: ignore
-        self.assertEqual(key, "data_relative_path")
+        assert key == "data_relative_path"
 
     def test_hook_key_retrieval_with_nonexistent_hook(self):
         """Test getting hook key with nonexistent hook."""
@@ -311,7 +311,7 @@ class TestObservableRootedPaths(unittest.TestCase):
         # Create a mock hook that doesn't exist in the manager
         mock_hook = Mock()
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             manager.get_hook_key(mock_hook)
 
     def test_value_reference_retrieval(self):
@@ -324,17 +324,17 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Test getting root path value reference
         root_value = manager.get_value_reference_of_hook(ROOT_PATH_KEY)
-        self.assertEqual(root_value, self.test_root)
+        assert root_value == self.test_root
         
         # Test getting element value reference
         data_value = manager.get_value_reference_of_hook("data_relative_path")
-        self.assertEqual(data_value, "data/")
+        assert data_value == "data/"
 
     def test_value_reference_retrieval_with_nonexistent_key(self):
         """Test getting value reference with nonexistent key."""
         manager = ObservableRootedPaths[str]()
         
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             manager.get_value_reference_of_hook("nonexistent_key")
 
     def test_serialization_callback(self):
@@ -375,11 +375,11 @@ class TestObservableRootedPaths(unittest.TestCase):
         serialized_data = manager.get_value_references_for_serialization()
         
         # Verify serialized data contains expected keys
-        self.assertIn(ROOT_PATH_KEY, serialized_data)
-        self.assertEqual(serialized_data[ROOT_PATH_KEY], expected_root)
+        assert ROOT_PATH_KEY in serialized_data
+        assert serialized_data[ROOT_PATH_KEY] == expected_root
         for key in initial_values.keys():
-            self.assertIn(key, serialized_data)
-            self.assertEqual(serialized_data[key], expected_relative_paths[key])
+            assert key in serialized_data
+            assert serialized_data[key] == expected_relative_paths[key]
         
         # Step 4: Delete the object
         del manager
@@ -396,30 +396,26 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Verify it starts empty/different
-        self.assertIsNone(manager_restored.root_path)
+        assert manager_restored.root_path is None
         
         # Step 6: Use "set_value_references_from_serialization"
         manager_restored.set_value_references_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
-        self.assertEqual(manager_restored.root_path, expected_root)
+        assert manager_restored.root_path == expected_root
         
         for key in initial_values.keys():
             # Check relative paths match
             restored_relative = manager_restored.get_relative_path_hook(key).value
-            self.assertEqual(
-                restored_relative, 
-                expected_relative_paths[key],
+            assert restored_relative == expected_relative_paths[key], \
                 f"Relative path for '{key}' doesn't match: {restored_relative} != {expected_relative_paths[key]}"
-            )
+            
             
             # Check absolute paths match
             restored_absolute = manager_restored.get_absolute_path_hook(key).value
-            self.assertEqual(
-                restored_absolute,
-                expected_absolute_paths[key],
+            assert restored_absolute == expected_absolute_paths[key], \
                 f"Absolute path for '{key}' doesn't match: {restored_absolute} != {expected_absolute_paths[key]}"
-            )
+            
 
     def test_complex_scenario(self):
         """Test a complex scenario with multiple elements and path changes."""
@@ -436,13 +432,13 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
+        assert manager.root_path == self.test_root
         for key, rel_path in initial_values.items():
-            self.assertEqual(manager.get_relative_path_hook(key).value, rel_path)
+            assert manager.get_relative_path_hook(key).value == rel_path
             assert rel_path is not None
             assert self.test_root is not None
             expected_abs: Path = self.test_root / rel_path
-            self.assertEqual(manager.get_absolute_path_hook(key).value, expected_abs)
+            assert manager.get_absolute_path_hook(key).value == expected_abs
         
         # Change root path
         new_root = Path(self.temp_dir) / "new_project"
@@ -453,19 +449,19 @@ class TestObservableRootedPaths(unittest.TestCase):
         for key, rel_path in initial_values.items():
             assert rel_path is not None
             expected_abs = new_root / rel_path
-            self.assertEqual(manager.get_absolute_path_hook(key).value, expected_abs)
+            assert manager.get_absolute_path_hook(key).value == expected_abs
         
         # Change some relative paths
         manager.set_relative_path("data", "new_data/")
         manager.set_relative_path("config", "settings/")
         
         # Verify absolute paths are recalculated
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_root / "new_data/")
-        self.assertEqual(manager.get_absolute_path_hook("config").value, new_root / "settings/")
+        assert manager.get_absolute_path_hook("data").value == new_root / "new_data/"
+        assert manager.get_absolute_path_hook("config").value == new_root / "settings/"
         
         # Verify unchanged paths remain the same
-        self.assertEqual(manager.get_absolute_path_hook("logs").value, new_root / "logs/")
-        self.assertEqual(manager.get_absolute_path_hook("temp").value, new_root / "temp/")
+        assert manager.get_absolute_path_hook("logs").value == new_root / "logs/"
+        assert manager.get_absolute_path_hook("temp").value == new_root / "temp/"
 
     def test_edge_cases(self):
         """Test edge cases and error conditions."""
@@ -477,18 +473,18 @@ class TestObservableRootedPaths(unittest.TestCase):
         )
         
         # Empty string should be handled
-        self.assertEqual(manager.get_relative_path_hook("data").value, "")
+        assert manager.get_relative_path_hook("data").value == ""
         
         # None should be handled
-        self.assertIsNone(manager.get_relative_path_hook("config").value)
+        assert manager.get_relative_path_hook("config").value is None
         
         # Test with None root path
         manager.set_root_path(None)
-        self.assertIsNone(manager.root_path)
+        assert manager.root_path is None
         
         # Test setting relative path to None
         manager.set_relative_path("data", None)
-        self.assertIsNone(manager.get_relative_path_hook("data").value)
+        assert manager.get_relative_path_hook("data").value is None
 
     def test_type_safety(self):
         """Test type safety with different path types."""
@@ -500,11 +496,11 @@ class TestObservableRootedPaths(unittest.TestCase):
         
         # Test that relative paths accept strings
         manager.set_relative_path("data", "new_path/")
-        self.assertEqual(manager.get_relative_path_hook("data").value, "new_path/")
+        assert manager.get_relative_path_hook("data").value == "new_path/"
         
         # Test that absolute paths are automatically calculated
         expected_abs_path = self.test_root / "new_path/"
-        self.assertEqual(manager.get_absolute_path_hook("data").value, expected_abs_path)
+        assert manager.get_absolute_path_hook("data").value == expected_abs_path
 
     def test_binding_with_observable_single_value_root_path(self):
         """Test binding root path hook to ObservableSingleValue and changing it."""
@@ -522,8 +518,8 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_hook.connect_hook(root_path_observable.hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(manager.get_absolute_path_hook("data").value, self.test_root / "data/")
+        assert manager.root_path == self.test_root
+        assert manager.get_absolute_path_hook("data").value == self.test_root / "data/"
         
         # Change the root path through the observable
         new_root = Path(self.temp_dir) / "new_project"
@@ -531,15 +527,15 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_observable.value = new_root
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.root_path, new_root)
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_root / "data/")
+        assert manager.root_path == new_root
+        assert manager.get_absolute_path_hook("data").value == new_root / "data/"
         
         # Change back to None
         root_path_observable.value = None # type: ignore
         
         # Verify that ObservableRootedPaths updated
-        self.assertIsNone(manager.root_path)
-        self.assertIsNone(manager.get_absolute_path_hook("data").value)
+        assert manager.root_path is None
+        assert manager.get_absolute_path_hook("data").value is None
 
     def test_binding_with_observable_single_value_relative_path(self):
         """Test binding relative path hook to ObservableSingleValue and changing it."""
@@ -557,22 +553,22 @@ class TestObservableRootedPaths(unittest.TestCase):
         relative_path_hook.connect_hook(relative_path_observable.hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.get_relative_path_hook("data").value, "data/")
-        self.assertEqual(manager.get_absolute_path_hook("data").value, self.test_root / "data/")
+        assert manager.get_relative_path_hook("data").value == "data/"
+        assert manager.get_absolute_path_hook("data").value == self.test_root / "data/"
         
         # Change the relative path through the observable
         relative_path_observable.value = "new_data/"
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.get_relative_path_hook("data").value, "new_data/")
-        self.assertEqual(manager.get_absolute_path_hook("data").value, self.test_root / "new_data/")
+        assert manager.get_relative_path_hook("data").value == "new_data/"
+        assert manager.get_absolute_path_hook("data").value == self.test_root / "new_data/"
         
         # Change to empty string (None would violate validation since root path is set)
         relative_path_observable.value = ""
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.get_relative_path_hook("data").value, "")
-        self.assertEqual(manager.get_absolute_path_hook("data").value, self.test_root / "")
+        assert manager.get_relative_path_hook("data").value == ""
+        assert manager.get_absolute_path_hook("data").value == self.test_root / ""
 
     def test_binding_with_observable_single_value_absolute_path(self):
         """Test binding absolute path hook to ObservableSingleValue and changing it."""
@@ -590,21 +586,21 @@ class TestObservableRootedPaths(unittest.TestCase):
         absolute_path_hook.connect_hook(absolute_path_observable.hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.get_absolute_path_hook("data").value, self.test_root / "data/")
+        assert manager.get_absolute_path_hook("data").value == self.test_root / "data/"
         
         # Change the absolute path through the observable (must match root + relative)
         new_absolute_path = self.test_root / "data/"  # Keep it consistent with relative path
         absolute_path_observable.value = new_absolute_path
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_absolute_path)
+        assert manager.get_absolute_path_hook("data").value == new_absolute_path
         
         # Change to a different valid absolute path (must match root + relative)
         different_absolute_path = self.test_root / "data/"  # Keep it consistent
         absolute_path_observable.value = different_absolute_path
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.get_absolute_path_hook("data").value, different_absolute_path)
+        assert manager.get_absolute_path_hook("data").value == different_absolute_path
 
     def test_binding_multiple_hooks_to_observable_single_values(self):
         """Test binding multiple hooks to different ObservableSingleValue instances."""
@@ -639,10 +635,10 @@ class TestObservableRootedPaths(unittest.TestCase):
         logs_absolute_hook.connect_hook(observable_logs_absolute_hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(manager.get_relative_path_hook("data").value, "data/")
-        self.assertEqual(manager.get_relative_path_hook("config").value, "config/")
-        self.assertEqual(manager.get_absolute_path_hook("logs").value, self.test_root / "logs/")
+        assert manager.root_path == self.test_root
+        assert manager.get_relative_path_hook("data").value == "data/"
+        assert manager.get_relative_path_hook("config").value == "config/"
+        assert manager.get_absolute_path_hook("logs").value == self.test_root / "logs/"
         
         # Change root path
         new_root = Path(self.temp_dir) / "new_project"
@@ -650,27 +646,27 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_observable.value = new_root
         
         # Verify that all absolute paths updated (including logs which is directly bound)
-        self.assertEqual(manager.root_path, new_root)
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_root / "data/")
-        self.assertEqual(manager.get_absolute_path_hook("config").value, new_root / "config/")
-        self.assertEqual(manager.get_absolute_path_hook("logs").value, new_root / "logs/")  # Updated due to binding
+        assert manager.root_path == new_root
+        assert manager.get_absolute_path_hook("data").value == new_root / "data/"
+        assert manager.get_absolute_path_hook("config").value == new_root / "config/"
+        assert manager.get_absolute_path_hook("logs").value == new_root / "logs/"  # Updated due to binding
         
         # Change relative paths
         data_relative_observable.value = "new_data/"
         config_relative_observable.value = "settings/"
         
         # Verify updates
-        self.assertEqual(manager.get_relative_path_hook("data").value, "new_data/")
-        self.assertEqual(manager.get_relative_path_hook("config").value, "settings/")
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_root / "new_data/")
-        self.assertEqual(manager.get_absolute_path_hook("config").value, new_root / "settings/")
+        assert manager.get_relative_path_hook("data").value == "new_data/"
+        assert manager.get_relative_path_hook("config").value == "settings/"
+        assert manager.get_absolute_path_hook("data").value == new_root / "new_data/"
+        assert manager.get_absolute_path_hook("config").value == new_root / "settings/"
         
         # Change absolute path directly (must match root + relative)
         new_logs_path = new_root / "logs/"  # Keep it consistent with relative path
         logs_absolute_observable.value = new_logs_path
         
         # Verify update
-        self.assertEqual(manager.get_absolute_path_hook("logs").value, new_logs_path)
+        assert manager.get_absolute_path_hook("logs").value == new_logs_path
 
     def test_bidirectional_binding_with_observable_single_value(self):
         """Test bidirectional binding between ObservableRootedPaths and ObservableSingleValue."""
@@ -689,8 +685,8 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(root_path_observable.value, self.test_root)
+        assert manager.root_path == self.test_root
+        assert root_path_observable.value == self.test_root
         
         # Change through ObservableRootedPaths
         new_root = Path(self.temp_dir) / "new_project"
@@ -698,8 +694,8 @@ class TestObservableRootedPaths(unittest.TestCase):
         manager.set_root_path(new_root)
         
         # Verify that ObservableSingleValue updated
-        self.assertEqual(manager.root_path, new_root)
-        self.assertEqual(root_path_observable.value, new_root)
+        assert manager.root_path == new_root
+        assert root_path_observable.value == new_root
         
         # Change through ObservableSingleValue
         another_root = Path(self.temp_dir) / "another_project"
@@ -707,8 +703,8 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_observable.value = another_root
         
         # Verify that ObservableRootedPaths updated
-        self.assertEqual(manager.root_path, another_root)
-        self.assertEqual(root_path_observable.value, another_root)
+        assert manager.root_path == another_root
+        assert root_path_observable.value == another_root
 
     def test_binding_chain_with_observable_single_values(self):
         """Test a chain of bindings through multiple ObservableSingleValue instances."""
@@ -731,10 +727,10 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_observable2.hook.connect_hook(root_observable3.hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(root_observable1.value, self.test_root)
-        self.assertEqual(root_observable2.value, self.test_root)
-        self.assertEqual(root_observable3.value, self.test_root)
+        assert manager.root_path == self.test_root
+        assert root_observable1.value == self.test_root
+        assert root_observable2.value == self.test_root
+        assert root_observable3.value == self.test_root
         
         # Change through the end of the chain
         new_root = Path(self.temp_dir) / "chain_project"
@@ -742,13 +738,13 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_observable3.value = new_root
         
         # Verify that all observables in the chain updated
-        self.assertEqual(manager.root_path, new_root)
-        self.assertEqual(root_observable1.value, new_root)
-        self.assertEqual(root_observable2.value, new_root)
-        self.assertEqual(root_observable3.value, new_root)
+        assert manager.root_path == new_root
+        assert root_observable1.value == new_root
+        assert root_observable2.value == new_root
+        assert root_observable3.value == new_root
         
         # Verify that absolute paths updated
-        self.assertEqual(manager.get_absolute_path_hook("data").value, new_root / "data/")
+        assert manager.get_absolute_path_hook("data").value == new_root / "data/"
 
     def test_binding_with_validation_and_observable_single_value(self):
         """Test that validation works correctly when binding to ObservableSingleValue."""
@@ -776,16 +772,16 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
         
         # Verify initial state
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(root_path_observable.value, self.test_root)
+        assert manager.root_path == self.test_root
+        assert root_path_observable.value == self.test_root
         
         # Try to set an invalid path (should fail validation)
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             root_path_observable.value = Path("/nonexistent/path")
         
         # Verify that values didn't change
-        self.assertEqual(manager.root_path, self.test_root)
-        self.assertEqual(root_path_observable.value, self.test_root)
+        assert manager.root_path == self.test_root
+        assert root_path_observable.value == self.test_root
         
         # Set a valid path
         new_root = Path(self.temp_dir) / "valid_project"
@@ -793,9 +789,5 @@ class TestObservableRootedPaths(unittest.TestCase):
         root_path_observable.value = new_root
         
         # Verify that values updated
-        self.assertEqual(manager.root_path, new_root)
-        self.assertEqual(root_path_observable.value, new_root)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert manager.root_path == new_root
+        assert root_path_observable.value == new_root

@@ -1,7 +1,9 @@
+from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any, cast
 import logging
 import weakref
-from typing import Generic, Optional, TypeVar, TYPE_CHECKING, Any, cast
-from .general import log
+
+from .._utils import log
+
 if TYPE_CHECKING:
     from .._hooks.hook_like import HookLike
     from .nexus_manager import NexusManager

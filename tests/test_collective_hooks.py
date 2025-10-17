@@ -9,12 +9,8 @@ It covers complex binding scenarios, collective validation, and transitive bindi
 import unittest
 import time
 
-from observables._build_in_observables.observable_single_value import ObservableSingleValue
-from observables._build_in_observables.observable_set import ObservableSet
-from observables._other_observables.observable_selection_option import ObservableSelectionOption
-from observables._other_observables.observable_selection_option import ObservableOptionalSelectionOption
+from observables import ObservableSingleValue, ObservableSet, ObservableSelectionOption, ObservableOptionalSelectionOption
 from tests.run_tests import console_logger as logger
-
 
 class TestCollectiveHooks(unittest.TestCase):
     """Test the collective hooks system with multiple observable types."""

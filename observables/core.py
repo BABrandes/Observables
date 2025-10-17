@@ -71,17 +71,19 @@ For normal usage of the library, import from the main package:
     >>> from observables import ObservableSingleValue, ObservableList
 """
 
-from ._utils.base_observable import BaseObservable
+from ._carries_hooks.base_carries_hooks import BaseCarriesHooks
 from ._hooks.hook_with_owner_like import HookWithOwnerLike
+from ._carries_hooks.base_observable import BaseObservable
 from ._hooks.hook_with_reaction_like import HookWithReactionLike
 from ._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
-from ._utils.hook_nexus import HookNexus
+from ._nexus_system.hook_nexus import HookNexus
 from ._hooks.owned_hook import OwnedHook
-from ._utils.base_carries_hooks import BaseCarriesHooks, CarriesHooksLike
-from ._utils.base_listening import BaseListening, BaseListeningLike
-from ._utils.nexus_manager import NexusManager
-from ._utils.subscriber import Subscriber
-from ._utils import default_nexus_manager
+from ._hooks.hook_base import HookBase
+from ._carries_hooks.carries_hooks_like import CarriesHooksLike
+from ._auxiliary.base_listening import BaseListening, BaseListeningLike
+from ._nexus_system.nexus_manager import NexusManager
+from ._publisher_subscriber.subscriber import Subscriber
+from ._nexus_system import default_nexus_manager
 
 # Re-export the module for easy access to configuration
 # Users should modify: observables.core.default_nexus_manager.FLOAT_ACCURACY
@@ -96,6 +98,7 @@ __all__ = [
     'HookWithIsolatedValidationLike',
     'HookNexus',
     'OwnedHook',
+    'HookBase',
     'BaseCarriesHooks',
     'CarriesHooksLike',
     'BaseListening',

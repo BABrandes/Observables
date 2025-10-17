@@ -1,8 +1,10 @@
+from typing import Any, Mapping, Optional
 import unittest
 import threading
-from typing import Any, Mapping, Optional
 from logging import Logger
+
 from observables.core import OwnedHook, BaseObservable
+
 from tests.run_tests import console_logger as logger
 
 class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
@@ -372,7 +374,7 @@ class TestHookCapabilities(unittest.TestCase):
         original_nexus = hook.hook_nexus
         
         # Create a new hook nexus
-        from observables._utils.hook_nexus import HookNexus
+        from observables._nexus_system.hook_nexus import HookNexus
         new_nexus = HookNexus[str]("new_value", hooks={hook})
         
         # Replace the hook nexus

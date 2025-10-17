@@ -6,16 +6,18 @@ This module tests the ObservableRootedPaths class which manages a root directory
 with associated elements and provides observable hooks for path management.
 """
 
-import unittest
+from typing import Optional
+from pathlib import Path
 import tempfile
 import shutil
-from pathlib import Path
-from typing import Optional
+
+import unittest
 from unittest.mock import Mock
 
 from observables import ObservableSingleValue, ObservableRootedPaths, HookLike
 from observables.core import HookWithOwnerLike
-from observables._other_observables.observable_rooted_paths import ROOT_PATH_KEY
+
+from observables._observables_advanced.observable_rooted_paths import ROOT_PATH_KEY
 
 class TestObservableRootedPaths(unittest.TestCase):
     """Test cases for ObservableRootedPaths."""

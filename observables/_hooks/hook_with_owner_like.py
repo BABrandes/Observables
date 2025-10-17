@@ -2,7 +2,7 @@ from typing import TypeVar, TYPE_CHECKING, Any, Protocol, runtime_checkable
 from .hook_like import HookLike
 
 if TYPE_CHECKING:
-    from .._utils.carries_hooks_like import CarriesHooksLike
+    from .._carries_hooks.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 

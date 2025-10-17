@@ -1,4 +1,5 @@
 import unittest
+
 from observables import ObservableSelectionOption, ObservableOptionalSelectionOption
 
 class TestObservableSelectionOption(unittest.TestCase):

@@ -6,6 +6,7 @@ secondary hooks are properly recomputed when component values change.
 """
 
 import pytest
+
 from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple
 from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
 

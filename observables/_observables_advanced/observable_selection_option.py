@@ -91,8 +91,8 @@ from logging import Logger
 
 from .._hooks.hook_like import HookLike
 from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._utils.base_observable import BaseObservable
-from .._utils.carries_hooks_like import CarriesHooksLike
+from .._carries_hooks.base_observable import BaseObservable
+from .._carries_hooks.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 

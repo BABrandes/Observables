@@ -1,6 +1,7 @@
 import unittest
 
 from observables import ObservableTuple, ObservableSingleValue, ObservableSet, ObservableSelectionOption
+
 from tests.test_base import ObservableTestCase
 
 class TestObservableTuple(ObservableTestCase):

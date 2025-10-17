@@ -1,6 +1,6 @@
 import unittest
 from enum import Enum
-from observables._other_observables.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
+from observables import ObservableSelectionEnum, ObservableOptionalSelectionEnum
 
 class Color(Enum):
     RED = 1

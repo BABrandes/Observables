@@ -1,14 +1,16 @@
 from typing import Callable, Generic, Mapping, Optional, TypeVar, Any
 from logging import Logger
+
+from .._auxiliary.base_listening import BaseListening
 from .._hooks.hook_with_owner_like import HookWithOwnerLike
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
-from .hook_nexus import HookNexus
+from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.nexus_manager import NexusManager
+from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._utils import log
+
 from .base_carries_hooks import BaseCarriesHooks
-from .general import log
-from .nexus_manager import NexusManager
-from .default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .base_listening import BaseListening
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")

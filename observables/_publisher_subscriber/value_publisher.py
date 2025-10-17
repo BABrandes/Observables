@@ -43,7 +43,8 @@ Example:
 
 from typing import Generic, Literal, TypeVar
 
-from .base_listening import BaseListening
+from .._auxiliary.base_listening import BaseListening
+
 from .publisher import Publisher
 
 T = TypeVar("T")

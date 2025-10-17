@@ -2,16 +2,16 @@ from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable, Literal, Seq
 from threading import RLock, local
 from logging import Logger
 
-from .general import log
+from .._utils import log
 
 
 if TYPE_CHECKING:
-    from .carries_hooks_like import CarriesHooksLike
+    from .._carries_hooks.carries_hooks_like import CarriesHooksLike
 
 from .._hooks.hook_like import HookLike
-from .base_listening import BaseListeningLike
-from .hook_nexus import HookNexus
-from .._utils.publisher_like import PublisherLike
+from .._auxiliary.base_listening import BaseListeningLike
+from .._nexus_system.hook_nexus import HookNexus
+from .._publisher_subscriber.publisher_like import PublisherLike
 
 class NexusManager:
     """

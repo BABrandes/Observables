@@ -1,5 +1,7 @@
 import unittest
+
 from observables import ObservableDict
+
 from tests.test_base import ObservableTestCase
 
 class TestObservableDict(ObservableTestCase):

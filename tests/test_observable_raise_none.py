@@ -6,8 +6,8 @@ This module tests the ObservableRaiseNone class, which maintains two synchronize
 """
 
 import pytest
-from observables import ObservableRaiseNone, FloatingHook
 
+from observables import ObservableRaiseNone, FloatingHook
 
 class TestObservableRaiseNoneBasics:
     """Test basic functionality of ObservableRaiseNone."""

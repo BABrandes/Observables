@@ -4,8 +4,9 @@ from typing import Any
 
 from observables import HookLike
 from observables.core import BaseCarriesHooks, OwnedHook
-from observables._utils.hook_nexus import HookNexus
 
+from observables._nexus_system.hook_nexus import HookNexus
+from observables._auxiliary.base_listening import BaseListening
 
 class MockCarriesHooks(BaseCarriesHooks[Any, Any, "MockCarriesHooks"]):
     """Mock class that implements CarriesHooks interface for testing."""
@@ -49,7 +50,6 @@ class TestHookListeners(unittest.TestCase):
     
     def test_hook_inherits_from_base_listening(self):
         """Test that Hook inherits from BaseListening."""
-        from observables._utils.base_listening import BaseListening
         self.assertIsInstance(self.hook, BaseListening)
     
     def test_initial_listeners_state(self):

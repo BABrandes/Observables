@@ -1,6 +1,8 @@
-import unittest
 from typing import Any
+import unittest
+
 from observables import ObservableSingleValue
+
 from run_tests import console_logger as logger
 
 

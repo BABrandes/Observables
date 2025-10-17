@@ -5,14 +5,14 @@ This test verifies that hooks and hook nexuses can be properly garbage collected
 when they are no longer referenced.
 """
 
-import unittest
 import gc
 import weakref
+import unittest
 
-from observables._hooks.hook import Hook
-from observables._utils.hook_nexus import HookNexus
-from observables._build_in_observables.observable_single_value import ObservableSingleValue
-from observables._other_observables.observable_selection_dict import ObservableSelectionDict
+from observables import ObservableSingleValue, ObservableSelectionDict, FloatingHook
+
+from observables._nexus_system.hook_nexus import HookNexus
+
 
 class TestMemoryLeaks(unittest.TestCase):
     """Test for memory leaks in the hook-based architecture."""
@@ -20,7 +20,7 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_hook_garbage_collection(self):
         """Test that standalone hooks can be garbage collected."""
         # Create a hook
-        hook = Hook("test_value")
+        hook = FloatingHook("test_value")
         hook_ref = weakref.ref(hook)
         
         # Verify the hook exists
@@ -56,7 +56,7 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_hook_with_nexus_garbage_collection(self):
         """Test that hooks and their nexuses can be garbage collected together."""
         # Create a hook (which creates its own nexus)
-        hook = Hook("test_value")
+        hook = FloatingHook("test_value")
         hook_ref = weakref.ref(hook)
         nexus_ref = weakref.ref(hook.hook_nexus)
         
@@ -77,8 +77,8 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_connected_hooks_garbage_collection(self):
         """Test that connected hooks can be garbage collected when disconnected."""
         # Create two hooks
-        hook1 = Hook("value1")
-        hook2 = Hook("value2")
+        hook1 = FloatingHook("value1")
+        hook2 = FloatingHook("value2")
         
         hook1_ref = weakref.ref(hook1)
         hook2_ref = weakref.ref(hook2)
@@ -158,8 +158,8 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_nexus_manager_no_memory_leaks(self):
         """Test that NexusManager doesn't hold references to hooks."""
         # Create hooks
-        hook1 = Hook("value1")
-        hook2 = Hook("value2")
+        hook1 = FloatingHook("value1")
+        hook2 = FloatingHook("value2")
         
         hook1_ref = weakref.ref(hook1)
         hook2_ref = weakref.ref(hook2)
@@ -182,8 +182,8 @@ class TestMemoryLeaks(unittest.TestCase):
     def test_circular_reference_prevention(self):
         """Test that circular references don't prevent garbage collection."""
         # Create hooks that reference each other through nexuses
-        hook1 = Hook("value1")
-        hook2 = Hook("value2")
+        hook1 = FloatingHook("value1")
+        hook2 = FloatingHook("value2")
         
         # Connect them (creates circular references through nexus)
         success, _ = hook1.connect_hook(hook2, "use_caller_value")

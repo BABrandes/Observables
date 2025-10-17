@@ -2,14 +2,13 @@
 Simplified memory leak test for observables.
 """
 
-import unittest
-import gc
-import weakref
 from typing import Any
 
-from observables._build_in_observables.observable_single_value import ObservableSingleValue
-from observables._other_observables.observable_selection_dict import ObservableSelectionDict
+import gc
+import weakref
+import unittest
 
+from observables import ObservableSingleValue, ObservableSelectionDict
 
 class TestObservableMemoryLeaks(unittest.TestCase):
     """Test for observable memory leaks."""

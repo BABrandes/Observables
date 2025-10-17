@@ -1,16 +1,17 @@
 from typing import Generic, TypeVar, Optional, Callable
 from logging import Logger
 
-from .hook import Hook
-from .._utils.base_listening import BaseListening
-from .._utils.nexus_manager import NexusManager
-from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._auxiliary.base_listening import BaseListening
+from .._nexus_system.nexus_manager import NexusManager
+from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+
+from .hook_base import HookBase
 from .hook_with_isolated_validation_like import HookWithIsolatedValidationLike
 from .hook_with_reaction_like import HookWithReactionLike
 
 T = TypeVar("T")
 
-class FloatingHook(Hook[T], HookWithIsolatedValidationLike[T], HookWithReactionLike[T], BaseListening, Generic[T]):
+class FloatingHook(HookBase[T], HookWithIsolatedValidationLike[T], HookWithReactionLike[T], BaseListening, Generic[T]):
     """
     A floating hook that can be used to store a value that is not owned by any observable.
     """
@@ -28,7 +29,7 @@ class FloatingHook(Hook[T], HookWithIsolatedValidationLike[T], HookWithReactionL
         self._isolated_validation_callback = isolated_validation_callback
 
         BaseListening.__init__(self, logger)
-        Hook.__init__( # type: ignore
+        HookBase.__init__( # type: ignore
             self,
             value=value,
             nexus_manager=nexus_manager,

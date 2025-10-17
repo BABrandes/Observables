@@ -4,28 +4,14 @@ Test script for the write_report function with a complex hook system.
 This creates a sophisticated binding scenario and uses write_report to analyze it.
 """
 
-import unittest
-import sys
-from pathlib import Path
-
-# Add project root to Python path
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-from observables import (
-    ObservableSingleValue, 
-    ObservableList, 
-    ObservableDict, 
-    ObservableSet,
-    ObservableSelectionOption,
-    ObservableMultiSelectionOption
-)
-from observables._utils.system_analysis import write_report
-from enum import Enum
-from observables._utils.base_carries_hooks import BaseCarriesHooks
-from observables._hooks.hook_with_owner_like import HookWithOwnerLike
 from typing import Any, cast
+from enum import Enum
+
+import unittest
+
+from observables import ObservableSingleValue, ObservableList, ObservableDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
+from observables.core import HookWithOwnerLike, BaseCarriesHooks
+
 
 class UserRole(Enum):
     ADMIN = "admin"
@@ -168,7 +154,7 @@ class TestWriteReport(unittest.TestCase):
         print(f"Total hooks: {total_hooks}")
         
         # Count shared nexuses (nexuses with multiple hooks)
-        from observables._utils.system_analysis import collect_all_hook_nexuses
+        from observables._nexus_system.system_analysis import collect_all_hook_nexuses
         hook_nexuses = collect_all_hook_nexuses(observables_dict) # type: ignore
         
         shared_nexuses = 0

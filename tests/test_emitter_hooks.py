@@ -6,9 +6,7 @@ secondary hooks are properly recomputed when component values change.
 """
 
 import pytest
-from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple
-from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
-
+from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple, ObservableSingleValue, ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
 
 class TestEmitterHooksBasicFunctionality:
     """Test basic secondary hook functionality."""
@@ -240,7 +238,6 @@ class TestEmitterHooksListeners:
         obs_list = ObservableList([1, 2, 3])
         
         # Create another observable to bind to the length
-        from observables import ObservableSingleValue
         length_tracker = ObservableSingleValue(0)
         
         # Bind the length hook to the single value (reverse direction)
@@ -262,7 +259,6 @@ class TestSecondaryHooksEdgeCases:
     
     def test_empty_secondary_hooks(self):
         """Test observables with no secondary hooks."""
-        from observables import ObservableSingleValue
         obs = ObservableSingleValue(42)
         
         # Should have no secondary hooks

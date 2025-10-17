@@ -2,10 +2,9 @@ from typing import TypeVar, Generic, Optional, Literal, Mapping
 from enum import Enum
 from logging import Logger
 
-from .._other_observables.observable_selection_option import ObservableSelectionOption, ObservableOptionalSelectionOption
+from .._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableOptionalSelectionOption
 from .._hooks.hook_like import HookLike
-from .._utils.observable_serializable import ObservableSerializable
-
+from .._carries_hooks.observable_serializable import ObservableSerializable
 
 E = TypeVar("E", bound=Enum)
 

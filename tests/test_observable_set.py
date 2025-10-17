@@ -1,5 +1,7 @@
 import unittest
+
 from observables import ObservableSet
+
 from tests.test_base import ObservableTestCase
 
 class TestObservableSet(ObservableTestCase):

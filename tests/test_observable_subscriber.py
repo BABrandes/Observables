@@ -2,20 +2,15 @@
 Test cases for ObservableSubscriber
 """
 
-import unittest
-import asyncio
 from typing import Optional, Mapping
+import asyncio
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+import unittest
+
+from observables import Publisher, ObservableSubscriber
 
 from tests.test_base import ObservableTestCase
 from tests.run_tests import console_logger as logger
-
-from observables._utils.publisher import Publisher
-from observables._other_observables.observable_subscriber import ObservableSubscriber
-
 
 class TestObservableSubscriber(ObservableTestCase):
     """Test ObservableSubscriber functionality"""

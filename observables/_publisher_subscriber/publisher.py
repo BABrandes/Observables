@@ -47,7 +47,9 @@ import warnings
 import weakref
 import asyncio
 from logging import Logger
-from .weak_reference_storage import WeakReferenceStorage
+
+from .._auxiliary.weak_reference_storage import WeakReferenceStorage
+
 from .publisher_like import PublisherLike
 
 if TYPE_CHECKING:

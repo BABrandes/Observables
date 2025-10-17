@@ -6,8 +6,8 @@ Secondary values should only be changed through primary value updates.
 """
 
 import pytest
-from observables import ObservableList, ObservableSingleValue
 
+from observables import ObservableList, ObservableSingleValue
 
 class TestSecondaryHookProtection:
     """Tests for preventing external modification of secondary hooks."""

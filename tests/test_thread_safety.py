@@ -5,13 +5,16 @@ These tests verify that the library is safe to use in multi-threaded environment
 and that no race conditions exist in critical operations.
 """
 
+from typing import Any
 import threading
 import time
 import pytest
+
 from unittest.mock import Mock
+
 from observables import ObservableSingleValue, ObservableList, ObservableDict
 from observables.core import BaseObservable
-from typing import Any
+
 
 
 class TestThreadSafety:

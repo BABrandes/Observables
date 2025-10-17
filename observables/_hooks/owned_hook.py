@@ -1,15 +1,17 @@
 from typing import Generic, Optional, TypeVar, Any
 from logging import Logger
-from .._utils.base_listening import BaseListening
-from .hook import Hook
-from .._utils.nexus_manager import NexusManager
-from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+
+from .._auxiliary.base_listening import BaseListening
+from .._nexus_system.nexus_manager import NexusManager
+from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+
+from .hook_base import HookBase
 from .hook_with_owner_like import HookWithOwnerLike
-from .._utils.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 
-class OwnedHook(Hook[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
+class OwnedHook(HookBase[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
     """
     A owned hook that provides value access and basic capabilities.
     
@@ -30,7 +32,7 @@ class OwnedHook(Hook[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
             ) -> None:
 
         BaseListening.__init__(self, logger)
-        Hook.__init__( # type: ignore
+        HookBase.__init__( # type: ignore
             self,
             value=initial_value,
             nexus_manager=nexus_manager,

@@ -1,7 +1,10 @@
 from typing import Any
-from .carries_hooks_like import CarriesHooksLike
-from .hook_nexus import HookNexus
+
+from .._carries_hooks.carries_hooks_like import CarriesHooksLike
 from .._hooks.hook_like import HookLike
+
+from .hook_nexus import HookNexus
+
 
 def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksLike[Any, Any]]) -> dict[HookNexus[Any], list[tuple[str, CarriesHooksLike[Any, Any], HookLike[Any]]]]:
 

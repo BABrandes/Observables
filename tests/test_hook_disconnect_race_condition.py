@@ -7,8 +7,8 @@ error works correctly when disconnect() and connect_hook() are called concurrent
 
 import threading
 import time
-from observables._hooks.hook import Hook
 
+from observables import FloatingHook
 
 def test_disconnect_connect_race_condition():
     """
@@ -20,9 +20,9 @@ def test_disconnect_connect_race_condition():
     """
     
     # Create three hooks
-    hook1 = Hook(1)
-    hook2 = Hook(2)
-    hook3 = Hook(3)
+    hook1 = FloatingHook(1)
+    hook2 = FloatingHook(2)
+    hook3 = FloatingHook(3)
     
     # Connect hook1 and hook2
     hook1.connect_hook(hook2, "use_caller_value")
@@ -54,9 +54,9 @@ def test_disconnect_connect_race_condition():
     # Run both operations concurrently multiple times to catch the race
     for i in range(50):
         # Reset the hooks
-        hook1 = Hook(1)
-        hook2 = Hook(2)
-        hook3 = Hook(3)
+        hook1 = FloatingHook(1)
+        hook2 = FloatingHook(2)
+        hook3 = FloatingHook(3)
         hook1.connect_hook(hook2, "use_caller_value")
         
         errors.clear()
@@ -94,8 +94,8 @@ def test_disconnect_replace_nexus_concurrent():
     errors: list[Exception] = []
     
     for iteration in range(100):
-        hook1 = Hook(1)
-        hook2 = Hook(2)
+        hook1 = FloatingHook(1)
+        hook2 = FloatingHook(2)
         
         # Connect them
         hook1.connect_hook(hook2, "use_caller_value")
@@ -109,7 +109,7 @@ def test_disconnect_replace_nexus_concurrent():
         def thread_replace():
             try:
                 # Simulate what happens during connect_hooks
-                from observables._utils.hook_nexus import HookNexus
+                from observables._nexus_system.hook_nexus import HookNexus
                 new_nexus = HookNexus(hook1.value, hooks={hook1})
                 hook1._replace_hook_nexus(new_nexus) # type: ignore
             except Exception as e:

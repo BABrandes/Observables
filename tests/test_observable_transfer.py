@@ -1,16 +1,15 @@
-import unittest
-import threading
-import time
 from typing import Any, Literal, Mapping, Optional, cast
-from logging import Logger
-from observables import ObservableTransfer, ObservableSingleValue, HookLike
-from observables.core import BaseObservable
-from observables._hooks.owned_hook import OwnedHook
-# Set up logging for tests
-import logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from logging import Logger, basicConfig, getLogger, DEBUG
+import unittest
 
+import time
+import threading
+
+from observables import ObservableTransfer, ObservableSingleValue, HookLike
+from observables.core import BaseObservable, OwnedHook
+
+basicConfig(level=DEBUG)
+logger = getLogger(__name__)
 
 class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""

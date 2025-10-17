@@ -1,11 +1,12 @@
 from typing import Generic, TypeVar, Optional, Mapping, Callable
 from logging import Logger
+
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.hook_like import HookLike
 from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._utils.base_listening import BaseListening
-from .._utils.base_carries_hooks import BaseCarriesHooks
-from .._utils.hook_nexus import HookNexus
+from .._auxiliary.base_listening import BaseListening
+from .._carries_hooks.base_carries_hooks import BaseCarriesHooks
+from .._nexus_system.hook_nexus import HookNexus
 
 SHK = TypeVar("SHK")
 SHV = TypeVar("SHV")

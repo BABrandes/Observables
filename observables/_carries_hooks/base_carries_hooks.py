@@ -1,15 +1,18 @@
 from typing import Any, TypeVar, Optional, final, Mapping, Generic, Callable, Literal
 from logging import Logger
 from abc import ABC, abstractmethod
-from .base_listening import BaseListeningLike
 from threading import RLock
-from .carries_hooks_like import CarriesHooksLike
-from .nexus_manager import NexusManager
-from .hook_nexus import HookNexus
+
+
+from .._auxiliary.base_listening import BaseListeningLike
+from .._nexus_system.nexus_manager import NexusManager
+from .._nexus_system.hook_nexus import HookNexus
 from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._nexus_system.has_nexus_manager import HasNexusManager
 from .._hooks.hook_like import HookLike
-from .._utils.has_nexus_manager import HasNexusManager
+
+from .carries_hooks_like import CarriesHooksLike
 
 import weakref
 
@@ -408,7 +411,7 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
 
         with self._lock:
             self.disconnect_hook(None)
-            if isinstance(self, BaseListeningLike):
+            if isinstance(self, BaseListeningLike): # type: ignore
                 self.remove_all_listeners()
 
     @final

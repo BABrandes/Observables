@@ -1,11 +1,11 @@
 from typing import Generic, TypeVar, Literal, Optional, Mapping
 from logging import Logger
 
-from observables._utils.base_carries_hooks import BaseCarriesHooks
+from observables._carries_hooks.base_carries_hooks import BaseCarriesHooks
 from observables._hooks.hook_with_owner_like import HookWithOwnerLike
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_like import HookLike
-from observables._utils.hook_nexus import HookNexus
+from observables._nexus_system.hook_nexus import HookNexus
 
 T = TypeVar("T")
 

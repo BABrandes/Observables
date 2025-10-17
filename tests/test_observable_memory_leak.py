@@ -2,13 +2,13 @@
 Test to identify what's preventing garbage collection of observables.
 """
 
-import unittest
-import gc
-import weakref
 from typing import Any
 
-from observables._build_in_observables.observable_single_value import ObservableSingleValue
+import gc
+import weakref
+import unittest
 
+from observables import ObservableSingleValue
 
 class TestObservableMemoryLeak(unittest.TestCase):
     """Test to identify observable memory leaks."""

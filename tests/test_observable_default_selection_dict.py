@@ -1,12 +1,12 @@
-import unittest
 from typing import Any, Literal, Mapping, Optional
-from logging import Logger
+from logging import Logger, basicConfig, getLogger, DEBUG
+import unittest
+
 from observables import ObservableDefaultSelectionDict, FloatingHook, HookLike
 from observables.core import OwnedHook, BaseObservable
-# Set up logging for tests
-import logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+
+basicConfig(level=DEBUG)
+logger = getLogger(__name__)
 
 
 class MockObservable(BaseObservable[Literal["value"], Any, Any, Any, "MockObservable"]):

@@ -4,19 +4,21 @@ import logging
 import inspect
 
 from .hook_like import HookLike
-from .._utils.general import log
-from .._utils.base_listening import BaseListening
-from .._utils.nexus_manager import NexusManager
-from .._utils.hook_nexus import HookNexus
-from .._utils.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .._utils.has_nexus_manager import HasNexusManager
-from .._utils.publisher import Publisher
+from .._utils import log
+from .._auxiliary.base_listening import BaseListening
+from .._nexus_system.nexus_manager import NexusManager
+from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from .._nexus_system.has_nexus_manager import HasNexusManager
+
+from .._publisher_subscriber.publisher import Publisher
+
 T = TypeVar("T")
 
 
-class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
+class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
     """
-    A standalone floating hook for independent value management.
+    A base class for hooks for independent value management.
     
     Hook represents a single value that can participate in the synchronization system
     without being owned by a specific observable. It provides a lightweight way to
@@ -111,7 +113,7 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
                 logged_hook = Hook("data", logger=logger)
         """
 
-        from .._utils.hook_nexus import HookNexus
+        from .._nexus_system.hook_nexus import HookNexus
 
         HasNexusManager.__init__(self, nexus_manager)
 
@@ -190,16 +192,16 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
             Tuple of (success: bool, message: str)
         """
 
+        from .._nexus_system.hook_nexus import HookNexus
+
         with self._lock:
 
             if target_hook is None: # type: ignore
                 raise ValueError("Cannot connect to None hook")
             
             if initial_sync_mode == "use_caller_value":
-                from .._utils.hook_nexus import HookNexus
                 success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))
-            elif initial_sync_mode == "use_target_value":
-                from .._utils.hook_nexus import HookNexus
+            elif initial_sync_mode == "use_target_value":                
                 success, msg = HookNexus[T].connect_hook_pairs((target_hook, self))
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
@@ -218,6 +220,8 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
         log(self, "disconnect_hook", self._logger, True, "Disconnecting hook initiated")
 
         with self._lock:
+
+            from .._nexus_system.hook_nexus import HookNexus
 
             # Check if we're being called during garbage collection by inspecting the call stack
             is_being_garbage_collected = any(frame.function == '__del__' for frame in inspect.stack())
@@ -238,7 +242,6 @@ class Hook(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
                 return
             
             # Create a new isolated nexus for this hook
-            from .._utils.hook_nexus import HookNexus
             new_hook_nexus = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
             
             # Remove this hook from the current nexus

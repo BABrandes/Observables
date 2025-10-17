@@ -1,21 +1,19 @@
 """
 Test cases for Publisher/Subscriber system
 """
+from typing import Literal
 
-import unittest
 import asyncio
 import gc
 import weakref
-from typing import Literal
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tests.test_base import ObservableTestCase
-from tests.run_tests import console_logger as logger
+import unittest
 
 from observables import Publisher
 from observables.core import Subscriber
+
+from tests.test_base import ObservableTestCase
+from tests.run_tests import console_logger as logger
 
 class TestSubscriber(Subscriber):
     """Test implementation of Subscriber that tracks publications."""

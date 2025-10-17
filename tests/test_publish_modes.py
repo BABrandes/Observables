@@ -8,11 +8,16 @@ This module tests the three different publication modes available in the Publish
 """
 
 from typing import Literal
+from logging import basicConfig, getLogger, DEBUG
+
 import unittest
 import asyncio
-import logging
-from observables._utils.publisher import Publisher
-from observables._utils.subscriber import Subscriber
+
+from observables import Publisher
+from observables.core import Subscriber
+
+basicConfig(level=DEBUG)
+logger = getLogger(__name__)
 
 
 class TestPublishModes(unittest.TestCase):
@@ -20,8 +25,7 @@ class TestPublishModes(unittest.TestCase):
     
     def setUp(self):
         """Set up test fixtures."""
-        self.logger = logging.getLogger("test_publish_modes")
-        self.logger.setLevel(logging.WARNING)
+        self.logger = logger
     
     def test_direct_mode_with_sync_callback(self):
         """Test direct mode with synchronous callbacks."""

@@ -1,8 +1,9 @@
-from logging import Logger
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
+from logging import Logger
+
 from .._hooks.hook_like import HookLike
-from .._utils.base_observable import BaseObservable
-from .._utils.carries_hooks_like import CarriesHooksLike
+from .._carries_hooks.base_observable import BaseObservable
+from .._carries_hooks.carries_hooks_like import CarriesHooksLike
 
 T = TypeVar("T")
 

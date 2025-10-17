@@ -51,7 +51,8 @@ Example:
 import weakref
 import asyncio
 from typing import TYPE_CHECKING, Literal
-from .weak_reference_storage import WeakReferenceStorage
+
+from .._auxiliary.weak_reference_storage import WeakReferenceStorage
 
 if TYPE_CHECKING:
     from .publisher import Publisher

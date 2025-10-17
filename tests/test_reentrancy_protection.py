@@ -1,8 +1,8 @@
 """Test that reentrancy protection works correctly."""
 
 from observables import FloatingHook
-import pytest
 
+import pytest
 
 class TestReentrancyProtection:
     """Test reentrancy protection for submit_values."""

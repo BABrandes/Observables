@@ -5,12 +5,17 @@ These tests verify that performance optimizations (especially O(1) cache lookups
 are working correctly and detect performance regressions.
 """
 
+from typing import Any, Callable
+from logging import basicConfig, getLogger, DEBUG
+
 import time
 import pytest   
+
 from observables import ObservableSingleValue, ObservableList, ObservableDict
 from observables.core import BaseObservable
-from typing import Any, Callable
 
+basicConfig(level=DEBUG)
+logger = getLogger(__name__)
 
 def time_operation(func: Callable[..., Any], *args: Any, **kwargs: Any) -> tuple[Any, float]:
     """Time the execution of a function."""

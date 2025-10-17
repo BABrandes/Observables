@@ -95,27 +95,26 @@ Advanced Usage:
     >>> # Create custom observable types with low-level components
 """
 
-from ._build_in_observables.observable_dict import ObservableDict, ObservableDictLike
-from ._build_in_observables.observable_list import ObservableList, ObservableListLike
-from ._build_in_observables.observable_set import ObservableSet, ObservableSetLike
-from ._build_in_observables.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
-from ._build_in_observables.observable_tuple import ObservableTuple, ObservableTupleLike
-from ._other_observables.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
-from ._other_observables.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
-from ._other_observables.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
-from ._other_observables.observable_transfer import ObservableTransfer
-from ._other_observables.observable_sync import ObservableSync
-from ._other_observables.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
-from ._other_observables.observable_rooted_paths import ObservableRootedPaths
-from ._other_observables.observable_raise_none import ObservableRaiseNone
+from ._observables_basic.observable_dict import ObservableDict, ObservableDictLike
+from ._observables_basic.observable_list import ObservableList, ObservableListLike
+from ._observables_basic.observable_set import ObservableSet, ObservableSetLike
+from ._observables_basic.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
+from ._observables_basic.observable_tuple import ObservableTuple, ObservableTupleLike
+from ._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
+from ._observables_advanced.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
+from ._observables_advanced.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
+from ._observables_advanced.observable_transfer import ObservableTransfer
+from ._observables_advanced.observable_sync import ObservableSync
+from ._observables_advanced.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
+from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
+from ._observables_advanced.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
-from ._hooks.hook import Hook
 from ._hooks.hook_like import HookLike
-from ._utils.system_analysis import write_report
-from ._utils.observable_serializable import ObservableSerializable
-from ._other_observables.observable_subscriber import ObservableSubscriber
-from ._utils.publisher import Publisher
-from ._utils.value_publisher import ValuePublisher
+from ._nexus_system.system_analysis import write_report
+from ._carries_hooks.observable_serializable import ObservableSerializable
+from ._observables_advanced.observable_subscriber import ObservableSubscriber
+from ._publisher_subscriber.publisher import Publisher, PublisherLike
+from ._publisher_subscriber.value_publisher import ValuePublisher
 
 __all__ = [
     # Observable types
@@ -150,12 +149,12 @@ __all__ = [
     'ObservableMultiSelectionOptionLike',
 
     # hooks (user-facing)
-    'Hook',
     'HookLike',
     'FloatingHook',
 
     # Other
     'Publisher',
+    'PublisherLike',
     'ValuePublisher',
 
     # Utilities

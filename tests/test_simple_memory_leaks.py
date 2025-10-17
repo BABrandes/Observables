@@ -6,10 +6,9 @@ import unittest
 import gc
 import weakref
 
-from observables._hooks.hook import Hook
-from observables._utils.hook_nexus import HookNexus
-from observables._hooks.floating_hook import FloatingHook
+from observables import FloatingHook
 
+from observables._nexus_system.hook_nexus import HookNexus
 
 class TestSimpleMemoryLeaks(unittest.TestCase):
     """Simple test for memory leaks."""
@@ -17,7 +16,7 @@ class TestSimpleMemoryLeaks(unittest.TestCase):
     def test_simple_hook_gc(self):
         """Test simple hook garbage collection."""
         # Create a hook
-        hook = Hook("test_value")
+        hook = FloatingHook("test_value")
         hook_ref = weakref.ref(hook)
         
         # Verify the hook exists

@@ -1,14 +1,14 @@
+from typing import Any, Mapping, Optional
+from logging import basicConfig, getLogger, DEBUG
+
 import unittest
 import pytest
-from typing import Any, Mapping, Optional
-from observables import ObservableSync, ObservableSingleValue
-from observables._hooks.owned_hook import OwnedHook
-from observables._utils.base_carries_hooks import BaseCarriesHooks
-# Set up logging for tests
-import logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
+from observables import ObservableSync, ObservableSingleValue
+from observables.core import BaseCarriesHooks, OwnedHook
+
+basicConfig(level=DEBUG)
+logger = getLogger(__name__)
 
 class MockObservable(BaseCarriesHooks[str, int, "MockObservable"]):
     """Mock observable that implements the required interface."""

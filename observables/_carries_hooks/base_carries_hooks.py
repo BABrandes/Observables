@@ -329,7 +329,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return {}
 
-    @final
     def connect_hook(self, hook: HookLike[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
@@ -352,7 +351,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
 
-    @final
     def connect_hooks(self, hooks: Mapping[HK, "HookLike[HV]"], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a list of hooks to the observable.
@@ -378,7 +376,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
                         raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
             HookNexus[HV].connect_hook_pairs(*hook_pairs)
 
-    @final
     def disconnect_hook(self, key: Optional[HK] = None) -> None:
         """
         Disconnect a hook by its key.
@@ -394,7 +391,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 self._get_hook(key).disconnect_hook()
 
-    @final
     def destroy(self) -> None:
         """
         Destroy the observable by disconnecting all hooks, removing listeners, and invalidating.
@@ -414,7 +410,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             if isinstance(self, BaseListeningLike): # type: ignore
                 self.remove_all_listeners()
 
-    @final
     def validate_value(self, hook_key: HK, value: HV) -> tuple[bool, str]:
         """
         Check if a value is valid.
@@ -429,7 +424,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return True, "Value is valid"
 
-    @final
     def validate_values(self, values: Mapping[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values can be accepted.
@@ -446,7 +440,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
             else:
                 return False, msg
 
-    @final
     def submit_value(self, key: HK, value: HV, logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit a value to the observable.
@@ -458,7 +451,6 @@ class BaseCarriesHooks(HasNexusManager, CarriesHooksLike[HK, HV], Generic[HK, HV
                 logger=logger
             )
 
-    @final
     def submit_values(self, values: Mapping[HK, HV], not_notifying_listeners_after_submission: set[BaseListeningLike] = set(), logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to the observable using the new hook-based sync system.

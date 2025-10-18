@@ -105,7 +105,10 @@ from ._observables_advanced.observable_selection_enum import ObservableSelection
 from ._observables_advanced.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionProtocol
 from ._observables_advanced.observable_transfer import ObservableTransfer
 from ._observables_advanced.observable_sync import ObservableSync
-from ._observables_advanced.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
+from ._observables_advanced.dictionaries.observable_selection_dict import ObservableSelectionDict
+from ._observables_advanced.dictionaries.observable_optional_selection_dict import ObservableOptionalSelectionDict
+from ._observables_advanced.dictionaries.observable_default_selection_dict import ObservableDefaultSelectionDict
+from ._observables_advanced.dictionaries.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
 from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
 from ._observables_advanced.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
@@ -167,8 +170,8 @@ __all__ = [
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
-    __version__ = "4.2.1"
-    __version_tuple__ = (4, 2, 1)
+    __version__ = "4.3.0"
+    __version_tuple__ = (4, 3, 0)
 
 __author__ = 'Benedikt Axel Brandes'
 __year__ = '2025'

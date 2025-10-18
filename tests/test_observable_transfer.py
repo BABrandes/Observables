@@ -4,8 +4,9 @@ from logging import Logger, basicConfig, getLogger, DEBUG
 import time
 import threading
 
-from observables import ObservableTransfer, ObservableSingleValue, HookProtocol
-from observables.core import ComplexObservableBase, OwnedHook
+from observables import ObservableTransfer, ObservableSingleValue, Hook
+from observables.core import ComplexObservableBase
+from observables._hooks.owned_hook import OwnedHook
 import pytest
 
 basicConfig(level=DEBUG)
@@ -315,8 +316,8 @@ class TestObservableTransfer:
         
         transfer = ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None, dict[str, int] | str | int | bool | None](
             input_trigger_hooks={
-                "dict": cast(HookProtocol[dict[str, int] | str | int | bool | None], dict_obs.hook),
-                "key": cast(HookProtocol[dict[str, int] | str | int | bool | None], key_obs.hook)
+                "dict": cast(Hook[dict[str, int] | str | int | bool | None], dict_obs.hook),
+                "key": cast(Hook[dict[str, int] | str | int | bool | None], key_obs.hook)
             },
             output_trigger_hook_keys={"value", "exists"},
             forward_callable=dict_access_transform,

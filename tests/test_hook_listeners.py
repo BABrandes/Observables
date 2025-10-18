@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 from typing import Any
 
-from observables import HookProtocol
+from observables import Hook
 from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
 from observables._hooks.owned_hook import OwnedHook
 
@@ -14,12 +14,12 @@ class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
     def __init__(self, name: str = "MockOwner"):
         super().__init__()
         self.name = name
-        self._hooks: dict[str, HookProtocol[Any]] = {}
+        self._hooks: dict[str, Hook[Any]] = {}
     
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
-    def _get_hook_key(self, hook_or_nexus: HookProtocol[Any]|HookNexus[Any]) -> Any:
+    def _get_hook_key(self, hook_or_nexus: Hook[Any]|HookNexus[Any]) -> Any:
         """Return a mock key for the hook."""
         return "mock_key"
     

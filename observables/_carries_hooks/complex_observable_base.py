@@ -2,9 +2,12 @@ from typing import Callable, Generic, Mapping, Optional, TypeVar, Any
 from logging import Logger
 
 from .._auxiliary.listening_base import ListeningBase
-from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
+from .._hooks.hook_protocols.owned_read_only_hook_protocol import OwnedReadOnlyHookProtocol
+from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
 from .._nexus_system.hook_nexus import HookNexus
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
@@ -147,7 +150,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
 
     def __init__(
             self,
-            initial_component_values_or_hooks: Mapping[PHK, PHV|HookProtocol[PHV]],
+            initial_component_values_or_hooks: Mapping[PHK, PHV|OwnedHookProtocol[PHV]],
             verification_method: Optional[Callable[[Mapping[PHK, PHV]], tuple[bool, str]]] = None,
             secondary_hook_callbacks: Mapping[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {},
             add_values_to_be_updated_callback: Optional[Callable[[O, Mapping[PHK, PHV], Mapping[PHK, PHV]], Mapping[PHK, PHV]]] = None,
@@ -315,8 +318,8 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         #-------------------------------- Initialization start --------------------------------
 
         # Initialize fields
-        self._primary_hooks: dict[PHK, HookWithOwnerProtocol[PHV]] = {}
-        self._secondary_hooks: dict[SHK, HookWithOwnerProtocol[SHV]] = {}
+        self._primary_hooks: dict[PHK, OwnedFullHookProtocol[PHV]] = {}
+        self._secondary_hooks: dict[SHK, OwnedReadOnlyHookProtocol[SHV]] = {}
         self._secondary_values: dict[SHK, SHV] = {}
         """Just to ensure that the secondary values cannot be modified from outside. They can be different, but only within the nexus manager's equality check. These values are never used for anything else."""
 
@@ -412,7 +415,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         initial_primary_hook_values: dict[PHK, PHV] = {}
         for key, value in initial_component_values_or_hooks.items():
 
-            if isinstance(value, HookProtocol):
+            if isinstance(value, HookWithGetterProtocol):
                 initial_value: PHV = value.value # type: ignore
             else:
                 initial_value = value # type: ignore
@@ -421,7 +424,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             hook = OwnedHook(self, initial_value, logger, nexus_manager) # type: ignore
             self._primary_hooks[key] = hook
             
-            if isinstance(value, HookWithOwnerProtocol):
+            if isinstance(value, HookWithGetterProtocol):
                 value.connect_hook(hook, "value", "use_target_value") # type: ignore
 
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
@@ -438,7 +441,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
     # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
-    def _get_hook(self, key: PHK|SHK) -> HookWithOwnerProtocol[PHV|SHV]:
+    def _get_hook(self, key: PHK|SHK) -> OwnedHookProtocol[PHV|SHV]:
         """
         Get a hook by its key.
         
@@ -517,7 +520,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         """
         return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK|SHK:
+    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK|SHK:
         """
         Get the key for a hook or nexus.
 
@@ -564,7 +567,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
     # Other private methods
     #########################################################################
 
-    def _get_key_for_primary_hook(self, hook_or_nexus: HookWithOwnerProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK:
+    def _get_key_for_primary_hook(self, hook_or_nexus: OwnedFullHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK:
         """
         Get the key for a primary hook.
         
@@ -593,7 +596,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a primary hook!")
 
-    def _get_key_for_secondary_hook(self, hook_or_nexus: HookWithOwnerProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
+    def _get_key_for_secondary_hook(self, hook_or_nexus: OwnedReadOnlyHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
         """
         Get the key for a secondary hook.
         
@@ -633,7 +636,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
     #########################################################################
 
     @property
-    def primary_hooks(self) -> dict[PHK, HookWithOwnerProtocol[PHV]]:
+    def primary_hooks(self) -> dict[PHK, OwnedFullHookProtocol[PHV]]:
         """
         Get the primary hooks of the observable.
         
@@ -650,7 +653,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         return self._primary_hooks.copy()
     
     @property
-    def secondary_hooks(self) -> dict[SHK, HookWithOwnerProtocol[SHV]]:
+    def secondary_hooks(self) -> dict[SHK, OwnedReadOnlyHookProtocol[SHV]]:
         """
         Get the secondary hooks of the observable.
         

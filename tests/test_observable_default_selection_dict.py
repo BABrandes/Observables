@@ -1,8 +1,9 @@
 from typing import Any, Literal, Mapping, Optional
 from logging import Logger, basicConfig, getLogger, DEBUG
 
-from observables import ObservableDefaultSelectionDict, FloatingHook, HookProtocol
-from observables.core import OwnedHook, ComplexObservableBase
+from observables import ObservableDefaultSelectionDict, FloatingHook, Hook
+from observables.core import ComplexObservableBase
+from observables._hooks.owned_hook import OwnedHook
 import pytest
 
 basicConfig(level=DEBUG)
@@ -80,9 +81,9 @@ class TestObservableDefaultSelectionDict:
     def test_creation_with_hooks(self):
         """Test creation with external hooks."""
         # Create external hooks using FloatingHook to avoid owner registration issues
-        dict_hook = FloatingHook(value={"x": 10, "y": 20}, logger=logger)
-        key_hook: HookProtocol[str] = FloatingHook(value="x", logger=logger)
-        value_hook = FloatingHook(value=10, logger=logger)
+        dict_hook = FloatingHook[dict[str, int]](value={"x": 10, "y": 20}, logger=logger)
+        key_hook: Hook[str] = FloatingHook[str](value="x", logger=logger)
+        value_hook = FloatingHook[int](value=10, logger=logger)
         default_value = 999
         
         # Create selection dict

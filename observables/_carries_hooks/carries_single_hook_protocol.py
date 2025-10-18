@@ -1,7 +1,8 @@
 from typing import Protocol, Literal, TypeVar, runtime_checkable
 
+from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
+
 from .carries_hooks_protocol import CarriesHooksProtocol
-from .._hooks.hook_protocol import HookProtocol
 
 HK = Literal["value"]
 HV = TypeVar("HV")
@@ -13,7 +14,7 @@ class CarriesSingleHookProtocol(CarriesHooksProtocol[HK, HV], Protocol[HV]):
     """
 
     @property
-    def hook(self) -> HookProtocol[HV]:
+    def hook(self) -> OwnedHookProtocol[HV]:
         """
         Get the hook for the single value.
         """

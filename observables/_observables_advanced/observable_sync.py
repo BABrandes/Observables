@@ -2,8 +2,7 @@ from typing import Generic, TypeVar, Optional, Mapping, Callable
 from logging import Logger
 
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_protocol import HookProtocol
-from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from .._auxiliary.listening_base import ListeningBase
 from .._carries_hooks.carries_hooks_base import CarriesHooksBase
 from .._nexus_system.hook_nexus import HookNexus
@@ -270,7 +269,7 @@ class ObservableSync(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableSync"]
     # BaseCarriesHooks abstract methods
     #########################################################################
 
-    def _get_hook(self, key: SHK) -> "HookWithOwnerProtocol[SHV]":
+    def _get_hook(self, key: SHK) -> OwnedFullHookProtocol[SHV]:
         """Get a hook by its key."""
         if key in self._sync_hooks:
             return self._sync_hooks[key] # type: ignore
@@ -286,7 +285,7 @@ class ObservableSync(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableSync"]
     def _get_hook_keys(self) -> set[SHK]:
         return set(self._sync_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "HookProtocol[SHV]|HookNexus[SHV]") -> SHK:
+    def _get_hook_key(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|HookNexus[SHV]") -> SHK:
         for key, hook in self._sync_hooks.items():
             if hook is hook_or_nexus:
                 return key

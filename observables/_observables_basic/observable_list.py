@@ -1,7 +1,7 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator, Mapping
 from logging import Logger
 
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
@@ -36,21 +36,21 @@ class ObservableListProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
         ...
     
     @property
-    def value_hook(self) -> HookProtocol[list[T]]:
+    def value_hook(self) -> Hook[list[T]]:
         """
         Get the hook for the list.
         """
         ...
-    
+
     @property
     def length(self) -> int:
         """
         Get the current length of the list.
         """
         ...
-    
+
     @property
-    def length_hook(self) -> HookProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the list length.
         """
@@ -125,7 +125,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookProtocol[list[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: Hook[list[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable list, establishing a bidirectional binding."""
         ...
 
@@ -139,21 +139,21 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: list[T] | HookProtocol[list[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: list[T] | Hook[list[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableList.
         
         This constructor supports four initialization patterns:
         
         1. **Direct list**: Pass a list directly (will be copied)
-        2. **From hook**: Pass a HookProtocol[list[T]] to bind to
+        2. **From hook**: Pass a Hook[list[T]] to bind to
         3. **From observable**: Pass another ObservableList to bind to
         4. **Empty list**: Pass None to create an empty list
         
         Args:
             observable_or_hook_or_value: Can be one of four types:
                 - list[T]: A Python list (will be copied to prevent external modification)
-                - HookProtocol[list[T]]: A hook to bind to (establishes bidirectional connection)
+                - Hook[list[T]]: A hook to bind to (establishes bidirectional connection)
                 - ObservableListProtocol[T]: Another observable list to bind to
                 - None: Creates an empty list
             logger: Optional logger for debugging observable operations. If provided,
@@ -189,11 +189,11 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
 
         if observable_or_hook_or_value is None:
             initial_value: list[T] = []
-            hook: Optional[HookProtocol[list[T]]] = None
+            hook: Optional[Hook[list[T]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, HookProtocol):
+        elif isinstance(observable_or_hook_or_value, Hook):
             initial_value = observable_or_hook_or_value.value
             hook = observable_or_hook_or_value
         else:
@@ -244,7 +244,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             raise SubmissionError(msg, new_value, "value")
 
     @property
-    def value_hook(self) -> HookProtocol[list[T]]:
+    def value_hook(self) -> Hook[list[T]]:
         """
         Get the hook for the list value.
         
@@ -260,7 +260,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         return len(self._primary_hooks["value"].value)
     
     @property
-    def length_hook(self) -> HookProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the list length.
         

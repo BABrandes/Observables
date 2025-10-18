@@ -2,12 +2,12 @@ from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final, L
 from logging import Logger
 
 from .._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
+from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
+from .._nexus_system.hook_nexus import HookNexus
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 
 if TYPE_CHECKING:
     from .carries_single_hook_protocol import CarriesSingleHookProtocol
-    from .._hooks.hook_protocol import HookProtocol
-    from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
-    from .._nexus_system.hook_nexus import HookNexus
     from .._nexus_system.nexus_manager import NexusManager
 
 HK = TypeVar("HK")
@@ -22,7 +22,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
     # Methods to get hooks and values
     #########################################################################
 
-    def get_hook(self, key: HK) -> "HookWithOwnerProtocol[HV]":
+    def get_hook(self, key: HK) -> OwnedHookProtocol[HV]:
         """
         Get a hook by its key.
         """
@@ -40,7 +40,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
         """
         ...
 
-    def get_hook_key(self, hook_or_nexus: "HookWithOwnerProtocol[HV]|HookNexus[HV]") -> HK:
+    def get_hook_key(self, hook_or_nexus: OwnedHookProtocol[HV]|HookNexus[HV]) -> HK:
         """
         Get the key of a hook or nexus.
         """
@@ -54,7 +54,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
         """
         ...
 
-    def get_dict_of_hooks(self) ->  "dict[HK, HookWithOwnerProtocol[HV]]":
+    def get_dict_of_hooks(self) ->  dict[HK, OwnedHookProtocol[HV]]:
         """
         Get a dictionary of hooks.
         """
@@ -136,7 +136,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
     # Methods to connect and disconnect hooks
     #########################################################################
 
-    def connect_hook(self, hook: "HookProtocol[HV]|CarriesSingleHookProtocol[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hook(self, hook: Hook[HV]|ReadOnlyHook[HV]|"CarriesSingleHookProtocol[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
@@ -150,7 +150,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
         """
         ...
 
-    def connect_hooks(self, hooks: Mapping[HK, "HookProtocol[HV]"], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, Hook[HV]|ReadOnlyHook[HV]], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a list of hooks to the observable.
 
@@ -211,7 +211,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
 
     @property
     @final
-    def dict_of_hooks(self) -> "dict[HK, HookWithOwnerProtocol[HV]]":
+    def dict_of_hooks(self) -> dict[HK, OwnedHookProtocol[HV]]:
         """
         Get a dictionary of hooks.
         """

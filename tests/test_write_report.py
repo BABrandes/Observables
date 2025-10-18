@@ -9,7 +9,8 @@ from enum import Enum
 
 
 from observables import ObservableSingleValue, ObservableList, ObservableDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
-from observables.core import HookWithOwnerProtocol, CarriesHooksBase
+from observables.core import CarriesHooksBase
+from observables._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 
 
 class UserRole(Enum):

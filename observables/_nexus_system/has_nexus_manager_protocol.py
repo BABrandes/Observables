@@ -4,7 +4,7 @@ from logging import Logger
 if TYPE_CHECKING:
     from .nexus_manager import NexusManager
     from .hook_nexus import HookNexus
-    from .._hooks.hook_protocol import HookProtocol
+    from .._hooks.mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
 
 class HasNexusManagerProtocol(Protocol):
 
@@ -13,7 +13,7 @@ class HasNexusManagerProtocol(Protocol):
         ...
     
     @final
-    def batch_submit_values(self, hooks_and_values: Mapping["HookProtocol[Any]", Any]|Sequence[tuple["HookProtocol[Any]", Any]], logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def batch_submit_values(self, hooks_and_values: Mapping["HookWithGetterProtocol[Any]", Any]|Sequence[tuple["HookWithGetterProtocol[Any]", Any]], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Submit values to the nexus manager in a batch.
 

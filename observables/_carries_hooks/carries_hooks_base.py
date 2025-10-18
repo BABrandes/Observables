@@ -7,14 +7,15 @@ from threading import RLock
 from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.hook_nexus import HookNexus
-from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._nexus_system.has_nexus_manager import HasNexusManager
-from .._hooks.hook_protocol import HookProtocol
 from .._nexus_system.submission_error import SubmissionError
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 
 from .carries_hooks_protocol import CarriesHooksProtocol
 from .carries_single_hook_protocol import CarriesSingleHookProtocol
+from .._hooks.mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
 
 import weakref
 
@@ -118,7 +119,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         self._lock = RLock()
 
     @abstractmethod
-    def _get_hook(self, key: HK) -> HookWithOwnerProtocol[HV]:
+    def _get_hook(self, key: HK) -> OwnedHookProtocol[HV]:
         """
         Get a hook by its key.
 
@@ -153,7 +154,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         ...
 
     @abstractmethod
-    def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[HV]|HookNexus[HV]) -> HK:
+    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[HV]|HookNexus[HV]) -> HK:
         """
         Get the key for a hook or nexus.
 
@@ -180,7 +181,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         return self._nexus_manager
 
     @final
-    def get_hook(self, key: HK) -> HookWithOwnerProtocol[HV]:
+    def get_hook(self, key: HK) -> OwnedHookProtocol[HV]:
         """
         Get a hook by its key.
         """
@@ -204,7 +205,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             return self._get_hook_keys()
 
     @final
-    def get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[HV]|HookNexus[HV]) -> HK:
+    def get_hook_key(self, hook_or_nexus: OwnedHookProtocol[HV]|HookNexus[HV]) -> HK:
         """
         Get the key of a hook or nexus.
         """
@@ -262,18 +263,18 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
                 return value_as_reference # type: ignore
 
     @final
-    def _get_dict_of_hooks(self) ->  dict[HK, HookWithOwnerProtocol[HV]]:
+    def _get_dict_of_hooks(self) ->  dict[HK, OwnedHookProtocol[HV]]:
         """
         Get a dictionary of hooks.
         """
-        hook_dict: dict[HK, HookWithOwnerProtocol[Any]] = {}
+        hook_dict: dict[HK, OwnedHookProtocol[HV]] = {}
         for key in self._get_hook_keys():
             hook_dict[key] = self._get_hook(key)
         return hook_dict
 
 
     @final
-    def get_dict_of_hooks(self) ->  dict[HK, HookWithOwnerProtocol[HV]]:
+    def get_dict_of_hooks(self) ->  dict[HK, OwnedHookProtocol[HV]]:
         """
         Get a dictionary of hooks.
         """
@@ -331,14 +332,24 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             else:
                 return {}
 
-    def connect_hook(self, hook: HookProtocol[HV]|CarriesSingleHookProtocol[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hook(self, hook: Hook[HV]|ReadOnlyHook[HV]|CarriesSingleHookProtocol[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
+        This method implements the hook connection process by delegating to the observable's
+        hook's connect_hook method, which follows the standard connection flow:
+        
+        1. Get the two nexuses from the hooks to connect
+        2. Submit one of the hooks' value to the other nexus
+        3. If successful, both nexus must now have the same value
+        4. Merge the nexuses to one -> Connection established!
+
         Args:
-            hook: The hook to connect
-            to_key: The key to connect the hook to
-            initial_sync_mode: The initial synchronization mode
+            hook: The external hook to connect to this observable
+            to_key: The key identifying which hook in this observable to connect to
+            initial_sync_mode: Determines which hook's value is used initially:
+                - "use_caller_value": Use the external hook's value
+                - "use_target_value": Use the observable hook's value
 
         Raises:
             ValueError: If the key is not found in component_hooks or secondary_hooks
@@ -346,8 +357,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
 
         with self._lock:
             if to_key in self._get_hook_keys():
-                hook_of_observable: HookWithOwnerProtocol[HV] = self.get_hook(to_key)
-
+                hook_of_observable: OwnedHookProtocol[HV] = self.get_hook(to_key)
                 if isinstance(hook, CarriesSingleHookProtocol):
                     hook = hook.hook # type: ignore
                 success, msg = hook_of_observable.connect_hook(hook, initial_sync_mode) # type: ignore
@@ -356,20 +366,30 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             else:
                 raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
 
-    def connect_hooks(self, hooks: Mapping[HK, "HookProtocol[HV]"], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def connect_hooks(self, hooks: Mapping[HK, Hook[HV]|ReadOnlyHook[HV]], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
-        Connect a list of hooks to the observable.
+        Connect multiple hooks to the observable simultaneously.
+
+        This method efficiently connects multiple hooks by batching the connection process.
+        Each connection follows the standard hook connection flow:
+        
+        1. Get the two nexuses from the hooks to connect
+        2. Submit one of the hooks' value to the other nexus
+        3. If successful, both nexus must now have the same value
+        4. Merge the nexuses to one -> Connection established!
 
         Args:
-            hooks: A mapping of keys to hooks
-            initial_sync_mode: The initial synchronization mode
+            hooks: A mapping of keys to external hooks to connect
+            initial_sync_mode: Determines which hook's value is used initially for each connection:
+                - "use_caller_value": Use the external hook's value
+                - "use_target_value": Use the observable hook's value
 
         Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
+            ValueError: If any key is not found in component_hooks or secondary_hooks
         """
 
         with self._lock:
-            hook_pairs: list[tuple[HookProtocol[HV], HookProtocol[HV]]] = []
+            hook_pairs: list[tuple[HookWithConnectionProtocol[HV], HookWithConnectionProtocol[HV]]] = []
             for key, hook in hooks.items():
                 hook_of_observable = self._get_hook(key)
                 match initial_sync_mode:
@@ -379,7 +399,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
                         hook_pairs.append((hook, hook_of_observable))
                     case _: # type: ignore
                         raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
-            HookNexus[HV].connect_hook_pairs(*hook_pairs)
+            HookNexus[HV].connect_hook_pairs(*hook_pairs) # type: ignore
 
     def disconnect_hook(self, key: Optional[HK] = None) -> None:
         """
@@ -421,7 +441,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         """
 
         with self._lock:
-            hook: HookWithOwnerProtocol[Any] = self._get_hook(hook_key)
+            hook: OwnedHookProtocol[HV] = self._get_hook(hook_key)
 
             success, msg = self._nexus_manager.submit_values({hook.hook_nexus: value}, mode="Check values")
             if success == False:

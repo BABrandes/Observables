@@ -1,27 +1,29 @@
 from typing import Generic, Optional, TypeVar, Any
 from logging import Logger
 
-from .hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
-
 from .._auxiliary.listening_base import ListeningBase
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
-from .hook_bases.full_hook_base import FullHookBase
+from .hook_bases.managed_hook_base import ManagedHookBase
+from .hook_protocols.owned_read_only_hook_protocol import OwnedReadOnlyHookProtocol
 
 T = TypeVar("T")
 
-class OwnedHook(FullHookBase[T], OwnedFullHookProtocol[T], ListeningBase, Generic[T]):
+class OwnedReadOnlyHook(ManagedHookBase[T], OwnedReadOnlyHookProtocol[T], ListeningBase, Generic[T]):
     """
-    A owned hook that provides value access and basic capabilities.
+    An owned read-only hook that provides value access and basic capabilities without submission.
     
     This class focuses on:
     - Value access via callbacks
     - Basic capabilities (sending/receiving)
     - Owner reference and auxiliary information
+    - Read-only access (no submit_value method)
     
     Complex binding logic is delegated to the BindingSystem class.
+    This is particularly useful for secondary hook keys in observables where
+    the hook should only be read, not modified directly.
     """
 
     def __init__(
@@ -33,7 +35,7 @@ class OwnedHook(FullHookBase[T], OwnedFullHookProtocol[T], ListeningBase, Generi
             ) -> None:
 
         ListeningBase.__init__(self, logger)
-        FullHookBase.__init__( # type: ignore
+        ManagedHookBase.__init__( # type: ignore
             self,
             value=initial_value,
             nexus_manager=nexus_manager,
@@ -61,7 +63,7 @@ class OwnedHook(FullHookBase[T], OwnedFullHookProtocol[T], ListeningBase, Generi
     def is_valid(self, value: T) -> bool:
         """Check if the hook is valid."""
 
-        hook_key = self.owner.get_hook_key(self)
+        hook_key = self.owner.get_hook_key(self)  # type: ignore
         success, _ = self.owner.validate_value(hook_key, value)
         return success
 
@@ -71,8 +73,8 @@ class OwnedHook(FullHookBase[T], OwnedFullHookProtocol[T], ListeningBase, Generi
 
     def __repr__(self) -> str:
         """Get the string representation of this hook."""
-        return f"OwnedHook(v={self.value}, id={id(self)})"
+        return f"OwnedReadOnlyHook(v={self.value}, id={id(self)})"
 
     def __str__(self) -> str:
         """Get the string representation of this hook."""
-        return f"OwnedHook(v={self.value}, id={id(self)})"
+        return f"OwnedReadOnlyHook(v={self.value}, id={id(self)})"

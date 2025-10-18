@@ -5,13 +5,13 @@ from .._auxiliary.listening_base import ListeningBase
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
-from .hook_base import HookBase
-from .hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
-from .hook_with_reaction_protocol import HookWithReactionProtocol
+from .hook_bases.full_hook_base import FullHookBase
+from .mixin_protocols.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
+from .mixin_protocols.hook_with_reaction_protocol import HookWithReactionProtocol
 
 T = TypeVar("T")
 
-class FloatingHook(HookBase[T], HookWithIsolatedValidationProtocol[T], HookWithReactionProtocol[T], ListeningBase, Generic[T]):
+class FloatingHook(FullHookBase[T], HookWithIsolatedValidationProtocol[T], HookWithReactionProtocol, ListeningBase, Generic[T]):
     """
     A floating hook that can be used to store a value that is not owned by any observable.
     """
@@ -29,7 +29,7 @@ class FloatingHook(HookBase[T], HookWithIsolatedValidationProtocol[T], HookWithR
         self._isolated_validation_callback = isolated_validation_callback
 
         ListeningBase.__init__(self, logger)
-        HookBase.__init__( # type: ignore
+        FullHookBase.__init__( # type: ignore
             self,
             value=value,
             nexus_manager=nexus_manager,

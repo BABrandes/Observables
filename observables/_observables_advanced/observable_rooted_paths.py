@@ -5,7 +5,7 @@ from logging import Logger
 from .._carries_hooks.carries_hooks_base import CarriesHooksBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from .._nexus_system.hook_nexus import HookNexus
 
 EK = TypeVar("EK", bound=str)
@@ -59,7 +59,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
     ):
 
         self._rooted_element_keys: set[EK] = set(rooted_elements_initial_relative_path_values.keys())
-        self._rooted_element_path_hooks: dict[str, HookWithOwnerProtocol[Optional[str|Path]]] = {}
+        self._rooted_element_path_hooks: dict[str, OwnedFullHookProtocol[Optional[str|Path]]] = {}
 
         # Initialize the hooks
 
@@ -189,10 +189,10 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
         if not success:
             raise ValueError(msg)
 
-    def get_relative_path_hook(self, key: EK) -> HookWithOwnerProtocol[Optional[str]]:
+    def get_relative_path_hook(self, key: EK) -> OwnedFullHookProtocol[Optional[str]]:
         return self._get_hook(self.element_key_to_relative_path_key(key)) # type: ignore
 
-    def get_absolute_path_hook(self, key: EK) -> HookWithOwnerProtocol[Optional[Path]]:
+    def get_absolute_path_hook(self, key: EK) -> OwnedFullHookProtocol[Optional[Path]]:
         return self._get_hook(self.element_key_to_absolute_path_key(key)) # type: ignore
 
     def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
@@ -212,8 +212,8 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
         return self._rooted_element_keys
 
     @property
-    def rooted_element_relative_path_hooks(self) -> dict[str, HookWithOwnerProtocol[Optional[str]]]:
-        relative_path_hooks: dict[str, HookWithOwnerProtocol[Optional[str]]] = {}
+    def rooted_element_relative_path_hooks(self) -> dict[str, OwnedFullHookProtocol[Optional[str]]]:
+        relative_path_hooks: dict[str, OwnedFullHookProtocol[Optional[str]]] = {}
         for key in self._rooted_element_keys:
             if key not in self._rooted_element_path_hooks:
                 raise ValueError(f"Key {key} not found in rooted_element_relative_path_hooks")
@@ -221,8 +221,8 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
         return relative_path_hooks
 
     @property
-    def rooted_element_absolute_path_hooks(self) -> dict[str, HookWithOwnerProtocol[Optional[Path]]]:
-        absolute_path_hooks: dict[str, HookWithOwnerProtocol[Optional[Path]]] = {}
+    def rooted_element_absolute_path_hooks(self) -> dict[str, OwnedFullHookProtocol[Optional[Path]]]:
+        absolute_path_hooks: dict[str, OwnedFullHookProtocol[Optional[Path]]] = {}
         for key in self._rooted_element_keys:
             if key not in self._rooted_element_path_hooks:
                 raise ValueError(f"Key {key} not found in rooted_element_absolute_path_hooks")
@@ -233,7 +233,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
     # CarriesHooks interface implementation
     ##########################################
 
-    def _get_hook(self, key: str) -> HookWithOwnerProtocol[Path|str|None]:
+    def _get_hook(self, key: str) -> OwnedFullHookProtocol[Path|str|None]:
         """
         Get a hook by its key.
         """
@@ -265,11 +265,11 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             keys.add(self.element_key_to_absolute_path_key(key))
         return keys
 
-    def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[Path|str|None]|HookNexus[Path|str|None]) -> EK:
+    def _get_hook_key(self, hook_or_nexus: OwnedFullHookProtocol[Path|str|None]|HookNexus[Path|str|None]) -> EK:
         """
         Get the key of a hook or nexus.
         """
-        if isinstance(hook_or_nexus, HookWithOwnerProtocol):
+        if isinstance(hook_or_nexus, OwnedFullHookProtocol):
             if hook_or_nexus is self._root_path_hook:
                 return ROOT_PATH_KEY # type: ignore
             else:

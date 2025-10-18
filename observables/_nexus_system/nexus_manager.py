@@ -8,7 +8,7 @@ from .._utils import log
 if TYPE_CHECKING:
     from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_aliases import Hook
 from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.hook_nexus import HookNexus
 from .._publisher_subscriber.publisher_protocol import PublisherProtocol
@@ -24,8 +24,12 @@ class NexusManager:
     4. Updates hook nexuses with new values
     5. Triggers invalidation, reactions, publishing, and listener notifications
     
-    This replaces the old binding system with a more flexible hook-based approach
-    where observables can define custom logic for value completion and validation.
+    Hook Connection Process:
+    The NexusManager plays a crucial role in the hook connection process:
+    1. Get the two nexuses from the hooks to connect
+    2. Submit one of the hooks' value to the other nexus (via submit_values)
+    3. If successful, both nexus must now have the same value
+    4. Merge the nexuses to one -> Connection established!
     
     Three Notification Philosophies
     --------------------------------
@@ -146,7 +150,7 @@ class NexusManager:
         pass
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookProtocol[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -159,18 +163,18 @@ class NexusManager:
             A tuple containing the value and hook dict corresponding to the owner
         """
 
-        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
-        from .._hooks.hook_protocol import HookProtocol
+        from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.hook_aliases import Hook
 
         key_and_value_dict: dict[Any, Any] = {}
-        key_and_hook_dict: dict[Any, HookProtocol[Any]] = {}
+        key_and_hook_dict: dict[Any, Hook[Any]] = {}
         for nexus, value in nexus_and_values.items():
             for hook in nexus.hooks:
                 if isinstance(hook, HookWithOwnerProtocol):
                     if hook.owner is owner:
-                        hook_key: Any = owner.get_hook_key(hook)
+                        hook_key: Any = owner.get_hook_key(hook) # type: ignore
                         key_and_value_dict[hook_key] = value
-                        key_and_hook_dict[hook_key] = hook
+                        key_and_hook_dict[hook_key] = hook # type: ignore
         return key_and_value_dict, key_and_hook_dict
 
     @staticmethod
@@ -203,7 +207,7 @@ class NexusManager:
         related values are synchronized.
         """
 
-        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, HookProtocol[Any]]) -> tuple[bool, str]:
+        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, Hook[Any]]) -> tuple[bool, str]:
             """
             This method inserts the value and hook dict into the nexus and values dictionary.
             It inserts the values from the value dict into the nexus and values dictionary. The hook dict helps to find the hook nexus for each value.
@@ -248,8 +252,8 @@ class NexusManager:
             # Step 5: Return the nexus and values
             return number_of_inserted_items, "Successfully updated nexus and values"
 
-        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
-        from .._hooks.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
+        from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.mixin_protocols.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
             
         while True:
 
@@ -258,9 +262,9 @@ class NexusManager:
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     match hook:
-                        case HookWithOwnerProtocol():
+                        case HookWithOwnerProtocol(): # type: ignore
                             owners_to_check_for_additional_nexus_and_values.add(hook.owner)
-                        case HookWithIsolatedValidationProtocol():
+                        case HookWithIsolatedValidationProtocol(): # type: ignore
                             pass
                         case _:
                             pass
@@ -286,6 +290,12 @@ class NexusManager:
 
         This method is not thread-safe and should only be called by the submit_values method.
         
+        This method is a crucial part of the hook connection process:
+        1. Get the two nexuses from the hooks to connect
+        2. Submit one of the hooks' value to the other nexus (this method)
+        3. If successful, both nexus must now have the same value
+        4. Merge the nexuses to one -> Connection established!
+        
         Parameters
         ----------
         mode : Literal["Normal submission", "Forced submission", "Check values"]
@@ -295,9 +305,10 @@ class NexusManager:
             - "Check values": Only validates without updating
         """
 
-        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
-        from .._hooks.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
-        from .._hooks.hook_with_reaction_protocol import HookWithReactionProtocol
+        from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.mixin_protocols.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
+        from .._hooks.mixin_protocols.hook_with_reaction_protocol import HookWithReactionProtocol
+        from .._hooks.mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
 
         #########################################################
         # Check if the values are even different from the current values
@@ -338,7 +349,7 @@ class NexusManager:
         # Step 2: Collect the owners and floating hooks to validate, react to, and notify
         owners_that_are_affected: set["CarriesHooksProtocol[Any, Any]"] = set()
         hooks_with_validation: set[HookWithIsolatedValidationProtocol[Any]] = set()
-        hooks_with_reaction: set[HookWithReactionProtocol[Any]] = set()
+        hooks_with_reaction: set[HookWithReactionProtocol] = set()
         publishers: set[PublisherProtocol] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
@@ -352,7 +363,7 @@ class NexusManager:
                     owners_that_are_affected.add(hook.owner)
                     if isinstance(hook.owner, PublisherProtocol):
                         publishers.add(hook.owner)
-                publishers.add(hook)
+                publishers.add(hook) # type: ignore
 
         #########################################################
         # Value Validation
@@ -363,10 +374,11 @@ class NexusManager:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
             NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
             success, msg = owner.validate_complete_values_in_isolation(value_dict)
-            if success == False:
+            if success == False:    
                 return False, msg
         for floating_hook in hooks_with_validation:
-            success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook.hook_nexus])
+            assert isinstance(floating_hook, HookWithConnectionProtocol)
+            success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook.hook_nexus]) # type: ignore
             if success == False:
                 return False, msg
 
@@ -401,12 +413,12 @@ class NexusManager:
         # Step 5d: Notify the listeners
 
         # Optimize: Only notify hooks that are actually affected by the value changes
-        hooks_to_be_notified: set[HookProtocol[Any]] = set()
+        hooks_to_be_notified: set[Hook[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
-            hooks_of_nexus: set[HookProtocol[Any]] = set(nexus.hooks)
+            hooks_of_nexus: set[Hook[Any]] = set(nexus.hooks) # type: ignore
             hooks_to_be_notified.update(hooks_of_nexus)
 
-        def notify_listeners(obj: "ListeningProtocol | HookProtocol[Any]"):
+        def notify_listeners(obj: "ListeningProtocol | Hook[Any]"):
             """
             This method notifies the listeners of an object.
             """
@@ -732,7 +744,7 @@ class NexusManager:
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore
 
     @staticmethod
-    def get_nexus_and_values(hooks: set["HookProtocol[Any]"]) -> dict[HookNexus[Any], Any]:
+    def get_nexus_and_values(hooks: set["Hook[Any]"]) -> dict[HookNexus[Any], Any]:
         """
         Get the nexus and values dictionary for a set of hooks.
         """

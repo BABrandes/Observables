@@ -1,7 +1,7 @@
 from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator, Mapping
 from logging import Logger
 
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
@@ -29,7 +29,7 @@ class ObservableSetProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
         ...
 
     @property
-    def value_hook(self) -> HookProtocol[set[T]]:
+    def value_hook(self) -> Hook[set[T]]:
         """
         Get the hook for the set.
         """
@@ -49,7 +49,7 @@ class ObservableSetProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
         ...
     
     @property
-    def length_hook(self) -> HookProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the set length.
         """
@@ -94,7 +94,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], s
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookProtocol[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: Hook[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable set, establishing a bidirectional binding."""
         ...
 
@@ -108,7 +108,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], s
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: set[T] | HookProtocol[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: set[T] | Hook[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
@@ -120,11 +120,11 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], s
         """
         if observable_or_hook_or_value is None:
             initial_value: set[T] = set()
-            hook: Optional[HookProtocol[set[T]]] = None 
+            hook: Optional[Hook[set[T]]] = None 
         elif isinstance(observable_or_hook_or_value, ObservableSetProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, HookProtocol):
+        elif isinstance(observable_or_hook_or_value, Hook):
             initial_value = observable_or_hook_or_value.value
             hook = observable_or_hook_or_value
         else:
@@ -179,7 +179,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], s
             raise ValueError(msg)
 
     @property
-    def value_hook(self) -> HookProtocol[set[T]]:
+    def value_hook(self) -> Hook[set[T]]:
         """
         Get the hook for the set.
         
@@ -195,7 +195,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], s
         return len(self._primary_hooks["value"].value) # type: ignore
     
     @property
-    def length_hook(self) -> HookProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the set length.
         

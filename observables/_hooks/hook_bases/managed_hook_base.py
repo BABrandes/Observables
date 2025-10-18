@@ -3,35 +3,36 @@ from threading import RLock
 import logging
 import inspect
 
-from .hook_protocol import HookProtocol
-from .._utils import log
-from .._auxiliary.listening_base import ListeningBase
-from .._nexus_system.nexus_manager import NexusManager
-from .._nexus_system.hook_nexus import HookNexus
-from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .._nexus_system.has_nexus_manager import HasNexusManager
-from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
-from .._publisher_subscriber.publisher import Publisher
+from ..hook_protocols.managed_hook import ManagedHookProtocol
+from ..mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
+
+from ..._utils import log
+from ..._auxiliary.listening_base import ListeningBase
+from ..._nexus_system.nexus_manager import NexusManager
+from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from ..._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
+from ..._publisher_subscriber.publisher import Publisher
 
 T = TypeVar("T")
 
 
-class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Generic[T]):
+class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[T]):
     """
-    A base class for hooks for independent value management.
+    A base class for managed hooks that can get and set values.
     
-    Hook represents a single value that can participate in the synchronization system
-    without being owned by a specific observable. It provides a lightweight way to
-    create reactive values with full hook system capabilities.
+    ManagedHook represents a single value that can participate in the synchronization system
+    without being owned by a specific observable, but unlike regular hooks, it can get and set values.
+    It provides a lightweight way to create reactive values with full hook system capabilities.
     
     Type Parameters:
         T: The type of value stored in this hook. Can be any Python type - primitives,
            collections, custom objects, etc.
     
     Multiple Inheritance:
-        - HasNexusManager: Integration with the centralized nexus management system
+        - ManagedHookProtocol[T]: Implements the managed hook interface for binding and value access
         - Publisher: Can publish notifications to subscribers (async, sync, direct modes)
-        - HookProtocol[T]: Implements the hook interface for binding and value access
+        - ManagedHookProtocol[T]: Implements the managed hook interface for binding and value access
         - BaseListening: Support for listener callbacks (synchronous notifications)
         - Generic[T]: Type-safe generic value storage
     
@@ -42,6 +43,7 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
         - **Listeners**: Synchronous callbacks on value changes
         - **Publishing**: Asynchronous subscriber notifications
         - **Thread Safety**: All operations protected by reentrant lock
+        - **Getter**: Can get values directly
     
     Three Notification Mechanisms:
         1. **Listeners**: Synchronous callbacks via `add_listeners()`
@@ -49,26 +51,21 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
         3. **Connected Hooks**: Bidirectional sync via `connect_hook()`
     
     Example:
-        Basic standalone hook usage::
+        Basic standalone getter hook usage::
         
-            from observables._hooks.hook import Hook
+            from observables._hooks.getter_hook_base import GetterHookBase
             
-            # Create a hook
-            temperature = Hook(20.0)
+            # Create a getter hook
+            temperature = GetterHookBase(20.0)
             
             # Add listener
             temperature.add_listeners(lambda: print(f"Temp: {temperature.value}"))
             
-            # Change value
-            temperature.submit_value(25.0)  # Prints: "Temp: 25.0"
-            
             # Connect to another hook
-            display = Hook(0.0)
+            display = GetterHookBase(0.0)
             temperature.connect_hook(display, "use_caller_value")
             
-            # Now they're synchronized
-            temperature.submit_value(30.0)
-            print(display.value)  # 30.0
+            # Values can only be changed through connected getter hooks
     """
 
     def __init__(
@@ -78,7 +75,7 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
         logger: Optional[logging.Logger] = None
         ) -> None:
         """
-        Initialize a new standalone Hook.
+        Initialize a new standalone GetterHook.
         
         Args:
             value: The initial value for this hook. Can be any Python type.
@@ -97,25 +94,23 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
             publishing by adding subscribers and calling publish() explicitly.
         
         Example:
-            Create hooks with different configurations::
+            Create getter hooks with different configurations::
             
-                # Simple hook with default settings
-                counter = Hook(0)
+                # Simple getter hook with default settings
+                counter = GetterHookBase(0)
                 
-                # Hook with custom nexus manager
+                # Getter hook with custom nexus manager
                 from observables._utils.nexus_manager import NexusManager
                 custom_manager = NexusManager()
-                custom_hook = Hook(42, nexus_manager=custom_manager)
+                custom_hook = GetterHookBase(42, nexus_manager=custom_manager)
                 
-                # Hook with logging enabled
+                # Getter hook with logging enabled
                 import logging
                 logger = logging.getLogger(__name__)
-                logged_hook = Hook("data", logger=logger)
+                logged_hook = GetterHookBase("data", logger=logger)
         """
 
-        from .._nexus_system.hook_nexus import HookNexus
-
-        HasNexusManager.__init__(self, nexus_manager)
+        from ..._nexus_system.hook_nexus import HookNexus
 
         ListeningBase.__init__(self, logger)
         self._value = value
@@ -176,23 +171,30 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect_hook(self, target_hook: "HookProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
-        Connect this hook to another hook in the new architecture.
+        Connect this hook to another hook.
 
-        This method merges the hook nexuses of both hooks, allowing them to share
-        the same value and be synchronized together. This replaces the old binding
-        system with a more flexible hook-based approach.
+        This method implements the core hook connection process:
+        
+        1. Get the two nexuses from the hooks to connect
+        2. Submit one of the hooks' value to the other nexus
+        3. If successful, both nexus must now have the same value
+        4. Merge the nexuses to one -> Connection established!
+        
+        After connection, both hooks will share the same nexus and remain synchronized.
 
         Args:
             target_hook: The hook or CarriesSingleHookProtocol to connect to
-            initial_sync_mode: The initial synchronization mode
+            initial_sync_mode: Determines which hook's value is used initially:
+                - "use_caller_value": Use this hook's value (caller = self)
+                - "use_target_value": Use the target hook's value
             
         Returns:
             A tuple containing a boolean indicating if the connection was successful and a string message
         """
 
-        from .._nexus_system.hook_nexus import HookNexus
+        from ..._nexus_system.hook_nexus import HookNexus
 
         with self._lock:
 
@@ -203,9 +205,9 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
                 target_hook = target_hook.hook
             
             if initial_sync_mode == "use_caller_value":
-                success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))
+                success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))  # type: ignore
             elif initial_sync_mode == "use_target_value":                
-                success, msg = HookNexus[T].connect_hook_pairs((target_hook, self))
+                success, msg = HookNexus[T].connect_hook_pairs((target_hook, self))  # type: ignore
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 
@@ -224,7 +226,7 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
 
         with self._lock:
 
-            from .._nexus_system.hook_nexus import HookNexus
+            from ..._nexus_system.hook_nexus import HookNexus
 
             # Check if we're being called during garbage collection by inspecting the call stack
             is_being_garbage_collected = any(frame.function == '__del__' for frame in inspect.stack())
@@ -258,7 +260,7 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
             # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others
 
-    def is_connected_to(self, hook: "HookProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+    def is_connected_to(self, hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
 
@@ -293,8 +295,8 @@ class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Gener
 
     def __repr__(self) -> str:
         """Get the string representation of this hook."""
-        return f"Hook(v={self.value}, id={id(self)})"
+        return f"GetterHook(v={self.value}, id={id(self)})"
 
     def __str__(self) -> str:
         """Get the string representation of this hook."""
-        return f"Hook(v={self.value}, id={id(self)})"
+        return f"GetterHook(v={self.value}, id={id(self)})"

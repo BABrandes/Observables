@@ -1,8 +1,7 @@
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
 from logging import Logger
 
-from .._hooks.hook_protocol import HookProtocol
-from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.observable_serializable import ObservableSerializable
@@ -32,7 +31,7 @@ class ObservableDictProtocol(CarriesHooksProtocol[Any, Any], Protocol[K, V]):
         ...
 
     @property
-    def value_hook(self) -> HookWithOwnerProtocol[dict[K, V]]:
+    def value_hook(self) -> Hook[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
@@ -52,7 +51,7 @@ class ObservableDictProtocol(CarriesHooksProtocol[Any, Any], Protocol[K, V]):
         ...
     
     @property
-    def length_hook(self) -> HookWithOwnerProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the dictionary length.
         """
@@ -91,7 +90,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
     """
 
     @overload
-    def __init__(self, observable_or_hook: HookProtocol[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: Hook[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
@@ -110,7 +109,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookProtocol[dict[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: dict[K, V] | Hook[dict[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -123,11 +122,11 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
 
         if observable_or_hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
-            hook: Optional[HookProtocol[dict[K, V]]] = None
+            hook: Optional[Hook[dict[K, V]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableDictProtocol):
             initial_dict_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, HookProtocol):
+        elif isinstance(observable_or_hook_or_value, Hook):
             initial_dict_value = observable_or_hook_or_value.value
             hook = observable_or_hook_or_value
         else:
@@ -185,7 +184,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
             raise SubmissionError(msg, new_dict, "value")
 
     @property
-    def value_hook(self) -> HookWithOwnerProtocol[dict[K, V]]:
+    def value_hook(self) -> Hook[dict[K, V]]:
         """
         Get the hook for the dictionary.
         
@@ -201,7 +200,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
         return len(self._primary_hooks["dict_value"].value) # type: ignore
     
     @property
-    def length_hook(self) -> HookWithOwnerProtocol[int]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the dictionary length.
         
@@ -418,17 +417,17 @@ class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_
     #########################################################
 
     @property
-    def hook_of_dict(self) -> HookWithOwnerProtocol[dict[K, V]]:
+    def hook_of_dict(self) -> Hook[dict[K, V]]:
         return self._primary_hooks["dict_value"]
     
     @property
-    def hook_of_dict_length(self) -> HookWithOwnerProtocol[int]:
+    def hook_of_dict_length(self) -> Hook[int]:
         return self._secondary_hooks["dict_length"] # type: ignore
     
     @property
-    def hook_of_dict_keys(self) -> HookWithOwnerProtocol[set[K]]:
+    def hook_of_dict_keys(self) -> Hook[set[K]]:
         return self._secondary_hooks["dict_keys"] # type: ignore
     
     @property
-    def hook_of_dict_values(self) -> HookWithOwnerProtocol[list[V]]:
+    def hook_of_dict_values(self) -> Hook[list[V]]:
         return self._secondary_hooks["dict_values"] # type: ignore

@@ -1,7 +1,7 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from logging import Logger
 
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_aliases import Hook
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
@@ -37,7 +37,7 @@ class ObservableSingleValueProtocol(CarriesSingleHookProtocol[T], CarriesHooksPr
         ...
 
     @property
-    def hook(self) -> HookProtocol[T]:
+    def hook(self) -> Hook[T]: # type: ignore
         """
         Get the hook for the value.
         """
@@ -129,7 +129,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         ...
     
     @overload
-    def __init__(self, hook: HookProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, hook: Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
@@ -138,20 +138,20 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | HookProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableSingleValue.
         
         This constructor supports three initialization patterns:
         
         1. **Direct value**: Pass a value directly
-        2. **From hook**: Pass a HookProtocol to bind to
+        2. **From hook**: Pass a Hook to bind to
         3. **From observable**: Pass another ObservableSingleValue to bind to
         
         Args:
             observable_or_hook_or_value: Can be one of three types:
                 - T: A direct value (int, str, list, custom object, etc.)
-                - HookProtocol[T]: A hook to bind to (establishes bidirectional connection)
+                - Hook[T]: A hook to bind to (establishes bidirectional connection)
                 - ObservableSingleValueProtocol[T]: Another observable to bind to
             validator: Optional validation function that takes a value and returns
                 (success: bool, message: str). Called before any value change.
@@ -185,9 +185,9 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
                 )
         """
 
-        if isinstance(observable_or_hook_or_value, HookProtocol):
+        if isinstance(observable_or_hook_or_value, Hook):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookProtocol[T]] = observable_or_hook_or_value #type: ignore
+            hook: Optional[Hook[T]] = observable_or_hook_or_value #type: ignore
         elif isinstance(observable_or_hook_or_value, ObservableSingleValueProtocol):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.hook # type: ignore
@@ -246,7 +246,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         self.value = value
     
     @property
-    def hook(self) -> HookProtocol[T]:
+    def hook(self) -> Hook[T]:
         """
         Get the hook for the value.
         

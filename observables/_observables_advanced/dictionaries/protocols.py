@@ -1,6 +1,6 @@
 from typing import TypeVar, Optional, Protocol
 
-from ..._hooks.hook_protocol import HookProtocol
+from ..._hooks.hook_aliases import Hook
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -17,17 +17,17 @@ class ObservableSelectionDictProtocol(Protocol[K, V]):
     """
     
     @property
-    def dict_hook(self) -> "HookProtocol[dict[K, V]]":
+    def dict_hook(self) -> "Hook[dict[K, V]]":
         """Get the dictionary hook."""
         ...
     
     @property
-    def key_hook(self) -> "HookProtocol[K]":
+    def key_hook(self) -> "Hook[K]":
         """Get the key hook."""
         ...
     
     @property
-    def value_hook(self) -> "HookProtocol[V]":
+    def value_hook(self) -> "Hook[V]":
         """Get the value hook."""
         ...
     
@@ -66,17 +66,17 @@ class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
     """
     
     @property
-    def dict_hook(self) -> "HookProtocol[dict[K, V]]":
+    def dict_hook(self) -> "Hook[dict[K, V]]":
         """Get the dictionary hook."""
         ...
     
     @property
-    def key_hook(self) -> "HookProtocol[Optional[K]]":
+    def key_hook(self) -> "Hook[Optional[K]]":
         """Get the key hook."""
         ...
     
     @property
-    def value_hook(self) -> "HookProtocol[Optional[V]]":
+    def value_hook(self) -> "Hook[Optional[V]]":
         """Get the value hook."""
         ...
     
@@ -113,17 +113,17 @@ class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
     """
     
     @property
-    def dict_hook(self) -> "HookProtocol[dict[K, V]]":
+    def dict_hook(self) -> "Hook[dict[K, V]]":
         """Get the dictionary hook."""
         ...
     
     @property
-    def key_hook(self) -> "HookProtocol[K]":
+    def key_hook(self) -> "Hook[K]":
         """Get the key hook."""
         ...
     
     @property
-    def value_hook(self) -> "HookProtocol[V]":
+    def value_hook(self) -> "Hook[V]":
         """Get the value hook."""
         ...
     
@@ -159,17 +159,17 @@ class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
     """
     
     @property
-    def dict_hook(self) -> "HookProtocol[dict[K, V]]":
+    def dict_hook(self) -> "Hook[dict[K, V]]":
         """Get the dictionary hook."""
         ...
     
     @property
-    def key_hook(self) -> "HookProtocol[Optional[K]]":
+    def key_hook(self) -> "Hook[Optional[K]]":
         """Get the key hook."""
         ...
     
     @property
-    def value_hook(self) -> "HookProtocol[Optional[V]]":
+    def value_hook(self) -> "Hook[Optional[V]]":
         """Get the value hook."""
         ...
     

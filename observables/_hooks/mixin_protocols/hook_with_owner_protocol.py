@@ -1,13 +1,11 @@
-from typing import TypeVar, TYPE_CHECKING, Any, Protocol, runtime_checkable
-from .hook_protocol import HookProtocol
-
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable, TypeVar
 if TYPE_CHECKING:
-    from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+    from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class HookWithOwnerProtocol(HookProtocol[T], Protocol[T]):
+class HookWithOwnerProtocol(Protocol[T]): # type: ignore
     """
     Protocol for hook objects that have an owner.
     """

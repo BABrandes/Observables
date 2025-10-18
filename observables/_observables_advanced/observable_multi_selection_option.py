@@ -1,7 +1,7 @@
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
 from logging import Logger
 
-from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_aliases import Hook
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
@@ -42,14 +42,14 @@ class ObservableMultiSelectionOptionProtocol(CarriesHooksProtocol[Any, Any], Pro
         ...
 
     @property
-    def available_options_hook(self) -> HookProtocol[set[T]]:
+    def available_options_hook(self) -> Hook[set[T]]:
         """
         Get the hook for the available options.
         """
         ...
 
     @property
-    def selected_options_hook(self) -> HookProtocol[set[T]]:
+    def selected_options_hook(self) -> Hook[set[T]]:
         """
         Get the hook for the selected options.
         """
@@ -129,17 +129,17 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
     """
 
     @overload
-    def __init__(self, selected_options: HookProtocol[set[T]], available_options: HookProtocol[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Hook[set[T]], available_options: Hook[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: HookProtocol[set[T]]|HookProtocol[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: set[T], available_options: Hook[set[T]]|Hook[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: HookProtocol[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Hook[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and observable selected options."""
         ...
     
@@ -153,7 +153,7 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         """Initialize from another ObservableMultiSelectionOptionProtocol object."""
         ...
 
-    def __init__(self, selected_options: set[T] | HookProtocol[set[T]]|"ObservableMultiSelectionOptionProtocol[T, Any]", available_options: set[T] | HookProtocol[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_options: set[T] | Hook[set[T]]|"ObservableMultiSelectionOptionProtocol[T, Any]", available_options: set[T] | Hook[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableMultiSelectionOption.
         
@@ -170,8 +170,8 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
             source_observable = selected_options # type: ignore
             initial_selected_options: set[T] = source_observable.selected_options # type: ignore
             initial_available_options: set[T] = source_observable.available_options # type: ignore
-            selected_options_hook: Optional[HookProtocol[set[T]]] = None
-            available_options_hook: Optional[HookProtocol[set[T]]] = None
+            selected_options_hook: Optional[Hook[set[T]]] = None
+            available_options_hook: Optional[Hook[set[T]]] = None
             observable: Optional[ObservableMultiSelectionOptionProtocol[T]] = selected_options
         else:
             observable = None
@@ -179,14 +179,14 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
             if available_options is None:
                 raise ValueError("available_options must be provided when not initializing from ObservableMultiSelectionOptionProtocol")
             
-            if isinstance(available_options, HookProtocol):
+            if isinstance(available_options, Hook):
                 initial_available_options: set[T] = available_options.value
                 available_options_hook = available_options
             else:
                 initial_available_options = available_options.copy()
                 available_options_hook = None
 
-            if isinstance(selected_options, HookProtocol):
+            if isinstance(selected_options, Hook):
                 initial_selected_options = selected_options.value
                 selected_options_hook = selected_options
             else:
@@ -254,11 +254,11 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         self.change_available_options(value)
 
     @property
-    def available_options_hook(self) -> HookProtocol[set[T]]:
+    def available_options_hook(self) -> Hook[set[T]]:
         return self._primary_hooks["available_options"]
     
     @property
-    def selected_options_hook(self) -> HookProtocol[set[T]]:
+    def selected_options_hook(self) -> Hook[set[T]]:
         return self._primary_hooks["selected_options"]
     
     @property

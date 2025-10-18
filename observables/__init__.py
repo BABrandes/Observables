@@ -112,7 +112,8 @@ from ._observables_advanced.dictionaries.observable_optional_default_selection_d
 from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
 from ._observables_advanced.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
-from ._hooks.hook_protocol import HookProtocol
+from ._hooks.hook_protocols.full_hook_protocol import FullHookProtocol as Hook
+from ._hooks.hook_protocols.read_only_hook_protocol import ReadOnlyHookProtocol as ReadOnlyHook
 from ._nexus_system.system_analysis import write_report
 from ._carries_hooks.observable_serializable import ObservableSerializable
 from ._observables_advanced.observable_subscriber import ObservableSubscriber
@@ -153,8 +154,9 @@ __all__ = [
     'ObservableMultiSelectionOptionProtocol',
 
     # hooks (user-facing)
-    'HookProtocol',
     'FloatingHook',
+    'Hook',
+    'ReadOnlyHook',
 
     # Other
     'PublisherProtocol',

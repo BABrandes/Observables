@@ -2,7 +2,8 @@ from typing import Any, Mapping, Optional
 import threading
 from logging import Logger
 
-from observables.core import OwnedHook, ComplexObservableBase
+from observables.core import ComplexObservableBase
+from observables._hooks.owned_hook import OwnedHook
 
 from tests.run_tests import console_logger as logger
 import pytest

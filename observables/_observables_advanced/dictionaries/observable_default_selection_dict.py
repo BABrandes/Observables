@@ -1,9 +1,10 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 
-from ..._hooks.hook_protocol import HookProtocol
-from ..._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
+from ..._hooks.hook_protocols.full_hook_protocol import FullHookProtocol
 from ..._hooks.owned_hook import OwnedHook
+from ..._hooks.hook_aliases import Hook
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._nexus_system.hook_nexus import HookNexus
 from ..._auxiliary.listening_base import ListeningBase
@@ -38,9 +39,9 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
 
     def __init__(
         self,
-        dict_hook: dict[K, V] | HookProtocol[dict[K, V]],
-        key_hook: K | HookProtocol[K],
-        value_hook: Optional[HookProtocol[V]],
+        dict_hook: dict[K, V] | FullHookProtocol[dict[K, V]],
+        key_hook: K | FullHookProtocol[K],
+        value_hook: Optional[FullHookProtocol[V]],
         default_value: V | Callable[[K], V],
         logger: Optional[Logger] = None):
         """
@@ -150,12 +151,12 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
 
         self._default_value: V | Callable[[K], V] = default_value
 
-        if isinstance(dict_hook, HookProtocol):
+        if isinstance(dict_hook, FullHookProtocol):
             _initial_dict_value: dict[K, V] = dict_hook.value
         else:
             _initial_dict_value = dict_hook
 
-        if isinstance(key_hook, HookProtocol):
+        if isinstance(key_hook, FullHookProtocol):
             _initial_key_value: K = key_hook.value # type: ignore
         else:
             _initial_key_value = key_hook
@@ -167,7 +168,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
 
         if value_hook is None:
             _initial_value_value: V = _initial_dict_value[_initial_key_value] # type: ignore
-        elif isinstance(value_hook, HookProtocol): # type: ignore
+        elif isinstance(value_hook, FullHookProtocol): # type: ignore
             _initial_value_value = value_hook.value # type: ignore
         else:
             raise ValueError("value_hook parameter must either be None or a HookProtocol")
@@ -176,11 +177,11 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
         self._key_hook: OwnedHook[K] = OwnedHook[K](self, _initial_key_value, logger) # type: ignore
         self._value_hook: OwnedHook[V] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
 
-        if isinstance(dict_hook, HookProtocol):
+        if isinstance(dict_hook, FullHookProtocol):
             self._dict_hook.connect_hook(dict_hook, "use_target_value")
-        if isinstance(key_hook, HookProtocol):
+        if isinstance(key_hook, FullHookProtocol):
             self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
-        if isinstance(value_hook, HookProtocol):
+        if isinstance(value_hook, FullHookProtocol):
             self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
 
     ########################################################
@@ -201,7 +202,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> HookWithOwnerProtocol[Any]:
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> OwnedFullHookProtocol[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -211,7 +212,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
         else:
             raise ValueError(f"Invalid key: {key}")
 
-    def _get_hook_key(self, hook_or_nexus: "HookProtocol[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
+    def _get_hook_key(self, hook_or_nexus: "FullHookProtocol[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
         if isinstance(hook_or_nexus, HookNexus):
             if hook_or_nexus == self._dict_hook.hook_nexus:
                 return "dict"
@@ -221,7 +222,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
                 return "value"
             else:
                 raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
-        elif isinstance(hook_or_nexus, HookProtocol): # type: ignore
+        elif isinstance(hook_or_nexus, Hook): # type: ignore
             if hook_or_nexus == self._dict_hook:
                 return "dict"
             elif hook_or_nexus == self._key_hook:
@@ -238,7 +239,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
 ########################################################
 
     @property
-    def dict_hook(self) -> HookProtocol[dict[K, V]]:
+    def dict_hook(self) -> FullHookProtocol[dict[K, V]]:
         """
         Get the dictionary hook.
         
@@ -248,7 +249,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
         return self._dict_hook
 
     @property
-    def key_hook(self) -> HookProtocol[K]:
+    def key_hook(self) -> FullHookProtocol[K]:
         """
         Get the key hook.
         
@@ -258,7 +259,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
         return self._key_hook
 
     @property
-    def value_hook(self) -> HookProtocol[V]:
+    def value_hook(self) -> FullHookProtocol[V]:
         """
         Get the value hook.
         
@@ -317,7 +318,7 @@ class ObservableDefaultSelectionDict(CarriesHooksBase[Literal["dict", "key", "va
 
         inferred_value = dict_value[key_value]
 
-        HookWithOwnerProtocol[Any].submit_values(
+        OwnedFullHookProtocol[Any].submit_values(
             {
                 self._dict_hook: dict_value,
                 self._key_hook: key_value,

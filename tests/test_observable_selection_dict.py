@@ -2,7 +2,8 @@ from typing import Any, Literal, Mapping, Optional
 from logging import Logger, basicConfig, getLogger, DEBUG
 
 from observables import ObservableSelectionDict, ObservableOptionalSelectionDict, FloatingHook
-from observables.core import OwnedHook, ComplexObservableBase
+from observables.core import ComplexObservableBase
+from observables._hooks.owned_hook import OwnedHook
 import pytest
 
 # Set up logging for tests

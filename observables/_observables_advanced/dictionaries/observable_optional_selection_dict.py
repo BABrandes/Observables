@@ -2,8 +2,8 @@ from typing import Literal, TypeVar, Generic, Optional, Mapping, Any
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook
-from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._hooks.owned_hook import OwnedHook
+from ..._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._nexus_system.hook_nexus import HookNexus
 from ..._auxiliary.listening_base import ListeningBase
@@ -210,7 +210,7 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         """Get all keys managed by this observable."""
         return {"dict", "key", "value"}
 
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> OwnedFullHookProtocol[Any]:
+    def _get_hook(self, key: Literal["dict", "key", "value"]) -> OwnedHookProtocol[Any]:
         if key == "dict":
             return self._dict_hook
         elif key == "key":
@@ -311,7 +311,7 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         else:
             _inferred_value = dict_value[key_value]
 
-        OwnedFullHookProtocol[Any].submit_values(
+        OwnedHook[Any].submit_values(
             {
                 self._dict_hook: dict_value,
                 self._key_hook: key_value,

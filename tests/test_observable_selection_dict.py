@@ -2,14 +2,14 @@ from typing import Any, Literal, Mapping, Optional
 from logging import Logger, basicConfig, getLogger, DEBUG
 
 from observables import ObservableSelectionDict, ObservableOptionalSelectionDict, FloatingHook
-from observables.core import OwnedHook, BaseObservable
+from observables.core import OwnedHook, ComplexObservableBase
 import pytest
 
 # Set up logging for tests
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
-class MockObservable(BaseObservable[Literal["value"], Any, Any, Any, "MockObservable"]):
+class MockObservable(ComplexObservableBase[Literal["value"], Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes."""
     
     def __init__(self, name: str):
@@ -63,7 +63,7 @@ class TestObservableSelectionDict:
         value_hook = FloatingHook(value=10, logger=logger)
         
         # Create selection dict
-        selection_dict = ObservableSelectionDict(
+        selection_dict = ObservableSelectionDict[str, int](
             dict_hook=dict_hook,
             key_hook=key_hook,
             value_hook=value_hook,

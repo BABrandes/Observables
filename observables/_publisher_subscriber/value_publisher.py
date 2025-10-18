@@ -43,13 +43,13 @@ Example:
 
 from typing import Generic, Literal, TypeVar
 
-from .._auxiliary.base_listening import BaseListening
+from .._auxiliary.listening_base import ListeningBase
 
 from .publisher import Publisher
 
 T = TypeVar("T")
 
-class ValuePublisher(Publisher, BaseListening, Generic[T]):
+class ValuePublisher(Publisher, ListeningBase, Generic[T]):
     """
     A Publisher that holds a value and publishes automatically on value changes.
     
@@ -68,7 +68,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
     
     Attributes:
         _value (T): The current value held by this publisher.
-        All Publisher and BaseListening attributes are also available.
+        All Publisher and ListeningBase attributes are also available.
     
     Example:
         Simple value publishing::
@@ -171,7 +171,7 @@ class ValuePublisher(Publisher, BaseListening, Generic[T]):
                 user = ValuePublisher(User(name="Alice"))
         """
         self._mode: Literal["async", "sync", "direct", "off"] = mode
-        BaseListening.__init__(self)
+        ListeningBase.__init__(self)
         Publisher.__init__(self)
         self._value = value
         self.publish(mode)

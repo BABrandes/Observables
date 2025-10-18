@@ -70,10 +70,10 @@ from typing import Callable, Generic, Mapping, Optional, TypeVar, Literal
 from logging import Logger
 
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_like import HookLike
-from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._auxiliary.base_listening import BaseListening
-from .._carries_hooks.base_carries_hooks import BaseCarriesHooks
+from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._auxiliary.listening_base import ListeningBase
+from .._carries_hooks.carries_hooks_base import CarriesHooksBase
 from .._nexus_system.hook_nexus import HookNexus
 
 # Type variables for input and output hook names
@@ -83,7 +83,7 @@ IHV = TypeVar("IHV")
 OHV = TypeVar("OHV")
 
 
-class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "ObservableTransfer"], Generic[IHK, OHK, IHV, OHV]):
+class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "ObservableTransfer"], Generic[IHK, OHK, IHV, OHV]):
     """
     An observable that transforms values between input and output hooks using the new hook-based architecture.
     
@@ -111,7 +111,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
 
     def __init__(
         self,
-        input_trigger_hooks: Mapping[IHK, HookLike[IHV]|IHV],
+        input_trigger_hooks: Mapping[IHK, HookProtocol[IHV]|IHV],
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
         output_trigger_hook_keys: set[OHK],
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
@@ -146,7 +146,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         
         Note:
             For each key in the dictionaries, an internal hook is created:
-            - If the value is a HookLike object, it's connected to the internal hook
+            - If the value is a HookProtocol object, it's connected to the internal hook
             - If the value is a value, the internal hook remains standalone
             This ensures all transformation keys have corresponding hooks for the CarriesHooks interface.
 
@@ -174,8 +174,8 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
         self._reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = reverse_callable
 
-        self._input_hooks: dict[IHK, HookLike[IHV]|IHV] = {}
-        self._output_hooks: dict[OHK, HookLike[OHV]|OHV] = {}
+        self._input_hooks: dict[IHK, HookProtocol[IHV]|IHV] = {}
+        self._output_hooks: dict[OHK, HookProtocol[OHV]|OHV] = {}
 
         self._assume_inverse_callable_is_always_valid: bool = assume_inverse_callable_is_always_valid
         self._precision_threshold_for_inverse_callable_validation: float = precision_threshold_for_inverse_callable_validation
@@ -183,7 +183,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         # Create input hooks for all keys, connecting to external hooks when provided
         for key, external_hook_or_value in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
-            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookLike) else external_hook_or_value # type: ignore
+            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, HookProtocol) else external_hook_or_value # type: ignore
             internal_hook_input: OwnedHook[IHV] = OwnedHook(
                 owner=self,
                 initial_value=initial_value_input,
@@ -205,7 +205,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
             )
             self._output_hooks[key] = internal_hook_output
 
-        BaseListening.__init__(self, logger)
+        ListeningBase.__init__(self, logger)
 
         def add_values_to_be_updated_callback(
             self_ref: "ObservableTransfer[IHK, OHK, IHV, OHV]",
@@ -266,7 +266,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
 
             return values_to_be_added
 
-        BaseCarriesHooks.__init__( # type: ignore
+        CarriesHooksBase.__init__( # type: ignore
             self,
             logger=logger,
             invalidate_callback=None,
@@ -283,14 +283,14 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
         # Connect the internal hook to the external hook if provided
         for key, external_hook_or_value in input_trigger_hooks.items():
             internal_hook_input = self._input_hooks[key] # type: ignore
-            if isinstance(external_hook_or_value, HookLike):
+            if isinstance(external_hook_or_value, HookProtocol):
                 internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################
     # BaseCarriesHooks abstract methods
     #########################################################################
 
-    def _get_hook(self, key: IHK|OHK) -> "HookWithOwnerLike[IHV|OHV]":
+    def _get_hook(self, key: IHK|OHK) -> "HookWithOwnerProtocol[IHV|OHV]":
         """Get a hook by its key (either input or output)."""
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore
@@ -310,7 +310,7 @@ class ObservableTransfer(BaseListening, BaseCarriesHooks[IHK|OHK, IHV|OHV, "Obse
     def _get_hook_keys(self) -> set[IHK|OHK]:
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "HookLike[IHV|OHV]|HookNexus[IHV|OHV]") -> IHK|OHK:
+    def _get_hook_key(self, hook_or_nexus: "HookProtocol[IHV|OHV]|HookNexus[IHV|OHV]") -> IHK|OHK:
         for key, hook in self._input_hooks.items():
             if hook is hook_or_nexus:
                 return key

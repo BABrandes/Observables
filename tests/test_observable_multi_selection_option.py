@@ -200,7 +200,7 @@ class TestObservableMultiSelectionOption:
         assert end_time - start_time < 60.0, "Initialization should be fast"
         
         # Verify the last target is properly bound
-        target = ObservableMultiSelectionOption(source)
+        target = ObservableMultiSelectionOption[str](source)
         source.selected_options = {"Green"}
         assert target.selected_options == {"Green"}
     

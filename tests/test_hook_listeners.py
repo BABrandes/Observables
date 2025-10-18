@@ -1,25 +1,25 @@
 from unittest.mock import Mock
 from typing import Any
 
-from observables import HookLike
-from observables.core import BaseCarriesHooks, OwnedHook
+from observables import HookProtocol
+from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
+from observables._hooks.owned_hook import OwnedHook
 
 from observables._nexus_system.hook_nexus import HookNexus
-from observables._auxiliary.base_listening import BaseListening
-import pytest
+from observables._auxiliary.listening_base import ListeningBase
 
-class MockCarriesHooks(BaseCarriesHooks[Any, Any, "MockCarriesHooks"]):
+class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):
         super().__init__()
         self.name = name
-        self._hooks: dict[str, HookLike[Any]] = {}
+        self._hooks: dict[str, HookProtocol[Any]] = {}
     
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
-    def _get_hook_key(self, hook_or_nexus: HookLike[Any]|HookNexus[Any]) -> Any:
+    def _get_hook_key(self, hook_or_nexus: HookProtocol[Any]|HookNexus[Any]) -> Any:
         """Return a mock key for the hook."""
         return "mock_key"
     
@@ -50,7 +50,7 @@ class TestHookListeners:
     
     def test_hook_inherits_from_base_listening(self):
         """Test that Hook inherits from BaseListening."""
-        assert isinstance(self.hook, BaseListening)
+        assert isinstance(self.hook, ListeningBase)
     
     def test_initial_listeners_state(self):
         """Test initial state of listeners."""
@@ -222,8 +222,8 @@ class TestHookListeners:
     
     def test_multiple_hooks_independent_listeners(self):
         """Test that different hooks have independent listener sets."""
-        owner1: BaseCarriesHooks[str, Any] = MockCarriesHooks("Owner1") # type: ignore
-        owner2: BaseCarriesHooks[str, Any] = MockCarriesHooks("Owner2") # type: ignore
+        owner1: CarriesHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner1") # type: ignore
+        owner2: CarriesHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner2") # type: ignore
         
         hook1 = OwnedHook(owner1, "value1")
         hook2 = OwnedHook(owner2, "value2")

@@ -95,26 +95,27 @@ Advanced Usage:
     >>> # Create custom observable types with low-level components
 """
 
-from ._observables_basic.observable_dict import ObservableDict, ObservableDictLike
-from ._observables_basic.observable_list import ObservableList, ObservableListLike
-from ._observables_basic.observable_set import ObservableSet, ObservableSetLike
-from ._observables_basic.observable_single_value import ObservableSingleValue, ObservableSingleValueLike
-from ._observables_basic.observable_tuple import ObservableTuple, ObservableTupleLike
-from ._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionLike, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionLike
-from ._observables_advanced.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum
-from ._observables_advanced.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionLike
+from ._observables_basic.observable_dict import ObservableDict, ObservableDictProtocol
+from ._observables_basic.observable_list import ObservableList, ObservableListProtocol
+from ._observables_basic.observable_set import ObservableSet, ObservableSetProtocol
+from ._observables_basic.observable_single_value import ObservableSingleValue, ObservableSingleValueProtocol
+from ._observables_basic.observable_tuple import ObservableTuple, ObservableTupleProtocol
+from ._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionProtocol, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionProtocol
+from ._observables_advanced.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum  
+from ._observables_advanced.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionProtocol
 from ._observables_advanced.observable_transfer import ObservableTransfer
 from ._observables_advanced.observable_sync import ObservableSync
 from ._observables_advanced.observable_selection_dict import ObservableSelectionDict, ObservableOptionalSelectionDict, ObservableDefaultSelectionDict, ObservableOptionalDefaultSelectionDict
 from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
 from ._observables_advanced.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
-from ._hooks.hook_like import HookLike
+from ._hooks.hook_protocol import HookProtocol
 from ._nexus_system.system_analysis import write_report
 from ._carries_hooks.observable_serializable import ObservableSerializable
 from ._observables_advanced.observable_subscriber import ObservableSubscriber
-from ._publisher_subscriber.publisher import Publisher, PublisherLike
+from ._publisher_subscriber.publisher_protocol import PublisherProtocol
 from ._publisher_subscriber.value_publisher import ValuePublisher
+from ._publisher_subscriber.publisher import Publisher
 
 __all__ = [
     # Observable types
@@ -139,23 +140,23 @@ __all__ = [
     'ObservableSubscriber',
 
     # Protocol types for type hints
-    'ObservableDictLike',
-    'ObservableListLike',
-    'ObservableSetLike',
-    'ObservableSingleValueLike',
-    'ObservableTupleLike',
-    'ObservableSelectionOptionLike',
-    'ObservableOptionalSelectionOptionLike',
-    'ObservableMultiSelectionOptionLike',
+    'ObservableDictProtocol',
+    'ObservableListProtocol',
+    'ObservableSetProtocol',
+    'ObservableSingleValueProtocol',
+    'ObservableTupleProtocol',
+    'ObservableSelectionOptionProtocol',
+    'ObservableOptionalSelectionOptionProtocol',
+    'ObservableMultiSelectionOptionProtocol',
 
     # hooks (user-facing)
-    'HookLike',
+    'HookProtocol',
     'FloatingHook',
 
     # Other
-    'Publisher',
-    'PublisherLike',
+    'PublisherProtocol',
     'ValuePublisher',
+    'Publisher',
 
     # Utilities
     'ObservableSerializable',

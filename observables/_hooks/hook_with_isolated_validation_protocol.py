@@ -1,10 +1,10 @@
 from typing import TypeVar, Protocol, runtime_checkable
-from .hook_like import HookLike
+from .hook_protocol import HookProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class HookWithIsolatedValidationLike(HookLike[T], Protocol[T]):
+class HookWithIsolatedValidationProtocol(HookProtocol[T], Protocol[T]):
     """
     Protocol for hook objects that can validate values in isolation (independent of other hooks in the same nexus).
     """

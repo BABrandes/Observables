@@ -1,10 +1,10 @@
 from typing import TypeVar, Protocol, runtime_checkable
-from .hook_like import HookLike
+from .hook_protocol import HookProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class HookWithReactionLike(HookLike[T], Protocol[T]):
+class HookWithReactionProtocol(HookProtocol[T], Protocol[T]):
     """
     Protocol for hook objects that can react to value changes.
     """

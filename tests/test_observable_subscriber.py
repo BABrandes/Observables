@@ -22,9 +22,8 @@ class TestObservableSubscriber(ObservableTestCase):
         self.callback_call_count = 0
         self.last_publisher: Optional[Publisher] = None
     
-    def tearDown(self):
+    def teardown_method(self):
         self.loop.close()
-        super().tearDown()
     
     def simple_callback(self, pub: Optional[Publisher]) -> Mapping[str, int]:
         """Simple callback that tracks calls and returns test data"""
@@ -224,9 +223,8 @@ class TestObservableSubscriberEdgeCases(ObservableTestCase):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
-    def tearDown(self):
+    def teardown_method(self):
         self.loop.close()
-        super().tearDown()
     
     def test_callback_exception_handling(self):
         """Test that callback exceptions are handled"""
@@ -286,9 +284,8 @@ class TestObservableSubscriberIntegration(ObservableTestCase):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
     
-    def tearDown(self):
+    def teardown_method(self):
         self.loop.close()
-        super().tearDown()
     
     def test_multiple_observables_same_publisher(self):
         """Test multiple ObservableSubscribers on same Publisher"""

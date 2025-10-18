@@ -32,7 +32,7 @@ Example:
 from typing import Generic, TypeVar, Callable, Mapping, Optional, Literal
 from logging import Logger
 
-from .._carries_hooks.base_observable import BaseObservable
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._publisher_subscriber.publisher import Publisher
 from .._publisher_subscriber.subscriber import Subscriber
 from .._nexus_system.nexus_manager import NexusManager
@@ -42,7 +42,7 @@ HK = TypeVar("HK")
 HV = TypeVar("HV")
 
 
-class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscriber"], Subscriber, Generic[HK, HV]):
+class ObservableSubscriber(ComplexObservableBase[HK, None, HV, None, "ObservableSubscriber"], Subscriber, Generic[HK, HV]):
     """
     Observable that automatically updates in response to Publisher publications.
     
@@ -214,7 +214,7 @@ class ObservableSubscriber(BaseObservable[HK, None, HV, None, "ObservableSubscri
         initial_values: Mapping[HK, HV] = self._on_publication_callback(None)
         
         Subscriber.__init__(self)
-        BaseObservable.__init__( # type: ignore
+        ComplexObservableBase.__init__( # type: ignore
             self,
             initial_values,
             None,

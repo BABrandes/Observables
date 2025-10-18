@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from .subscriber import Subscriber
 
 @runtime_checkable
-class PublisherLike(Protocol):
+class PublisherProtocol(Protocol):
 
     def add_subscriber(self, subscriber: "Subscriber|Callable[[], None]") -> None:
         """

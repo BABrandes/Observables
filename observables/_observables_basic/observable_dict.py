@@ -1,10 +1,10 @@
 from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
 from logging import Logger
 
-from .._hooks.hook_like import HookLike
-from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._carries_hooks.base_observable import BaseObservable
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._nexus_system.submission_error import SubmissionError
 
@@ -12,7 +12,7 @@ K = TypeVar("K")
 V = TypeVar("V")
 
 @runtime_checkable
-class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
+class ObservableDictProtocol(CarriesHooksProtocol[Any, Any], Protocol[K, V]):
     """
     Protocol for observable dictionary objects.
     """
@@ -32,7 +32,7 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         ...
 
     @property
-    def value_hook(self) -> HookWithOwnerLike[dict[K, V]]:
+    def value_hook(self) -> HookWithOwnerProtocol[dict[K, V]]:
         """
         Get the hook for the dictionary.
         """
@@ -52,13 +52,13 @@ class ObservableDictLike(CarriesHooksLike[Any, Any], Protocol[K, V]):
         ...
     
     @property
-    def length_hook(self) -> HookWithOwnerLike[int]:
+    def length_hook(self) -> HookWithOwnerProtocol[int]:
         """
         Get the hook for the dictionary length.
         """
         ...
     
-class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K, V], int, "ObservableDict"], ObservableDictLike[K, V], ObservableSerializable[Literal["value"], dict[K, V]], Generic[K, V]):
+class ObservableDict(ComplexObservableBase[Literal["dict_value"], Literal["dict_length", "dict_keys", "dict_values"], dict[K, V], int|set[K]|list[V], "ObservableDict"], ObservableDictProtocol[K, V], ObservableSerializable[Literal["dict_value"], dict[K, V]], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -91,7 +91,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
     """
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: HookProtocol[dict[K, V]], validator: Optional[Callable[[dict[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with a direct dictionary value."""
         ...
     
@@ -101,8 +101,8 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         ...
 
     @overload
-    def __init__(self, observable: ObservableDictLike[K, V], logger: Optional[Logger] = None) -> None:
-        """Initialize from another ObservableDictLike object."""
+    def __init__(self, observable: ObservableDictProtocol[K, V], logger: Optional[Logger] = None) -> None:
+        """Initialize from another ObservableDictProtocol object."""
         ...
     
     @overload
@@ -110,7 +110,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookLike[dict[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: dict[K, V] | HookProtocol[dict[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -123,29 +123,33 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
 
         if observable_or_hook_or_value is None:
             initial_dict_value: dict[K, V] = {}
-            hook: Optional[HookLike[dict[K, V]]] = None
-        elif isinstance(observable_or_hook_or_value, ObservableDictLike):
+            hook: Optional[HookProtocol[dict[K, V]]] = None
+        elif isinstance(observable_or_hook_or_value, ObservableDictProtocol):
             initial_dict_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, HookLike):
+        elif isinstance(observable_or_hook_or_value, HookProtocol):
             initial_dict_value = observable_or_hook_or_value.value
             hook = observable_or_hook_or_value
         else:
             initial_dict_value = observable_or_hook_or_value.copy()
             hook = None
 
-        def is_valid_value(x: Mapping[Literal["value"], Any]) -> tuple[bool, str]:
-            return (True, "Verification method passed") if isinstance(x["value"], dict) else (False, "Value is not a dictionary")
+        def is_valid_value(x: Mapping[Literal["dict_value"], Any]) -> tuple[bool, str]:
+            return (True, "Verification method passed") if isinstance(x["dict_value"], dict) else (False, "Value is not a dictionary")
 
         super().__init__(
-            initial_component_values_or_hooks={"value": initial_dict_value},
+            initial_component_values_or_hooks={"dict_value": initial_dict_value},
             verification_method=is_valid_value,
-            secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
+            secondary_hook_callbacks={
+                "dict_length": lambda x: len(x["dict_value"]),
+                "dict_keys": lambda x: set(x["dict_value"].keys()),
+                "dict_values": lambda x: list(x["dict_value"].values())
+            },
             logger=logger
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", "use_target_value") # type: ignore
+            self.connect_hook(hook, "dict_value", "use_target_value") # type: ignore
 
     @property
     def value(self) -> dict[K, V]:
@@ -155,16 +159,16 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             A copy of the current dictionary value
         """
-        return self._primary_hooks["value"].value.copy() # type: ignore
+        return self._primary_hooks["dict_value"].value.copy() # type: ignore
     
     @value.setter
     def value(self, value: dict[K, V]) -> None:
         """
         Set the current value of the dictionary.
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self.submit_value("dict_value", value)
         if not success:
-            raise SubmissionError(msg, value, "value")
+            raise SubmissionError(msg, value, "dict_value")
     
     def change_value(self, new_dict: dict[K, V]) -> None:
         """
@@ -176,34 +180,34 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Args:
             new_dict: The new dictionary to set
         """
-        success, msg = self.submit_value("value", new_dict)
+        success, msg = self.submit_value("dict_value", new_dict)
         if not success:
             raise SubmissionError(msg, new_dict, "value")
 
     @property
-    def value_hook(self) -> HookWithOwnerLike[dict[K, V]]:
+    def value_hook(self) -> HookWithOwnerProtocol[dict[K, V]]:
         """
         Get the hook for the dictionary.
         
         This hook can be used for binding operations with other observables.
         """
-        return self._primary_hooks["value"] # type: ignore
+        return self._primary_hooks["dict_value"] # type: ignore
     
     @property
     def length(self) -> int:
         """
         Get the current length of the dictionary.
         """
-        return len(self._primary_hooks["value"].value) # type: ignore
+        return len(self._primary_hooks["dict_value"].value) # type: ignore
     
     @property
-    def length_hook(self) -> HookWithOwnerLike[int]:
+    def length_hook(self) -> HookWithOwnerProtocol[int]:
         """
         Get the hook for the dictionary length.
         
         This hook can be used for binding operations that react to length changes.
         """
-        return self._secondary_hooks["length"] # type: ignore
+        return self._secondary_hooks["dict_length"] # type: ignore
     
     
     def set_item(self, key: K, value: V) -> None:
@@ -234,7 +238,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             The value associated with the key, or the default value if key not found
         """
-        return self._primary_hooks["value"].value.get(key, default) # type: ignore
+        return self._primary_hooks["dict_value"].value.get(key, default) # type: ignore
     
     def has_key(self, key: K) -> bool:
         """
@@ -246,7 +250,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._primary_hooks["value"].value # type: ignore
+        return key in self._primary_hooks["dict_value"].value # type: ignore
     
     def remove_item(self, key: K) -> None:
         """
@@ -258,9 +262,9 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Args:
             key: The key to remove
         """
-        if key not in self._primary_hooks["value"].value: # type: ignore
+        if key not in self._primary_hooks["dict_value"].value: # type: ignore
             return  # No change
-        new_dict: dict[K, V] = self._primary_hooks["value"].value.copy() # type: ignore
+        new_dict: dict[K, V] = self._primary_hooks["dict_value"].value.copy() # type: ignore
         del new_dict[key]
         self.value = new_dict # type: ignore
     
@@ -271,7 +275,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         This method removes all key-value pairs from the dictionary, using
         set_observed_values to ensure all changes go through the centralized protocol method.
         """
-        if not self._primary_hooks["value"].value: # type: ignore
+        if not self._primary_hooks["dict_value"].value: # type: ignore
             return  # No change
         new_dict: dict[K, V] = {}
         self.value = new_dict
@@ -291,14 +295,14 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         # Check if any values would actually change
         has_changes = False
         for key, value in other_dict.items():
-            if key not in self._primary_hooks["value"].value or self._primary_hooks["value"].value[key] != value: # type: ignore
+            if key not in self._primary_hooks["dict_value"].value or self._primary_hooks["dict_value"].value[key] != value: # type: ignore
                 has_changes = True
                 break
         
         if not has_changes:
             return  # No change
         
-        new_dict = self._primary_hooks["value"].value.copy() # type: ignore
+        new_dict = self._primary_hooks["dict_value"].value.copy() # type: ignore
         new_dict.update(other_dict) # type: ignore
         self.value = new_dict # type: ignore
     
@@ -309,7 +313,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             A set containing all keys in the dictionary
         """
-        return set(self._primary_hooks["value"].value.keys()) # type: ignore
+        return set(self._primary_hooks["dict_value"].value.keys()) # type: ignore
     
     def values(self) -> list[V]:
         """
@@ -318,7 +322,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             A list containing all values in the dictionary
         """
-        return list(self._primary_hooks["value"].value.values()) # type: ignore
+        return list(self._primary_hooks["dict_value"].value.values()) # type: ignore
     
     def items(self) -> list[tuple[K, V]]:
         """
@@ -327,7 +331,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             A list of tuples, each containing a key-value pair
         """
-        return list(self._primary_hooks["value"].value.items()) # type: ignore
+        return list(self._primary_hooks["dict_value"].value.items()) # type: ignore
     
     def __len__(self) -> int:
         """
@@ -336,7 +340,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             The number of key-value pairs
         """
-        return len(self._primary_hooks["value"].value) # type: ignore
+        return len(self._primary_hooks["dict_value"].value) # type: ignore
     
     def __contains__(self, key: K) -> bool:
         """
@@ -348,7 +352,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Returns:
             True if the key exists, False otherwise
         """
-        return key in self._primary_hooks["value"].value # type: ignore
+        return key in self._primary_hooks["dict_value"].value # type: ignore
     
     def __getitem__(self, key: K) -> V:
         """
@@ -363,9 +367,9 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        if key not in self._primary_hooks["value"].value: # type: ignore
+        if key not in self._primary_hooks["dict_value"].value: # type: ignore
             raise KeyError(f"Key '{key}' not found in dictionary")
-        return self._primary_hooks["value"].value[key] # type: ignore
+        return self._primary_hooks["dict_value"].value[key] # type: ignore
     
     def __setitem__(self, key: K, value: V) -> None:
         """
@@ -378,7 +382,7 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
             key: The key to set or update
             value: The value to associate with the key
         """
-        self.value = {**self._primary_hooks["value"].value, key: value} # type: ignore
+        self.value = {**self._primary_hooks["dict_value"].value, key: value} # type: ignore
     
     def __delitem__(self, key: K) -> None:
         """
@@ -393,18 +397,38 @@ class ObservableDict(BaseObservable[Literal["value"], Literal["length"], dict[K,
         Raises:
             KeyError: If the key is not found in the dictionary
         """
-        self.value = {k: v for k, v in self._primary_hooks["value"].value.items() if k != key} # type: ignore
+        self.value = {k: v for k, v in self._primary_hooks["dict_value"].value.items() if k != key} # type: ignore
     
     def __str__(self) -> str:
-        return f"OD(dict={self._primary_hooks['value'].value})"
+        return f"OD(dict={self._primary_hooks['dict_value'].value})"
     
     def __repr__(self) -> str:
-        return f"ObservableDict({self._primary_hooks['value'].value})"
+        return f"ObservableDict({self._primary_hooks['dict_value'].value})"
 
     #### ObservableSerializable implementation ####
 
-    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], dict[K, V]]:
-        return {"value": self._primary_hooks["value"].value}
+    def get_value_references_for_serialization(self) -> Mapping[Literal["dict_value"], dict[K, V]]:
+        return {"dict_value": self._primary_hooks["dict_value"].value}
 
-    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], dict[K, V]]) -> None:
-        self.value = values["value"]
+    def set_value_references_from_serialization(self, values: Mapping[Literal["dict_value"], dict[K, V]]) -> None:
+        self.value = values["dict_value"]
+
+    #########################################################
+    # Hooks
+    #########################################################
+
+    @property
+    def hook_of_dict(self) -> HookWithOwnerProtocol[dict[K, V]]:
+        return self._primary_hooks["dict_value"]
+    
+    @property
+    def hook_of_dict_length(self) -> HookWithOwnerProtocol[int]:
+        return self._secondary_hooks["dict_length"] # type: ignore
+    
+    @property
+    def hook_of_dict_keys(self) -> HookWithOwnerProtocol[set[K]]:
+        return self._secondary_hooks["dict_keys"] # type: ignore
+    
+    @property
+    def hook_of_dict_values(self) -> HookWithOwnerProtocol[list[V]]:
+        return self._secondary_hooks["dict_values"] # type: ignore

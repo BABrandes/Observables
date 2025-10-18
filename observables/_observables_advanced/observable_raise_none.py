@@ -1,16 +1,16 @@
 from typing import Generic, TypeVar, Literal, Optional, Mapping
 from logging import Logger
 
-from observables._carries_hooks.base_carries_hooks import BaseCarriesHooks
-from observables._hooks.hook_with_owner_like import HookWithOwnerLike
+from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
+from observables._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
 from observables._hooks.owned_hook import OwnedHook
-from observables._hooks.hook_like import HookLike
+from observables._hooks.hook_protocol import HookProtocol
 from observables._nexus_system.hook_nexus import HookNexus
 
 T = TypeVar("T")
 
 
-class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_with_none"], T, "ObservableRaiseNone[T]"], Generic[T]):
+class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_with_none"], T, "ObservableRaiseNone[T]"], Generic[T]):
     """
     An observable that maintains two synchronized hooks and raises errors when None values are submitted.
     
@@ -27,16 +27,16 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     
     Parameters
     ----------
-    hook_without_None_or_value : HookLike[T] | None | T
+    hook_without_None_or_value : HookProtocol[T] | None | T
         Either:
         - A value of type T to initialize both hooks
-        - A HookLike[T] to connect to the internal hook_without_None
+        - A HookProtocol[T] to connect to the internal hook_without_None
         - None (if hook_with_None is provided)
         At least one of hook_without_None_or_value or hook_with_None must be provided.
         
-    hook_with_None : HookLike[Optional[T]] | None
+    hook_with_None : HookProtocol[Optional[T]] | None
         Either:
-        - A HookLike[Optional[T]] to connect to the internal hook_with_None
+        - A HookProtocol[Optional[T]] to connect to the internal hook_with_None
         - None (if hook_without_None_or_value is provided)
         At least one of hook_without_None_or_value or hook_with_None must be provided.
         
@@ -45,11 +45,11 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     
     Attributes
     ----------
-    hook_with_None : HookWithOwnerLike[Optional[T]]
+    hook_with_None : HookWithOwnerProtocol[Optional[T]]
         The internal hook typed as Optional[T]. Despite the type allowing None,
         submitting None will raise a ValueError.
         
-    hook_without_None : HookWithOwnerLike[T]
+    hook_without_None : HookWithOwnerProtocol[T]
         The internal hook typed as T (non-optional). This hook is guaranteed
         to never contain None values.
     
@@ -129,8 +129,8 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     """
     def __init__(
         self,
-        hook_without_None_or_value: HookLike[T]|None|T,
-        hook_with_None: HookLike[Optional[T]]|None = None,
+        hook_without_None_or_value: HookProtocol[T]|None|T,
+        hook_with_None: HookProtocol[Optional[T]]|None = None,
         logger: Optional[Logger] = None
         ):
 
@@ -200,14 +200,14 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
             initial_value: T = hook_with_None.value # type: ignore
         
         elif hook_with_None is None and hook_without_None_or_value is not None:
-            if isinstance(hook_without_None_or_value, HookLike):
+            if isinstance(hook_without_None_or_value, HookProtocol):
                 initial_value = hook_without_None_or_value.value # type: ignore 
             else:
                 # This is a value
                 initial_value = hook_without_None_or_value
         
         elif hook_with_None is not None and hook_without_None_or_value is not None:
-            if isinstance(hook_without_None_or_value, HookLike):
+            if isinstance(hook_without_None_or_value, HookProtocol):
                 if self.nexus_manager.is_not_equal(hook_with_None.value, hook_without_None_or_value.value): # type: ignore
                     raise ValueError("Values do not match of the two given hooks!")
                 initial_value = hook_with_None.value # type: ignore
@@ -233,7 +233,7 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
-    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> HookWithOwnerLike[T]:
+    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> HookWithOwnerProtocol[T]:
         """
         Get a hook by its key.
         """
@@ -257,7 +257,7 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
         """
         return {"value_without_none", "value_with_none"}
 
-    def _get_hook_key(self, hook_or_nexus: "HookLike[T]|HookNexus[T]") -> Literal["value_without_none", "value_with_none"]:
+    def _get_hook_key(self, hook_or_nexus: "HookProtocol[T]|HookNexus[T]") -> Literal["value_without_none", "value_with_none"]:
         """
         Get a key by its hook or nexus.
         """
@@ -273,14 +273,14 @@ class ObservableRaiseNone(BaseCarriesHooks[Literal["value_without_none", "value_
     #########################################################################
 
     @property
-    def hook_with_None(self) -> HookWithOwnerLike[Optional[T]]:
+    def hook_with_None(self) -> HookWithOwnerProtocol[Optional[T]]:
         """
         Get the hook with None.
         """
         return self._hook_with_None
 
     @property
-    def hook_without_None(self) -> HookWithOwnerLike[T]:
+    def hook_without_None(self) -> HookWithOwnerProtocol[T]:
         """
         Get the hook without None.
         """

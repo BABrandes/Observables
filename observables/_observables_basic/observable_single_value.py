@@ -1,17 +1,17 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from logging import Logger
 
-from .._hooks.hook_like import HookLike
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
-from .._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
-from .._carries_hooks.base_observable import BaseObservable
+from .._hooks.hook_protocol import HookProtocol
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._nexus_system.submission_error import SubmissionError
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSingleValueLike(CarriesSingleHookLike[T], CarriesHooksLike[Any, T], Protocol[T]):
+class ObservableSingleValueProtocol(CarriesSingleHookProtocol[T], CarriesHooksProtocol[Any, T], Protocol[T]):
     """
     Protocol for observable single value objects.
     """
@@ -37,13 +37,13 @@ class ObservableSingleValueLike(CarriesSingleHookLike[T], CarriesHooksLike[Any, 
         ...
 
     @property
-    def hook(self) -> HookLike[T]:
+    def hook(self) -> HookProtocol[T]:
         """
         Get the hook for the value.
         """
         ...
     
-class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueLike[T], ObservableSerializable[Literal["value"], T], Generic[T]):
+class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueProtocol[T], ObservableSerializable[Literal["value"], T], Generic[T]):
     """
     Observable wrapper for a single value with validation and bidirectional binding.
     
@@ -58,7 +58,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
     
     Multiple Inheritance:
         - BaseObservable: Core observable functionality with hook management
-        - ObservableSingleValueLike[T]: Protocol for single value interface
+        - ObservableSingleValueProtocol[T]: Protocol for single value interface
         - ObservableSerializable: Support for serialization callbacks
         - Generic[T]: Type-safe value storage and operations
     
@@ -129,30 +129,30 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         ...
     
     @overload
-    def __init__(self, hook: HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, hook: HookProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableSingleValueLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableSingleValueProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | HookLike[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | HookProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableSingleValue.
         
         This constructor supports three initialization patterns:
         
         1. **Direct value**: Pass a value directly
-        2. **From hook**: Pass a HookLike to bind to
+        2. **From hook**: Pass a HookProtocol to bind to
         3. **From observable**: Pass another ObservableSingleValue to bind to
         
         Args:
             observable_or_hook_or_value: Can be one of three types:
                 - T: A direct value (int, str, list, custom object, etc.)
-                - HookLike[T]: A hook to bind to (establishes bidirectional connection)
-                - ObservableSingleValueLike[T]: Another observable to bind to
+                - HookProtocol[T]: A hook to bind to (establishes bidirectional connection)
+                - ObservableSingleValueProtocol[T]: Another observable to bind to
             validator: Optional validation function that takes a value and returns
                 (success: bool, message: str). Called before any value change.
                 If validation fails (success=False), the change is rejected with
@@ -185,10 +185,10 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
                 )
         """
 
-        if isinstance(observable_or_hook_or_value, HookLike):
+        if isinstance(observable_or_hook_or_value, HookProtocol):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[HookLike[T]] = observable_or_hook_or_value #type: ignore
-        elif isinstance(observable_or_hook_or_value, ObservableSingleValueLike):
+            hook: Optional[HookProtocol[T]] = observable_or_hook_or_value #type: ignore
+        elif isinstance(observable_or_hook_or_value, ObservableSingleValueProtocol):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.hook # type: ignore
         else:
@@ -246,7 +246,7 @@ class ObservableSingleValue(BaseObservable[Literal["value"], Any, T, Any, "Obser
         self.value = value
     
     @property
-    def hook(self) -> HookLike[T]:
+    def hook(self) -> HookProtocol[T]:
         """
         Get the hook for the value.
         

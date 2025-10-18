@@ -22,8 +22,8 @@ from observables import (
 )
 
 # Hook types (for advanced usage)
-from observables import Hook, HookLike, OwnedHook, FloatingHook, HookNexus
-from observables import HookWithOwnerLike, HookWithIsolatedValidationLike, HookWithReactionLike
+from observables import Hook, HookProtocol, OwnedHook, FloatingHook, HookNexus
+from observables import HookWithOwnerProtocol, HookWithIsolatedValidationProtocol, HookWithReactionLike
 
 # Utility types
 from observables import BaseObservable
@@ -66,7 +66,7 @@ Base class for all observable types, providing core binding and validation funct
 Binds this observable to another observable's hook, creating bidirectional synchronization.
 
 **Parameters:**
-- `hook: HookLike[T]` - The hook to bind to
+- `hook: HookProtocol[T]` - The hook to bind to
 - `component_name: str` - Name of the component being bound
 - `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - How to synchronize initial values
 - `logger: Optional[Logger]` - Logger for debugging (optional)
@@ -231,11 +231,11 @@ Observable wrapper for single values with bidirectional binding and validation.
 ### **Constructor**
 
 ```python
-def __init__(self, single_value: Union[T, HookLike[T]], logger: Optional[Logger] = None)
+def __init__(self, single_value: Union[T, HookProtocol[T]], logger: Optional[Logger] = None)
 ```
 
 **Parameters:**
-- `single_value: Union[T, HookLike[T]]` - Initial value or hook to bind to
+- `single_value: Union[T, HookProtocol[T]]` - Initial value or hook to bind to
 - `logger: Optional[Logger]` - Logger for debugging
 
 **Example:**
@@ -264,7 +264,7 @@ obs.value = "world"
 print(obs.value)  # "world"
 ```
 
-#### **`single_value_hook: HookLike[T]`**
+#### **`single_value_hook: HookProtocol[T]`**
 
 Hook providing access to the single value for binding operations.
 
@@ -295,7 +295,7 @@ Observable wrapper for lists with bidirectional binding and item-level validatio
 ### **Constructor**
 
 ```python
-def __init__(self, list_value: Union[List[T], HookLike[List[T]]], logger: Optional[Logger] = None)
+def __init__(self, list_value: Union[List[T], HookProtocol[List[T]]], logger: Optional[Logger] = None)
 ```
 
 ### **Properties**
@@ -313,7 +313,7 @@ obs.value = [4, 5, 6]
 print(obs.value)  # [4, 5, 6]
 ```
 
-#### **`list_value_hook: HookLike[List[T]]`**
+#### **`list_value_hook: HookProtocol[List[T]]`**
 
 Hook providing access to the list for binding operations.
 
@@ -366,7 +366,7 @@ Observable wrapper for dictionaries with bidirectional binding and key-value val
 ### **Constructor**
 
 ```python
-def __init__(self, dict_value: Union[Dict[K, V], HookLike[Dict[K, V]]], logger: Optional[Logger] = None)
+def __init__(self, dict_value: Union[Dict[K, V], HookProtocol[Dict[K, V]]], logger: Optional[Logger] = None)
 ```
 
 ### **Properties**
@@ -375,7 +375,7 @@ def __init__(self, dict_value: Union[Dict[K, V], HookLike[Dict[K, V]]], logger: 
 
 The current dictionary. Returns a copy to prevent external mutation.
 
-#### **`dict_value_hook: HookLike[Dict[K, V]]`**
+#### **`dict_value_hook: HookProtocol[Dict[K, V]]`**
 
 Hook providing access to the dictionary for binding operations.
 
@@ -412,15 +412,15 @@ Observable for selecting one option from a set of available options, with rigoro
 ```python
 def __init__(
     self, 
-    selected_option: Union[T, ObservableSelectionOptionLike[T]], 
-    available_options: Optional[Union[Set[T], HookLike[Set[T]]]] = None,
+    selected_option: Union[T, ObservableSelectionOptionProtocol[T]], 
+    available_options: Optional[Union[Set[T], HookProtocol[Set[T]]]] = None,
     logger: Optional[Logger] = None
 )
 ```
 
 **Parameters:**
-- `selected_option: Union[T, ObservableSelectionOptionLike[T]]` - Initial selection or source observable
-- `available_options: Optional[Union[Set[T], HookLike[Set[T]]]]` - Available options (optional if binding)
+- `selected_option: Union[T, ObservableSelectionOptionProtocol[T]]` - Initial selection or source observable
+- `available_options: Optional[Union[Set[T], HookProtocol[Set[T]]]]` - Available options (optional if binding)
 - `logger: Optional[Logger]` - Logger for debugging
 
 **Validation Rules:**
@@ -440,11 +440,11 @@ The currently selected option. Must be present in `available_options`.
 
 The set of available options. Returns a copy to prevent external mutation.
 
-#### **`selected_option_hook: HookLike[T]`**
+#### **`selected_option_hook: HookProtocol[T]`**
 
 Hook for the selected option, used for binding operations.
 
-#### **`available_options_hook: HookLike[Set[T]]`**
+#### **`available_options_hook: HookProtocol[Set[T]]`**
 
 Hook for the available options, used for binding operations.
 
@@ -505,8 +505,8 @@ Like `ObservableSelectionOption`, but allows `None` as a valid selection.
 ```python
 def __init__(
     self, 
-    selected_option: Union[Optional[T], ObservableOptionalSelectionOptionLike[T]], 
-    available_options: Optional[Union[Set[T], HookLike[Set[T]]]] = None,
+    selected_option: Union[Optional[T], ObservableOptionalSelectionOptionProtocol[T]], 
+    available_options: Optional[Union[Set[T], HookProtocol[Set[T]]]] = None,
     logger: Optional[Logger] = None
 )
 ```
@@ -541,8 +541,8 @@ Observable for selecting multiple options from a set of available options.
 ```python
 def __init__(
     self, 
-    selected_options: Union[Set[T], HookLike[Set[T]]], 
-    available_options: Union[Set[T], HookLike[Set[T]]],
+    selected_options: Union[Set[T], HookProtocol[Set[T]]], 
+    available_options: Union[Set[T], HookProtocol[Set[T]]],
     logger: Optional[Logger] = None
 )
 ```
@@ -589,15 +589,15 @@ Observable wrapper for enum values with option validation.
 ```python
 def __init__(
     self, 
-    enum_value: Union[E, HookLike[E]], 
-    enum_options: Optional[Union[Set[E], HookLike[Set[E]]]] = None,
+    enum_value: Union[E, HookProtocol[E]], 
+    enum_options: Optional[Union[Set[E], HookProtocol[Set[E]]]] = None,
     logger: Optional[Logger] = None
 )
 ```
 
 **Parameters:**
-- `enum_value: Union[E, HookLike[E]]` - Initial enum value or hook
-- `enum_options: Optional[Union[Set[E], HookLike[Set[E]]]]` - Available enum options
+- `enum_value: Union[E, HookProtocol[E]]` - Initial enum value or hook
+- `enum_options: Optional[Union[Set[E], HookProtocol[Set[E]]]]` - Available enum options
 - `logger: Optional[Logger]` - Logger for debugging
 
 **Automatic Enum Detection:** If `enum_options` is not provided, all values from the enum class are used.
@@ -654,7 +654,7 @@ Like `ObservableEnum`, but allows `None` as a valid enum value.
 
 ### **Hook Classes and Protocols**
 
-#### **`HookLike[T]`** - Base Protocol
+#### **`HookProtocol[T]`** - Base Protocol
 
 The foundation protocol that all hooks must implement. Provides the core interface for value management, binding, and synchronization.
 
@@ -667,9 +667,9 @@ The foundation protocol that all hooks must implement. Provides the core interfa
 - `lock: RLock` - Thread safety lock
 
 **Key Methods:**
-- `connect_hook(target_hook: HookLike[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
+- `connect_hook(target_hook: HookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
 - `disconnect_hook() -> None`
-- `is_connected_to(hook: HookLike[T]) -> bool`
+- `is_connected_to(hook: HookProtocol[T]) -> bool`
 
 #### **`Hook[T]`** - Standalone Hook
 
@@ -693,7 +693,7 @@ Hook implementation for hooks that belong to observables.
 ```python
 def __init__(
     self, 
-    owner: CarriesHooksLike[Any, Any], 
+    owner: CarriesHooksProtocol[Any, Any], 
     initial_value: T, 
     logger: Optional[Logger] = None,
     nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER
@@ -701,7 +701,7 @@ def __init__(
 ```
 
 **Additional Properties:**
-- `owner: CarriesHooksLike[Any, T]` - The observable that owns this hook
+- `owner: CarriesHooksProtocol[Any, T]` - The observable that owns this hook
 
 #### **`FloatingHook[T]`** - Advanced Hook
 
@@ -725,13 +725,13 @@ def __init__(
 
 #### **Hook Protocols**
 
-##### **`HookWithOwnerLike[T]`**
+##### **`HookWithOwnerProtocol[T]`**
 Protocol for hooks that have an owner (implemented by `OwnedHook`).
 
-##### **`HookWithIsolatedValidationLike[T]`**
+##### **`HookWithIsolatedValidationProtocol[T]`**
 Protocol for hooks with custom validation logic (implemented by `FloatingHook`).
 
-##### **`HookWithReactionLike[T]`**
+##### **`HookWithReactionProtocol[T]`**
 Protocol for hooks that react to value changes (implemented by `FloatingHook`).
 
 #### **`HookNexus[T]`**
@@ -797,7 +797,7 @@ class ObservableTemperature(BaseObservable):
         self._temperature_hook.submit_value(value)
     
     @property
-    def temperature_hook(self) -> HookWithOwnerLike[float]:
+    def temperature_hook(self) -> HookWithOwnerProtocol[float]:
         """Get temperature hook for binding."""
         return self._temperature_hook
 

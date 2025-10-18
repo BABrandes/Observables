@@ -3,20 +3,20 @@ from threading import RLock
 import logging
 import inspect
 
-from .hook_like import HookLike
+from .hook_protocol import HookProtocol
 from .._utils import log
-from .._auxiliary.base_listening import BaseListening
+from .._auxiliary.listening_base import ListeningBase
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.hook_nexus import HookNexus
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._nexus_system.has_nexus_manager import HasNexusManager
-from .._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
+from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from .._publisher_subscriber.publisher import Publisher
 
 T = TypeVar("T")
 
 
-class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T]):
+class HookBase(HasNexusManager, Publisher, HookProtocol[T], ListeningBase, Generic[T]):
     """
     A base class for hooks for independent value management.
     
@@ -31,7 +31,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
     Multiple Inheritance:
         - HasNexusManager: Integration with the centralized nexus management system
         - Publisher: Can publish notifications to subscribers (async, sync, direct modes)
-        - HookLike[T]: Implements the hook interface for binding and value access
+        - HookProtocol[T]: Implements the hook interface for binding and value access
         - BaseListening: Support for listener callbacks (synchronous notifications)
         - Generic[T]: Type-safe generic value storage
     
@@ -117,7 +117,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
 
         HasNexusManager.__init__(self, nexus_manager)
 
-        BaseListening.__init__(self, logger)
+        ListeningBase.__init__(self, logger)
         self._value = value
         self._nexus_manager = nexus_manager
 
@@ -176,7 +176,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
         """Get the hook nexus that this hook belongs to."""
         return self._hook_nexus
 
-    def connect_hook(self, target_hook: "HookLike[T]|CarriesSingleHookLike[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def connect_hook(self, target_hook: "HookProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook in the new architecture.
 
@@ -185,7 +185,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
         system with a more flexible hook-based approach.
 
         Args:
-            target_hook: The hook or CarriesSingleHookLike to connect to
+            target_hook: The hook or CarriesSingleHookProtocol to connect to
             initial_sync_mode: The initial synchronization mode
             
         Returns:
@@ -199,7 +199,7 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
             if target_hook is None: # type: ignore
                 raise ValueError("Cannot connect to None hook")
 
-            if isinstance(target_hook, CarriesSingleHookLike):
+            if isinstance(target_hook, CarriesSingleHookProtocol):
                 target_hook = target_hook.hook
             
             if initial_sync_mode == "use_caller_value":
@@ -258,19 +258,19 @@ class HookBase(HasNexusManager, Publisher, HookLike[T], BaseListening, Generic[T
             # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others
 
-    def is_connected_to(self, hook: "HookLike[T]|CarriesSingleHookLike[T]") -> bool:
+    def is_connected_to(self, hook: "HookProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
 
         Args:
-            hook: The hook or CarriesSingleHookLike to check if it is connected to
+            hook: The hook or CarriesSingleHookProtocol to check if it is connected to
 
         Returns:
-            True if the hook is connected to the other hook or CarriesSingleHookLike, False otherwise
+            True if the hook is connected to the other hook or CarriesSingleHookProtocol, False otherwise
         """
 
         with self._lock:
-            if isinstance(hook, CarriesSingleHookLike):
+            if isinstance(hook, CarriesSingleHookProtocol):
                 hook = hook.hook
             return hook in self._hook_nexus.hooks
     

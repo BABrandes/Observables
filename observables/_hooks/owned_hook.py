@@ -1,17 +1,17 @@
 from typing import Generic, Optional, TypeVar, Any
 from logging import Logger
 
-from .._auxiliary.base_listening import BaseListening
+from .._auxiliary.listening_base import ListeningBase
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 from .hook_base import HookBase
-from .hook_with_owner_like import HookWithOwnerLike
+from .hook_with_owner_protocol import HookWithOwnerProtocol
 
 T = TypeVar("T")
 
-class OwnedHook(HookBase[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
+class OwnedHook(HookBase[T], HookWithOwnerProtocol[T], ListeningBase, Generic[T]):
     """
     A owned hook that provides value access and basic capabilities.
     
@@ -25,13 +25,13 @@ class OwnedHook(HookBase[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
 
     def __init__(
             self,
-            owner: CarriesHooksLike[Any, Any],
+            owner: CarriesHooksProtocol[Any, Any],
             initial_value: T,
             logger: Optional[Logger] = None,
             nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER
             ) -> None:
 
-        BaseListening.__init__(self, logger)
+        ListeningBase.__init__(self, logger)
         HookBase.__init__( # type: ignore
             self,
             value=initial_value,
@@ -42,11 +42,11 @@ class OwnedHook(HookBase[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
         self._owner = owner
 
     @property
-    def owner(self) -> CarriesHooksLike[Any, T]:
+    def owner(self) -> CarriesHooksProtocol[Any, T]:
         """Get the owner of this hook."""
         return self._owner
 
-    def _get_owner(self) -> CarriesHooksLike[Any, T]:
+    def _get_owner(self) -> CarriesHooksProtocol[Any, T]:
         """Get the owner of this hook."""
 
         with self._lock:

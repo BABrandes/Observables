@@ -1,15 +1,15 @@
 from typing import Any, Literal, Mapping, Optional
 from logging import Logger, basicConfig, getLogger, DEBUG
 
-from observables import ObservableDefaultSelectionDict, FloatingHook, HookLike
-from observables.core import OwnedHook, BaseObservable
+from observables import ObservableDefaultSelectionDict, FloatingHook, HookProtocol
+from observables.core import OwnedHook, ComplexObservableBase
 import pytest
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
 
-class MockObservable(BaseObservable[Literal["value"], Any, Any, Any, "MockObservable"]):
+class MockObservable(ComplexObservableBase[Literal["value"], Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes."""
     
     def __init__(self, name: str):
@@ -81,7 +81,7 @@ class TestObservableDefaultSelectionDict:
         """Test creation with external hooks."""
         # Create external hooks using FloatingHook to avoid owner registration issues
         dict_hook = FloatingHook(value={"x": 10, "y": 20}, logger=logger)
-        key_hook: HookLike[str] = FloatingHook(value="x", logger=logger)
+        key_hook: HookProtocol[str] = FloatingHook(value="x", logger=logger)
         value_hook = FloatingHook(value=10, logger=logger)
         default_value = 999
         

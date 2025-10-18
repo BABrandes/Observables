@@ -3,7 +3,7 @@ from enum import Enum
 from logging import Logger
 
 from .._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableOptionalSelectionOption
-from .._hooks.hook_like import HookLike
+from .._hooks.hook_protocol import HookProtocol
 from .._carries_hooks.observable_serializable import ObservableSerializable
 
 E = TypeVar("E", bound=Enum)
@@ -13,7 +13,7 @@ class ObservableSelectionEnum(ObservableSelectionOption[E], ObservableSerializab
     An observable that manages a selection from a set of enum options.
     """
 
-    def __init__(self, enum_value: E, enum_options: Optional[set[E]] | HookLike[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: E, enum_options: Optional[set[E]] | HookProtocol[set[E]] = None, logger: Optional[Logger] = None) -> None:
         """
         Initialize the ObservableSelectionEnum.
 
@@ -43,7 +43,7 @@ class ObservableOptionalSelectionEnum(ObservableOptionalSelectionOption[E], Obse
     An observable that manages a selection from a set of enum options.
     """
 
-    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] | HookLike[set[E]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, enum_value: Optional[E], enum_options: Optional[set[E]] | HookProtocol[set[E]] = None, logger: Optional[Logger] = None) -> None:
         """
         Initialize the ObservableOptionalSelectionEnum.
         """

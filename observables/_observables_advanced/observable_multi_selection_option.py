@@ -1,14 +1,14 @@
 from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
 from logging import Logger
 
-from .._hooks.hook_like import HookLike
-from .._carries_hooks.base_observable import BaseObservable
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+from .._hooks.hook_protocol import HookProtocol
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableMultiSelectionOptionLike(CarriesHooksLike[Any, Any], Protocol[T]):
+class ObservableMultiSelectionOptionProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
     """
     Protocol for observable multi-selection option objects.
     """
@@ -42,14 +42,14 @@ class ObservableMultiSelectionOptionLike(CarriesHooksLike[Any, Any], Protocol[T]
         ...
 
     @property
-    def available_options_hook(self) -> HookLike[set[T]]:
+    def available_options_hook(self) -> HookProtocol[set[T]]:
         """
         Get the hook for the available options.
         """
         ...
 
     @property
-    def selected_options_hook(self) -> HookLike[set[T]]:
+    def selected_options_hook(self) -> HookProtocol[set[T]]:
         """
         Get the hook for the selected options.
         """
@@ -85,7 +85,7 @@ class ObservableMultiSelectionOptionLike(CarriesHooksLike[Any, Any], Protocol[T]
         """
         ...
 
-class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionLike[T], Generic[T]):
+class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionProtocol[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -129,17 +129,17 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
     """
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]], available_options: HookLike[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: HookProtocol[set[T]], available_options: HookProtocol[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: HookLike[set[T]]|HookLike[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: set[T], available_options: HookProtocol[set[T]]|HookProtocol[set[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: HookLike[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: HookProtocol[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and observable selected options."""
         ...
     
@@ -149,44 +149,44 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         ...
 
     @overload
-    def __init__(self, observable: "ObservableMultiSelectionOptionLike[T]", logger: Optional[Logger] = None) -> None:
-        """Initialize from another ObservableMultiSelectionOptionLike object."""
+    def __init__(self, observable: "ObservableMultiSelectionOptionProtocol[T]", logger: Optional[Logger] = None) -> None:
+        """Initialize from another ObservableMultiSelectionOptionProtocol object."""
         ...
 
-    def __init__(self, selected_options: set[T] | HookLike[set[T]]|"ObservableMultiSelectionOptionLike[T, Any]", available_options: set[T] | HookLike[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_options: set[T] | HookProtocol[set[T]]|"ObservableMultiSelectionOptionProtocol[T, Any]", available_options: set[T] | HookProtocol[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableMultiSelectionOption.
         
         Args:
-            selected_options: Initially selected options, observable set to bind to, or ObservableMultiSelectionOptionLike object
-            available_options: Set of available options or observable set to bind to (optional if selected_options is ObservableMultiSelectionOptionLike)
+            selected_options: Initially selected options, observable set to bind to, or ObservableMultiSelectionOptionProtocol object
+            available_options: Set of available options or observable set to bind to (optional if selected_options is ObservableMultiSelectionOptionProtocol)
             
         Raises:
             ValueError: If any selected option is not in available options set
         """
         
-        # Handle initialization from ObservableMultiSelectionOptionLike
-        if isinstance(selected_options, ObservableMultiSelectionOptionLike):            
+        # Handle initialization from ObservableMultiSelectionOptionProtocol
+        if isinstance(selected_options, ObservableMultiSelectionOptionProtocol):            
             source_observable = selected_options # type: ignore
             initial_selected_options: set[T] = source_observable.selected_options # type: ignore
             initial_available_options: set[T] = source_observable.available_options # type: ignore
-            selected_options_hook: Optional[HookLike[set[T]]] = None
-            available_options_hook: Optional[HookLike[set[T]]] = None
-            observable: Optional[ObservableMultiSelectionOptionLike[T]] = selected_options
+            selected_options_hook: Optional[HookProtocol[set[T]]] = None
+            available_options_hook: Optional[HookProtocol[set[T]]] = None
+            observable: Optional[ObservableMultiSelectionOptionProtocol[T]] = selected_options
         else:
             observable = None
             # Handle initialization from separate selected_options and available_options
             if available_options is None:
-                raise ValueError("available_options must be provided when not initializing from ObservableMultiSelectionOptionLike")
+                raise ValueError("available_options must be provided when not initializing from ObservableMultiSelectionOptionProtocol")
             
-            if isinstance(available_options, HookLike):
+            if isinstance(available_options, HookProtocol):
                 initial_available_options: set[T] = available_options.value
                 available_options_hook = available_options
             else:
                 initial_available_options = available_options.copy()
                 available_options_hook = None
 
-            if isinstance(selected_options, HookLike):
+            if isinstance(selected_options, HookProtocol):
                 initial_selected_options = selected_options.value
                 selected_options_hook = selected_options
             else:
@@ -254,11 +254,11 @@ class ObservableMultiSelectionOption(BaseObservable[Literal["selected_options", 
         self.change_available_options(value)
 
     @property
-    def available_options_hook(self) -> HookLike[set[T]]:
+    def available_options_hook(self) -> HookProtocol[set[T]]:
         return self._primary_hooks["available_options"]
     
     @property
-    def selected_options_hook(self) -> HookLike[set[T]]:
+    def selected_options_hook(self) -> HookProtocol[set[T]]:
         return self._primary_hooks["selected_options"]
     
     @property

@@ -6,12 +6,12 @@ from .._utils import log
 
 
 if TYPE_CHECKING:
-    from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+    from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
-from .._hooks.hook_like import HookLike
-from .._auxiliary.base_listening import BaseListeningLike
+from .._hooks.hook_protocol import HookProtocol
+from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.hook_nexus import HookNexus
-from .._publisher_subscriber.publisher_like import PublisherLike
+from .._publisher_subscriber.publisher_protocol import PublisherProtocol
 
 class NexusManager:
     """
@@ -146,7 +146,7 @@ class NexusManager:
         pass
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksLike[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookLike[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, HookProtocol[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -159,14 +159,14 @@ class NexusManager:
             A tuple containing the value and hook dict corresponding to the owner
         """
 
-        from .._hooks.hook_with_owner_like import HookWithOwnerLike
-        from .._hooks.hook_like import HookLike
+        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.hook_protocol import HookProtocol
 
         key_and_value_dict: dict[Any, Any] = {}
-        key_and_hook_dict: dict[Any, HookLike[Any]] = {}
+        key_and_hook_dict: dict[Any, HookProtocol[Any]] = {}
         for nexus, value in nexus_and_values.items():
             for hook in nexus.hooks:
-                if isinstance(hook, HookWithOwnerLike):
+                if isinstance(hook, HookWithOwnerProtocol):
                     if hook.owner is owner:
                         hook_key: Any = owner.get_hook_key(hook)
                         key_and_value_dict[hook_key] = value
@@ -174,7 +174,7 @@ class NexusManager:
         return key_and_value_dict, key_and_hook_dict
 
     @staticmethod
-    def _complete_nexus_and_values_for_owner(value_dict: dict[Any, Any], owner: "CarriesHooksLike[Any, Any]", as_reference_values: bool = False) -> None:
+    def _complete_nexus_and_values_for_owner(value_dict: dict[Any, Any], owner: "CarriesHooksProtocol[Any, Any]", as_reference_values: bool = False) -> None:
         """
         Complete the value dict for an owner.
 
@@ -203,7 +203,7 @@ class NexusManager:
         related values are synchronized.
         """
 
-        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, HookLike[Any]]) -> tuple[bool, str]:
+        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, HookProtocol[Any]]) -> tuple[bool, str]:
             """
             This method inserts the value and hook dict into the nexus and values dictionary.
             It inserts the values from the value dict into the nexus and values dictionary. The hook dict helps to find the hook nexus for each value.
@@ -221,7 +221,7 @@ class NexusManager:
                 nexus_and_values[hook_nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 
-        def update_nexus_and_value_dict(owner: "CarriesHooksLike[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
+        def update_nexus_and_value_dict(owner: "CarriesHooksProtocol[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
             """
             This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owner.
             """
@@ -248,19 +248,19 @@ class NexusManager:
             # Step 5: Return the nexus and values
             return number_of_inserted_items, "Successfully updated nexus and values"
 
-        from .._hooks.hook_with_owner_like import HookWithOwnerLike
-        from .._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
+        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
             
         while True:
 
             # Step 1: Collect the all the owners that need to be checked for additional nexus and values
-            owners_to_check_for_additional_nexus_and_values: set["CarriesHooksLike[Any, Any]"] = set()
+            owners_to_check_for_additional_nexus_and_values: set["CarriesHooksProtocol[Any, Any]"] = set()
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     match hook:
-                        case HookWithOwnerLike():
+                        case HookWithOwnerProtocol():
                             owners_to_check_for_additional_nexus_and_values.add(hook.owner)
-                        case HookWithIsolatedValidationLike():
+                        case HookWithIsolatedValidationProtocol():
                             pass
                         case _:
                             pass
@@ -295,9 +295,9 @@ class NexusManager:
             - "Check values": Only validates without updating
         """
 
-        from .._hooks.hook_with_owner_like import HookWithOwnerLike
-        from .._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
-        from .._hooks.hook_with_reaction_like import HookWithReactionLike
+        from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+        from .._hooks.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
+        from .._hooks.hook_with_reaction_protocol import HookWithReactionProtocol
 
         #########################################################
         # Check if the values are even different from the current values
@@ -336,21 +336,21 @@ class NexusManager:
             return False, msg
 
         # Step 2: Collect the owners and floating hooks to validate, react to, and notify
-        owners_that_are_affected: set["CarriesHooksLike[Any, Any]"] = set()
-        hooks_with_validation: set[HookWithIsolatedValidationLike[Any]] = set()
-        hooks_with_reaction: set[HookWithReactionLike[Any]] = set()
-        publishers: set[PublisherLike] = set()
+        owners_that_are_affected: set["CarriesHooksProtocol[Any, Any]"] = set()
+        hooks_with_validation: set[HookWithIsolatedValidationProtocol[Any]] = set()
+        hooks_with_reaction: set[HookWithReactionProtocol[Any]] = set()
+        publishers: set[PublisherProtocol] = set()
         for nexus, value in complete_nexus_and_values.items():
             for hook in nexus.hooks:
-                if isinstance(hook, HookWithReactionLike):
+                if isinstance(hook, HookWithReactionProtocol):
                     hooks_with_reaction.add(hook)
-                if isinstance(hook, HookWithIsolatedValidationLike):
+                if isinstance(hook, HookWithIsolatedValidationProtocol):
                     # Hooks that are owned by an observable are validated by the observable. They do not need to be validated in isolation.
-                    if not isinstance(hook, HookWithOwnerLike):
+                    if not isinstance(hook, HookWithOwnerProtocol):
                         hooks_with_validation.add(hook)
-                if isinstance(hook, HookWithOwnerLike):
+                if isinstance(hook, HookWithOwnerProtocol):
                     owners_that_are_affected.add(hook.owner)
-                    if isinstance(hook.owner, PublisherLike):
+                    if isinstance(hook.owner, PublisherProtocol):
                         publishers.add(hook.owner)
                 publishers.add(hook)
 
@@ -401,12 +401,12 @@ class NexusManager:
         # Step 5d: Notify the listeners
 
         # Optimize: Only notify hooks that are actually affected by the value changes
-        hooks_to_be_notified: set[HookLike[Any]] = set()
+        hooks_to_be_notified: set[HookProtocol[Any]] = set()
         for nexus, value in complete_nexus_and_values.items():
-            hooks_of_nexus: set[HookLike[Any]] = set(nexus.hooks)
+            hooks_of_nexus: set[HookProtocol[Any]] = set(nexus.hooks)
             hooks_to_be_notified.update(hooks_of_nexus)
 
-        def notify_listeners(obj: "BaseListeningLike | HookLike[Any]"):
+        def notify_listeners(obj: "ListeningProtocol | HookProtocol[Any]"):
             """
             This method notifies the listeners of an object.
             """
@@ -423,7 +423,7 @@ class NexusManager:
 
         # Notify owners and hooks that are owned        
         for owner in owners_that_are_affected:
-            if isinstance(owner, BaseListeningLike):
+            if isinstance(owner, ListeningProtocol):
                 notify_listeners(owner)
             # Only notify hooks that are actually affected
             for hook in owner.get_dict_of_hooks().values():
@@ -481,7 +481,7 @@ class NexusManager:
             - All observables (owners) that own hooks in the affected nexuses
             - All floating hooks with validation mixins
             - All hooks with reaction mixins
-            - All publishers (observables and hooks that implement PublisherLike)
+            - All publishers (observables and hooks that implement PublisherProtocol)
             
             This step prepares the sets of objects that will be processed in later phases.
         
@@ -519,7 +519,7 @@ class NexusManager:
               * Subscribers cannot affect the current submission (already committed)
               
             - **Listener Notification** (Synchronous): Triggers `_notify_listeners()` on:
-              * All affected observables (if they implement BaseListeningLike)
+              * All affected observables (if they implement BaseListeningProtocol)
               * All hooks in affected nexuses
               * Listener callbacks execute synchronously before `submit_values()` returns
         
@@ -620,7 +620,7 @@ class NexusManager:
         
         **Notification Order**:
         Listeners are notified in this order:
-        1. Observable-level listeners (for observables that are BaseListeningLike)
+        1. Observable-level listeners (for observables that are BaseListeningProtocol)
         2. Hook-level listeners for owned hooks
         3. Hook-level listeners for floating hooks
         
@@ -732,7 +732,7 @@ class NexusManager:
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore
 
     @staticmethod
-    def get_nexus_and_values(hooks: set["HookLike[Any]"]) -> dict[HookNexus[Any], Any]:
+    def get_nexus_and_values(hooks: set["HookProtocol[Any]"]) -> dict[HookNexus[Any], Any]:
         """
         Get the nexus and values dictionary for a set of hooks.
         """

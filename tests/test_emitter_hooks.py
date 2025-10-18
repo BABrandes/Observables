@@ -29,7 +29,7 @@ class TestEmitterHooksBasicFunctionality:
         obs_dict = ObservableDict({"a": 1, "b": 2})
         
         # Check that length hook exists
-        assert "length" in [key for key in obs_dict._secondary_hooks.keys()] # type: ignore
+        assert "dict_length" in [key for key in obs_dict._secondary_hooks.keys()] # type: ignore
         
         # Check initial length value
         assert obs_dict.length == 2

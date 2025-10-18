@@ -130,7 +130,3 @@ class TestObservableOptionalSelectionEnum:
         assert obs_restored.selected_option == expected_selected
         assert obs_restored.available_options == expected_options
 
-
-if __name__ == '__main__':
-    unittest.main()
-

@@ -11,19 +11,19 @@ create custom observable types or extend the library's functionality.
 
 Core Components:
 - BaseObservable: Base class for all observable types
-- Hook/HookLike: Core hook implementations and protocols
-- OwnedHook/HookWithOwnerLike: Owned hook implementations and protocols
+- Hook/HookProtocol: Core hook implementations and protocols
+- OwnedHook/HookWithOwnerProtocol: Owned hook implementations and protocols
 - FloatingHook: Advanced hook with validation and reaction capabilities
 - HookNexus: Central storage for actual data values
-- BaseCarriesHooks/CarriesHooksLike: Base classes for hook carriers
-- HookWithIsolatedValidationLike: Protocol for hooks with custom validation
-- HookWithReactionLike: Protocol for hooks that react to changes
-- BaseListening/BaseListeningLike: Base classes for listener management
+- BaseCarriesHooks/CarriesHooksProtocol: Base classes for hook carriers
+- HookWithIsolatedValidationProtocol: Protocol for hooks with custom validation
+- HookWithReactionProtocol: Protocol for hooks that react to changes
+- BaseListening/BaseListeningProtocol: Base classes for listener management
 - DEFAULT_NEXUS_MANAGER: The default nexus manager instance
 - default_nexus_manager: Module containing configuration (e.g., FLOAT_ACCURACY)
 
 Example Usage with New Protocol-Based Architecture:
-    >>> from observables.core import BaseObservable, OwnedHook, HookWithOwnerLike
+    >>> from observables.core import BaseObservable, OwnedHook, HookWithOwnerProtocol
     >>> 
     >>> # Create a custom observable type using the new architecture
     >>> class MyCustomObservable(BaseObservable):
@@ -41,7 +41,7 @@ Example Usage with New Protocol-Based Architecture:
     ...         self._value_hook.submit_value(new_value)
     ...     
     ...     @property
-    ...     def value_hook(self) -> HookWithOwnerLike[Any]:
+    ...     def value_hook(self) -> HookWithOwnerProtocol[Any]:
     ...         return self._value_hook
 
 Advanced Usage with FloatingHook:
@@ -71,17 +71,18 @@ For normal usage of the library, import from the main package:
     >>> from observables import ObservableSingleValue, ObservableList
 """
 
-from ._carries_hooks.base_carries_hooks import BaseCarriesHooks
-from ._hooks.hook_with_owner_like import HookWithOwnerLike
-from ._carries_hooks.base_observable import BaseObservable
-from ._hooks.hook_with_reaction_like import HookWithReactionLike
-from ._hooks.hook_with_isolated_validation_like import HookWithIsolatedValidationLike
+from ._carries_hooks.carries_hooks_base import CarriesHooksBase
+from ._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from ._carries_hooks.complex_observable_base import ComplexObservableBase
+from ._hooks.hook_with_reaction_protocol import HookWithReactionProtocol
+from ._hooks.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
 from ._nexus_system.hook_nexus import HookNexus
 from ._hooks.owned_hook import OwnedHook
 from ._hooks.hook_base import HookBase
-from ._carries_hooks.carries_hooks_like import CarriesHooksLike
-from ._carries_hooks.carries_single_hook_like import CarriesSingleHookLike
-from ._auxiliary.base_listening import BaseListening, BaseListeningLike
+from ._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from ._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
+from ._auxiliary.listening_base import ListeningBase
+from ._auxiliary.listening_protocol import ListeningProtocol
 from ._nexus_system.nexus_manager import NexusManager
 from ._publisher_subscriber.subscriber import Subscriber
 from ._nexus_system import default_nexus_manager
@@ -94,18 +95,18 @@ from ._nexus_system.submission_error import SubmissionError
 DEFAULT_NEXUS_MANAGER = default_nexus_manager.DEFAULT_NEXUS_MANAGER
 
 __all__ = [
-    'BaseObservable',
-    'HookWithOwnerLike',
-    'HookWithReactionLike',
-    'HookWithIsolatedValidationLike',
+    'ComplexObservableBase',
+    'HookWithOwnerProtocol',
+    'HookWithReactionProtocol',
+    'HookWithIsolatedValidationProtocol',
     'HookNexus',
     'OwnedHook',
     'HookBase',
-    'BaseCarriesHooks',
-    'CarriesHooksLike',
-    'CarriesSingleHookLike',
-    'BaseListening',
-    'BaseListeningLike',
+    'CarriesHooksBase',
+    'CarriesHooksProtocol',
+    'CarriesSingleHookProtocol',
+    'ListeningBase',
+    'ListeningProtocol',
     'NexusManager',
     'DEFAULT_NEXUS_MANAGER',
     'default_nexus_manager',  # Export module for configuration access

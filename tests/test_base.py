@@ -2,7 +2,6 @@
 Base test class for observables tests that handles global state reset.
 """
 
-import pytest
 from observables.core import DEFAULT_NEXUS_MANAGER
 
 

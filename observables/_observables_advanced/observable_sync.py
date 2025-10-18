@@ -2,16 +2,16 @@ from typing import Generic, TypeVar, Optional, Mapping, Callable
 from logging import Logger
 
 from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_like import HookLike
-from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._auxiliary.base_listening import BaseListening
-from .._carries_hooks.base_carries_hooks import BaseCarriesHooks
+from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._auxiliary.listening_base import ListeningBase
+from .._carries_hooks.carries_hooks_base import CarriesHooksBase
 from .._nexus_system.hook_nexus import HookNexus
 
 SHK = TypeVar("SHK")
 SHV = TypeVar("SHV")
 
-class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"], Generic[SHK, SHV]):
+class ObservableSync(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableSync"], Generic[SHK, SHV]):
     """
     A specialized observable that maintains synchronized state across multiple hooks with validation.
 
@@ -161,7 +161,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
             )
             self._sync_hooks[key] = sync_hook
 
-        BaseListening.__init__(self, logger)
+        ListeningBase.__init__(self, logger)
 
         def add_values_to_be_updated_callback(
             self_ref: "ObservableSync[SHK, SHV]",
@@ -215,7 +215,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
 
             return values_to_be_added
 
-        BaseCarriesHooks.__init__( # type: ignore
+        CarriesHooksBase.__init__( # type: ignore
             self,
             logger=logger,
             invalidate_callback=None,
@@ -270,7 +270,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
     # BaseCarriesHooks abstract methods
     #########################################################################
 
-    def _get_hook(self, key: SHK) -> "HookWithOwnerLike[SHV]":
+    def _get_hook(self, key: SHK) -> "HookWithOwnerProtocol[SHV]":
         """Get a hook by its key."""
         if key in self._sync_hooks:
             return self._sync_hooks[key] # type: ignore
@@ -286,7 +286,7 @@ class ObservableSync(BaseListening, BaseCarriesHooks[SHK, SHV, "ObservableSync"]
     def _get_hook_keys(self) -> set[SHK]:
         return set(self._sync_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "HookLike[SHV]|HookNexus[SHV]") -> SHK:
+    def _get_hook_key(self, hook_or_nexus: "HookProtocol[SHV]|HookNexus[SHV]") -> SHK:
         for key, hook in self._sync_hooks.items():
             if hook is hook_or_nexus:
                 return key

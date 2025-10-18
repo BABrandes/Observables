@@ -26,7 +26,7 @@ class TestObservableRaiseNoneBasics:
         """Test initialization with hook_with_None only."""
         hook_with_none = FloatingHook[int | None](42)
         
-        obs = ObservableRaiseNone(
+        obs = ObservableRaiseNone[int](
             hook_without_None_or_value=None,
             hook_with_None=hook_with_none
         )

@@ -498,7 +498,3 @@ class TestObservableSingleValue:
         
         # Step 7: Check if the object is the same as after step 2
         assert obs_restored.value == expected_value
-
-
-if __name__ == '__main__':
-    unittest.main()

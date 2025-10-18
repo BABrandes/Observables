@@ -2,12 +2,12 @@ from typing import Any, Mapping, Optional
 import threading
 from logging import Logger
 
-from observables.core import OwnedHook, BaseObservable
+from observables.core import OwnedHook, ComplexObservableBase
 
 from tests.run_tests import console_logger as logger
 import pytest
 
-class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
+class MockObservable(ComplexObservableBase[Any, Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
     
     def __init__(self, name: str):

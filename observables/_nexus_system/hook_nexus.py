@@ -5,7 +5,7 @@ import weakref
 from .._utils import log
 
 if TYPE_CHECKING:
-    from .._hooks.hook_like import HookLike
+    from .._hooks.hook_protocol import HookProtocol
     from .nexus_manager import NexusManager
     
 T = TypeVar("T")
@@ -67,7 +67,7 @@ class HookNexus(Generic[T]):
     def __init__(
         self,
         value: T,
-        hooks: set["HookLike[T]"] = set(),
+        hooks: set["HookProtocol[T]"] = set(),
         logger: Optional[logging.Logger] = None,
         nexus_manager: Optional["NexusManager"] = None
         ) -> None:
@@ -109,19 +109,19 @@ class HookNexus(Generic[T]):
             nexus_manager = DEFAULT_NEXUS_MANAGER
 
         self._nexus_manager: "NexusManager" = nexus_manager
-        self._hooks: set[weakref.ref["HookLike[T]"]] = {weakref.ref(hook) for hook in hooks}
+        self._hooks: set[weakref.ref["HookProtocol[T]"]] = {weakref.ref(hook) for hook in hooks}
         self._value: T = value
         self._previous_value: T = value
         self._logger: Optional[logging.Logger] = logger
         self._submit_depth_counter: int = 0
-        self._submit_touched_hooks: set["HookLike[T]"] = set()
+        self._submit_touched_hooks: set["HookProtocol[T]"] = set()
 
         log(self, "HookNexus.__init__", self._logger, True, "Successfully initialized hook nexus")
 
-    def _get_hooks(self) -> set["HookLike[T]"]:
+    def _get_hooks(self) -> set["HookProtocol[T]"]:
         """Get the actual hooks from weak references, filtering out dead references."""
-        alive_hooks: set["HookLike[T]"] = set()
-        dead_refs: set[weakref.ref["HookLike[T]"]] = set()
+        alive_hooks: set["HookProtocol[T]"] = set()
+        dead_refs: set[weakref.ref["HookProtocol[T]"]] = set()
         
         for hook_ref in self._hooks:
             hook = hook_ref()
@@ -135,12 +135,12 @@ class HookNexus(Generic[T]):
         
         return alive_hooks
 
-    def add_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
+    def add_hook(self, hook: "HookProtocol[T]") -> tuple[bool, str]:
         self._hooks.add(weakref.ref(hook))
         log(self, "add_hook", self._logger, True, "Successfully added hook")
         return True, "Successfully added hook"
 
-    def remove_hook(self, hook: "HookLike[T]") -> tuple[bool, str]:
+    def remove_hook(self, hook: "HookProtocol[T]") -> tuple[bool, str]:
         try:
             # Find and remove the weak reference to this hook
             hook_ref_to_remove = None
@@ -160,7 +160,7 @@ class HookNexus(Generic[T]):
             return False, "Hook not found in nexus"
 
     @property
-    def hooks(self) -> tuple["HookLike[T]", ...]:
+    def hooks(self) -> tuple["HookProtocol[T]", ...]:
         return tuple(self._get_hooks())
     
     @property
@@ -229,8 +229,8 @@ class HookNexus(Generic[T]):
 
         # Check if any groups have overlapping hooks (not disjoint) and collect all hooks
         # Optimize: Use a single set to track all hooks instead of O(n²) pairwise intersection
-        all_hooks: set["HookLike[T]"] = set()
-        list_of_hook_nexus: list[set["HookLike[T]"]] = []
+        all_hooks: set["HookProtocol[T]"] = set()
+        list_of_hook_nexus: list[set["HookProtocol[T]"]] = []
         
         for hook_nexus in nexuses:
             hook_nexus = hook_nexus._get_hooks()
@@ -250,7 +250,7 @@ class HookNexus(Generic[T]):
         return merged_nexus
     
     @staticmethod
-    def connect_hook_pairs(*hook_pairs: tuple["HookLike[T]", "HookLike[T]"]) -> tuple[bool, str]:
+    def connect_hook_pairs(*hook_pairs: tuple["HookProtocol[T]", "HookProtocol[T]"]) -> tuple[bool, str]:
         """
         Connect a list of hook pairs together.
 
@@ -284,7 +284,7 @@ class HookNexus(Generic[T]):
         return True, "Successfully connected hook pairs"
     
     @staticmethod
-    def connect_hooks(source_hook: "HookLike[T]", target_hook: "HookLike[T]") -> tuple[bool, str]:
+    def connect_hooks(source_hook: "HookProtocol[T]", target_hook: "HookProtocol[T]") -> tuple[bool, str]:
         """
         Connect two hooks together in the new architecture.
 

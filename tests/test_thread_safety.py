@@ -13,7 +13,7 @@ import pytest
 from unittest.mock import Mock
 
 from observables import ObservableSingleValue, ObservableList, ObservableDict
-from observables.core import BaseObservable
+from observables.core import ComplexObservableBase
 
 
 
@@ -349,7 +349,7 @@ class TestThreadSafetyEdgeCases:
     def test_stress_test_thread_safety(self):
         """Stress test with many concurrent operations."""
         errors: list[str] = []
-        observables: list[BaseObservable[Any, Any, Any, Any, "BaseObservable[Any, Any, Any, Any, Any]"]] = []
+        observables: list[ComplexObservableBase[Any, Any, Any, Any, "ComplexObservableBase[Any, Any, Any, Any, Any]"]] = []
         
         # Create shared observables
         for i in range(10):

@@ -21,10 +21,10 @@ The Observables library is built around a sophisticated protocol-based hook arch
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Protocol-Based Hook Layer                   │
 ├─────────────────────────────────────────────────────────────────┤
-│  HookLike[T] (Base Protocol)                                   │
-│  ├── HookWithOwnerLike[T]                                      │
-│  ├── HookWithIsolatedValidationLike[T]                         │
-│  └── HookWithReactionLike[T]                                   │
+│  HookProtocol[T] (Base Protocol)                                   │
+│  ├── HookWithOwnerProtocol[T]                                      │
+│  ├── HookWithIsolatedValidationProtocol[T]                         │
+│  └── HookWithReactionProtocol[T]                                   │
 │                                                                 │
 │  Hook Implementations:                                          │
 │  ├── Hook[T] (Standalone)                                      │
@@ -48,13 +48,13 @@ The new hook system uses Python's `Protocol` classes to define clear interfaces 
 
 #### Core Protocols
 
-##### `HookLike[T]` - Base Protocol
+##### `HookProtocol[T]` - Base Protocol
 
 The foundation protocol that all hooks must implement:
 
 ```python
 @runtime_checkable
-class HookLike(BaseListeningLike, Protocol[T]):
+class HookLike(BaseListeningProtocol, Protocol[T]):
     """Protocol for hook objects."""
     
     @property
@@ -70,44 +70,44 @@ class HookLike(BaseListeningLike, Protocol[T]):
     @property
     def lock(self) -> RLock: ...
     
-    def connect_hook(self, target_hook: "HookLike[T]", 
+    def connect_hook(self, target_hook: "HookProtocol[T]", 
                     initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]: ...
     def disconnect_hook(self) -> None: ...
-    def is_connected_to(self, hook: "HookLike[T]") -> bool: ...
+    def is_connected_to(self, hook: "HookProtocol[T]") -> bool: ...
 ```
 
-##### `HookWithOwnerLike[T]` - Owner Protocol
+##### `HookWithOwnerProtocol[T]` - Owner Protocol
 
 For hooks that belong to observables:
 
 ```python
 @runtime_checkable
-class HookWithOwnerLike(HookLike[T], Protocol[T]):
+class HookWithOwnerLike(HookProtocol[T], Protocol[T]):
     """Protocol for hook objects that have an owner."""
     
     @property
-    def owner(self) -> "CarriesHooksLike[Any, Any]": ...
+    def owner(self) -> "CarriesHooksProtocol[Any, Any]": ...
 ```
 
-##### `HookWithIsolatedValidationLike[T]` - Validation Protocol
+##### `HookWithIsolatedValidationProtocol[T]` - Validation Protocol
 
 For hooks with custom validation logic:
 
 ```python
 @runtime_checkable
-class HookWithIsolatedValidationLike(HookLike[T], Protocol[T]):
+class HookWithIsolatedValidationLike(HookProtocol[T], Protocol[T]):
     """Protocol for hook objects that can validate values in isolation."""
     
     def validate_value_in_isolation(self, value: T) -> tuple[bool, str]: ...
 ```
 
-##### `HookWithReactionLike[T]` - Reaction Protocol
+##### `HookWithReactionProtocol[T]` - Reaction Protocol
 
 For hooks that react to value changes:
 
 ```python
 @runtime_checkable
-class HookWithReactionLike(HookLike[T], Protocol[T]):
+class HookWithReactionLike(HookProtocol[T], Protocol[T]):
     """Protocol for hook objects that can react to value changes."""
     
     def react_to_value_changed(self) -> None: ...
@@ -120,7 +120,7 @@ class HookWithReactionLike(HookLike[T], Protocol[T]):
 The basic hook implementation for standalone use:
 
 ```python
-class Hook(HookLike[T], BaseListening, Generic[T]):
+class Hook(HookProtocol[T], BaseListening, Generic[T]):
     """A standalone hook."""
     
     def __init__(self, value: T, nexus_manager: "NexusManager" = DEFAULT_NEXUS_MANAGER, 
@@ -137,10 +137,10 @@ class Hook(HookLike[T], BaseListening, Generic[T]):
 For hooks that belong to observables:
 
 ```python
-class OwnedHook(Hook[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
+class OwnedHook(Hook[T], HookWithOwnerProtocol[T], BaseListening, Generic[T]):
     """A hook that belongs to an observable."""
     
-    def __init__(self, owner: CarriesHooksLike[Any, Any], initial_value: T, 
+    def __init__(self, owner: CarriesHooksProtocol[Any, Any], initial_value: T, 
                  logger: Optional[Logger] = None, nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER):
         BaseListening.__init__(self, logger)
         Hook.__init__(self, initial_value, nexus_manager=nexus_manager, logger=logger)
@@ -152,7 +152,7 @@ class OwnedHook(Hook[T], HookWithOwnerLike[T], BaseListening, Generic[T]):
 For hooks with validation and reaction capabilities:
 
 ```python
-class FloatingHook(Hook[T], HookWithIsolatedValidationLike[T], HookWithReactionLike[T], BaseListening, Generic[T]):
+class FloatingHook(Hook[T], HookWithIsolatedValidationProtocol[T], HookWithReactionProtocol[T], BaseListening, Generic[T]):
     """A floating hook with validation and reaction capabilities."""
     
     def __init__(self, value: T, reaction_callback: Optional[Callable[[], tuple[bool, str]]] = None,
@@ -202,7 +202,7 @@ When two hooks are connected via `connect_hooks()`:
 
 ```python
 @staticmethod
-def connect_hooks(from_hook: "HookLike[T]", to_hook: "HookLike[T]"):
+def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
     """Connect two hooks together."""
     # Validate that hooks are not None
     if from_hook is None or to_hook is None:
@@ -295,7 +295,7 @@ obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 Before merging hook nexuss, the system validates that all hooks can maintain consistent values:
 
 ```python
-def invalidate(self, source_hook_or_value: "HookLike[T]" | T) -> tuple[bool, str]:
+def invalidate(self, source_hook_or_value: "HookProtocol[T]" | T) -> tuple[bool, str]:
     """Invalidate the current value and set a new one."""
     # Implementation details for validation...
 ```
@@ -350,7 +350,7 @@ The hook system is designed to be thread-safe:
 - **Protected value access** during synchronization
 
 ```python
-def connect_hooks(from_hook: "HookLike[T]", to_hook: "HookLike[T]"):
+def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
     """Thread-safe connection of hooks."""
     with from_hook._lock:
         with to_hook._lock:
@@ -418,29 +418,29 @@ The new protocol-based design provides several key advantages:
 #### 1. **Clear Interface Contracts**
 ```python
 # Protocols define clear contracts
-def process_hook(hook: HookLike[str]) -> None:
+def process_hook(hook: HookProtocol[str]) -> None:
     # Can work with any hook implementation
     value = hook.value
     hook.submit_value("new_value")
 
 # Type checker ensures compatibility
-hook: HookWithOwnerLike[int] = OwnedHook(owner, 42)
+hook: HookWithOwnerProtocol[int] = OwnedHook(owner, 42)
 process_hook(hook)  # ✅ Type safe
 ```
 
 #### 2. **Composition Over Inheritance**
 ```python
 # Easy to create new hook types by combining protocols
-class CachedHook(Hook[T], HookWithCachingLike[T]):
+class CachedHook(Hook[T], HookWithCachingProtocol[T]):
     """Hook with caching capabilities."""
     pass
 
-class PersistentHook(Hook[T], HookWithPersistenceLike[T]):
+class PersistentHook(Hook[T], HookWithPersistenceProtocol[T]):
     """Hook with persistence capabilities."""
     pass
 
 # Multiple capabilities
-class AdvancedHook(Hook[T], HookWithCachingLike[T], HookWithPersistenceLike[T]):
+class AdvancedHook(Hook[T], HookWithCachingProtocol[T], HookWithPersistenceProtocol[T]):
     """Hook with both caching and persistence."""
     pass
 ```
@@ -473,7 +473,7 @@ class MockHook:
         self._value = value
 
 # MockHook automatically implements HookLike protocol
-mock_hook: HookLike[str] = MockHook("test")
+mock_hook: HookProtocol[str] = MockHook("test")
 ```
 
 ### Performance Benefits
@@ -506,15 +506,15 @@ The new protocol-based hook system is highly extensible:
 #### **New Protocol Capabilities**
 ```python
 # Easy to add new capabilities
-class HookWithCachingLike(HookLike[T], Protocol[T]):
+class HookWithCachingLike(HookProtocol[T], Protocol[T]):
     def cache_value(self) -> None: ...
     def get_cached_value(self) -> Optional[T]: ...
 
-class HookWithPersistenceLike(HookLike[T], Protocol[T]):
+class HookWithPersistenceLike(HookProtocol[T], Protocol[T]):
     def save_to_storage(self) -> None: ...
     def load_from_storage(self) -> None: ...
 
-class HookWithMetricsLike(HookLike[T], Protocol[T]):
+class HookWithMetricsLike(HookProtocol[T], Protocol[T]):
     def get_metrics(self) -> Dict[str, Any]: ...
     def reset_metrics(self) -> None: ...
 ```
@@ -522,11 +522,11 @@ class HookWithMetricsLike(HookLike[T], Protocol[T]):
 #### **Custom Hook Implementations**
 ```python
 # Combine protocols for specialized hooks
-class DatabaseHook(Hook[T], HookWithPersistenceLike[T], HookWithMetricsLike[T]):
+class DatabaseHook(Hook[T], HookWithPersistenceProtocol[T], HookWithMetricsProtocol[T]):
     """Hook that persists to database and tracks metrics."""
     pass
 
-class CacheHook(Hook[T], HookWithCachingLike[T], HookWithMetricsLike[T]):
+class CacheHook(Hook[T], HookWithCachingProtocol[T], HookWithMetricsProtocol[T]):
     """Hook with caching and performance metrics."""
     pass
 ```

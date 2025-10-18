@@ -89,15 +89,15 @@ See Also:
 from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal, Mapping
 from logging import Logger
 
-from .._hooks.hook_like import HookLike
-from .._hooks.hook_with_owner_like import HookWithOwnerLike
-from .._carries_hooks.base_observable import BaseObservable
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
+from .._hooks.hook_protocol import HookProtocol
+from .._hooks.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableSelectionOptionLikeBase(CarriesHooksLike[Any, Optional[T]|set[T]|int], Protocol[T]):
+class ObservableWithOptionsProtocol(CarriesHooksProtocol[Any, Optional[T]|set[T]|int], Protocol[T]):
 
     @property
     def available_options(self) -> set[T]:
@@ -108,14 +108,14 @@ class ObservableSelectionOptionLikeBase(CarriesHooksLike[Any, Optional[T]|set[T]
         ...
 
     @property
-    def available_options_hook(self) -> HookLike[set[T]]:
+    def available_options_hook(self) -> HookProtocol[set[T]]:
         ...
 
     def change_available_options(self, available_options: set[T]) -> None:
         ...
 
 @runtime_checkable
-class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protocol[T]):
+class ObservableSelectionOptionProtocol(ObservableWithOptionsProtocol[T], Protocol[T]):
 
     @property
     def selected_option(self) -> T:
@@ -126,7 +126,7 @@ class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protoc
         ...
 
     @property
-    def selected_option_hook(self) -> HookWithOwnerLike[T]:
+    def selected_option_hook(self) -> HookWithOwnerProtocol[T]:
         ...
 
     def change_selected_option(self, selected_option: T) -> None:
@@ -136,7 +136,7 @@ class ObservableSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protoc
         ...
 
 @runtime_checkable
-class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T], Protocol[T]):
+class ObservableOptionalSelectionOptionProtocol(ObservableWithOptionsProtocol[T], Protocol[T]):
 
     @property
     def selected_option(self) -> Optional[T]:
@@ -147,7 +147,7 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
         ...
 
     @property
-    def selected_option_hook(self) -> HookWithOwnerLike[Optional[T]]:
+    def selected_option_hook(self) -> HookWithOwnerProtocol[Optional[T]]:
         ...
 
     def change_selected_option(self, selected_option: Optional[T]) -> None:
@@ -158,7 +158,7 @@ class ObservableOptionalSelectionOptionLike(ObservableSelectionOptionLikeBase[T]
 
 O = TypeVar("O", bound="ObservableSelectionOptionBase[Any, Any]")
 
-class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int, O], ObservableSelectionOptionLikeBase[T], Generic[T, O]):
+class ObservableSelectionOptionBase(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int, O], ObservableWithOptionsProtocol[T], Generic[T, O]):
 
     @property
     def available_options(self) -> set[T]:
@@ -186,10 +186,10 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
             raise ValueError(msg)
 
     @property
-    def available_options_hook(self) -> HookLike[set[T]]:
+    def available_options_hook(self) -> HookProtocol[set[T]]:
         return self._primary_hooks["available_options"] # type: ignore
 
-    def _get_set_hook(self) -> HookLike[set[T]]:
+    def _get_set_hook(self) -> HookProtocol[set[T]]:
         return self._primary_hooks["available_options"] # type: ignore
 
     def add(self, item: T) -> None:
@@ -259,7 +259,7 @@ class ObservableSelectionOptionBase(BaseObservable[Literal["selected_option", "a
         else:
             raise ValueError("Available options is not a set")
 
-class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSelectionOptionLike[T], Generic[T]):
+class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSelectionOptionProtocol[T], Generic[T]):
     """
     Observable for selecting one option from a set of available options.
     
@@ -330,26 +330,26 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
     """
 
     @overload
-    def __init__(self, selected_option: HookLike[T], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: HookProtocol[T], available_options: HookProtocol[set[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: T, available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: T, available_options: HookProtocol[set[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: HookLike[T], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: HookProtocol[T], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, observable: ObservableSelectionOptionLike[T], available_options: None=None, *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableSelectionOptionProtocol[T], available_options: None=None, *, logger: Optional[Logger] = None) -> None:
         ...
     
     @overload
     def __init__(self, selected_option: T, available_options: set[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
-    def __init__(self, selected_option: T | HookLike[T] | ObservableSelectionOptionLike[T], available_options: set[T] | HookLike[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: T | HookProtocol[T] | ObservableSelectionOptionProtocol[T], available_options: set[T] | HookProtocol[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableSelectionOption.
         
@@ -359,12 +359,12 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         Args:
             selected_option: The initial selected option. Can be:
                 - T: A direct value (must be in available_options)
-                - HookLike[T]: A hook to bind the selection to
-                - ObservableSelectionOptionLike[T]: Another observable to bind to (copies both hooks)
+                - HookProtocol[T]: A hook to bind the selection to
+                - ObservableSelectionOptionProtocol[T]: Another observable to bind to (copies both hooks)
             available_options: The set of options to choose from. Can be:
                 - set[T]: A direct set of options (selected_option must be in this set)
-                - HookLike[set[T]]: A hook to bind the available options to
-                - None: If selected_option is an ObservableSelectionOptionLike, options are copied from it
+                - HookProtocol[set[T]]: A hook to bind the available options to
+                - None: If selected_option is an ObservableSelectionOptionProtocol, options are copied from it
             logger: Optional logger for debugging operations. Default is None.
         
         Raises:
@@ -402,17 +402,17 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
                 )
         """
         
-        if isinstance(selected_option, ObservableSelectionOptionLike):
+        if isinstance(selected_option, ObservableSelectionOptionProtocol):
             initial_selected_option: T = selected_option.selected_option # type: ignore
             initial_available_options: set[T] = selected_option.available_options # type: ignore
-            hook_selected_option: Optional[HookLike[T]] = selected_option.selected_option_hook # type: ignore
-            hook_available_options: Optional[HookLike[set[T]]] = selected_option.available_options_hook # type: ignore
+            hook_selected_option: Optional[HookProtocol[T]] = selected_option.selected_option_hook # type: ignore
+            hook_available_options: Optional[HookProtocol[set[T]]] = selected_option.available_options_hook # type: ignore
 
         else:
             if selected_option is None:
-                raise ValueError("selected_option parameter is required when selected_option is not an ObservableSelectionOptionLike")
+                raise ValueError("selected_option parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
             
-            elif isinstance(selected_option, HookLike):
+            elif isinstance(selected_option, HookProtocol):
                 initial_selected_option: T = selected_option.value # type: ignore
                 hook_selected_option = selected_option # type: ignore
 
@@ -425,16 +425,16 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
                 initial_available_options = set()
                 hook_available_options = None
 
-            elif isinstance(available_options, HookLike):
+            elif isinstance(available_options, HookProtocol):
                 initial_available_options = available_options.value # type: ignore
                 hook_available_options = available_options
 
             elif isinstance(available_options, set): # type: ignore
                 initial_available_options: set[T] = available_options.copy()
-                hook_available_options: Optional[HookLike[set[T]]] = None
+                hook_available_options: Optional[HookProtocol[set[T]]] = None
 
             else:
-                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
+                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
                 
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
@@ -489,7 +489,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
             raise ValueError(msg)
 
     @property
-    def selected_option_hook(self) -> HookWithOwnerLike[T]:
+    def selected_option_hook(self) -> HookWithOwnerProtocol[T]:
         return self._primary_hooks["selected_option"] # type: ignore
     
     def change_selected_option(self, selected_option: T) -> None:
@@ -503,7 +503,7 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
     def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
         self.submit_values({"selected_option": selected_option, "available_options": available_options})
 
-    def _get_single_value_hook(self) -> HookLike[T]:
+    def _get_single_value_hook(self) -> HookProtocol[T]:
         return self._primary_hooks["selected_option"] # type: ignore
 
     def __eq__(self, other: Any) -> bool:
@@ -515,42 +515,42 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
     def __hash__(self) -> int:
         return hash((frozenset(self._primary_hooks["available_options"].value), self._primary_hooks["selected_option"].value)) # type: ignore
     
-class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionLike[T], Generic[T]):
+class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionProtocol[T], Generic[T]):
 
     @overload
-    def __init__(self, selected_option: HookLike[Optional[T]], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: HookProtocol[Optional[T]], available_options: HookProtocol[set[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], available_options: HookLike[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Optional[T], available_options: HookProtocol[set[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: HookLike[Optional[T]], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: HookProtocol[Optional[T]], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, observable: ObservableOptionalSelectionOptionLike[T], available_options: None=None, *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableOptionalSelectionOptionProtocol[T], available_options: None=None, *, logger: Optional[Logger] = None) -> None:
         ...
     
     @overload
     def __init__(self, selected_option: Optional[T], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
-    def __init__(self, selected_option: Optional[T] | HookLike[Optional[T]] | ObservableOptionalSelectionOptionLike[T], available_options: set[T] | HookLike[set[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | HookProtocol[Optional[T]] | ObservableOptionalSelectionOptionProtocol[T], available_options: set[T] | HookProtocol[set[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
         
-        if isinstance(selected_option, ObservableOptionalSelectionOptionLike):
+        if isinstance(selected_option, ObservableOptionalSelectionOptionProtocol):
             initial_selected_option: Optional[T] = selected_option.selected_option # type: ignore
             initial_available_options: set[T] = selected_option.available_options # type: ignore
-            hook_selected_option: Optional[HookLike[Optional[T]]] = selected_option.selected_option_hook # type: ignore
-            hook_available_options: Optional[HookLike[set[T]]] = selected_option.available_options_hook # type: ignore
+            hook_selected_option: Optional[HookProtocol[Optional[T]]] = selected_option.selected_option_hook # type: ignore
+            hook_available_options: Optional[HookProtocol[set[T]]] = selected_option.available_options_hook # type: ignore
 
         else:
             if selected_option is None:
                 initial_selected_option: Optional[T] = None
-                hook_selected_option: Optional[HookLike[Optional[T]]] = None
+                hook_selected_option: Optional[HookProtocol[Optional[T]]] = None
             
-            elif isinstance(selected_option, HookLike):
+            elif isinstance(selected_option, HookProtocol):
                 initial_selected_option = selected_option.value # type: ignore
                 hook_selected_option = selected_option # type: ignore
 
@@ -561,9 +561,9 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
 
             if available_options is None:
                 initial_available_options: set[T] = set()
-                hook_available_options: Optional[HookLike[set[T]]] = None
+                hook_available_options: Optional[HookProtocol[set[T]]] = None
 
-            elif isinstance(available_options, HookLike):
+            elif isinstance(available_options, HookProtocol):
                 initial_available_options = available_options.value # type: ignore
                 hook_available_options = available_options
 
@@ -572,7 +572,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
                 hook_available_options = None
 
             else:
-                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionLike")
+                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
                 
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
@@ -627,7 +627,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
         self.submit_values({"selected_option": selected_option})
 
     @property
-    def selected_option_hook(self) -> HookWithOwnerLike[Optional[T]]:
+    def selected_option_hook(self) -> HookWithOwnerProtocol[Optional[T]]:
         return self.get_hook("selected_option") # type: ignore
     
     def change_selected_option(self, selected_option: Optional[T]) -> None:
@@ -639,7 +639,7 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
     def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
         self.submit_values({"selected_option": selected_option, "available_options": available_options})
 
-    def _get_single_value_hook(self) -> HookWithOwnerLike[Optional[T]]:
+    def _get_single_value_hook(self) -> HookWithOwnerProtocol[Optional[T]]:
         return self._primary_hooks["selected_option"] # type: ignore
 
     def __eq__(self, other: Any) -> bool:

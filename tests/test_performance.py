@@ -12,7 +12,7 @@ import time
 import pytest   
 
 from observables import ObservableSingleValue, ObservableList, ObservableDict
-from observables.core import BaseObservable
+from observables.core import ComplexObservableBase
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
@@ -32,7 +32,7 @@ class TestCachePerformance:
         """Test that get_key operations use O(1) cache after first access."""
         # Create an observable with a moderate number of hooks via binding
         main_obs: ObservableSingleValue[Any] = ObservableSingleValue("main")
-        bound_observables: list[BaseObservable[Any, Any, Any, Any, "BaseObservable[Any, Any, Any, Any, Any]"]] = []
+        bound_observables: list[ComplexObservableBase[Any, Any, Any, Any, "ComplexObservableBase[Any, Any, Any, Any, Any]"]] = []
         
         # Create bound observables to populate the hook nexus
         for i in range(50):

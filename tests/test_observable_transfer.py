@@ -4,14 +4,14 @@ from logging import Logger, basicConfig, getLogger, DEBUG
 import time
 import threading
 
-from observables import ObservableTransfer, ObservableSingleValue, HookLike
-from observables.core import BaseObservable, OwnedHook
+from observables import ObservableTransfer, ObservableSingleValue, HookProtocol
+from observables.core import ComplexObservableBase, OwnedHook
 import pytest
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
-class MockObservable(BaseObservable[Any, Any, Any, Any, "MockObservable"]):
+class MockObservable(ComplexObservableBase[Any, Any, Any, Any, "MockObservable"]):
     """Mock observable for testing purposes that can handle arbitrary hooks."""
     
     def __init__(self, name: str):
@@ -50,7 +50,7 @@ class TestObservableTransfer:
         product_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
         
         # Create transfer
-        transfer = ObservableTransfer(
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum", "product"], int, int](
             input_trigger_hooks={"x": x_hook, "y": y_hook},
             output_trigger_hook_keys={"sum", "product"},
             forward_callable=lambda inputs: {
@@ -91,7 +91,7 @@ class TestObservableTransfer:
         y_hook = OwnedHook(owner=self.mock_owner, initial_value=3, logger=logger)
         sum_hook = OwnedHook(owner=self.mock_owner, initial_value=0, logger=logger)
         
-        transfer = ObservableTransfer(
+        transfer = ObservableTransfer[Literal["x", "y"], Literal["sum"], int, int](
             input_trigger_hooks={"x": x_hook, "y": y_hook},
             output_trigger_hook_keys={"sum"},
             forward_callable=lambda inputs: {"sum": inputs["x"] + inputs["y"]},
@@ -123,7 +123,7 @@ class TestObservableTransfer:
         
         # Test invalid key
         with pytest.raises(ValueError):
-            transfer.get_hook("invalid")
+            transfer.get_hook("invalid") # type: ignore
 
     def test_forward_transformation_single_output(self):
         """Test forward transformation with single output."""
@@ -266,18 +266,18 @@ class TestObservableTransfer:
         
         # Test forward: Change Celsius, check Fahrenheit
         celsius_obs.value = 0.0  # Freezing point
-        assert fahrenheit_obs.value == pytest.approx(32.0, abs=0.1)
+        assert fahrenheit_obs.value == pytest.approx(32.0, abs=0.1)  # type: ignore
         
         # Test reverse: Change Fahrenheit, check Celsius  
         fahrenheit_obs.value = 100.0
-        assert celsius_obs.value == pytest.approx(37.777777777777786, abs=0.00001)
+        assert celsius_obs.value == pytest.approx(37.777777777777786, abs=0.00001)  # type: ignore
 
     def test_attach_detach_hooks(self):
         """Test attach and detach functionality."""
         x_hook = OwnedHook(owner=self.mock_owner, initial_value=5, logger=logger)
         external_hook = OwnedHook(owner=self.mock_owner, initial_value=999, logger=logger)
         
-        transfer = ObservableTransfer(
+        transfer = ObservableTransfer[Literal["x"], Literal["result"], int, int](
             input_trigger_hooks={"x": x_hook},
             output_trigger_hook_keys={"result"},
             forward_callable=lambda inputs: {"result": inputs["x"] * 2},
@@ -295,7 +295,7 @@ class TestObservableTransfer:
             transfer.connect_hook(external_hook, "invalid", "use_caller_value")  # type: ignore
         
         with pytest.raises(ValueError):
-            transfer.disconnect_hook("invalid")
+            transfer.disconnect_hook("invalid") # type: ignore
 
     def test_dictionary_access_scenario(self):
         """Test dictionary access transformation scenario."""
@@ -315,8 +315,8 @@ class TestObservableTransfer:
         
         transfer = ObservableTransfer[Literal["dict", "key"], Literal["value", "exists"], dict[str, int] | str | int | bool | None, dict[str, int] | str | int | bool | None](
             input_trigger_hooks={
-                "dict": cast(HookLike[dict[str, int] | str | int | bool | None], dict_obs.hook),
-                "key": cast(HookLike[dict[str, int] | str | int | bool | None], key_obs.hook)
+                "dict": cast(HookProtocol[dict[str, int] | str | int | bool | None], dict_obs.hook),
+                "key": cast(HookProtocol[dict[str, int] | str | int | bool | None], key_obs.hook)
             },
             output_trigger_hook_keys={"value", "exists"},
             forward_callable=dict_access_transform,
@@ -754,7 +754,3 @@ class TestObservableTransfer:
         
         # Should have triggered reverse transformation and updated the input observable
         assert x_obs.value == 10  # 20 // 2
-
-
-if __name__ == '__main__':
-    unittest.main()

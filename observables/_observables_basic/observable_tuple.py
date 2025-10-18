@@ -2,15 +2,15 @@ from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable,
 from logging import Logger
 
 from typing import Optional
-from .._hooks.hook_like import HookLike
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
-from .._carries_hooks.base_observable import BaseObservable
+from .._hooks.hook_protocol import HookProtocol
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
+class ObservableTupleProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
     """
     Protocol for observable tuple objects.
     """
@@ -36,7 +36,7 @@ class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
 
     @property
-    def value_hook(self) -> HookLike[tuple[T, ...]]:
+    def value_hook(self) -> HookProtocol[tuple[T, ...]]:
         """
         Get the hook for the tuple.
         """
@@ -50,13 +50,13 @@ class ObservableTupleLike(CarriesHooksLike[Any, Any], Protocol[T]):
         ...
     
     @property
-    def length_hook(self) -> HookLike[int]:
+    def length_hook(self) -> HookProtocol[int]:
         """
         Get the hook for the tuple length.
         """
         ...
 
-class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableTupleLike[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
+class ObservableTuple(ComplexObservableBase[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableTuple"], ObservableTupleProtocol[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
     """
     An observable wrapper around a tuple that supports bidirectional bindings and reactive updates.
     
@@ -94,12 +94,12 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         ...
 
     @overload
-    def __init__(self, observable_or_hook: HookLike[tuple[T, ...]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: HookProtocol[tuple[T, ...]], logger: Optional[Logger] = None) -> None:
         """Initialize with another observable tuple, establishing a bidirectional binding."""
         ...
 
     @overload
-    def __init__(self, observable: ObservableTupleLike[T], logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable: ObservableTupleProtocol[T], logger: Optional[Logger] = None) -> None:
         """Initialize from another ObservableTupleLike object."""
         ...
 
@@ -108,7 +108,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         """Initialize with an empty tuple."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | HookLike[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: tuple[T, ...] | HookProtocol[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableTuple.
         
@@ -121,11 +121,11 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
 
         if observable_or_hook_or_value is None:
             initial_value: tuple[T, ...] = ()
-            hook: Optional[HookLike[tuple[T, ...]]] = None
-        elif isinstance(observable_or_hook_or_value, ObservableTupleLike):
+            hook: Optional[HookProtocol[tuple[T, ...]]] = None
+        elif isinstance(observable_or_hook_or_value, ObservableTupleProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, HookLike):
+        elif isinstance(observable_or_hook_or_value, HookProtocol):
             initial_value = observable_or_hook_or_value.value
             hook = observable_or_hook_or_value
         else:
@@ -174,7 +174,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
             raise ValueError(msg)
     
     @property
-    def value_hook(self) -> HookLike[tuple[T, ...]]:
+    def value_hook(self) -> HookProtocol[tuple[T, ...]]:
         """
         Get the hook for the tuple value.
         """
@@ -188,7 +188,7 @@ class ObservableTuple(BaseObservable[Literal["value"], Literal["length"], tuple[
         return len(self._primary_hooks["value"].value) # type: ignore
     
     @property
-    def length_hook(self) -> HookLike[int]:
+    def length_hook(self) -> HookProtocol[int]:
         """
         Get the hook for the tuple length.
         """

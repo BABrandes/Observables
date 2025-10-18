@@ -318,7 +318,7 @@ class TestObservableTuple(ObservableTestCase):
     
     def test_tuple_methods(self):
         """Test standard tuple methods"""
-        obs = ObservableTuple((1, 2, 3))
+        obs = ObservableTuple[int]((1, 2, 3))
         
         # Test length
         assert len(obs) == 3
@@ -489,9 +489,6 @@ class TestObservableTuple(ObservableTestCase):
         
         # Step 7: Check if the object is the same as after step 2
         assert obs_restored.value == expected_tuple
-
-if __name__ == '__main__':
-    unittest.main()
 
 class TestObservableIntegration:
     """Integration tests for multiple observable types working together"""

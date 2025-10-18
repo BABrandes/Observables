@@ -68,7 +68,7 @@ class TestObservableList(ObservableTestCase):
         source = ObservableList([1, 2, 3])
         
         # Create a new observable list initialized with the source
-        target = ObservableList(source)
+        target = ObservableList[int](source)
         
         # Check that the target has the same initial value
         assert target.value == [1, 2, 3]
@@ -85,8 +85,8 @@ class TestObservableList(ObservableTestCase):
         """Test initialization with CarriesBindableList in a chain"""
         # Create a chain of observable lists
         obs1 = ObservableList([10])
-        obs2 = ObservableList(obs1)
-        obs3 = ObservableList(obs2)
+        obs2 = ObservableList[int](obs1)
+        obs3 = ObservableList[int](obs2)
         
         # Check initial values
         assert obs1.value == [10]
@@ -108,7 +108,7 @@ class TestObservableList(ObservableTestCase):
     def test_initialization_with_carries_bindable_list_unbinding(self):
         """Test that initialization with CarriesBindableList can be unbound"""
         source = ObservableList([100])
-        target = ObservableList(source)
+        target = ObservableList[int](source)
         
         # Verify they are bound
         assert target.value == [100]
@@ -129,9 +129,9 @@ class TestObservableList(ObservableTestCase):
     def test_initialization_with_carries_bindable_list_multiple_targets(self):
         """Test multiple targets initialized with the same source"""
         source = ObservableList([100])
-        target1 = ObservableList(source)
-        target2 = ObservableList(source)
-        target3 = ObservableList(source)
+        target1 = ObservableList[int](source)
+        target2 = ObservableList[int](source)
+        target3 = ObservableList[int](source)
         
         # Check initial values
         assert target1.value == [100]
@@ -154,23 +154,23 @@ class TestObservableList(ObservableTestCase):
         """Test edge cases for initialization with CarriesBindableList"""
         # Test with empty list in source
         source_empty: ObservableList[int] = ObservableList([])
-        target_empty = ObservableList(source_empty)
+        target_empty = ObservableList[int](source_empty)
         assert target_empty.value == []
         
         # Test with None in source
         source_none: ObservableList[int] = ObservableList(None)
-        target_none = ObservableList(source_none)
+        target_none = ObservableList[int](source_none)
         assert target_none.value == []
         
         # Test with single item
         source_single = ObservableList([42])
-        target_single = ObservableList(source_single)
+        target_single = ObservableList[int](source_single)
         assert target_single.value == [42]
     
     def test_initialization_with_carries_bindable_list_binding_consistency(self):
         """Test binding system consistency when initializing with CarriesBindableList"""
         source = ObservableList([100])
-        target = ObservableList(source)
+        target = ObservableList[int](source)
         
         # Note: check_status_consistency() method no longer exists in new architecture
         # Binding system consistency is now handled automatically by the hook system
@@ -189,14 +189,14 @@ class TestObservableList(ObservableTestCase):
         # Measure initialization time
         start_time = time.time()
         for _ in range(1000):
-            target = ObservableList(source)
+            target = ObservableList[int](source)
         end_time = time.time()
         
         # Should complete in reasonable time (less than 6 seconds)
         assert end_time - start_time < 6.0, "Initialization should be fast"
         
         # Verify the last target is properly bound
-        target = ObservableList(source)
+        target = ObservableList[int](source)
         source.append(200)
         assert target.value == [100, 200]
     
@@ -492,7 +492,7 @@ class TestObservableList(ObservableTestCase):
     def test_list_binding_consistency(self):
         """Test binding system consistency"""
         source = ObservableList([100])
-        target = ObservableList(source)
+        target = ObservableList[int](source)
         
         # Note: check_status_consistency() method no longer exists in new architecture
         # Binding system consistency is now handled automatically by the hook system

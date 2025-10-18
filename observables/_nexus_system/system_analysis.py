@@ -1,14 +1,14 @@
 from typing import Any
 
-from .._carries_hooks.carries_hooks_like import CarriesHooksLike
-from .._hooks.hook_like import HookLike
+from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from .._hooks.hook_protocol import HookProtocol
 
 from .hook_nexus import HookNexus
 
 
-def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksLike[Any, Any]]) -> dict[HookNexus[Any], list[tuple[str, CarriesHooksLike[Any, Any], HookLike[Any]]]]:
+def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksProtocol[Any, Any]]) -> dict[HookNexus[Any], list[tuple[str, CarriesHooksProtocol[Any, Any], HookProtocol[Any]]]]:
 
-    hook_nexuses: dict[HookNexus[Any], list[tuple[str, CarriesHooksLike[Any, Any], HookLike[Any]]]] = {}
+    hook_nexuses: dict[HookNexus[Any], list[tuple[str, CarriesHooksProtocol[Any, Any], HookProtocol[Any]]]] = {}
     for name, carries_hook in dict_of_carries_hooks.items():
         for hook in carries_hook.get_dict_of_hooks().values():
             hook_nexus = hook.hook_nexus
@@ -17,7 +17,7 @@ def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksLike[A
             hook_nexuses[hook_nexus].append((name, carries_hook, hook))
     return hook_nexuses
 
-def write_report(dict_of_carries_hooks: dict[str, CarriesHooksLike[Any, Any]]) -> str:
+def write_report(dict_of_carries_hooks: dict[str, CarriesHooksProtocol[Any, Any]]) -> str:
     """
     Generate a comprehensive report of hook nexuses and their usage across observables.
     
@@ -70,7 +70,7 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooksLike[Any, Any]]) -
         report += f"    Used by:\n"
         
         # Group by observable name for better organization
-        observable_groups: dict[str, list[tuple[CarriesHooksLike[Any, Any], HookLike[Any]]]] = {}
+        observable_groups: dict[str, list[tuple[CarriesHooksProtocol[Any, Any], HookProtocol[Any]]]] = {}
         for owner_name, carries_hook, hook in owner_name_and_hooks:
             if owner_name not in observable_groups:
                 observable_groups[owner_name] = []
@@ -107,7 +107,7 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooksLike[Any, Any]]) -
     return report
 
 
-def _get_hook_info(carries_hook: CarriesHooksLike[Any, Any], hook: HookLike[Any]) -> str:
+def _get_hook_info(carries_hook: CarriesHooksProtocol[Any, Any], hook: HookProtocol[Any]) -> str:
     """
     Get detailed information about a hook including its type and key.
     

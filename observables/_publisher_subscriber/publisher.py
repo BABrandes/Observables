@@ -50,12 +50,12 @@ from logging import Logger
 
 from .._auxiliary.weak_reference_storage import WeakReferenceStorage
 
-from .publisher_like import PublisherLike
+from .publisher_protocol import PublisherProtocol
 
 if TYPE_CHECKING:
     from .subscriber import Subscriber
 
-class Publisher(PublisherLike):
+class Publisher(PublisherProtocol):
     """
     A Publisher that manages subscribers and publishes updates asynchronously.
     

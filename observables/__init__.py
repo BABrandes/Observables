@@ -112,8 +112,7 @@ from ._observables_advanced.dictionaries.observable_optional_default_selection_d
 from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
 from ._observables_advanced.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
-from ._hooks.hook_protocols.full_hook_protocol import FullHookProtocol as Hook
-from ._hooks.hook_protocols.read_only_hook_protocol import ReadOnlyHookProtocol as ReadOnlyHook
+from ._hooks.hook_aliases import Hook, ReadOnlyHook
 from ._nexus_system.system_analysis import write_report
 from ._carries_hooks.observable_serializable import ObservableSerializable
 from ._observables_advanced.observable_subscriber import ObservableSubscriber
@@ -172,7 +171,7 @@ __all__ = [
 try:
     from ._version import __version__, __version_tuple__
 except ImportError:
-    __version__ = "4.3.0"
+    __version__ = "4.4.0"
     __version_tuple__ = (4, 3, 0)
 
 __author__ = 'Benedikt Axel Brandes'

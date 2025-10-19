@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
 from .protocols import ObservableOptionalSelectionOptionProtocol
 

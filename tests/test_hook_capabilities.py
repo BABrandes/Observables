@@ -51,7 +51,7 @@ class TestHookCapabilities:
         # Verify the hook is created correctly
         assert hook.value == "initial_value"
         assert hook.owner == mock_owner
-        assert hook.hook_nexus is not None
+        assert hook._get_nexus() is not None  # type: ignore
 
     def test_hook_creation_without_invalidate_callback(self):
         """Test hook creation without invalidate callback."""
@@ -68,7 +68,7 @@ class TestHookCapabilities:
         # Verify the hook is created correctly
         assert hook.value == "initial_value"
         assert hook.owner == mock_owner
-        assert hook.hook_nexus is not None
+        assert hook._get_nexus() is not None  # type: ignore
 
     def test_value_hook_property(self):
         """Test the value property of hooks."""
@@ -86,7 +86,7 @@ class TestHookCapabilities:
         assert hook.value == "test_value"
         
         # The value comes from the hook nexus, so it should be consistent
-        assert hook.hook_nexus.value == "test_value"
+        assert hook._get_nexus().value == "test_value"  # type: ignore
 
     def test_hook_owner_property(self):
         """Test the owner property of hooks."""
@@ -119,12 +119,12 @@ class TestHookCapabilities:
         )
         
         # Test the hook_nexus property
-        assert hook.hook_nexus is not None
-        assert hook in hook.hook_nexus.hooks
+        assert hook._get_nexus() is not None  # type: ignore
+        assert hook in hook._get_nexus().hooks  # type: ignore
         
         # Test that hook_nexus is consistent
-        hook_nexus1 = hook.hook_nexus
-        hook_nexus2 = hook.hook_nexus
+        hook_nexus1 = hook._get_nexus()  # type: ignore
+        hook_nexus2 = hook._get_nexus()  # type: ignore
         assert hook_nexus1 is hook_nexus2
 
     def test_hook_lock_property(self):
@@ -140,14 +140,14 @@ class TestHookCapabilities:
         )
         
         # Test the lock property
-        assert hook.lock is not None
+        assert hook._lock is not None  # type: ignore
         
         # Test that lock is a threading lock type
-        assert hasattr(hook.lock, 'acquire')
-        assert hasattr(hook.lock, 'release')
+        assert hasattr(hook._lock, 'acquire')  # type: ignore
+        assert hasattr(hook._lock, 'release')  # type: ignore
         
         # Test that lock can be acquired
-        with hook.lock:
+        with hook._lock:  # type: ignore
             # This should not raise an error
             pass
 
@@ -170,15 +170,15 @@ class TestHookCapabilities:
         )
         
         # Initially, hooks are in separate hook nexuses
-        assert hook1.hook_nexus != hook2.hook_nexus
+        assert hook1._get_nexus() != hook2._get_nexus()  # type: ignore
         
         # Connect hook1 to hook2
-        hook1.connect_hook(hook2, "use_caller_value")  # type: ignore
+        hook1.link(hook2, "use_caller_value")  # type: ignore
         
         # Now they should be in the same hook nexus
-        assert hook1.hook_nexus == hook2.hook_nexus
-        assert hook1 in hook2.hook_nexus.hooks
-        assert hook2 in hook1.hook_nexus.hooks
+        assert hook1._get_nexus() == hook2._get_nexus()  # type: ignore
+        assert hook1 in hook2._get_nexus().hooks  # type: ignore
+        assert hook2 in hook1._get_nexus().hooks  # type: ignore
 
     def test_hook_connect_to_invalid_sync_mode(self):
         """Test connect_to with invalid sync mode."""
@@ -200,7 +200,7 @@ class TestHookCapabilities:
         
         # Test with invalid sync mode
         with pytest.raises(ValueError, match="Invalid sync mode"):
-            hook1.connect_hook(hook2, "invalid_mode")  # type: ignore
+            hook1.link(hook2, "invalid_mode")  # type: ignore
 
     def test_hook_detach(self):
         """Test the detach method of hooks."""
@@ -215,7 +215,7 @@ class TestHookCapabilities:
         )
         
         # Get the original hook nexus
-        original_nexus = hook.hook_nexus
+        original_nexus = hook._get_nexus()  # type: ignore
         
         # Create another hook to connect with
         hook2 = OwnedHook[str](
@@ -225,15 +225,15 @@ class TestHookCapabilities:
         )
         
         # Connect them so they're in the same hook nexus
-        hook.connect_hook(hook2, "use_caller_value")  # type: ignore
+        hook.link(hook2, "use_caller_value")  # type: ignore
         
         # Now disconnect the first hook
-        hook.disconnect_hook()
+        hook.unlink()
         
         # Verify the hook is now in a new, separate hook nexus
-        assert hook.hook_nexus != original_nexus
-        assert hook in hook.hook_nexus.hooks
-        assert len(hook.hook_nexus.hooks) == 1
+        assert hook._get_nexus() != original_nexus  # type: ignore
+        assert hook in hook._get_nexus().hooks  # type: ignore
+        assert len(hook._get_nexus().hooks) == 1  # type: ignore
 
     def test_hook_detach_multiple_times(self):
         """Test calling detach multiple times."""
@@ -255,25 +255,25 @@ class TestHookCapabilities:
         )
         
         # Connect them so they're in the same group
-        hook.connect_hook(hook2, "use_caller_value")  # type: ignore
+        hook.link(hook2, "use_caller_value")  # type: ignore
         
         # First disconnect should work and create a new nexus
-        original_nexus = hook.hook_nexus
-        hook.disconnect_hook()
+        original_nexus = hook._get_nexus()  # type: ignore
+        hook.unlink()
         
         # Should create a new hook nexus
-        assert hook.hook_nexus != original_nexus
-        assert hook in hook.hook_nexus.hooks
-        assert len(hook.hook_nexus.hooks) == 1
+        assert hook._get_nexus() != original_nexus  # type: ignore
+        assert hook in hook._get_nexus().hooks  # type: ignore
+        assert len(hook._get_nexus().hooks) == 1  # type: ignore
         
         # Second disconnect should do nothing since hook is already isolated
-        nexus_after_first_disconnect = hook.hook_nexus
-        hook.disconnect_hook()
+        nexus_after_first_disconnect = hook._get_nexus()  # type: ignore
+        hook.unlink()
         
         # Should still be the same nexus
-        assert hook.hook_nexus == nexus_after_first_disconnect
-        assert hook in hook.hook_nexus.hooks
-        assert len(hook.hook_nexus.hooks) == 1
+        assert hook._get_nexus() == nexus_after_first_disconnect  # type: ignore
+        assert hook in hook._get_nexus().hooks  # type: ignore
+        assert len(hook._get_nexus().hooks) == 1  # type: ignore
 
     def test_hook_submit_value(self):
         """Test the submit_value method of hooks."""
@@ -288,11 +288,11 @@ class TestHookCapabilities:
         )
         
         # Test submitting a new value
-        success, message = hook.submit_value("new_value")
+        success, message = hook.change_value("new_value")
         assert success, f"Submit failed: {message}"
         
         # The value should be updated in the hook nexus
-        assert hook.hook_nexus.value == "new_value"
+        assert hook._get_nexus().value  # type: ignore == "new_value"
 
     def test_hook_submit_value_without_callback(self):
         """Test submit_value on a hook without invalidate callback."""
@@ -307,7 +307,7 @@ class TestHookCapabilities:
         )
         
         # Test submitting a value - should still work as it goes through the hook nexus
-        success, message = hook.submit_value("new_value")
+        success, message = hook.change_value("new_value")
         assert success, f"Submit failed: {message}"
 
     def test_hook_is_connected_to(self):
@@ -329,15 +329,15 @@ class TestHookCapabilities:
         )
         
         # Initially, hooks are not attached
-        assert not hook1.is_connected_to(hook2)
-        assert not hook2.is_connected_to(hook1)
+        assert not hook1.is_linked_to(hook2)
+        assert not hook2.is_linked_to(hook1)
         
         # Connect them
-        hook1.connect_hook(hook2, "use_caller_value")  # type: ignore
+        hook1.link(hook2, "use_caller_value")  # type: ignore
         
         # Now they should be attached
-        assert hook1.is_connected_to(hook2)
-        assert hook2.is_connected_to(hook1)
+        assert hook1.is_linked_to(hook2)
+        assert hook2.is_linked_to(hook1)
 
     def test_hook_is_valid_value(self):
         """Test the is_valid_value method of hooks."""
@@ -352,13 +352,13 @@ class TestHookCapabilities:
         )
         
         # Test validation - should delegate to owner
-        success, message = hook.validate_value("new_value")
+        success, message = hook._validate_value("new_value")
         # The actual result depends on the owner's validation logic
         assert isinstance(success, bool)
         assert isinstance(message, str)
 
-    def test_hook_replace_hook_nexus(self):
-        """Test the _replace_hook_nexus method."""
+    def test_hook_replace_nexus(self):
+        """Test the _replace_nexus method."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
         
@@ -370,18 +370,18 @@ class TestHookCapabilities:
         )
         
         # Get the original hook nexus
-        original_nexus = hook.hook_nexus
+        original_nexus = hook._get_nexus()  # type: ignore
         
         # Create a new hook nexus
-        from observables._nexus_system.hook_nexus import HookNexus
-        new_nexus = HookNexus[str]("new_value", hooks={hook})
+        from observables._nexus_system.nexus import Nexus
+        new_nexus = Nexus[str]("new_value", hooks={hook})
         
         # Replace the hook nexus
-        hook._replace_hook_nexus(new_nexus) #type: ignore
+        hook._replace_nexus(new_nexus) #type: ignore
         
         # Verify the hook is now in the new hook nexus
-        assert hook.hook_nexus == new_nexus
-        assert hook.hook_nexus != original_nexus
+        assert hook._get_nexus() == new_nexus  # type: ignore
+        assert hook._get_nexus() != original_nexus  # type: ignore
         assert hook in new_nexus.hooks
 
     def test_hook_thread_safety_basic(self):
@@ -449,7 +449,7 @@ class TestHookCapabilities:
             for _ in range(200):
                 try:
                     _ = hook.owner
-                    _ = hook.hook_nexus
+                    _ = hook._get_nexus()  # type: ignore
                     _ = hook.lock
                     time.sleep(0.0005)
                 except Exception:
@@ -545,10 +545,10 @@ class TestHookCapabilities:
             for _ in range(100):
                 try:
                     # Add hook2 to hook1's hook nexus
-                    hook1.hook_nexus.add_hook(hook2)
+                    hook1._get_nexus().add_hook  # type: ignore(hook2)
                     time.sleep(0.002)
                     # Remove hook2 from hook1's hook nexus
-                    hook1.hook_nexus.remove_hook(hook2)
+                    hook1._get_nexus().remove_hook  # type: ignore(hook2)
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -556,8 +556,8 @@ class TestHookCapabilities:
         def hook_accessor():
             for _ in range(200):
                 try:
-                    _ = hook1.hook_nexus.hooks
-                    _ = len(hook1.hook_nexus.hooks)
+                    _ = hook1._get_nexus().hooks  # type: ignore
+                    _ = len(hook1._get_nexus().hooks)  # type: ignore
                     _ = hook1.is_connected_to(hook2)
                     time.sleep(0.001)
                 except Exception:
@@ -600,8 +600,8 @@ class TestHookCapabilities:
                         owner=mock_owner,
                         initial_value="value",
                     )
-                    hook.connect_hook(hook2, "use_caller_value")  # type: ignore
-                    hook.disconnect_hook()
+                    hook.link(hook2, "use_caller_value")  # type: ignore
+                    hook.unlink()
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -609,8 +609,8 @@ class TestHookCapabilities:
         def property_accessor():
             for _ in range(200):
                 try:
-                    _ = hook.hook_nexus
-                    _ = len(hook.hook_nexus.hooks)
+                    _ = hook._get_nexus()  # type: ignore
+                    _ = len(hook._get_nexus().hooks)  # type: ignore
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -696,7 +696,7 @@ class TestHookCapabilities:
         def connect_caller():
             for _ in range(50):
                 try:
-                    hook1.connect_hook(hook2, "use_caller_value")  # type: ignore
+                    hook1.link(hook2, "use_caller_value")  # type: ignore
                     time.sleep(0.003)
                 except Exception:
                     pass
@@ -746,8 +746,8 @@ class TestHookCapabilities:
                     if i % 5 == 0:
                         hook.submit_value(f"value_{worker_id}_{i}")
                     elif i % 5 == 2:
-                        _ = hook.hook_nexus
-                        _ = len(hook.hook_nexus.hooks)
+                        _ = hook._get_nexus()  # type: ignore
+                        _ = len(hook._get_nexus().hooks)  # type: ignore
                     else:
                         _ = hook.value
                     

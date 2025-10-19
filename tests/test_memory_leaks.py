@@ -10,7 +10,7 @@ import weakref
 
 from observables import ObservableSingleValue, ObservableSelectionDict, FloatingHook
 
-from observables._nexus_system.hook_nexus import HookNexus
+from observables._nexus_system.nexus import Nexus
 
 
 class TestMemoryLeaks:
@@ -37,7 +37,7 @@ class TestMemoryLeaks:
     def test_hook_nexus_garbage_collection(self):
         """Test that hook nexuses can be garbage collected when empty."""
         # Create a hook nexus
-        nexus = HookNexus("test_value")
+        nexus = Nexus("test_value")
         nexus_ref = weakref.ref(nexus)
         
         # Verify the nexus exists
@@ -57,7 +57,7 @@ class TestMemoryLeaks:
         # Create a hook (which creates its own nexus)
         hook = FloatingHook("test_value")
         hook_ref = weakref.ref(hook)
-        nexus_ref = weakref.ref(hook.hook_nexus)
+        nexus_ref = weakref.ref(hook._get_nexus())  # type: ignore
         
         # Verify both exist
         assert hook_ref() is not None
@@ -83,17 +83,17 @@ class TestMemoryLeaks:
         hook2_ref = weakref.ref(hook2)
         
         # Connect them
-        success, _ = hook1.connect_hook(hook2, "use_caller_value")
+        success, _ = hook1.link(hook2, "use_caller_value")
         assert success
         
         # Verify they're connected (same nexus)
-        assert hook1.hook_nexus == hook2.hook_nexus
+        assert hook1._get_nexus() == hook2._get_nexus()  # type: ignore
         
         # Disconnect hook1
-        hook1.disconnect_hook()
+        hook1.unlink()
         
         # Verify they're now disconnected (different nexuses)
-        assert hook1.hook_nexus != hook2.hook_nexus
+        assert hook1._get_nexus() != hook2._get_nexus()  # type: ignore
         
         # Delete hook1
         del hook1
@@ -164,7 +164,7 @@ class TestMemoryLeaks:
         hook2_ref = weakref.ref(hook2)
         
         # Connect them through NexusManager
-        success, _ = hook1.connect_hook(hook2, "use_caller_value")
+        success, _ = hook1.link(hook2, "use_caller_value")
         assert success
         
         # Delete the hooks
@@ -185,13 +185,13 @@ class TestMemoryLeaks:
         hook2 = FloatingHook("value2")
         
         # Connect them (creates circular references through nexus)
-        success, _ = hook1.connect_hook(hook2, "use_caller_value")
+        success, _ = hook1.link(hook2, "use_caller_value")
         assert success
         
         # Create weak references
         hook1_ref = weakref.ref(hook1)
         hook2_ref = weakref.ref(hook2)
-        nexus_ref = weakref.ref(hook1.hook_nexus)
+        nexus_ref = weakref.ref(hook1._get_nexus())  # type: ignore
         
         # Delete both hooks
         del hook1

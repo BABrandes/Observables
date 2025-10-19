@@ -5,7 +5,7 @@ from observables import Hook
 from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
 from observables._hooks.owned_hook import OwnedHook
 
-from observables._nexus_system.hook_nexus import HookNexus
+from observables._nexus_system.nexus import Nexus
 from observables._auxiliary.listening_base import ListeningBase
 
 class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
@@ -19,7 +19,7 @@ class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
-    def _get_hook_key(self, hook_or_nexus: Hook[Any]|HookNexus[Any]) -> Any:
+    def _get_hook_key(self, hook_or_nexus: Hook[Any]|Nexus[Any]) -> Any:
         """Return a mock key for the hook."""
         return "mock_key"
     

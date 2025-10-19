@@ -8,7 +8,7 @@ from typing import Any, cast
 from enum import Enum
 
 
-from observables import ObservableSingleValue, ObservableList, ObservableSelectionDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
+from observables import ObservableSingleValue, ObservableList, ObservableSelectionDict, ObservableSet, ObservableSelectionSet as ObservableSelectionOption, ObservableMultiSelectionSet as ObservableMultiSelectionOption, write_report
 from observables.core import CarriesHooksBase
 from observables._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 

@@ -1,5 +1,5 @@
 
-from observables import ObservableSelectionOption, ObservableOptionalSelectionOption
+from observables import ObservableSelectionSet as ObservableSelectionOption, ObservableOptionalSelectionSet as ObservableOptionalSelectionOption
 import pytest
 
 class TestObservableSelectionOption:

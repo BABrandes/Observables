@@ -3,7 +3,7 @@ from threading import RLock
 import logging
 import inspect
 
-from ..hook_protocols.managed_hook import ManagedHookProtocol
+from ..hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
 
 from ..._utils import log
@@ -215,6 +215,18 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         with self._lock:
             return self._is_linked_to(hook_or_carries_single_hook)
 
+    def is_linked(self) -> bool:
+        """
+        Check if this hook is connected to another hook.
+
+        ** Thread-safe **
+
+        Returns:
+            True if the hook is connected to another hook, False otherwise
+        """
+        with self._lock:
+            return self._is_linked()
+
     #########################################################
     # Private methods
     #########################################################
@@ -352,16 +364,24 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         ** This method is not thread-safe and should only be called by the is_linked_to method.
 
         Args:
-            hook: The hook or CarriesSingleHookProtocol to check if it is connected to
+            hook_or_carries_single_hook: The hook or CarriesSingleHookProtocol to check if it is connected to
 
         Returns:
             True if the hook is connected to the other hook or CarriesSingleHookProtocol, False otherwise
         """
 
-        with self._lock:
-            if isinstance(hook_or_carries_single_hook, CarriesSingleHookProtocol):
-                hook_or_carries_single_hook = hook_or_carries_single_hook._get_single_hook() # type: ignore
-            return hook_or_carries_single_hook in self._hook_nexus.hooks
+        if isinstance(hook_or_carries_single_hook, CarriesSingleHookProtocol):
+            hook_or_carries_single_hook = hook_or_carries_single_hook._get_single_hook() # type: ignore
+        return hook_or_carries_single_hook in self._hook_nexus.hooks
+
+    def _is_linked(self) -> bool:
+        """
+        Check if this hook is connected to another hook.
+
+        ** This method is not thread-safe and should only be called by the is_linked method.
+        """
+
+        return len(self._hook_nexus.hooks) > 1
 
     def _replace_nexus(self, nexus: "Nexus[T]") -> None:
         """

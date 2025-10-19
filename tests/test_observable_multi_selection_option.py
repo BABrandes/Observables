@@ -1,4 +1,4 @@
-from observables import ObservableMultiSelectionOption
+from observables import ObservableMultiSelectionSet as ObservableMultiSelectionOption
 import pytest
 
 class TestObservableMultiSelectionOption:
@@ -456,8 +456,8 @@ class TestObservableMultiSelectionOption:
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        assert target.selected_options_hook.is_connected_to(source.selected_options_hook)
-        assert source.selected_options_hook.is_connected_to(target.selected_options_hook)
+        assert target.selected_options_hook.is_linked_to(source.selected_options_hook)
+        assert source.selected_options_hook.is_linked_to(target.selected_options_hook)
     
     def test_multi_selection_option_binding_none_observable(self):
         """Test that binding to None raises an error"""
@@ -480,10 +480,10 @@ class TestObservableMultiSelectionOption:
         obs = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         callback = lambda: None
         
-        obs.add_listeners(callback, callback)
+        obs.add_listener(callback, callback)
         assert len(obs.listeners) == 1
         
-        obs.add_listeners(callback)
+        obs.add_listener(callback)
         assert len(obs.listeners) == 1
     
     def test_remove_nonexistent_listener(self):
@@ -492,5 +492,5 @@ class TestObservableMultiSelectionOption:
         callback = lambda: None
         
         # Should not raise an error
-        obs.remove_listeners(callback)
+        obs.remove_listener(callback)
         assert len(obs.listeners) == 0

@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
 from .protocols import ObservableMultiSelectionOptionsProtocol
 
@@ -122,15 +122,6 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
                 initial_selected_options = frozenset(selected_options) # type: ignore
                 selected_options_hook = None
 
-        # Validate that selected options are subset of available options
-        # Convert to frozensets for comparison if needed
-        selected_frozen = frozenset(initial_selected_options) if not isinstance(initial_selected_options, frozenset) else initial_selected_options
-        available_frozen = frozenset(initial_available_options) if not isinstance(initial_available_options, frozenset) else initial_available_options
-        
-        if selected_frozen and not selected_frozen.issubset(available_frozen):
-            invalid_options = selected_frozen - available_frozen
-            raise ValueError(f"Selected options {invalid_options} not in available options {available_frozen}")
-        
         def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], frozenset[T]|int]) -> tuple[bool, str]:
             
             if "selected_options" in x:

@@ -14,7 +14,7 @@ def test_disconnect_connect_race_condition():
     """
     Test that disconnect and connect operations don't cause race conditions.
     
-    The bug was that _replace_hook_nexus() didn't acquire the hook's lock,
+    The bug was that _replace_nexus() didn't acquire the hook's lock,
     so it could replace self._hook_nexus while disconnect() was checking
     if self was in self._hook_nexus.hooks, causing a ValueError.
     """
@@ -25,7 +25,7 @@ def test_disconnect_connect_race_condition():
     hook3 = FloatingHook(3)
     
     # Connect hook1 and hook2
-    hook1.connect_hook(hook2, "use_caller_value")
+    hook1.link(hook2, "use_caller_value")
     
     # Verify they're connected
     assert hook1.is_connected_to(hook2)
@@ -39,15 +39,15 @@ def test_disconnect_connect_race_condition():
         """Thread 1: Disconnect hook1"""
         try:
             time.sleep(0.001)  # Small delay to increase chance of race
-            hook1.disconnect_hook()
+            hook1.unlink()
         except Exception as e:
             errors.append(("disconnect", e))
     
     def connect_hook1_hook3():
         """Thread 2: Connect hook1 to hook3"""
         try:
-            # This will call _replace_hook_nexus on hook1 and hook3
-            hook1.connect_hook(hook3, "use_caller_value")
+            # This will call _replace_nexus on hook1 and hook3
+            hook1.link(hook3, "use_caller_value")
         except Exception as e:
             errors.append(("connect", e))
     
@@ -57,7 +57,7 @@ def test_disconnect_connect_race_condition():
         hook1 = FloatingHook(1)
         hook2 = FloatingHook(2)
         hook3 = FloatingHook(3)
-        hook1.connect_hook(hook2, "use_caller_value")
+        hook1.link(hook2, "use_caller_value")
         
         errors.clear()
         
@@ -88,7 +88,7 @@ def test_disconnect_connect_race_condition():
 
 def test_disconnect_replace_nexus_concurrent():
     """
-    More targeted test: directly test concurrent disconnect and _replace_hook_nexus.
+    More targeted test: directly test concurrent disconnect and _replace_nexus.
     """
     
     errors: list[Exception] = []
@@ -98,20 +98,20 @@ def test_disconnect_replace_nexus_concurrent():
         hook2 = FloatingHook(2)
         
         # Connect them
-        hook1.connect_hook(hook2, "use_caller_value")
+        hook1.link(hook2, "use_caller_value")
         
         def thread_disconnect():
             try:
-                hook1.disconnect_hook()
+                hook1.unlink()
             except Exception as e:
                 errors.append(e)
         
         def thread_replace():
             try:
                 # Simulate what happens during connect_hooks
-                from observables._nexus_system.hook_nexus import HookNexus
-                new_nexus = HookNexus(hook1.value, hooks={hook1})
-                hook1._replace_hook_nexus(new_nexus) # type: ignore
+                from observables._nexus_system.nexus import Nexus
+                new_nexus = Nexus(hook1.value, hooks={hook1})
+                hook1._replace_nexus(new_nexus) # type: ignore
             except Exception as e:
                 errors.append(e)
         

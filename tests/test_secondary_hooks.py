@@ -8,7 +8,7 @@ secondary hooks are properly recomputed when component values change.
 import pytest
 
 from observables import ObservableList, ObservableSelectionDict, ObservableSet
-from observables import ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
+from observables import ObservableSelectionSet as ObservableSelectionOption, ObservableOptionalSelectionSet as ObservableOptionalSelectionOption, ObservableMultiSelectionSet as ObservableMultiSelectionOption
 
 
 class TestEmitterHooksBasicFunctionality:

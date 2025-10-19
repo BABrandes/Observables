@@ -6,7 +6,7 @@ import gc
 import weakref
 
 from observables import FloatingHook
-from observables._nexus_system.hook_nexus import HookNexus
+from observables._nexus_system.nexus import Nexus
 
 
 def test_simple_hook_gc():
@@ -54,7 +54,7 @@ def test_hook_with_callback_gc():
 def test_nexus_gc():
     """Test nexus garbage collection."""
     # Create a nexus
-    nexus = HookNexus("test_value")
+    nexus = Nexus("test_value")
     nexus_ref = weakref.ref(nexus)
     
     # Verify the nexus exists

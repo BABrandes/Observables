@@ -3,14 +3,12 @@ from logging import Logger
 
 from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
 from observables._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
-from observables._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from observables._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_aliases import Hook, ReadOnlyHook
-from observables._nexus_system.nexus import Nexus
 from observables._nexus_system.update_function_values import UpdateFunctionValues
 
 T = TypeVar("T")
-
 
 class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_with_none"], T, "ObservableRaiseNone[T]"], Generic[T]):
     """
@@ -170,7 +168,7 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
                     value_2 = update_values.submitted["value_with_none"]
                     if value_1 is None or value_2 is None:
                         raise ValueError("One of the values is None")
-                    elif self.nexus_manager.is_not_equal(value_1, value_2):
+                    elif self._nexus_manager.is_not_equal(value_1, value_2):
                         raise ValueError("Values do not match")
                     return {}
                 else:
@@ -187,7 +185,7 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
                 value_with_none = values["value_with_none"]
                 if value_without_none is None or value_with_none is None:
                     return False, "One of the values is None"
-                elif self.nexus_manager.is_not_equal(value_without_none, value_with_none):
+                elif self._nexus_manager.is_not_equal(value_without_none, value_with_none):
                     return False, "Values do not match"
                 return True, "Values are valid"
 
@@ -238,7 +236,7 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
     # BaseCarriesHooks abstract methods implementation
     #########################################################################
 
-    def _get_hook(self, key: Literal["value_without_none", "value_with_none"]) -> OwnedFullHookProtocol[T]:
+    def _get_hook_by_key(self, key: Literal["value_without_none", "value_with_none"]) -> OwnedFullHookProtocol[T]:
         """
         Get a hook by its key.
         """
@@ -247,31 +245,22 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
         elif key == "value_with_none":
             return self._hook_with_None # type: ignore
 
-    def _get_value_reference_of_hook(self, key: Literal["value_without_none", "value_with_none"]) -> T:
-        """
-        Get a value as a reference by its key.
-        """
-        if key == "value_without_none":
-            return self._hook_without_None.value # type: ignore
-        elif key == "value_with_none":
-            return self._hook_with_None.value # type: ignore
-
-    def _get_hook_keys(self) -> set[Literal["value_without_none", "value_with_none"]]:
+    def _get_keys(self) -> set[Literal["value_without_none", "value_with_none"]]:
         """
         Get all keys of the hooks.
         """
         return {"value_without_none", "value_with_none"}
 
-    def _get_hook_key(self, hook_or_nexus: "Hook[T]|Nexus[T]") -> Literal["value_without_none", "value_with_none"]:
+    def _get_key_by_hook(self, hook: OwnedFullHookProtocol[T]) -> Literal["value_without_none", "value_with_none"]:
         """
-        Get a key by its hook or nexus.
+        Get a key by its hook.
         """
-        if hook_or_nexus == self._hook_without_None:
+        if hook == self._hook_without_None:
             return "value_without_none"
-        elif hook_or_nexus == self._hook_with_None:
+        elif hook == self._hook_with_None:
             return "value_with_none"
         else:
-            raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
+            raise ValueError(f"Hook {hook} not found in hooks")
 
     #########################################################################
     #Accessors

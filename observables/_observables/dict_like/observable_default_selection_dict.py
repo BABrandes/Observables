@@ -3,7 +3,7 @@ from logging import Logger
 from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._nexus_system.update_function_values import UpdateFunctionValues
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableDefaultSelectionDictProtocol

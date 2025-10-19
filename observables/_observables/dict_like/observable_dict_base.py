@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
 from ..._auxiliary.listening_base import ListeningBase
 from ..._nexus_system.update_function_values import UpdateFunctionValues
@@ -83,10 +83,10 @@ class ObservableDictBase(
         
         # Extract initial values and wrap in Map
         if isinstance(dict_hook, (Hook, ReadOnlyHook)):
-            _initial_dict_value: Mapping[K, V] = dict_hook.value
+            _initial_dict_value: Mapping[K, V] = dict_hook.value # type: ignore
             # If hook contains non-Map, wrap it
             if not isinstance(_initial_dict_value, Map):
-                _initial_dict_value = Map(_initial_dict_value)
+                _initial_dict_value = Map(_initial_dict_value) # type: ignore
         else:
             _initial_dict_value = dict_hook
             # Wrap in Map for immutability
@@ -103,7 +103,7 @@ class ObservableDictBase(
         # Compute initial value if not provided
         if value_hook is None:
             _initial_value_value: VT = self._compute_initial_value(
-                _initial_dict_value, 
+                _initial_dict_value, # type: ignore
                 _initial_key_value  # type: ignore
             )
         else:

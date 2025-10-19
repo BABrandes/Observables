@@ -557,7 +557,7 @@ class TestObservableList(ObservableTestCase):
         # Verify serialized data contains expected keys
         assert "value" in serialized_data
         # Serialized data may be tuple internally
-        assert list(serialized_data["value"]) == expected_list
+        assert list(serialized_data["value"]) == expected_list # type: ignore
         
         # Step 4: Delete the object
         del obs

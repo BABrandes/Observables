@@ -8,7 +8,7 @@ It covers complex binding scenarios, collective validation, and transitive bindi
 
 import time
 
-from observables import ObservableSingleValue, ObservableSet, ObservableSelectionOption, ObservableOptionalSelectionOption
+from observables import ObservableSingleValue, ObservableSet, ObservableSelectionSet as ObservableSelectionOption, ObservableOptionalSelectionSet as ObservableOptionalSelectionOption
 from tests.run_tests import console_logger as logger
 import pytest
 

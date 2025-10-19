@@ -138,3 +138,11 @@ class HookWithConnectionProtocol(Hashable, Protocol[T]):
             True if the hook is connected to the other hook or CarriesSingleHookProtocol[T], False otherwise
         """
         ...
+
+    def _is_linked(self) -> bool:
+        """
+        Check if this hook is connected to another hook.
+
+        ** This method is not thread-safe and should only be called by the is_linked method.
+        """
+        ...

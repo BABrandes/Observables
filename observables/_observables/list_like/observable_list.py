@@ -2,7 +2,7 @@ from typing import Generic, TypeVar, Iterable, Sequence, Callable, Literal, Opti
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
 from ..._nexus_system.submission_error import SubmissionError
 from .protocols import ObservableListProtocol

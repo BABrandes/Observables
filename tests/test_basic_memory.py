@@ -34,7 +34,7 @@ class TestEssentialMemoryManagement:
         def listener():
             call_count[0] += 1
         
-        obs.add_listeners(listener)
+        obs.add_listener(listener)
         obs.value = "modified"
         assert call_count[0] == 1
         

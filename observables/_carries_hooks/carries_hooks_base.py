@@ -187,7 +187,6 @@ class CarriesHooksBase(CarriesHooksProtocol[HK, HV], HasNexusManagerProtocol, Ge
         with self._lock:
             self._unlink(key)
 
-
     #########################################################
     # Private methods
     #########################################################

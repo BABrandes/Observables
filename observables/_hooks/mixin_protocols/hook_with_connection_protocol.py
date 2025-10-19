@@ -1,4 +1,4 @@
-from typing import Protocol, Literal, TYPE_CHECKING, TypeVar, runtime_checkable
+from typing import Protocol, Literal, TYPE_CHECKING, TypeVar, runtime_checkable, Hashable
 
 if TYPE_CHECKING:
     from ..._nexus_system.nexus import Nexus
@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 @runtime_checkable
-class HookWithConnectionProtocol(Protocol[T]):
+class HookWithConnectionProtocol(Hashable, Protocol[T]):
     """
     Protocol for hook objects that can connect to other hooks.
     """

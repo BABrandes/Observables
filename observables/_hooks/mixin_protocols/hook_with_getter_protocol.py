@@ -1,9 +1,10 @@
-from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional
+from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional, Hashable
 from logging import Logger
 
 from ..._auxiliary.listening_protocol import ListeningProtocol
 from ..._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
 from ..._publisher_subscriber.publisher_protocol import PublisherProtocol
+from ..._nexus_system.has_nexus_protocol import HasNexusProtocol
 
 if TYPE_CHECKING:
     from ..._nexus_system.nexus import Nexus
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 @runtime_checkable
-class HookWithGetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManagerProtocol, Protocol[T]):
+class HookWithGetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManagerProtocol, HasNexusProtocol[T], Hashable, Protocol[T]):
     """
     Protocol for getter hook objects that can get values.
     
@@ -80,7 +81,7 @@ class HookWithGetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
         
         Note: This method only validates, it does not submit values.
         """
-        return self._get_nexus_manager().submit_values({self._get_nexus(): value}, mode="Check values", logger=logger)
+        return self._get_nexus_manager().submit_values({self._get_nexus(): value}, mode="Check values", logger=logger) # type: ignore
 
     @staticmethod
     @final
@@ -99,5 +100,5 @@ class HookWithGetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
         for hook, value in values.items():
             if hook._get_nexus_manager() != nexus_manager:
                 raise ValueError("The nexus managers must be the same")
-            nexus_and_values[hook._get_nexus()] = value
+            nexus_and_values[hook._get_nexus()] = value # type: ignore
         return nexus_manager.submit_values(nexus_and_values, mode="Check values", logger=logger)

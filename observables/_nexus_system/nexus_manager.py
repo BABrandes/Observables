@@ -322,21 +322,17 @@ class NexusManager:
             return number_of_inserted_items, "Successfully updated nexus and values"
 
         from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
-        from .._hooks.mixin_protocols.hook_with_isolated_validation_protocol import HookWithIsolatedValidationProtocol
             
+        # This here is the main loop: We iterate over all the hooks to see if they belong to an owner, which require more values to be changed if the current values would change.
         while True:
 
             # Step 1: Collect the all the owners that need to be checked for additional nexus and values
-            owners_to_check_for_additional_nexus_and_values: set["CarriesHooksProtocol[Any, Any]"] = set()
+            owners_to_check_for_additional_nexus_and_values: list["CarriesHooksProtocol[Any, Any]"] = []
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
-                    match hook:
-                        case HookWithOwnerProtocol(): # type: ignore
-                            owners_to_check_for_additional_nexus_and_values.add(hook.owner)
-                        case HookWithIsolatedValidationProtocol(): # type: ignore
-                            pass
-                        case _:
-                            pass
+                    if isinstance(hook, HookWithOwnerProtocol):
+                        if hook.owner not in owners_to_check_for_additional_nexus_and_values:
+                            owners_to_check_for_additional_nexus_and_values.append(hook.owner)
 
             # Step 2: Check for each owner if there are additional nexus and values
             number_of_inserted_items: Optional[int] = 0
@@ -432,7 +428,7 @@ class NexusManager:
             return False, msg
 
         # Step 2: Collect the owners and floating hooks to validate, react to, and notify
-        owners_that_are_affected: set["CarriesHooksProtocol[Any, Any]"] = set()
+        owners_that_are_affected: list["CarriesHooksProtocol[Any, Any]"] = []
         hooks_with_validation: set[HookWithIsolatedValidationProtocol[Any]] = set()
         hooks_with_reaction: set[HookWithReactionProtocol] = set()
         publishers: set[PublisherProtocol] = set()
@@ -445,7 +441,8 @@ class NexusManager:
                     if not isinstance(hook, HookWithOwnerProtocol):
                         hooks_with_validation.add(hook)
                 if isinstance(hook, HookWithOwnerProtocol):
-                    owners_that_are_affected.add(hook.owner)
+                    if hook.owner not in owners_that_are_affected:
+                        owners_that_are_affected.append(hook.owner)
                     if isinstance(hook.owner, PublisherProtocol):
                         publishers.add(hook.owner)
                 publishers.add(hook) # type: ignore

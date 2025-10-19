@@ -291,7 +291,7 @@ class Nexus(Generic[T]):
             nexus_to_take_value_from: Nexus[Any] = hook_pair[0]._get_nexus() # type: ignore
             nexus_to_be_updated: Nexus[Any] = hook_pair[1]._get_nexus() # type: ignore
             nexus_and_values[nexus_to_be_updated] = nexus_to_take_value_from.value # type: ignore
-        success, msg = nexus_manager.link_values(nexus_and_values)  # type: ignore
+        success, msg = nexus_manager.submit_values(nexus_and_values)  # type: ignore
         if not success:
             raise ValueError(msg)  # type: ignore
         

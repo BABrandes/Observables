@@ -1,13 +1,13 @@
 from typing import Protocol, TypeVar, runtime_checkable, Any
 
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
-
+from .._nexus_system.has_nexus_protocol import HasNexusProtocol
 from .carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class CarriesSingleHookProtocol(CarriesHooksProtocol[Any, T], Protocol[T]):
+class CarriesSingleHookProtocol(CarriesHooksProtocol[Any, T], HasNexusProtocol[T], Protocol[T]):
     """
     Protocol for objects that carry a single hook.
     """

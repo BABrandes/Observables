@@ -376,6 +376,12 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         
         log(self, "replace_nexus", self._logger, True, "Successfully replaced nexus")
 
+    def __hash__(self) -> int:
+        """
+        Hash the hook based on its identity.
+        """
+        return hash(id(self))
+
     #########################################################
     # Debugging convenience methods
     #########################################################

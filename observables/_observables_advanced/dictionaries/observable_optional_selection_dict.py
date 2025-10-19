@@ -1,4 +1,5 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
+from types import MappingProxyType
 
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableOptionalSelectionDictProtocol
@@ -119,9 +120,9 @@ class ObservableOptionalSelectionDict(
                     if submitted_values["key"] is None:
                         return {}
                     else:
-                        _dict = current_values["dict"].copy()
+                        _dict = dict(current_values["dict"])
                         _dict[submitted_values["key"]] = submitted_values["value"]
-                        return {"dict": _dict}
+                        return {"dict": MappingProxyType(_dict)}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict
@@ -140,9 +141,9 @@ class ObservableOptionalSelectionDict(
                         else:
                             return {}
                     else:
-                        _dict = current_values["dict"].copy()
+                        _dict = dict(current_values["dict"])
                         _dict[current_values["key"]] = submitted_values["value"]
-                        return {"dict": _dict}
+                        return {"dict": MappingProxyType(_dict)}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed
@@ -196,7 +197,7 @@ class ObservableOptionalSelectionDict(
 
     def _compute_initial_value(
         self, 
-        initial_dict: dict[K, V], 
+        initial_dict: Mapping[K, V], 
         initial_key: Optional[K]
     ) -> Optional[V]:
         """
@@ -209,12 +210,12 @@ class ObservableOptionalSelectionDict(
         else:
             return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: dict[K, V], key_value: Optional[K]) -> None:
+    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
         """
         Set the dictionary and key behind this hook atomically.
         
         Args:
-            dict_value: The new dictionary
+            dict_value: The new mapping
             key_value: The new key (can be None)
         """
         if key_value is None:
@@ -222,6 +223,10 @@ class ObservableOptionalSelectionDict(
         else:
             _inferred_value = dict_value[key_value]
 
+        # Wrap in MappingProxyType for immutability
+        if not isinstance(dict_value, MappingProxyType):
+            dict_value = MappingProxyType(dict(dict_value))
+        
         self.submit_values({
             "dict": dict_value, 
             "key": key_value, 

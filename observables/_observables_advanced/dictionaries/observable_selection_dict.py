@@ -1,4 +1,5 @@
 from typing import Literal, TypeVar, Generic, Mapping, Any, Callable
+from types import MappingProxyType
 
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableSelectionDictProtocol
@@ -93,9 +94,9 @@ class ObservableSelectionDict(
                     # Key and value provided - update dict with new value
                     if submitted_values["key"] not in current_values["dict"]:
                         raise KeyError(f"Key {submitted_values['key']} not in current dictionary")
-                    _dict = current_values["dict"].copy()
+                    _dict = dict(current_values["dict"])
                     _dict[submitted_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                    return {"dict": MappingProxyType(_dict)}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict
@@ -156,7 +157,7 @@ class ObservableSelectionDict(
 
     def _compute_initial_value(
         self, 
-        initial_dict: dict[K, V], 
+        initial_dict: Mapping[K, V], 
         initial_key: K
     ) -> V:
         """
@@ -166,15 +167,18 @@ class ObservableSelectionDict(
         """
         return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: dict[K, V], key_value: K) -> None:
+    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
         """
         Set the dictionary and key behind this hook atomically.
         
         Args:
-            dict_value: The new dictionary
+            dict_value: The new mapping
             key_value: The new key (must be in dict_value)
         """
         _inferred_value = dict_value[key_value]
+        # Wrap in MappingProxyType for immutability
+        if not isinstance(dict_value, MappingProxyType):
+            dict_value = MappingProxyType(dict(dict_value))
         self.submit_values({
             "dict": dict_value, 
             "key": key_value, 

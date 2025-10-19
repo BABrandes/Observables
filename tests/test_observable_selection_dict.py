@@ -65,7 +65,7 @@ class TestObservableSelectionDict:
         
         # Create selection dict
         selection_dict = ObservableSelectionDict[str, int](
-            dict_hook=dict_hook,
+            dict_hook=dict_hook,  # type: ignore[arg-type]
             key_hook=key_hook,
             value_hook=value_hook,
             logger=logger
@@ -101,12 +101,14 @@ class TestObservableSelectionDict:
         assert value_hook is not None
         
         # Test secondary hooks
-        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.keys == frozenset({"a", "b"})
         assert selection_dict.values == (1, 2)
         assert selection_dict.length == 2
         
         # Test get_hook_value_as_reference
-        assert selection_dict.get_value_reference_of_hook("dict") == test_dict
+        # Dict is now stored as MappingProxyType, so compare contents
+        dict_value = selection_dict.get_value_reference_of_hook("dict")
+        assert dict(dict_value) == test_dict  # type: ignore[arg-type]
         assert selection_dict.get_value_reference_of_hook("key") == "a"
         assert selection_dict.get_value_reference_of_hook("value") == 1
         
@@ -218,7 +220,8 @@ class TestObservableSelectionDict:
         assert selection_dict.value == 2
         
         # Change dict to include the current key
-        selection_dict.dict_hook.submit_value({"b": 200, "x": 100, "y": 300})
+        from types import MappingProxyType
+        selection_dict.dict_hook.submit_value(MappingProxyType({"b": 200, "x": 100, "y": 300}))
         # Now we can set the key to "x" since "b" is still valid
         selection_dict.key = "x"
         assert selection_dict.value == 100
@@ -367,7 +370,7 @@ class TestObservableOptionalSelectionDict:
         assert keys == {"dict", "key", "value", "keys", "values", "length"}
         
         # Test secondary hooks provide read-only access
-        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.keys == frozenset({"a", "b"})
         assert selection_dict.values == (1, 2)
         assert selection_dict.length == 2
         
@@ -557,7 +560,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value == (1, 2, 3)
 
     def test_concurrent_modifications(self):
-        """Test handling of concurrent modifications."""
+        """Test that external dict modifications are isolated (immutability)."""
         test_dict = {"a": 1, "b": 2, "c": 3}
         selection_dict = ObservableOptionalSelectionDict(
             dict_hook=test_dict,
@@ -566,16 +569,18 @@ class TestObservableOptionalSelectionDict:
             logger=logger
         )
         
-        # Modify the underlying dict directly
+        # Modify the external dict directly (should NOT affect observable)
         test_dict["d"] = 4
         
-        # Should be able to switch to the new key
-        selection_dict.key = "d"
-        assert selection_dict.value == 4
+        # Observable should be isolated from external mutation
+        # Key "d" should NOT be available
+        with pytest.raises(KeyError):
+            selection_dict.key = "d"
         
-        # Remove a key from underlying dict using set_dict_and_key
-        new_dict = {"b": 2, "c": 3, "d": 4}  # Remove key "a"
+        # Update dict properly through the API
+        new_dict = {"b": 2, "c": 3, "d": 4}  # Remove key "a", add "d"
         selection_dict.set_dict_and_key(new_dict, "d")  # Set to valid key
+        assert selection_dict.value == 4
         
         # Should not be able to switch back to removed key
         with pytest.raises(KeyError):

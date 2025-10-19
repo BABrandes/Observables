@@ -167,22 +167,58 @@ class HookNexus(Generic[T]):
     @property
     def value(self) -> T:
         """
-        Get the value of the hook group.
+        Get the value of the hook group (by reference).
 
-        ** The returned value is a copy, so modifying is allowed.
+        Returns:
+            The actual value stored in this nexus (not a copy).
+            
+        Important:
+            This returns a reference to the actual stored value for performance.
+            Do NOT mutate the returned value unless you created it.
+            For mutable collections, use immutable wrappers (MappingProxyType,
+            tuple, frozenset) or call value_copy() if you need to modify.
+        """
+        return self._value
+
+    def value_copy(self) -> T:
+        """
+        Get a mutable copy of the value.
+        
+        Returns:
+            A copy of the stored value (if it has a copy() method), otherwise
+            the value itself.
+            
+        Use this when:
+            - You need to modify the value without affecting the hook
+            - You want a snapshot of the current state
+            - You're working with mutable collections and need safety
+            
+        Note:
+            This method has overhead for large collections. Use sparingly.
         """
         value: T = self._value
         if hasattr(value, "copy"):
             value = cast(T, value.copy()) # type: ignore
         return value
-
+    
     @property
     def value_reference(self) -> T:
         """
         Get the value reference of the hook group.
 
-        ** The returned value is a reference, so modifying is not allowed.
+        .. deprecated::
+            Use `value` instead. This property is now an alias for `value`.
+            Will be removed in a future version.
+
+        Returns:
+            The actual value stored in this nexus (same as `value`).
         """
+        import warnings
+        warnings.warn(
+            "value_reference is deprecated, use 'value' instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         return self._value
     
     @property

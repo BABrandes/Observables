@@ -1,6 +1,7 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 from abc import ABC, abstractmethod
+from types import MappingProxyType
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
@@ -16,7 +17,7 @@ class ObservableDictBase(
         Literal["dict", "key", "value"], 
         Literal["keys", "values", "length"], 
         Any, 
-        tuple[K, ...]|tuple[V, ...]|int, 
+        frozenset[K]|tuple[V, ...]|int, 
         "ObservableDictBase[K, V, KT, VT]"
     ], 
     ListeningBase, 
@@ -32,9 +33,9 @@ class ObservableDictBase(
     - value: The value at the selected key
     
     Plus three read-only secondary hooks:
-    - keys: Tuple of dictionary keys
-    - values: Tuple of dictionary values
-    - length: Dictionary length
+    - keys: Immutable frozenset of dictionary keys
+    - values: Immutable tuple of dictionary values
+    - length: Dictionary length (int)
     
     Four Variants (see their specific docs for behavior matrices):
     ┌────────────────────────────────────┬───────────────┬────────────────────┐
@@ -60,7 +61,7 @@ class ObservableDictBase(
 
     def __init__(
         self,
-        dict_hook: dict[K, V] | Hook[dict[K, V]],
+        dict_hook: Mapping[K, V] | Hook[Mapping[K, V]],
         key_hook: KT | Hook[KT],
         value_hook: Optional[Hook[VT]] = None,
         invalidate_callback: Optional[Callable[[], None]] = None,
@@ -70,18 +71,26 @@ class ObservableDictBase(
         Initialize the ObservableDictBase.
         
         Args:
-            dict_hook: The dictionary or hook containing the dictionary
+            dict_hook: The mapping or hook containing the mapping
             key_hook: The initial key or hook
             value_hook: Optional hook for the value (if None, will be computed)
             logger: Optional logger for debugging
             invalidate_callback: Optional callback called after value changes
         """
         
-        # Extract initial values
+        # Extract initial values and wrap in MappingProxyType
         if isinstance(dict_hook, Hook):
-            _initial_dict_value: dict[K, V] = dict_hook.value
+            _initial_dict_value: Mapping[K, V] = dict_hook.value
+            # If hook contains non-MappingProxyType, wrap it
+            if not isinstance(_initial_dict_value, MappingProxyType):
+                _initial_dict_value = MappingProxyType(dict(_initial_dict_value))
         else:
             _initial_dict_value = dict_hook
+            # Wrap in MappingProxyType for immutability
+            if not isinstance(_initial_dict_value, MappingProxyType):
+                # Convert to dict first to ensure it's a mutable copy, then wrap
+                _dict_copy = dict(_initial_dict_value)
+                _initial_dict_value = MappingProxyType(_dict_copy)
 
         if isinstance(key_hook, Hook):
             _initial_key_value: KT = key_hook.value  # type: ignore
@@ -106,12 +115,12 @@ class ObservableDictBase(
         ComplexObservableBase.__init__(  # type: ignore
             self,
             initial_component_values_or_hooks={
-                "dict": dict_hook,
+                "dict": dict_hook if isinstance(dict_hook, Hook) else _initial_dict_value,
                 "key": key_hook if not (key_hook is None or (isinstance(key_hook, type(None)))) else _initial_key_value,
                 "value": value_hook if value_hook is not None else _initial_value_value
             },
             secondary_hook_callbacks={
-                "keys": lambda values: tuple(values["dict"].keys()) if values["dict"] is not None else (),  # type: ignore
+                "keys": lambda values: frozenset(values["dict"].keys()) if values["dict"] is not None else frozenset(),  # type: ignore
                 "values": lambda values: tuple(values["dict"].values()) if values["dict"] is not None else (),  # type: ignore
                 "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0  # type: ignore
             },
@@ -156,7 +165,7 @@ class ObservableDictBase(
         ...
 
     @abstractmethod
-    def _compute_initial_value(self, initial_dict: dict[K, V], initial_key: KT) -> VT:
+    def _compute_initial_value(self, initial_dict: Mapping[K, V], initial_key: KT) -> VT:
         """
         Compute the initial value from the dict and key.
         
@@ -174,19 +183,30 @@ class ObservableDictBase(
     ########################################################
 
     @property
-    def dict_hook(self) -> Hook[dict[K, V]]:
+    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
         """
         Get the dictionary hook.
         
         Returns:
-            The hook managing the dictionary value.
+            The hook managing the dictionary value as MappingProxyType (immutable).
+            
+        Note:
+            Returns MappingProxyType to enforce immutability. Attempting to mutate
+            the returned dict will raise TypeError. All modifications should go
+            through change_dict() or submit_values().
         """
         return self._primary_hooks["dict"]  # type: ignore
 
-    def change_dict(self, value: dict[K, V]) -> None:
+    def change_dict(self, value: Mapping[K, V]) -> None:
         """
         Change the dictionary behind this hook.
+        
+        Args:
+            value: The new mapping (will be wrapped in MappingProxyType)
         """
+        # Wrap in MappingProxyType for immutability
+        if not isinstance(value, MappingProxyType):
+            value = MappingProxyType(dict(value))
         success, msg = self.submit_value("dict", value)
         if not success:
             raise ValueError(msg)
@@ -262,16 +282,22 @@ class ObservableDictBase(
     # ------------------------- Secondary hooks -------------------------
 
     @property
-    def keys_hook(self) -> ReadOnlyHook[tuple[K, ...]]:
+    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
         """
         Get the keys hook (read-only).
+        
+        Returns:
+            A read-only hook containing a frozenset of dictionary keys.
         """
         return self.get_hook("keys")  # type: ignore
 
     @property
-    def keys(self) -> tuple[K, ...]:
+    def keys(self) -> frozenset[K]:
         """
-        Get the keys behind this hook.
+        Get the keys behind this hook as an immutable frozenset.
+        
+        Returns:
+            A frozenset of all keys in the dictionary.
         """
         return self.get_value_of_hook("keys")  # type: ignore
 
@@ -307,7 +333,7 @@ class ObservableDictBase(
     # Utility method
     ########################################################
 
-    def set_dict_and_key(self, dict_value: dict[K, V], key_value: KT) -> None:
+    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: KT) -> None:
         """
         Set the dictionary and key behind this hook.
         

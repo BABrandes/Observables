@@ -128,13 +128,51 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
     @property
     def value(self) -> T:
-        """Get the value behind this hook."""
+        """
+        Get the value behind this hook (by reference).
+        
+        Returns:
+            The actual value stored in the hook nexus (not a copy).
+            
+        Important:
+            This returns a reference for performance. Do NOT mutate unless
+            you created the value. For mutable collections, use immutable
+            wrappers or call value_copy() if you need to modify.
+        """
         with self._lock:
             return self._get_value()
 
+    def value_copy(self) -> T:
+        """
+        Get a mutable copy of the value.
+        
+        Returns:
+            A copy of the stored value (if it has a copy() method), otherwise
+            the value itself.
+            
+        Use this when you need to modify the value without affecting the hook.
+        """
+        with self._lock:
+            return self._hook_nexus.value_copy()
+
     @property
     def value_reference(self) -> T:
-        """Get the value reference behind this hook."""
+        """
+        Get the value reference behind this hook.
+        
+        .. deprecated::
+            Use `value` instead. This property is now an alias for `value`.
+            Will be removed in a future version.
+        
+        Returns:
+            The actual value stored in the hook nexus (same as `value`).
+        """
+        import warnings
+        warnings.warn(
+            "value_reference is deprecated, use 'value' instead",
+            DeprecationWarning,
+            stacklevel=2
+        )
         with self._lock:
             return self._get_value_reference()
     

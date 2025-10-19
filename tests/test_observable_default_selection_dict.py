@@ -81,7 +81,7 @@ class TestObservableDefaultSelectionDict:
     def test_creation_with_hooks(self):
         """Test creation with external hooks."""
         # Create external hooks using FloatingHook to avoid owner registration issues
-        dict_hook = FloatingHook[dict[str, int]](value={"x": 10, "y": 20}, logger=logger)
+        dict_hook = FloatingHook[Mapping[str, int]](value={"x": 10, "y": 20}, logger=logger)
         key_hook: Hook[str] = FloatingHook[str](value="x", logger=logger)
         value_hook = FloatingHook[int](value=10, logger=logger)
         default_value = 999
@@ -171,7 +171,7 @@ class TestObservableDefaultSelectionDict:
 
     def test_hook_interface(self):
         """Test CarriesHooks interface implementation."""
-        test_dict = {"a": 1, "b": 2}
+        test_dict: Mapping[str, int] = {"a": 1, "b": 2}
         default_value = 999
         selection_dict = ObservableDefaultSelectionDict(
             dict_hook=test_dict,
@@ -186,7 +186,7 @@ class TestObservableDefaultSelectionDict:
         assert keys == {"dict", "key", "value", "keys", "values", "length"}
         
         # Test secondary hooks
-        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.keys == frozenset({"a", "b"})
         assert selection_dict.values == (1, 2)
         assert selection_dict.length == 2
         
@@ -200,7 +200,9 @@ class TestObservableDefaultSelectionDict:
         assert value_hook is not None
         
         # Test get_hook_value_as_reference
-        assert selection_dict.get_value_reference_of_hook("dict") == test_dict
+        # Dict is now stored as MappingProxyType, so compare contents
+        dict_value = selection_dict.get_value_reference_of_hook("dict")
+        assert dict(dict_value) == test_dict  # type: ignore[arg-type]
         assert selection_dict.get_value_reference_of_hook("key") == "a"
         assert selection_dict.get_value_reference_of_hook("value") == 1
         
@@ -262,9 +264,10 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.dict_hook.value["z"] == default_value
         
         # Try to change dict to one that doesn't contain current key "z" - should raise error
+        from types import MappingProxyType
         new_dict_without_z = {"b": 200, "x": 100, "y": 300}
         with pytest.raises(KeyError, match="not in submitted dictionary"):
-            selection_dict.dict_hook.submit_value(new_dict_without_z)
+            selection_dict.dict_hook.submit_value(MappingProxyType(new_dict_without_z))
         
         # Dict should remain unchanged
         assert selection_dict.dict_hook.value["z"] == default_value
@@ -275,7 +278,7 @@ class TestObservableDefaultSelectionDict:
         
         # Now change dict to new dict - should succeed since "b" is in it
         new_dict = {"b": 200, "x": 100, "y": 300}
-        success, msg = selection_dict.dict_hook.submit_value(new_dict)
+        success, msg = selection_dict.dict_hook.submit_value(MappingProxyType(new_dict))
         assert success, f"Dict update should succeed when key is present: {msg}"
         assert selection_dict.dict_hook.value["b"] == 200
         assert selection_dict.dict_hook.value["x"] == 100

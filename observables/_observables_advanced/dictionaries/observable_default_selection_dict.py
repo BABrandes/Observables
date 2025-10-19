@@ -1,5 +1,6 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
+from types import MappingProxyType
 
 from ..._hooks.hook_aliases import Hook
 from .observable_dict_base import ObservableDictBase
@@ -52,7 +53,7 @@ class ObservableDefaultSelectionDict(
 
     def __init__(
         self,
-        dict_hook: dict[K, V] | Hook[dict[K, V]],
+        dict_hook: Mapping[K, V] | Hook[Mapping[K, V]],
         key_hook: K | Hook[K],
         value_hook: Optional[Hook[V]],
         default_value: V | Callable[[K], V],
@@ -62,7 +63,7 @@ class ObservableDefaultSelectionDict(
         Initialize an ObservableDefaultSelectionDict.
         
         Args:
-            dict_hook: The dictionary or hook containing the dictionary
+            dict_hook: The mapping or hook containing the mapping
             key_hook: The initial key or hook (must not be None)
             value_hook: Optional hook for the value (if None, will be derived from dict[key])
             default_value: Default value or callable to use when key is not in dict
@@ -71,8 +72,18 @@ class ObservableDefaultSelectionDict(
         # Store default_value for use in callbacks
         self._default_value: V | Callable[[K], V] = default_value
         
+        # Pre-process dict to add default entry if needed (before wrapping in MappingProxyType)
+        if not isinstance(dict_hook, Hook):
+            # Extract initial key
+            initial_key = key_hook.value if isinstance(key_hook, Hook) else key_hook
+            # Add default entry if key not in dict
+            if initial_key not in dict_hook:
+                _dict = dict(dict_hook)
+                _dict[initial_key] = self._get_default_value(initial_key)
+                dict_hook = _dict
+        
         # Call parent constructor
-        super().__init__(dict_hook, key_hook, value_hook, logger)
+        super().__init__(dict_hook, key_hook, value_hook, invalidate_callback=None, logger=logger)
 
     def _get_default_value(self, key: K) -> V:
         """Helper to get default value (call if callable, return if constant)."""
@@ -124,24 +135,24 @@ class ObservableDefaultSelectionDict(
                 
                 case (False, True, True):
                     # Key and value provided - update dict with new value
-                    _dict = current_values["dict"].copy()
+                    _dict = dict(current_values["dict"])
                     _dict[submitted_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                    return {"dict": MappingProxyType(_dict)}
                 
                 case (False, True, False):
                     # Key provided alone - add key to dict with default if not present
                     if submitted_values["key"] not in current_values["dict"]:
-                        _dict = current_values["dict"].copy()
+                        _dict = dict(current_values["dict"])
                         _default_val = self_ref._get_default_value(submitted_values["key"])
                         _dict[submitted_values["key"]] = _default_val
-                        return {"dict": _dict, "value": _default_val}
+                        return {"dict": MappingProxyType(_dict), "value": _default_val}
                     return {"value": current_values["dict"][submitted_values["key"]]}
                 
                 case (False, False, True):
                     # Value provided alone - update dict at current key
-                    _dict = current_values["dict"].copy()
+                    _dict = dict(current_values["dict"])
                     _dict[current_values["key"]] = submitted_values["value"]
-                    return {"dict": _dict}
+                    return {"dict": MappingProxyType(_dict)}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed
@@ -194,39 +205,41 @@ class ObservableDefaultSelectionDict(
 
     def _compute_initial_value(
         self, 
-        initial_dict: dict[K, V], 
+        initial_dict: Mapping[K, V], 
         initial_key: K
     ) -> V:
         """
         Compute the initial value from dict and key.
         
-        If key is not in dict, creates a default entry and returns the default value.
+        If key is not in dict, returns the default value (dict will be updated during init).
         """
         if initial_key not in initial_dict:
-            # Auto-create default entry
-            default_val = self._get_default_value(initial_key)
-            initial_dict[initial_key] = default_val
-            return default_val
+            # Return default value
+            return self._get_default_value(initial_key)
         else:
             return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: dict[K, V], key_value: K) -> None:
+    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
         """
         Set the dictionary and key behind this hook atomically.
         
         If key is not in dict, auto-creates a default entry.
         
         Args:
-            dict_value: The new dictionary
+            dict_value: The new mapping
             key_value: The new key (will be auto-created if not present)
         """
         if key_value not in dict_value:
             # Auto-create default entry
             _inferred_value = self._get_default_value(key_value)
-            dict_value = dict_value.copy()
-            dict_value[key_value] = _inferred_value
+            _dict = dict(dict_value)
+            _dict[key_value] = _inferred_value
+            dict_value = MappingProxyType(_dict)
         else:
             _inferred_value = dict_value[key_value]
+            # Wrap in MappingProxyType for immutability
+            if not isinstance(dict_value, MappingProxyType):
+                dict_value = MappingProxyType(dict(dict_value))
         
         self.submit_values({
             "dict": dict_value, 

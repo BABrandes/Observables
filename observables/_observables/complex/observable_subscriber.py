@@ -32,11 +32,11 @@ Example:
 from typing import Generic, TypeVar, Callable, Mapping, Optional, Literal
 from logging import Logger
 
-from .._carries_hooks.complex_observable_base import ComplexObservableBase
-from .._publisher_subscriber.publisher import Publisher
-from .._publisher_subscriber.subscriber import Subscriber
-from .._nexus_system.nexus_manager import NexusManager
-from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from ..._carries_hooks.complex_observable_base import ComplexObservableBase
+from ..._publisher_subscriber.publisher import Publisher
+from ..._publisher_subscriber.subscriber import Subscriber
+from ..._nexus_system.nexus_manager import NexusManager
+from ..._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 
 HK = TypeVar("HK")
 HV = TypeVar("HV")

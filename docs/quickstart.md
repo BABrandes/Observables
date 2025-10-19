@@ -13,23 +13,30 @@ Get up and running with the Observables library in just 5 minutes! This guide co
 pip install observables
 ```
 
-## 📋 **Basic Imports**
+## 📋 **Basic Imports - Modern API**
 
 ```python
 from observables import (
-    ObservableSingleValue,
-    ObservableSelectionOption,
-    ObservableList
+    XValue,           # Single values
+    XList,            # Lists (immutable tuple internally)
+    XSet,             # Sets (immutable frozenset internally) 
+    XDict,            # Dicts (immutable MappingProxyType internally)
+    XSelectionOption, # Selection from options
+    XFunction,        # Custom synchronization functions
 )
 ```
+
+> **💡 Tip:** Use the modern `X`-prefixed names. Legacy `Observable*` names are deprecated.
 
 ## 🎯 **1. Your First Observable**
 
 Start with the simplest observable - a single value:
 
 ```python
+from observables import XValue
+
 # Create an observable value
-username = ObservableSingleValue("John")
+username = XValue("John")
 
 # Read the value
 print(username.value)  # "John"
@@ -53,9 +60,11 @@ username.value = "Bob"  # Prints: "Username changed to: Bob"
 Connect two observables so changes propagate in both directions:
 
 ```python
+from observables import XValue
+
 # Create two observables
-primary_name = ObservableSingleValue("Initial")
-display_name = ObservableSingleValue("Display")
+primary_name = XValue("Initial")
+display_name = XValue("Display")
 
 # Bind them bidirectionally
 # The third parameter specifies initial sync mode:
@@ -84,13 +93,15 @@ print(f"  Display: {display_name.value}")   # "Changed from display"
 
 **Key Insight**: Once bound, both observables share the same storage. Changes from either side propagate automatically.
 
-## 🛡️ **3. State Validation**
+## 🛡️ **3. State Validation with Immutable Collections**
 
 Observables enforce valid states and reject invalid changes:
 
 ```python
-# Create a selection observable with validation
-theme_selector = ObservableSelectionOption("dark", {"dark", "light", "auto"})
+from observables import XSelectionOption
+
+# Create a selection observable with validation (uses immutable frozenset)
+theme_selector = XSelectionOption("dark", {"dark", "light", "auto"})
 
 print(f"Initial theme: {theme_selector.selected_option}")  # "dark"
 
@@ -114,10 +125,12 @@ print(f"Still valid: {theme_selector.selected_option}")    # "light"
 Build networks of connected observables that sync automatically:
 
 ```python
+from observables import XValue
+
 # Create a network of UI components
-header_title = ObservableSingleValue("Home")
-page_title = ObservableSingleValue("Page")
-navigation_title = ObservableSingleValue("Nav")
+header_title = XValue("Home")
+page_title = XValue("Page")
+navigation_title = XValue("Nav")
 
 # Connect them in a chain
 header_title.connect_hook(page_title.hook, "value", "use_caller_value")
@@ -136,39 +149,64 @@ print(f"Page: {page_title.value}")            # "Settings"
 print(f"Navigation: {navigation_title.value}") # "Settings"
 ```
 
-## 📝 **5. Real-World Example: User Profile Form**
+## 📝 **5. Immutable Collections**
+
+All collections use immutable types internally for thread safety:
+
+```python
+from observables import XList, XSet, XDict
+
+# Lists use tuples internally
+tasks = XList(["Task 1", "Task 2"])
+print(type(tasks.value))  # <class 'tuple'>
+tasks.append("Task 3")    # Creates new tuple
+print(tasks.value)        # ('Task 1', 'Task 2', 'Task 3')
+
+# Sets use frozensets internally
+tags = XSet({"python", "reactive"})
+print(type(tags.value))   # <class 'frozenset'>
+tags.add("immutable")     # Creates new frozenset
+
+# Dicts use MappingProxyType internally
+config = XDict({"theme": "dark", "lang": "en"})
+print(type(config.dict))  # <class 'mappingproxy'>
+```
+
+## 📝 **6. Real-World Example: User Profile Form**
 
 Let's build a practical form with validation:
 
 ```python
+from observables import XValue, XSelectionOption
+
 class UserProfileForm:
     def __init__(self):
         # Form fields
-        self.name = ObservableSingleValue("")
-        self.email = ObservableSingleValue("")
-        self.role = ObservableSelectionOption("user", {"user", "admin", "moderator"})
+        self.name = XValue("")
+        self.email = XValue("")
+        self.role = XSelectionOption("user", {"user", "admin", "moderator"})
         
         # Display fields (bound to form fields)
-        self.display_name = ObservableSingleValue("")
-        self.header_email = ObservableSingleValue("")
+        self.display_name = XValue("")
+        self.header_email = XValue("")
         
         # Validation state
-        self.is_valid = ObservableSingleValue(False)
+        self.is_valid = XValue(False)
         
         # Bind form fields to display fields
         self.name.connect_hook(self.display_name.hook, "value", "use_caller_value")
         self.email.connect_hook(self.header_email.hook, "value", "use_caller_value")
         
         # Add validation listeners
-        self.name.add_listener(self._validate)
-        self.email.add_listener(self._validate)
-        self.role.add_listener(self._validate)
+        self.name.add_listeners(self._validate)
+        self.email.add_listeners(self._validate)
+        self.role.add_listeners(self._validate)
     
     def _validate(self):
         """Validate the form."""
         name_valid = len(self.name.value) >= 2
         email_valid = "@" in self.email.value
-        role_valid = self.role.selected_option in {"user", "admin", "moderator"}
+        role_valid = self.role.selected_option in frozenset({"user", "admin", "moderator"})
         
         self.is_valid.value = name_valid and email_valid and role_valid
     

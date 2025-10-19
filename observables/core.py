@@ -82,6 +82,7 @@ from ._nexus_system.nexus_manager import NexusManager
 from ._publisher_subscriber.subscriber import Subscriber
 from ._nexus_system import default_nexus_manager
 from ._nexus_system.submission_error import SubmissionError
+from ._nexus_system.update_function_values import UpdateFunctionValues
 
 # Re-export the module for easy access to configuration
 # Users should modify: observables.core.default_nexus_manager.FLOAT_ACCURACY
@@ -102,5 +103,6 @@ __all__ = [
     'default_nexus_manager',  # Export module for configuration access
     'Subscriber',
     'SubmissionError',
+    'UpdateFunctionValues',
 ]
 

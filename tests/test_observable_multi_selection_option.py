@@ -360,20 +360,21 @@ class TestObservableMultiSelectionOption:
         assert obs.selected_options == {"Green"}
     
     def test_multi_selection_option_copy_behavior(self):
-        """Test that available_options returns a copy"""
+        """Test that available_options returns an immutable frozenset"""
         obs = ObservableMultiSelectionOption({"Red", "Green"}, {"Red", "Green", "Blue"})
         
         # Get the available options
-        options_copy = obs.available_options
+        options_frozen = obs.available_options
         
-        # Modify the copy
-        options_copy.add("Yellow")
+        # Verify it's a frozenset (immutable)
+        assert isinstance(options_frozen, frozenset)
+        assert options_frozen == frozenset({"Red", "Green", "Blue"})
         
-        # Original should not change
-        assert obs.available_options == {"Red", "Green", "Blue"}
+        # Verify frozensets are immutable (no .add() method)
+        assert not hasattr(options_frozen, 'add')
         
-        # The copy should have the modification
-        assert options_copy == {"Red", "Green", "Blue", "Yellow"}
+        # Original is protected from external mutation
+        assert obs.available_options == frozenset({"Red", "Green", "Blue"})
     
     def test_multi_selection_option_validation(self):
         """Test multi-selection option validation"""

@@ -9,7 +9,7 @@ import gc
 import weakref
 from typing import Any
 import pytest
-from observables import ObservableSingleValue, ObservableList, ObservableDict
+from observables import ObservableSingleValue, ObservableList, ObservableSet
 from observables.core import ComplexObservableBase
 
 
@@ -199,18 +199,18 @@ class TestMemoryStressScenarios:
         for i in range(20):
             obs_single = ObservableSingleValue(f"single_{i}")
             obs_list = ObservableList([i, i+1])
-            obs_dict = ObservableDict({f"key_{i}": f"value_{i}"})
+            obs_set = ObservableSet({i, i+1})
             
-            observables.extend([obs_single, obs_list, obs_dict])
+            observables.extend([obs_single, obs_list, obs_set])
             weak_refs.extend([
                 weakref.ref(obs_single),
                 weakref.ref(obs_list),
-                weakref.ref(obs_dict)
+                weakref.ref(obs_set)
             ])
             
             # Trigger secondary hooks
             obs_list.append(i+2)
-            obs_dict[f"key_{i}_2"] = f"value_{i}_2"
+            obs_set.add(i+2)
         
         # Clear observables
         observables.clear()

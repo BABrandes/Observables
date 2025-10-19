@@ -14,6 +14,7 @@ from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._utils import log
 
 from .carries_hooks_base import CarriesHooksBase
+from .._nexus_system.update_function_values import UpdateFunctionValues
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
@@ -153,7 +154,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             initial_component_values_or_hooks: Mapping[PHK, PHV|OwnedHookProtocol[PHV]],
             verification_method: Optional[Callable[[Mapping[PHK, PHV]], tuple[bool, str]]] = None,
             secondary_hook_callbacks: Mapping[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {},
-            add_values_to_be_updated_callback: Optional[Callable[[O, Mapping[PHK, PHV], Mapping[PHK, PHV]], Mapping[PHK, PHV]]] = None,
+            add_values_to_be_updated_callback: Optional[Callable[[O, UpdateFunctionValues[PHK, PHV]], Mapping[PHK, PHV]]] = None,
             invalidate_callback: Optional[Callable[[], None]] = None,
             logger: Optional[Logger] = None,
             nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER):
@@ -363,12 +364,12 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
                 success, msg = verification_method(primary_values_dict)
                 return success, msg
 
-        def internal_add_values_to_be_updated_callback(self_ref: O, current_values: Mapping[PHK|SHK, PHV|SHV], submitted_values: Mapping[PHK|SHK, PHV|SHV]) -> Mapping[PHK|SHK, PHV|SHV]:
+        def internal_add_values_to_be_updated_callback(self_ref: O, update_values: UpdateFunctionValues[PHK|SHK, PHV|SHV]) -> Mapping[PHK|SHK, PHV|SHV]:
             # Step 1: Complete the primary values
             primary_values: dict[PHK, PHV] = {}
             for key, hook in self_ref._primary_hooks.items():
-                if key in submitted_values:
-                    primary_values[key] = submitted_values[key] # type: ignore
+                if key in update_values.submitted:
+                    primary_values[key] = update_values.submitted[key] # type: ignore
                 else:
                     primary_values[key] = hook.value
 
@@ -376,15 +377,15 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             additional_values: dict[PHK|SHK, PHV|SHV] = {}
             if add_values_to_be_updated_callback is not None:
                 current_values_only_primary: Mapping[PHK, PHV] = {}
-                for key, value in current_values.items():
+                for key, value in update_values.current.items():
                     if key in self_ref._primary_hook_keys:
                         current_values_only_primary[key] = value # type: ignore
                 submitted_values_only_primary: Mapping[PHK, PHV] = {}
-                for key, value in submitted_values.items():
+                for key, value in update_values.submitted.items():
                     if key in self_ref._primary_hook_keys:
                         submitted_values_only_primary[key] = value # type: ignore
 
-                additional_values = add_values_to_be_updated_callback(self_ref, current_values_only_primary, submitted_values_only_primary) # type: ignore
+                additional_values = add_values_to_be_updated_callback(self_ref, UpdateFunctionValues(current=current_values_only_primary, submitted=submitted_values_only_primary)) # type: ignore
                 # Check this they only contain primary hook keys
                 for key in additional_values.keys():
                     if key not in self_ref._primary_hook_keys:

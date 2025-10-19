@@ -1,6 +1,6 @@
 # Observables - Centralized Reactive Programming
 
-A Python library for creating observable objects with centralized value storage and automatic transitive binding. The library stores each value in a single central location (HookNexus) rather than duplicating data across observables.
+A Python library for creating observable objects with centralized value storage, automatic transitive binding, and **full immutability**. The library stores each value in a single central location (HookNexus) using immutable data structures for thread safety and data integrity.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -10,10 +10,37 @@ A Python library for creating observable objects with centralized value storage 
 > **⚠️ DEVELOPMENT STATUS: NOT PRODUCTION READY**
 > 
 > This library is currently under active development and is **not yet suitable for production use**.
-> The API may change without notice, and while we have comprehensive test coverage (599 tests, 71% coverage),
+> The API may change without notice, and while we have comprehensive test coverage (531 tests, 69% coverage),
 > the library has not been battle-tested in production environments.
 > 
 > **Use at your own risk.** Contributions, feedback, and bug reports are welcome!
+
+## ✨ What's New
+
+### **Modern X-Prefixed API**
+Clean, concise names for better developer experience:
+```python
+from observables import XValue, XList, XSet, XDict  # Modern ✅
+from observables import ObservableSingleValue, ObservableList  # Legacy (deprecated) ❌
+```
+
+### **Complete Immutability**
+Thread-safe by design with immutable collections:
+- `XList` → `tuple` internally
+- `XSet` → `frozenset` internally
+- `XDict` → `MappingProxyType` internally
+
+### **Typed Parameter Objects**
+No more parameter order confusion:
+```python
+from observables import FunctionValues
+
+def my_function(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+    # Clear, typed access to submitted and current values
+    if 'field' in values.submitted:
+        return (True, {'other': values.current['other'] + 1})
+    return (True, {})
+```
 
 ## Architecture
 
@@ -61,9 +88,11 @@ The system supports three distinct notification mechanisms, each optimized for d
 Observables connected through hooks share the same HookNexus storage:
 
 ```python
+from observables import XValue
+
 # Create two observables
-temp_celsius = ObservableSingleValue(25.0)
-temp_fahrenheit = ObservableSingleValue(77.0)
+temp_celsius = XValue(25.0)
+temp_fahrenheit = XValue(77.0)
 
 # Bind them bidirectionally - celsius value takes precedence
 temp_celsius.connect_hook(temp_fahrenheit.hook, "value", "use_caller_value")
@@ -76,12 +105,14 @@ temp_fahrenheit.value = 100.0
 print(temp_celsius.value)     # 100.0 (fahrenheit → celsius)
 ```
 
-### **🛡️ State Validation**
+### **🛡️ State Validation with Immutable Collections**
 Invalid states are prevented through built-in validation:
 
 ```python
-# Selection options with validation
-color_selector = ObservableSelectionOption("red", {"red", "green", "blue"})
+from observables import XSelectionOption
+
+# Selection options with validation (internally uses immutable frozenset)
+color_selector = XSelectionOption("red", {"red", "green", "blue"})
 
 # ✅ Valid selection
 color_selector.selected_option = "green"  # Works
@@ -94,16 +125,67 @@ except ValueError as e:
 
 # State remains valid after rejection
 print(color_selector.selected_option)  # Still "green"
+
+# Available options are immutable
+print(type(color_selector.available_options))  # <class 'frozenset'>
 ```
+
+### **⚡ Function Observables with Typed Parameters**
+Create computed values and maintain constraints:
+
+```python
+from observables import XValue, XFunction, XOneWayFunction, FunctionValues
+
+# XFunction - bidirectional sync with constraints
+def sum_constraint(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+    """Maintain field1 + field2 = 100."""
+    result = {}
+    
+    if 'field1' in values.submitted:
+        result['field2'] = 100 - values.submitted['field1']
+    elif 'field2' in values.submitted:
+        result['field1'] = 100 - values.submitted['field2']
+    
+    return (True, result)
+
+field1 = XValue(30)
+field2 = XValue(70)
+
+sync = XFunction(
+    function_input_hooks={'field1': field1.hook, 'field2': field2.hook},
+    function_callable=sum_constraint
+)
+
+field1.value = 40  # field2 automatically becomes 60!
+
+# XOneWayFunction - one-way transformations
+converter = XOneWayFunction(
+    function_input_hooks={'celsius': field1.hook},
+    function_output_hook_keys={'fahrenheit', 'kelvin'},
+    function_callable=lambda inputs: {
+        'fahrenheit': inputs['celsius'] * 9/5 + 32,
+        'kelvin': inputs['celsius'] + 273.15
+    }
+)
+
+# When field1 changes, fahrenheit and kelvin update automatically
+print(converter.get_output_hook('fahrenheit').value)  # 104.0
+```
+
+**Learn More**: Both `FunctionValues` and `UpdateFunctionValues` are typed, immutable dataclasses that eliminate parameter order confusion:
+- `values.submitted` - What changed
+- `values.current` - Complete current state
 
 ### **🔄 Transitive Binding**
 Create complex networks automatically:
 
 ```python
+from observables import XValue
+
 # Create three observables
-obs1 = ObservableSingleValue(100)
-obs2 = ObservableSingleValue(200)
-obs3 = ObservableSingleValue(300)
+obs1 = XValue(100)
+obs2 = XValue(200)
+obs3 = XValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
 obs1.connect_hook(obs2.hook, "value", "use_caller_value")
@@ -120,9 +202,11 @@ print(obs3.value)  # 500 (through transitive binding!)
 The system automatically centralizes storage when observables are bound:
 
 ```python
+from observables import XValue
+
 # Initially, each observable has its own HookNexus
-obs1 = ObservableSingleValue(100)
-obs2 = ObservableSingleValue(200)
+obs1 = XValue(100)
+obs2 = XValue(200)
 
 print(f"Initial HookNexus IDs:")
 print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
@@ -168,9 +252,11 @@ print(f"  Savings: 20,000 items = 160,000 bytes (64-bit)")
 - **🔀 Dynamic Centralization**: HookNexus instances merge automatically
 - **💾 Memory Efficient**: Zero data duplication
 - **⚡ High Performance**: Centralized operations scale efficiently
-- **🔒 Thread Safe**: Designed for multi-threaded applications
-- **📝 Type Safe**: Full type hints and generic support
-- **✅ Well Tested**: Comprehensive test suite with 100% pass rate
+- **🔒 Thread Safe & Immutable**: All collections use immutable types internally
+- **📝 Type Safe**: Full type hints and generic support with typed parameter objects
+- **✨ Modern API**: Clean X-prefixed names (`XValue`, `XList`, `XSet`)
+- **🎯 Typed Parameters**: `FunctionValues` and `UpdateFunctionValues` for clarity
+- **✅ Well Tested**: 531 tests passing with 69% coverage
 
 ## Installation
 
@@ -186,15 +272,15 @@ pip install observables[dev]
 
 ## Quick Start
 
-### Basic Usage - All Three Notification Philosophies
+### Basic Usage - Modern X-Prefixed API
 
 ```python
-from observables import ObservableSingleValue, Publisher
+from observables import XValue, Publisher
 from observables.core import Subscriber
 
 # Create observable values (each has its own central HookNexus)
-temperature = ObservableSingleValue(20.0)
-display_temp = ObservableSingleValue(0.0)
+temperature = XValue(20.0)
+display_temp = XValue(0.0)
 
 # 1️⃣ LISTENERS (Synchronous Unidirectional)
 # Simple callbacks that react to changes
@@ -230,6 +316,9 @@ temperature.value = 25.0
 display_temp.value = 30.0
 print(f"Original temperature: {temperature.value}°C")  # 30.0!
 ```
+
+> **📝 Note:** Use the modern `X`-prefixed names (`XValue`, `XList`, `XSet`) for new code.
+> Legacy `Observable*` names are deprecated but still supported for backwards compatibility.
 
 ### Publish-Subscribe Pattern (Async Notifications)
 
@@ -278,12 +367,12 @@ print("All reactions completed!")
 ### Transitive Binding (Automatic Network Formation)
 
 ```python
-from observables import ObservableSingleValue
+from observables import XValue
 
 # Create three observables
-obs1 = ObservableSingleValue(100)
-obs2 = ObservableSingleValue(200)
-obs3 = ObservableSingleValue(300)
+obs1 = XValue(100)
+obs2 = XValue(200)
+obs3 = XValue(300)
 
 # Bind them in a chain - this creates transitive behavior!
 obs1.connect_hook(obs2.hook, "value", "use_target_value")
@@ -303,27 +392,29 @@ print(obs3.value)  # 1000
 print(obs2.value)  # 500 (unchanged, no longer bound)
 ```
 
-### Memory-Efficient Data Sharing
+### Memory-Efficient Data Sharing with Immutable Collections
 
 ```python
-from observables import ObservableList
+from observables import XList
 
-# Create a large dataset (stored once in central HookNexus)
-large_dataset = ObservableList(list(range(10000)))
+# Create a large dataset (stored once in central HookNexus as immutable tuple)
+large_dataset = XList(list(range(10000)))
 
 # Create multiple views that reference the same data
-view1 = ObservableList(large_dataset)  # References same data
-view2 = ObservableList(large_dataset)  # References same data
-view3 = ObservableList(large_dataset)  # References same data
+view1 = XList(large_dataset)  # References same data
+view2 = XList(large_dataset)  # References same data
+view3 = XList(large_dataset)  # References same data
 
 # Bind them together (all share same HookNexus)
-view1.connect_hook(view2.value_hook, "value", "use_target_value")
-view2.connect_hook(view3.value_hook, "value", "use_target_value")
+view1.connect_hook(view2.hook, "value", "use_target_value")
+view2.connect_hook(view3.hook, "value", "use_target_value")
 
 # All views automatically stay synchronized
+# Internally uses immutable tuple for thread safety
 # Memory usage: 1 copy of data + 3 lightweight references
-view1.append(99999)
+view1.append(99999)  # Creates new tuple, all views see it
 print(f"All views updated: {len(view1.value)} = {len(view2.value)} = {len(view3.value)}")
+print(f"Values are immutable: {type(view1.value)}")  # <class 'tuple'>
 ```
 
 ## 🎯 **Use Cases**
@@ -375,17 +466,38 @@ The system automatically adapts to your binding patterns, centralizing storage w
 
 ## 📚 **Available Observable Types**
 
-### **Built-in Types**
-- **`ObservableSingleValue[T]`**: Single values with validation
-- **`ObservableList[T]`**: Observable lists with item-level binding
-- **`ObservableDict[K, V]`**: Observable dictionaries
-- **`ObservableSet[T]`**: Observable sets
-- **`ObservableTuple[T, ...]`**: Observable tuples
+### **Basic Types (Modern X-Prefixed API)**
+- **`XValue[T]`**: Single values with validation
+- **`XList[T]`**: Observable lists (internally immutable `tuple`)
+- **`XDict[K, V]`**: Observable dictionaries (internally immutable `MappingProxyType`)
+- **`XSet[T]`**: Observable sets (internally immutable `frozenset`)
 
-### **Specialized Types**
-- **`ObservableSelectionOption[T]`**: Single selection from available options
-- **`ObservableMultiSelectionOption[T]`**: Multiple selections from available options
-- **`ObservableEnum[T]`**: Enum values with option validation
+### **Selection Types**
+- **`XSelectionDict[K, V]`**: Dictionary with selected key/value pair
+- **`XSelectionOption[T]`**: Single selection from available options (immutable `frozenset`)
+- **`XMultiSelectionOption[T]`**: Multiple selections from available options
+- **`XSelectionEnum[E]`**: Enum values with option validation
+
+### **Function Types**
+- **`XFunction`**: Synchronize multiple hooks with custom constraints
+- **`XOneWayFunction`**: One-way transformation from inputs to outputs
+
+### **Advanced Types**
+- **`XRaiseNone`**: Enforce non-None values with runtime checking
+- **`XRootedPaths`**: Manage file paths with root directory
+- **`XSubscriber`**: React to publications from publishers
+
+### **Utility Types**
+- **`FunctionValues[K, V]`**: Typed parameter object for user-facing function callables
+- **`UpdateFunctionValues[K, V]`**: Typed parameter object for internal update callbacks
+- **`Hook[T]`**: Writable hook for bidirectional binding
+- **`ReadOnlyHook[T]`**: Read-only hook for one-way connections
+
+> **💡 Immutability:** All collections (`XList`, `XSet`, `XDict`) use immutable types internally
+> for thread safety and data integrity, while providing familiar mutable-like APIs.
+>
+> **🎯 Typed Parameters:** Use `FunctionValues` for custom functions and `UpdateFunctionValues`
+> for internal callbacks - eliminates parameter order confusion!
 
 ## 🔧 **API Reference**
 
@@ -405,8 +517,10 @@ Binds this observable to another observable's hook, merging their HookNexus inst
 
 **Example:**
 ```python
-source = ObservableSingleValue(10)
-target = ObservableSingleValue(20)
+from observables import XValue
+
+source = XValue(10)
+target = XValue(20)
 
 # Connect source to target - target becomes 10
 source.connect_hook(target.hook, "value", "use_caller_value")
@@ -420,42 +534,60 @@ Disconnects this observable from all bindings, creating its own isolated HookNex
 
 Each observable provides hooks for different aspects of its data:
 
-- **`ObservableSingleValue`**: `.hook` - Access to the single value
-- **`ObservableList`**: `.value_hook` - Access to the list, `.length_hook` - Access to list length
-- **`ObservableSet`**: `.value_hook` - Access to the set, `.length_hook` - Access to set size
-- **`ObservableDict`**: `.value_hook` - Access to the dict, `.length_hook` - Access to dict size
-- **`ObservableTuple`**: `.value_hook` - Access to the tuple, `.length_hook` - Access to tuple length
-- **`ObservableSelectionOption`**: `.selected_option_hook`, `.available_options_hook`
+- **`XValue`**: `.hook` - Access to the single value
+- **`XList`**: `.hook` - Access to the list (immutable tuple), `.length_hook` - Access to list length
+- **`XSet`**: `.hook` - Access to the set (immutable frozenset), `.length_hook` - Access to set size  
+- **`XDict`**: `.dict_hook` - Access to the dict (immutable MappingProxyType)
+- **`XSelectionDict`**: `.dict_hook`, `.key_hook`, `.value_hook` - Dictionary selection components
+- **`XSelectionOption`**: `.selected_option_hook`, `.available_options_hook` (immutable frozenset)
 
 ## 💡 **Best Practices**
 
-### **1. Leverage Transitive Binding**
+### **1. Use Modern X-Prefixed API**
+```python
+from observables import XValue, XList, XSet, XDict
+
+# ✅ Modern, clean API (recommended)
+value = XValue(42)
+items = XList([1, 2, 3])  # Returns immutable tuple
+tags = XSet({"python", "reactive"})  # Returns immutable frozenset
+
+# ❌ Legacy API (deprecated, but still works)
+from observables import ObservableSingleValue, ObservableList
+value = ObservableSingleValue(42)
+items = ObservableList([1, 2, 3])
+```
+
+### **2. Leverage Transitive Binding**
 ```python
 # Instead of manually binding every pair
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
-obs1.connect_hook(obs3.hook, "value", "use_caller_value")  # ❌ Redundant!
+obs1 = XValue(100)
+obs2 = XValue(200)
+obs3 = XValue(300)
 
-# Just create the chain - transitive binding handles the rest
 obs1.connect_hook(obs2.hook, "value", "use_caller_value")
 obs2.connect_hook(obs3.hook, "value", "use_caller_value")
-# ✅ obs1 automatically connects to obs3
+# ✅ obs1 automatically connects to obs3 (no need to bind obs1 to obs3)
 ```
 
-### **2. Use Centralized Storage for Large Data**
+### **3. Embrace Immutability for Thread Safety**
 ```python
-# Useful for sharing large datasets across multiple views
-large_dataset = ObservableList([...])  # Stored once
+# All collections are internally immutable
+list_obs = XList([1, 2, 3])
+set_obs = XSet({1, 2, 3})
+dict_obs = XDict({"a": 1, "b": 2})
 
-view1 = ObservableList(large_dataset)  # References same data
-view2 = ObservableList(large_dataset)  # References same data
-view3 = ObservableList(large_dataset)  # References same data
+# Values are immutable types
+print(type(list_obs.value))  # <class 'tuple'>
+print(type(set_obs.value))   # <class 'frozenset'>
+print(type(dict_obs.dict))   # <class 'mappingproxy'>
 
-# All views automatically stay synchronized
-# Memory usage: 1 copy of data + 3 lightweight references
+# Mutation methods create new immutable instances
+list_obs.append(4)  # Creates new tuple (1, 2, 3, 4)
+set_obs.add(4)      # Creates new frozenset
 ```
 
-### **3. Break Bindings When No Longer Needed**
+### **4. Break Bindings When No Longer Needed**
 ```python
 # When an observable is no longer needed in the network
 obs1.detach()
@@ -471,23 +603,74 @@ pip install observables
 ```
 
 ```python
-from observables import ObservableSingleValue, ObservableList
+from observables import XValue, XList
 
 # Create observables with centralized storage
-name = ObservableSingleValue("John")
-scores = ObservableList([85, 90, 78])
+name = XValue("John")
+scores = XList([85, 90, 78])  # Internally uses immutable tuple
 
 # Add listeners
 name.add_listeners(lambda: print(f"Name changed to: {name.value}"))
 scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
 
 # Create bindings (automatic HookNexus merging)
-name_display = ObservableSingleValue("")
+name_display = XValue("")
 name_display.connect_hook(name.hook, "value", "use_target_value")
 
 # Changes propagate automatically
 name.value = "Jane"  # Updates both name and name_display
-scores.append(95)           # Triggers listener notification
+scores.append(95)    # Creates new tuple, triggers listener
+print(scores.value)  # (85, 90, 78, 95) - immutable tuple!
+```
+
+## 🔄 **Migration Guide**
+
+### Migrating to Modern API
+
+The new X-prefixed API is simple to adopt:
+
+| Old API (Deprecated) | New API (Recommended) | Internal Type |
+|---------------------|----------------------|---------------|
+| `ObservableSingleValue` | `XValue` | Any type |
+| `ObservableList` | `XList` | `tuple` |
+| `ObservableSet` | `XSet` | `frozenset` |
+| `ObservableDict` | `XDict` | `MappingProxyType` |
+| `ObservableSelectionOption` | `XSelectionOption` | `frozenset` for options |
+| `ObservableMultiSelectionOption` | `XMultiSelectionOption` | `frozenset` |
+| `ObservableSync` | `XFunction` | N/A |
+| `ObservableTransfer` | `XOneWayFunction` | N/A |
+
+### Key Breaking Changes
+
+**1. Collections Return Immutable Types:**
+```python
+# Old API
+lst = ObservableList([1, 2, 3])
+print(type(lst.value))  # <class 'list'>
+lst.value.append(4)     # Direct mutation worked
+
+# New API
+lst = XList([1, 2, 3])
+print(type(lst.value))  # <class 'tuple'>
+# lst.value.append(4)   # ❌ AttributeError - tuples are immutable
+lst.append(4)           # ✅ Use observable's methods instead
+```
+
+**2. Function Callable Signatures:**
+```python
+# Old API
+def my_func(submitted_values, current_values):
+    if 'field1' in submitted_values:
+        return (True, {'field2': current_values['field2'] + 1})
+    return (True, {})
+
+# New API
+from observables import FunctionValues
+
+def my_func(values: FunctionValues[str, int]):
+    if 'field1' in values.submitted:
+        return (True, {'field2': values.current['field2'] + 1})
+    return (True, {})
 ```
 
 ## 📖 **Documentation**

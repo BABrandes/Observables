@@ -8,7 +8,7 @@ from typing import Any, cast
 from enum import Enum
 
 
-from observables import ObservableSingleValue, ObservableList, ObservableDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
+from observables import ObservableSingleValue, ObservableList, ObservableSelectionDict, ObservableSet, ObservableSelectionOption, ObservableMultiSelectionOption, write_report
 from observables.core import CarriesHooksBase
 from observables._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 
@@ -58,7 +58,7 @@ class TestWriteReport:
         
         # 2. Task management system
         task_list = ObservableList(["Setup project", "Write documentation", "Run tests"])
-        task_priorities = ObservableDict({"Setup project": 1, "Write documentation": 2, "Run tests": 3})
+        task_priorities = ObservableSelectionDict({"Setup project": 1, "Write documentation": 2, "Run tests": 3}, "Setup project")
         completed_tasks = ObservableSet({"Write documentation"})
         
         # 3. Multi-selection for task statuses

@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 from .._hooks.hook_aliases import Hook
 from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._publisher_subscriber.publisher_protocol import PublisherProtocol
 
 class NexusManager:
@@ -235,7 +236,8 @@ class NexusManager:
 
             # Step 2: Get the additional values from the owner method
             current_values_of_owner: Mapping[Any, Any] = owner.get_dict_of_value_references()
-            additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(current_values_of_owner, value_dict) # type: ignore
+            update_values = UpdateFunctionValues(current=current_values_of_owner, submitted=value_dict)
+            additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(update_values) # type: ignore
 
             # Step 3: Add the additional values and hooks to the value and hook dict
             for hook_key, value in additional_value_dict.items():

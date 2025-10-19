@@ -16,7 +16,7 @@ from unittest.mock import Mock
 from observables import ObservableSingleValue, ObservableRootedPaths, Hook
 from observables._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 
-from observables._observables_advanced.observable_rooted_paths import ROOT_PATH_KEY
+from observables._observables.complex.observable_rooted_paths import ROOT_PATH_KEY
 import pytest
 
 class TestObservableRootedPaths:

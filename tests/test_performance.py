@@ -11,7 +11,7 @@ from logging import basicConfig, getLogger, DEBUG
 import time
 import pytest   
 
-from observables import ObservableSingleValue, ObservableList, ObservableDict
+from observables import ObservableSingleValue, ObservableList, ObservableSelectionDict
 from observables.core import ComplexObservableBase
 
 basicConfig(level=DEBUG)
@@ -224,7 +224,7 @@ class TestScalabilityPerformance:
         # Create a complex scenario with multiple observable types
         obs_single = ObservableSingleValue("single")
         obs_list = ObservableList([1, 2, 3])
-        obs_dict = ObservableDict({"key": "value"})
+        obs_dict = ObservableSelectionDict({"key": "value"}, "key")
         
         # Create a simpler binding pattern that avoids nexus conflicts
         # Connect obs_single to obs_list.length_hook
@@ -245,8 +245,10 @@ class TestScalabilityPerformance:
             list_len = obs_list.length_hook.value
             dict_len = obs_dict.length_hook.value
             
-            # Modify dict
-            obs_dict["new_key"] = "new_value"
+            # Modify dict by adding a key
+            current_dict = dict(obs_dict.dict_hook.value)
+            current_dict["new_key"] = "new_value"
+            obs_dict.set_dict_and_key(current_dict, obs_dict.key)
             
             return single_val, list_len, dict_len
         

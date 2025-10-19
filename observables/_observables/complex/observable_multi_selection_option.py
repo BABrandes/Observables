@@ -1,9 +1,10 @@
-from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator
+from typing import Any, Generic, TypeVar, Optional, overload, Protocol, runtime_checkable, Literal, Mapping, Iterator, Iterable
 from logging import Logger
 
-from .._hooks.hook_aliases import Hook
-from .._carries_hooks.complex_observable_base import ComplexObservableBase
-from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._carries_hooks.complex_observable_base import ComplexObservableBase
+from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
@@ -14,60 +15,60 @@ class ObservableMultiSelectionOptionProtocol(CarriesHooksProtocol[Any, Any], Pro
     """
     
     @property
-    def selected_options(self) -> set[T]:
+    def selected_options(self) -> frozenset[T]:
         """
         Get the selected options.
         """
         ...
     
     @selected_options.setter
-    def selected_options(self, value: set[T]) -> None:
+    def selected_options(self, value: Iterable[T]) -> None:
         """
         Set the selected options.
         """
         ...
 
     @property
-    def available_options(self) -> set[T]:
+    def available_options(self) -> frozenset[T]:
         """
         Get the available options.
         """
         ...
     
     @available_options.setter
-    def available_options(self, value: set[T]) -> None:
+    def available_options(self, value: Iterable[T]) -> None:
         """
         Set the available options.
         """
         ...
 
     @property
-    def available_options_hook(self) -> Hook[set[T]]:
+    def available_options_hook(self) -> Hook[frozenset[T]]:
         """
         Get the hook for the available options.
         """
         ...
 
     @property
-    def selected_options_hook(self) -> Hook[set[T]]:
+    def selected_options_hook(self) -> Hook[frozenset[T]]:
         """
         Get the hook for the selected options.
         """
         ...
 
-    def change_selected_options(self, selected_options: set[T]) -> None:
+    def change_selected_options(self, selected_options: Iterable[T]) -> None:
         """
         Change the selected options.
         """
         ...
 
-    def change_available_options(self, available_options: set[T]) -> None:
+    def change_available_options(self, available_options: Iterable[T]) -> None:
         """
         Change the available options.
         """
         ...
 
-    def change_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+    def change_selected_options_and_available_options(self, selected_options: Iterable[T], available_options: Iterable[T]) -> None:
         """
         Set the selected options and available options.
         """
@@ -85,7 +86,7 @@ class ObservableMultiSelectionOptionProtocol(CarriesHooksProtocol[Any, Any], Pro
         """
         ...
 
-class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], set[T], int, "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionProtocol[T], Generic[T]):
+class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_options", "available_options"], Literal["number_of_selected_options", "number_of_available_options"], frozenset[T], int, "ObservableMultiSelectionOption"], ObservableMultiSelectionOptionProtocol[T], Generic[T]):
     """
     An observable multi-selection option that manages both available options and selected values.
     
@@ -129,22 +130,22 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
     """
 
     @overload
-    def __init__(self, selected_options: Hook[set[T]], available_options: Hook[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and observable selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: set[T], available_options: Hook[set[T]]|Hook[set[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Iterable[T], available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with observable available options and direct selected options."""
         ...
 
     @overload
-    def __init__(self, selected_options: Hook[set[T]], available_options: set[T], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], available_options: Iterable[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and observable selected options."""
         ...
     
     @overload
-    def __init__(self, selected_options: set[T], available_options: set[T], logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_options: Iterable[T], available_options: Iterable[T], logger: Optional[Logger] = None) -> None:
         """Initialize with direct available options and direct selected options."""
         ...
 
@@ -153,7 +154,7 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         """Initialize from another ObservableMultiSelectionOptionProtocol object."""
         ...
 
-    def __init__(self, selected_options: set[T] | Hook[set[T]]|"ObservableMultiSelectionOptionProtocol[T, Any]", available_options: set[T] | Hook[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_options: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | "ObservableMultiSelectionOptionProtocol[T, Any]", available_options: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableMultiSelectionOption.
         
@@ -168,10 +169,10 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         # Handle initialization from ObservableMultiSelectionOptionProtocol
         if isinstance(selected_options, ObservableMultiSelectionOptionProtocol):            
             source_observable = selected_options # type: ignore
-            initial_selected_options: set[T] = source_observable.selected_options # type: ignore
-            initial_available_options: set[T] = source_observable.available_options # type: ignore
-            selected_options_hook: Optional[Hook[set[T]]] = None
-            available_options_hook: Optional[Hook[set[T]]] = None
+            initial_selected_options: frozenset[T] = source_observable.selected_options # type: ignore
+            initial_available_options: frozenset[T] = source_observable.available_options # type: ignore
+            selected_options_hook: Optional[ManagedHookProtocol[frozenset[T]]] = None
+            available_options_hook: Optional[ManagedHookProtocol[frozenset[T]]] = None
             observable: Optional[ObservableMultiSelectionOptionProtocol[T]] = selected_options
         else:
             observable = None
@@ -179,33 +180,33 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
             if available_options is None:
                 raise ValueError("available_options must be provided when not initializing from ObservableMultiSelectionOptionProtocol")
             
-            if isinstance(available_options, Hook):
-                initial_available_options: set[T] = available_options.value
-                available_options_hook = available_options
+            if isinstance(available_options, ManagedHookProtocol):
+                initial_available_options = available_options.value # type: ignore
+                available_options_hook = available_options # type: ignore
             else:
-                initial_available_options = available_options.copy()
+                initial_available_options = frozenset(available_options) # type: ignore
                 available_options_hook = None
 
-            if isinstance(selected_options, Hook):
-                initial_selected_options = selected_options.value
-                selected_options_hook = selected_options
+            if isinstance(selected_options, ManagedHookProtocol):
+                initial_selected_options = selected_options.value # type: ignore
+                selected_options_hook = selected_options # type: ignore
             else:
-                initial_selected_options = selected_options.copy()
+                initial_selected_options = frozenset(selected_options) # type: ignore
                 selected_options_hook = None
 
         if initial_selected_options and not initial_selected_options.issubset(initial_available_options):
             invalid_options = initial_selected_options - initial_available_options
             raise ValueError(f"Selected options {invalid_options} not in available options {initial_available_options}")
         
-        def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], set[T]|int]) -> tuple[bool, str]:
+        def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], frozenset[T]|int]) -> tuple[bool, str]:
             
             if "selected_options" in x:
-                selected_options: set[T] = x["selected_options"] # type: ignore
+                selected_options: frozenset[T] = x["selected_options"] # type: ignore
             else:
                 selected_options = self._primary_hooks["selected_options"].value # type: ignore
             
             if "available_options" in x:
-                available_options: set[T] = x["available_options"] # type: ignore
+                available_options: frozenset[T] = x["available_options"] # type: ignore
             else:
                 available_options = self._primary_hooks["available_options"].value # type: ignore
             
@@ -231,64 +232,65 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
             self.connect_hook(selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
     @property
-    def available_options(self) -> set[T]:
+    def available_options(self) -> frozenset[T]:
         """
-        Get a copy of the available options.
+        Get the available options as an immutable frozenset.
         
         Returns:
-            A copy of the available options set to prevent external modification
+            The available options frozenset
         """
-        return self._primary_hooks["available_options"].value.copy()
+        return self._primary_hooks["available_options"].value # type: ignore
     
     @available_options.setter
-    def available_options(self, value: set[T]) -> None:
+    def available_options(self, value: Iterable[T]) -> None:
         """
         Set the available options.
         
-        This setter automatically calls set_available_options() to ensure proper validation
+        This setter automatically calls change_available_options() to ensure proper validation
         and notification.
         
         Args:
-            value: New set of available options
+            value: New set of available options (as Iterable)
         """
         self.change_available_options(value)
 
     @property
-    def available_options_hook(self) -> Hook[set[T]]:
-        return self._primary_hooks["available_options"]
+    def available_options_hook(self) -> Hook[frozenset[T]]:
+        return self._primary_hooks["available_options"] # type: ignore
     
     @property
-    def selected_options_hook(self) -> Hook[set[T]]:
-        return self._primary_hooks["selected_options"]
+    def selected_options_hook(self) -> Hook[frozenset[T]]:
+        return self._primary_hooks["selected_options"] # type: ignore
     
     @property
-    def selected_options(self) -> set[T]:
+    def selected_options(self) -> frozenset[T]:
         """
-        Get a copy of the currently selected options.
+        Get the currently selected options as an immutable frozenset.
         
         Returns:
-            A copy of the currently selected options set to prevent external modification
+            The currently selected options frozenset
         """
-        return self._primary_hooks["selected_options"].value.copy()
+        return self._primary_hooks["selected_options"].value # type: ignore
     
     @selected_options.setter
-    def selected_options(self, value: set[T]) -> None:
+    def selected_options(self, value: Iterable[T]) -> None:
         """
         Set the selected options.
         
-        This setter automatically calls set_selected_options() to ensure proper validation
+        This setter automatically calls change_selected_options() to ensure proper validation
         and notification.
         
         Args:
-            value: New set of selected options
+            value: New set of selected options (as Iterable)
         """
-        if value == self._primary_hooks["selected_options"].value:
+        value_frozen = frozenset(value)
+        if value_frozen == self._primary_hooks["selected_options"].value:
             return
-        success, msg = self.submit_values({"selected_options": value})
+        success, msg = self.submit_values({"selected_options": value_frozen})
         if not success:
             raise ValueError(msg)
     
-    def change_selected_options_and_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+    def change_selected_options_and_available_options(self, selected_options: Iterable[T], available_options: Iterable[T]) -> None:
         """
         Set both the selected options and available options atomically.
         
@@ -297,23 +299,26 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         to update both values simultaneously without intermediate invalid states.
         
         Args:
-            selected_options: The new selected options (can be empty)
-            available_options: The new set of available options
+            selected_options: The new selected options (can be empty, as Iterable)
+            available_options: The new set of available options (as Iterable)
             
         Raises:
             ValueError: If any selected option is not in options set
         """
-        if selected_options and not selected_options.issubset(available_options):
-            invalid_options = selected_options - available_options
-            raise ValueError(f"Selected options {invalid_options} not in options {available_options}")
+        selected_frozen = frozenset(selected_options)
+        available_frozen = frozenset(available_options)
         
-        if available_options == self._primary_hooks["available_options"].value and selected_options == self._primary_hooks["selected_options"].value:
+        if selected_frozen and not selected_frozen.issubset(available_frozen):
+            invalid_options = selected_frozen - available_frozen
+            raise ValueError(f"Selected options {invalid_options} not in options {available_frozen}")
+        
+        if available_frozen == self._primary_hooks["available_options"].value and selected_frozen == self._primary_hooks["selected_options"].value:
             return
         
         # Use the protocol method to set the values
-        self.submit_values({"selected_options": selected_options, "available_options": available_options})
+        self.submit_values({"selected_options": selected_frozen, "available_options": available_frozen})
     
-    def change_available_options(self, available_options: set[T]) -> None:
+    def change_available_options(self, available_options: Iterable[T]) -> None:
         """
         Set the available options set.
         
@@ -321,20 +326,21 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         selected options remain valid.
         
         Args:
-            available_options: The new set of available options
+            available_options: The new set of available options (as Iterable)
             
         Raises:
             ValueError: If current selected options are not in the new available options set
         """
-        if available_options == self.get_value_of_hook("available_options"):
+        available_frozen = frozenset(available_options)
+        if available_frozen == self.get_value_of_hook("available_options"):
             return
         
-        self._raise_if_selected_options_not_in_available_options(self.get_value_of_hook("selected_options"), available_options) # type: ignore
+        self._raise_if_selected_options_not_in_available_options(self.get_value_of_hook("selected_options"), available_frozen) # type: ignore
 
         # Use the protocol method to set the values
-        self.submit_values({"available_options": available_options})
+        self.submit_values({"available_options": available_frozen})
 
-    def change_selected_options(self, selected_options: set[T]) -> None:
+    def change_selected_options(self, selected_options: Iterable[T]) -> None:
         """
         Set the selected options.
         
@@ -342,20 +348,21 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         according to the current available options.
         
         Args:
-            selected_options: The new set of selected options
+            selected_options: The new set of selected options (as Iterable)
             
         Raises:
             ValueError: If any selected option is not in the available options
         """
-        if selected_options == self._primary_hooks["selected_options"].value:
+        selected_frozen = frozenset(selected_options)
+        if selected_frozen == self._primary_hooks["selected_options"].value:
             return
         
-        self._raise_if_selected_options_not_in_available_options(selected_options, self.get_value_of_hook("available_options")) # type: ignore
+        self._raise_if_selected_options_not_in_available_options(selected_frozen, self.get_value_of_hook("available_options")) # type: ignore
 
         # Use the protocol method to set the values
-        self.submit_values({"selected_options": selected_options})
+        self.submit_values({"selected_options": selected_frozen})
 
-    def _raise_if_selected_options_not_in_available_options(self, selected_options: set[T], available_options: set[T]) -> None:
+    def _raise_if_selected_options_not_in_available_options(self, selected_options: frozenset[T], available_options: frozenset[T]) -> None:
         """
         Internal method to validate that selected options are valid for the given available options set.
         
@@ -363,8 +370,8 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         whether they all exist in the available options set.
         
         Args:
-            selected_options: The selected options to validate
-            available_options: The set of available options to check against
+            selected_options: The selected options to validate (as frozenset)
+            available_options: The set of available options to check against (as frozenset)
             
         Raises:
             ValueError: If any selected option is not in the available options set
@@ -419,23 +426,21 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         """
         Add an item to the selected options set.
         
-        This method adds a new item to the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset with the added item.
         
         Args:
             item: The item to add to the selected options set
         """
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        if item not in new_selected_options:
-            new_selected_options.add(item)
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if item not in current_selected:
+            new_selected_options = frozenset(current_selected | {item})
             self.submit_values({"selected_options": new_selected_options})
     
     def remove(self, item: T) -> None:
         """
         Remove an item from the selected options set.
         
-        This method removes an item from the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset without the specified item.
         
         Args:
             item: The item to remove from the selected options set
@@ -443,32 +448,31 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         Raises:
             KeyError: If the item is not in the selected options set
         """
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        if item not in new_selected_options:
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if item not in current_selected:
             raise KeyError(f"Item {item} not in selected options")
-        new_selected_options.remove(item)
+        new_selected_options = frozenset(current_selected - {item})
         self.submit_values({"selected_options": new_selected_options})
     
     def discard(self, item: T) -> None:
         """
         Remove an item from the selected options set if it exists.
         
-        This method removes an item from the selected options if it exists, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset without the specified item (if present).
         
         Args:
             item: The item to remove from the selected options set
         """
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        new_selected_options.discard(item)
-        self.submit_values({"selected_options": new_selected_options})
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if item in current_selected:
+            new_selected_options = frozenset(current_selected - {item})
+            self.submit_values({"selected_options": new_selected_options})
     
     def pop(self) -> T:
         """
         Remove and return an arbitrary item from the selected options set.
         
-        This method removes and returns an arbitrary item from the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset without one arbitrary item.
         
         Returns:
             An arbitrary item from the selected options set
@@ -476,10 +480,11 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         Raises:
             KeyError: If the selected options set is empty
         """
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        if not new_selected_options:
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if not current_selected:
             raise KeyError("Selected options set is empty")
-        item = new_selected_options.pop()
+        item = next(iter(current_selected))  # Get first item
+        new_selected_options = frozenset(current_selected - {item})
         self.submit_values({"selected_options": new_selected_options})
         return item
     
@@ -487,18 +492,15 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         """
         Remove all items from the selected options set.
         
-        This method removes all items from the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
-        
+        Creates an empty frozenset.
         """
-        self.submit_values({"selected_options": set()}) # type: ignore
+        self.submit_values({"selected_options": frozenset()}) # type: ignore
     
     def add_selected_option(self, item: T) -> None:
         """
         Add an item to the selected options set.
         
-        This method adds a new item to the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset with the added item.
         
         Args:
             item: The item to add to the selected options set
@@ -506,53 +508,48 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         Raises:
             ValueError: If the item is not in the available options set
         """
-
-
-        available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
+        available_options: frozenset[T] = self.get_value_of_hook("available_options") # type: ignore
         if item not in available_options:
             raise ValueError(f"Item {item} not in available options")
         
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        if item not in new_selected_options:
-            new_selected_options.add(item)
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if item not in current_selected:
+            new_selected_options = frozenset(current_selected | {item})
             self.submit_values({"selected_options": new_selected_options})
     
     def remove_selected_option(self, item: T) -> None:
         """
         Remove an item from the selected options set.
         
-        This method removes an item from the selected options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset without the specified item.
         
         Args:
             item: The item to remove from the selected options set
         """
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        if item in new_selected_options:
-            new_selected_options.remove(item)
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        if item in current_selected:
+            new_selected_options = frozenset(current_selected - {item})
             self.submit_values({"selected_options": new_selected_options})
     
     def add_available_option(self, item: T) -> None:
         """
         Add an item to the available options set.
         
-        This method adds a new item to the available options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates a new frozenset with the added item.
         
         Args:
             item: The item to add to the available options set
         """
-        new_available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
-        if item not in new_available_options:
-            new_available_options.add(item)
+        current_available: frozenset[T] = self.get_value_of_hook("available_options") # type: ignore
+        if item not in current_available:
+            new_available_options = frozenset(current_available | {item})
             self.submit_values({"available_options": new_available_options})
     
     def remove_available_option(self, item: T) -> None:
         """
         Remove an item from the available options set.
         
-        This method removes an item from the available options, using
-        _set_component_values to ensure all changes go through the centralized protocol method.
+        Creates new frozensets for both available and selected options.
         If the item is in the selected options, it will also be removed from there.
         
         Args:
@@ -561,13 +558,13 @@ class ObservableMultiSelectionOption(ComplexObservableBase[Literal["selected_opt
         Raises:
             KeyError: If the item is not in the available options set
         """
-        new_available_options: set[T] = self.get_value_of_hook("available_options") # type: ignore
-        if item not in new_available_options:
+        current_available: frozenset[T] = self.get_value_of_hook("available_options") # type: ignore
+        if item not in current_available:
             raise KeyError(f"Item {item} not in available options")
-        new_available_options.remove(item)
+        new_available_options = frozenset(current_available - {item})
         
-        new_selected_options: set[T] = self.get_value_of_hook("selected_options") # type: ignore
-        new_selected_options.discard(item)
+        current_selected: frozenset[T] = self.get_value_of_hook("selected_options") # type: ignore
+        new_selected_options = frozenset(current_selected - {item})
         
         self.submit_values({"selected_options": new_selected_options, "available_options": new_available_options})
     

@@ -86,31 +86,32 @@ See Also:
 - SyncMode: For binding synchronization modes
 """
 
-from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal, Mapping
+from typing import Generic, Optional, TypeVar, overload, runtime_checkable, Protocol, Any, Literal, Mapping, Iterable
 from logging import Logger
 
-from .._hooks.hook_aliases import Hook
-from .._carries_hooks.complex_observable_base import ComplexObservableBase
-from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._carries_hooks.complex_observable_base import ComplexObservableBase
+from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class ObservableWithOptionsProtocol(CarriesHooksProtocol[Any, Optional[T]|set[T]|int], Protocol[T]):
+class ObservableWithOptionsProtocol(CarriesHooksProtocol[Any, Optional[T]|frozenset[T]|int], Protocol[T]):
 
     @property
-    def available_options(self) -> set[T]:
+    def available_options(self) -> frozenset[T]:
         ...
     
     @available_options.setter
-    def available_options(self, options: set[T]) -> None:
+    def available_options(self, options: Iterable[T]) -> None:
         ...
 
     @property
-    def available_options_hook(self) -> Hook[set[T]]:
+    def available_options_hook(self) -> Hook[frozenset[T]]:
         ...
 
-    def change_available_options(self, available_options: set[T]) -> None:
+    def change_available_options(self, available_options: Iterable[T]) -> None:
         ...
 
 @runtime_checkable
@@ -131,7 +132,7 @@ class ObservableSelectionOptionProtocol(ObservableWithOptionsProtocol[T], Protoc
     def change_selected_option(self, selected_option: T) -> None:
         ...
 
-    def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
+    def change_selected_option_and_available_options(self, selected_option: T, available_options: Iterable[T]) -> None:
         ...
 
 @runtime_checkable
@@ -152,54 +153,56 @@ class ObservableOptionalSelectionOptionProtocol(ObservableWithOptionsProtocol[T]
     def change_selected_option(self, selected_option: Optional[T]) -> None:
         ...
 
-    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
+    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: Iterable[T]) -> None:
         ...
 
 O = TypeVar("O", bound="ObservableSelectionOptionBase[Any, Any]")
 
-class ObservableSelectionOptionBase(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|set[T], int, O], ObservableWithOptionsProtocol[T], Generic[T, O]):
+class ObservableSelectionOptionBase(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T]|frozenset[T], int, O], ObservableWithOptionsProtocol[T], Generic[T, O]):
 
     @property
-    def available_options(self) -> set[T]:
+    def available_options(self) -> frozenset[T]:
         value = self._primary_hooks["available_options"].value
-        if isinstance(value, set):
-            return value.copy() # type: ignore
+        if isinstance(value, frozenset):
+            return value # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
     
     @available_options.setter
-    def available_options(self, options: set[T]) -> None:
-        if options == self._primary_hooks["available_options"].value:
+    def available_options(self, options: Iterable[T]) -> None:
+        options_frozen = frozenset(options)
+        if options_frozen == self._primary_hooks["available_options"].value:
             return
 
-        success, msg = self.submit_values({"available_options": options})
+        success, msg = self.submit_values({"available_options": options_frozen})
         if not success:
             raise ValueError(msg)
     
-    def change_available_options(self, available_options: set[T]) -> None:
-        if available_options == self._primary_hooks["available_options"].value:
+    def change_available_options(self, available_options: Iterable[T]) -> None:
+        options_frozen = frozenset(available_options)
+        if options_frozen == self._primary_hooks["available_options"].value:
             return
         
-        success, msg = self.submit_values({"available_options": available_options})
+        success, msg = self.submit_values({"available_options": options_frozen})
         if not success:
             raise ValueError(msg)
 
     @property
-    def available_options_hook(self) -> Hook[set[T]]:
+    def available_options_hook(self) -> Hook[frozenset[T]]:
         return self._primary_hooks["available_options"] # type: ignore
 
-    def _get_set_hook(self) -> Hook[set[T]]:
+    def _get_set_hook(self) -> Hook[frozenset[T]]:
         return self._primary_hooks["available_options"] # type: ignore
 
     def add(self, item: T) -> None:
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
-            new_options: set[T] = available_options.copy() # type: ignore
+        if isinstance(available_options, frozenset):
+            current_options = available_options # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
 
-        if item not in new_options:
-            new_options.add(item)
+        if item not in current_options:
+            new_options = frozenset(current_options | {item}) # type: ignore
             self.submit_values({"available_options": new_options})
     
     def add_available_option(self, item: T) -> None:
@@ -210,53 +213,53 @@ class ObservableSelectionOptionBase(ComplexObservableBase[Literal["selected_opti
             raise ValueError(f"Cannot remove {item} as it is the currently selected option")
         
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
-            new_options: set[T] = available_options.copy() # type: ignore
+        if isinstance(available_options, frozenset):
+            current_options = available_options # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
 
-        if item in new_options:
-            new_options.remove(item)
+        if item in current_options:
+            new_options = frozenset(current_options - {item}) # type: ignore
             self.submit_values({"available_options": new_options})
     
     def __str__(self) -> str:
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
+        if isinstance(available_options, frozenset):
             sorted_options: list[T] = sorted(available_options) # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
 
         return f"OSO(selected_option={self._primary_hooks['selected_option'].value}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __repr__(self) -> str:
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
+        if isinstance(available_options, frozenset):
             sorted_options: list[T] = sorted(available_options) # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
 
         return f"OSO(selected_option={self._primary_hooks['selected_option'].value}, available_options={{{', '.join(repr(opt) for opt in sorted_options)}}})"
     
     def __len__(self) -> int:
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
+        if isinstance(available_options, frozenset):
             return len(available_options) # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
     
     def __contains__(self, item: T) -> bool:
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
+        if isinstance(available_options, frozenset):
             return item in available_options # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
     
     def __iter__(self):
         available_options = self._primary_hooks["available_options"].value
-        if isinstance(available_options, set):
+        if isinstance(available_options, frozenset):
             return iter(available_options) # type: ignore
         else:
-            raise ValueError("Available options is not a set")
+            raise ValueError("Available options is not a frozenset")
 
 class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSelectionOption"], ObservableSelectionOptionProtocol[T], Generic[T]):
     """
@@ -329,15 +332,15 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
     """
 
     @overload
-    def __init__(self, selected_option: Hook[T], available_options: Hook[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Hook[T] | ReadOnlyHook[T], available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: T, available_options: Hook[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: T, available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: Hook[T], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Hook[T] | ReadOnlyHook[T], available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
@@ -345,10 +348,10 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         ...
     
     @overload
-    def __init__(self, selected_option: T, available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: T, available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
-    def __init__(self, selected_option: T | Hook[T] | ObservableSelectionOptionProtocol[T], available_options: set[T] | Hook[set[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: T | Hook[T] | ReadOnlyHook[T] | ObservableSelectionOptionProtocol[T], available_options: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableSelectionOption.
         
@@ -403,37 +406,35 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         
         if isinstance(selected_option, ObservableSelectionOptionProtocol):
             initial_selected_option: T = selected_option.selected_option # type: ignore
-            initial_available_options: set[T] = selected_option.available_options # type: ignore
+            initial_available_options: frozenset[T] = selected_option.available_options # type: ignore
             hook_selected_option: Optional[Hook[T]] = selected_option.selected_option_hook # type: ignore
-            hook_available_options: Optional[Hook[set[T]]] = selected_option.available_options_hook # type: ignore
+            hook_available_options: Optional[Hook[frozenset[T]]] = selected_option.available_options_hook # type: ignore
 
         else:
             if selected_option is None:
                 raise ValueError("selected_option parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
             
-            elif isinstance(selected_option, Hook):
+            elif isinstance(selected_option, ManagedHookProtocol):
                 initial_selected_option: T = selected_option.value # type: ignore
                 hook_selected_option = selected_option # type: ignore
 
             else:
                 # selected_option is a T
-                initial_selected_option: T = selected_option
+                initial_selected_option = selected_option # type: ignore
                 hook_selected_option = None
 
             if available_options is None:
-                initial_available_options = set()
+                initial_available_options = frozenset()
                 hook_available_options = None
 
-            elif isinstance(available_options, Hook):
+            elif isinstance(available_options, ManagedHookProtocol):
                 initial_available_options = available_options.value # type: ignore
-                hook_available_options = available_options
-
-            elif isinstance(available_options, set): # type: ignore
-                initial_available_options: set[T] = available_options.copy()
-                hook_available_options: Optional[Hook[set[T]]] = None
+                hook_available_options = available_options # type: ignore
 
             else:
-                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
+                # available_options is an Iterable[T]
+                initial_available_options: frozenset[T] = frozenset(available_options) # type: ignore
+                hook_available_options = None
                 
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
@@ -445,10 +446,10 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
                 available_options = x["available_options"]
             else:
                 _available_options = self._primary_hooks["available_options"].value
-                if isinstance(_available_options, set):
-                    available_options: set[T] = _available_options # type: ignore
+                if isinstance(_available_options, frozenset):
+                    available_options: frozenset[T] = _available_options # type: ignore
                 else:
-                    raise ValueError("Available options is not a set")
+                    raise ValueError("Available options is not a frozenset")
 
             if selected_option is None:
                 return False, "Selected option is None"
@@ -499,8 +500,8 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
         if not success:
             raise ValueError(msg)
  
-    def change_selected_option_and_available_options(self, selected_option: T, available_options: set[T]) -> None:
-        self.submit_values({"selected_option": selected_option, "available_options": available_options})
+    def change_selected_option_and_available_options(self, selected_option: T, available_options: Iterable[T]) -> None:
+        self.submit_values({"selected_option": selected_option, "available_options": frozenset(available_options)})
 
     def _get_single_value_hook(self) -> Hook[T]:
         return self._primary_hooks["selected_option"] # type: ignore
@@ -517,15 +518,15 @@ class ObservableSelectionOption(ObservableSelectionOptionBase[T, "ObservableSele
 class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "ObservableOptionalSelectionOption"], ObservableOptionalSelectionOptionProtocol[T], Generic[T]):
 
     @overload
-    def __init__(self, selected_option: Hook[Optional[T]], available_options: Hook[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Hook[Optional[T]] | ReadOnlyHook[Optional[T]], available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: Optional[T], available_options: Hook[set[T]], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Optional[T], available_options: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
-    def __init__(self, selected_option: Hook[Optional[T]], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Hook[Optional[T]] | ReadOnlyHook[Optional[T]], available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
     @overload
@@ -533,45 +534,43 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
         ...
     
     @overload
-    def __init__(self, selected_option: Optional[T], available_options: set[T], *, logger: Optional[Logger] = None) -> None:
+    def __init__(self, selected_option: Optional[T], available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
         ...
 
-    def __init__(self, selected_option: Optional[T] | Hook[Optional[T]] | ObservableOptionalSelectionOptionProtocol[T], available_options: set[T] | Hook[set[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | Hook[Optional[T]] | ReadOnlyHook[Optional[T]] | ObservableOptionalSelectionOptionProtocol[T], available_options: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
         
         if isinstance(selected_option, ObservableOptionalSelectionOptionProtocol):
             initial_selected_option: Optional[T] = selected_option.selected_option # type: ignore
-            initial_available_options: set[T] = selected_option.available_options # type: ignore
+            initial_available_options: frozenset[T] = selected_option.available_options # type: ignore
             hook_selected_option: Optional[Hook[Optional[T]]] = selected_option.selected_option_hook # type: ignore
-            hook_available_options: Optional[Hook[set[T]]] = selected_option.available_options_hook # type: ignore
+            hook_available_options: Optional[Hook[frozenset[T]]] = selected_option.available_options_hook # type: ignore
 
         else:
             if selected_option is None:
                 initial_selected_option: Optional[T] = None
-                hook_selected_option: Optional[Hook[Optional[T]]] = None
+                hook_selected_option: Optional[ManagedHookProtocol[Optional[T]]] = None
             
-            elif isinstance(selected_option, Hook):
+            elif isinstance(selected_option, ManagedHookProtocol):
                 initial_selected_option = selected_option.value # type: ignore
                 hook_selected_option = selected_option # type: ignore
 
             else:
-                # selected_option is a T
-                initial_selected_option = selected_option
+                # selected_option is a T (or None)
+                initial_selected_option = selected_option # type: ignore
                 hook_selected_option = None
 
             if available_options is None:
-                initial_available_options: set[T] = set()
-                hook_available_options: Optional[Hook[set[T]]] = None
-
-            elif isinstance(available_options, Hook):
-                initial_available_options = available_options.value # type: ignore
-                hook_available_options = available_options
-
-            elif isinstance(available_options, set): # type: ignore
-                initial_available_options = available_options.copy()
+                initial_available_options = frozenset()
                 hook_available_options = None
 
+            elif isinstance(available_options, ManagedHookProtocol):
+                initial_available_options = available_options.value # type: ignore
+                hook_available_options = available_options # type: ignore
+
             else:
-                raise ValueError("available_options parameter is required when selected_option is not an ObservableSelectionOptionProtocol")
+                # available_options is an Iterable[T]
+                initial_available_options = frozenset(available_options) # type: ignore
+                hook_available_options = None
                 
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
             if "selected_option" in x:
@@ -580,13 +579,13 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
                 selected_option = self._primary_hooks["selected_option"].value # type: ignore
                 
             if "available_options" in x:
-                available_options: set[T] = x["available_options"] # type: ignore
+                available_options: frozenset[T] = x["available_options"] # type: ignore
             else:
                 _available_options = self._primary_hooks["available_options"].value
-                if isinstance(_available_options, set):
-                    available_options: set[T] = _available_options # type: ignore
+                if isinstance(_available_options, frozenset):
+                    available_options: frozenset[T] = _available_options # type: ignore
                 else:
-                    raise ValueError("Available options is not a set")
+                    raise ValueError("Available options is not a frozenset")
 
             if selected_option is None:
                 return True, "Verification method passed"
@@ -635,8 +634,8 @@ class ObservableOptionalSelectionOption(ObservableSelectionOptionBase[T, "Observ
         
         self.submit_values({"selected_option": selected_option})
     
-    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: set[T]) -> None:
-        self.submit_values({"selected_option": selected_option, "available_options": available_options})
+    def change_selected_option_and_available_options(self, selected_option: Optional[T], available_options: Iterable[T]) -> None:
+        self.submit_values({"selected_option": selected_option, "available_options": frozenset(available_options)})
 
     def _get_single_value_hook(self) -> Hook[Optional[T]]:
         return self._primary_hooks["selected_option"] # type: ignore

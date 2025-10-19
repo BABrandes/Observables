@@ -7,6 +7,7 @@ from threading import RLock
 from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._nexus_system.has_nexus_manager import HasNexusManager
@@ -98,7 +99,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         self,
         invalidate_callback: Optional[Callable[[O], tuple[bool, str]]] = None,
         validate_complete_values_in_isolation_callback: Optional[Callable[[O, Mapping[HK, HV]], tuple[bool, str]]] = None,
-        add_values_to_be_updated_callback: Optional[Callable[[O, Mapping[HK, HV], Mapping[HK, HV]], Mapping[HK, HV]]] = None,
+        add_values_to_be_updated_callback: Optional[Callable[[O, UpdateFunctionValues[HK, HV]], Mapping[HK, HV]]] = None,
         logger: Optional[Logger] = None,
         nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER, 
         ) -> None:
@@ -319,16 +320,22 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             return hook_value_as_reference_dict
 
     @final
-    def _add_values_to_be_updated(self, current_values: Mapping[HK, HV], submitted_values: Mapping[HK, HV]) -> Mapping[HK, HV]:
+    def _add_values_to_be_updated(self, values: UpdateFunctionValues[HK, HV]) -> Mapping[HK, HV]:
         """
         Add values to be updated.
+        
+        Args:
+            values: UpdateFunctionValues containing current (complete state) and submitted (being updated) values
+            
+        Returns:
+            Mapping of additional hook keys to values that should be updated
         """
         with self._lock:
             if self._add_values_to_be_updated_callback is not None:
                 if self._self_ref() is None:
                     raise ValueError("Owner has been garbage collected")
                 self_ref: O = self._self_ref() # type: ignore
-                return self._add_values_to_be_updated_callback(self_ref, current_values, submitted_values)
+                return self._add_values_to_be_updated_callback(self_ref, values)
             else:
                 return {}
 

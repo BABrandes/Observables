@@ -3,9 +3,11 @@ from logging import Logger
 
 from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
 from observables._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
+from observables._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from observables._hooks.owned_hook import OwnedHook
-from observables._hooks.hook_aliases import Hook
+from observables._hooks.hook_aliases import Hook, ReadOnlyHook
 from observables._nexus_system.hook_nexus import HookNexus
+from observables._nexus_system.update_function_values import UpdateFunctionValues
 
 T = TypeVar("T")
 
@@ -129,29 +131,32 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
     """
     def __init__(
         self,
-        hook_without_None_or_value: Hook[T]|None|T,
-        hook_with_None: Hook[Optional[T]]|None = None,
+        hook_without_None_or_value: Hook[T] | ReadOnlyHook[T] | None | T,
+        hook_with_None: Hook[Optional[T]] | ReadOnlyHook[Optional[T]] | None = None,
         logger: Optional[Logger] = None
         ):
 
-        def _add_values_to_be_updated_callback(self_ref: "ObservableRaiseNone[T]", current_values: Mapping[Literal["value_without_none", "value_with_none"], T], submitted_values: Mapping[Literal["value_without_none", "value_with_none"], T]) -> Mapping[Literal["value_without_none", "value_with_none"], T]:
+        def _add_values_to_be_updated_callback(
+            self_ref: "ObservableRaiseNone[T]", 
+            update_values: UpdateFunctionValues[Literal["value_without_none", "value_with_none"], T]
+        ) -> Mapping[Literal["value_without_none", "value_with_none"], T]:
             """
             Add the values to be updated.
             """
 
-            if len(submitted_values) == 0:
+            if len(update_values.submitted) == 0:
                 return {}
 
-            elif len(submitted_values) == 1:
+            elif len(update_values.submitted) == 1:
 
-                if "value_without_none" in submitted_values:
-                    value = submitted_values["value_without_none"]
+                if "value_without_none" in update_values.submitted:
+                    value = update_values.submitted["value_without_none"]
                     if value is None:
                         raise ValueError("Value without None cannot be None")
                     return {"value_with_none": value}
 
-                elif "value_with_none" in submitted_values:
-                    value = submitted_values["value_with_none"]
+                elif "value_with_none" in update_values.submitted:
+                    value = update_values.submitted["value_with_none"]
                     if value is None:
                         raise ValueError("Value with None cannot be None")
                     return {"value_without_none": value}
@@ -159,10 +164,10 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
                 else:
                     raise ValueError("Invalid keys")
 
-            elif len(submitted_values) == 2:
-                if "value_without_none" in submitted_values and "value_with_none" in submitted_values:
-                    value_1 = submitted_values["value_without_none"]
-                    value_2 = submitted_values["value_with_none"]
+            elif len(update_values.submitted) == 2:
+                if "value_without_none" in update_values.submitted and "value_with_none" in update_values.submitted:
+                    value_1 = update_values.submitted["value_without_none"]
+                    value_2 = update_values.submitted["value_with_none"]
                     if value_1 is None or value_2 is None:
                         raise ValueError("One of the values is None")
                     elif self.nexus_manager.is_not_equal(value_1, value_2):
@@ -200,14 +205,14 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
             initial_value: T = hook_with_None.value # type: ignore
         
         elif hook_with_None is None and hook_without_None_or_value is not None:
-            if isinstance(hook_without_None_or_value, Hook):
+            if isinstance(hook_without_None_or_value, ManagedHookProtocol):
                 initial_value = hook_without_None_or_value.value # type: ignore 
             else:
                 # This is a value
-                initial_value = hook_without_None_or_value
+                initial_value = hook_without_None_or_value # type: ignore
         
         elif hook_with_None is not None and hook_without_None_or_value is not None:
-            if isinstance(hook_without_None_or_value, Hook):
+            if isinstance(hook_without_None_or_value, ManagedHookProtocol):
                 if self.nexus_manager.is_not_equal(hook_with_None.value, hook_without_None_or_value.value): # type: ignore
                     raise ValueError("Values do not match of the two given hooks!")
                 initial_value = hook_with_None.value # type: ignore

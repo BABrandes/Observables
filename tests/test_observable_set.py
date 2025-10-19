@@ -280,8 +280,10 @@ class TestObservableSet(ObservableTestCase):
     
     def test_string_representation(self):
         """Test string and repr methods"""
-        assert str(self.observable) == "OS(options={1, 2, 3})"
-        assert repr(self.observable) == "ObservableSet({1, 2, 3})"
+        assert "OS(options=frozenset(" in str(self.observable)
+        assert "{1, 2, 3}" in str(self.observable)
+        assert "ObservableSet(frozenset(" in repr(self.observable)
+        assert "{1, 2, 3}" in repr(self.observable)
     
     def test_listener_management(self):
         """Test listener management methods"""
@@ -337,20 +339,25 @@ class TestObservableSet(ObservableTestCase):
         assert obs.value == set()
     
     def test_set_copy_behavior(self):
-        """Test that set_value returns a copy"""
+        """Test that value returns immutable frozenset"""
         obs = ObservableSet({1, 2, 3})
         
-        # Get the set value
-        set_copy = obs.value
+        # Get the frozenset value
+        frozenset_value = obs.value
         
-        # Modify the copy
-        set_copy.add(4)
+        # Verify it's a frozenset (immutable)
+        assert isinstance(frozenset_value, frozenset)
+        assert frozenset_value == frozenset({1, 2, 3})
         
-        # Original should not change
-        assert obs.value == {1, 2, 3}
+        # Frozenset cannot be modified
+        try:
+            frozenset_value.add(4)  # type: ignore
+            assert False, "Should have raised AttributeError"
+        except AttributeError:
+            pass  # Expected
         
-        # The copy should have the modification
-        assert set_copy == {1, 2, 3, 4}
+        # Original unchanged
+        assert obs.value == frozenset({1, 2, 3})
     
     def test_set_validation(self):
         """Test set validation"""

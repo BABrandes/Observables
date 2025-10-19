@@ -90,12 +90,12 @@ class TestSecondaryHookProtection:
         _ = ObservableSingleValue(obs_list.length_hook)
         
         # Try to submit both primary and wrong secondary value
-        success, msg = obs_list.submit_values({"value": [1, 2], "length": 5}, raise_submission_error_flag=False)
+        success, msg = obs_list.submit_values({"value": (1, 2), "length": 5}, raise_submission_error_flag=False)
         assert not success
         assert "Internal secondary value" in msg or "Hook nexus already in nexus" in msg
         
         # Verify nothing changed
-        assert obs_list.value == [10, 20, 30]
+        assert obs_list.value == (10, 20, 30)
         assert obs_list.length == 3
 
     def test_correct_secondary_value_submission_allowed(self):
@@ -104,12 +104,12 @@ class TestSecondaryHookProtection:
         obs_list = ObservableList([1, 2, 3])
         
         # Submit values where the secondary value matches what it should be
-        # When submitting value=[1, 2], length should be 2
-        success, msg = obs_list.submit_values({"value": [1, 2], "length": 2})
+        # When submitting value=(1, 2), length should be 2
+        success, msg = obs_list.submit_values({"value": (1, 2), "length": 2})
         
         # This should succeed because length=2 matches the derived value
         assert success, f"Expected success but got: {msg}"
-        assert obs_list.value == [1, 2]
+        assert obs_list.value == (1, 2)
         assert obs_list.length == 2
 
     def test_secondary_value_equality_check_uses_nexus_manager(self):

@@ -3,7 +3,7 @@ from logging import basicConfig, getLogger, DEBUG
 
 import pytest
 
-from observables import ObservableSync, ObservableSingleValue
+from observables import ObservableSync, ObservableSingleValue, FunctionValues
 from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
 from observables._hooks.owned_hook import OwnedHook
 
@@ -49,14 +49,14 @@ class TestObservableSync:
 
     def test_basic_creation_with_values(self):
         """Test basic ObservableSync creation with initial values."""
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Simple sync callback that passes through valid values."""
             # Just return the submitted values as-is
-            return (True, dict(submitted_values))
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 5, "b": 3, "c": 0},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 5, "b": 3, "c": 0},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -70,13 +70,13 @@ class TestObservableSync:
 
     def test_basic_creation_with_hooks(self):
         """Test basic ObservableSync creation with initial values (no longer supports hooks)."""
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Simple sync callback that passes through values."""
-            return (True, dict(submitted_values))
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 10, "b": 20},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 10, "b": 20},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -87,16 +87,16 @@ class TestObservableSync:
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_sync_callback_validation(self):
         """Test that sync callback validation fails when callback returns different values."""
-        def invalid_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def invalid_sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Invalid callback that returns different values that don't match when completed."""
             # This will fail because when we submit just "a", it returns a different value
             # When completed, it becomes {"a": 999, "b": 3, "c": 1} which != initial {"a": 5, "b": 3, "c": 1}
-            return (True, {key: 999 for key in submitted_values.keys()})
+            return (True, {key: 999 for key in values.submitted.keys()})
 
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                sync_values_initially_valid={"a": 5, "b": 3, "c": 1},
-                sync_values_callback=invalid_sync_callback,
+                function_input_hooks={"a": 5, "b": 3, "c": 1},
+                function_callable=invalid_sync_callback,
                 logger=logger
             )
         
@@ -104,12 +104,12 @@ class TestObservableSync:
 
     def test_hook_access_methods(self):
         """Test hook access methods."""
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
-            return (True, dict(submitted_values))
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 5, "b": 10},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 5, "b": 10},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -134,12 +134,12 @@ class TestObservableSync:
 
     def test_basic_sync(self):
         """Test basic ObservableSync with simple pass-through callback."""
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
-            return (True, dict(submitted_values))
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 5, "b": 10},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 5, "b": 10},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -150,14 +150,14 @@ class TestObservableSync:
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_error_handling_in_callbacks(self):
         """Test error handling when callbacks raise exceptions."""
-        def error_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def error_sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Sync callback that raises an error."""
             raise ValueError("Sync callback error")
 
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                sync_values_initially_valid={"a": 5},
-                sync_values_callback=error_sync_callback,
+                function_input_hooks={"a": 5},
+                function_callable=error_sync_callback,
                 logger=logger
             )
         
@@ -166,12 +166,12 @@ class TestObservableSync:
     def test_edge_cases(self):
         """Test edge cases."""
         # Empty sync hooks
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
-            return (True, dict(submitted_values))
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={},
-            sync_values_callback=sync_callback,
+            function_input_hooks={},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -179,11 +179,11 @@ class TestObservableSync:
 
         # None values
         def sync_callback_with_none(submitted_values: Mapping[str, Optional[int]]) -> tuple[bool, dict[str, Optional[int]]]:
-            return (True, dict(submitted_values))
+            return (True, dict(values.submitted))
 
         sync_with_none = ObservableSync[str, Optional[int]](
-            sync_values_initially_valid={"a": None, "b": 5},
-            sync_values_callback=sync_callback_with_none,
+            function_input_hooks={"a": None, "b": 5},
+            function_callable=sync_callback_with_none,
             logger=logger
         )
 
@@ -193,12 +193,12 @@ class TestObservableSync:
 
     def test_listener_notification(self):
         """Test that listeners are notified when values change."""
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
-            return (True, dict(submitted_values))
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 5},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 5},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -221,13 +221,13 @@ class TestObservableSync:
         external_a = ObservableSingleValue[int](5, logger=logger)
         external_b = ObservableSingleValue[int](10, logger=logger)
 
-        def sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Simple sync callback that passes through values."""
-            return (True, dict(submitted_values))
+            return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 5, "b": 10},
-            sync_values_callback=sync_callback,
+            function_input_hooks={"a": 5, "b": 10},
+            function_callable=sync_callback,
             logger=logger
         )
 
@@ -245,14 +245,14 @@ class TestObservableSync:
 
     def test_combination_validation(self):
         """Test that sync callback is validated with every combination of given values."""
-        def valid_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def valid_sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Valid callback that passes through submitted values."""
-            return (True, dict(submitted_values))
+            return (True, dict(values.submitted))
 
         # This should work - callback handles all combinations correctly
         sync = ObservableSync[str, int](
-            sync_values_initially_valid={"a": 1, "b": 2, "c": 3},
-            sync_values_callback=valid_sync_callback,
+            function_input_hooks={"a": 1, "b": 2, "c": 3},
+            function_callable=valid_sync_callback,
             logger=logger
         )
 
@@ -264,11 +264,11 @@ class TestObservableSync:
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_combination_validation_failure(self):
         """Test that sync callback validation fails when callback doesn't handle all combinations."""
-        def invalid_sync_callback(submitted_values: Mapping[str, int]) -> tuple[bool, dict[str, int]]:
+        def invalid_sync_callback(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]:
             """Invalid callback that only handles certain combinations."""
-            if len(submitted_values) == 3:
+            if len(values.submitted) == 3:
                 # Only handle full combination
-                return (True, {key: value * 2 for key, value in submitted_values.items()})
+                return (True, {key: value * 2 for key, value in values.submitted.items()})
             else:
                 # Fail for partial combinations
                 raise ValueError("Cannot handle partial combinations")
@@ -276,8 +276,8 @@ class TestObservableSync:
         # This should fail during validation
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                sync_values_initially_valid={"a": 1, "b": 2, "c": 3},
-                sync_values_callback=invalid_sync_callback,
+                function_input_hooks={"a": 1, "b": 2, "c": 3},
+                function_callable=invalid_sync_callback,
                 logger=logger
             )
         
@@ -292,28 +292,24 @@ class TestObservableSync:
         
         Any of the three values can be changed, and the others sync automatically.
         """
-        def sync_callback(
-            submitted_values: Mapping[str, float | str],
-            essential_values: Mapping[str, float | str]
-        ) -> tuple[bool, dict[str, float | str]]:
+        def sync_callback(values: FunctionValues[str, float | str]) -> tuple[bool, dict[str, float | str]]:
             """Sync callback that maintains the constraint: square_value = root_value².
             
             Args:
-                submitted_values: Values that were submitted (changed)
-                essential_values: Essential values (domain) that are always provided
+                values: FunctionValues containing submitted (changed) and current (complete state) values
             """
             result: dict[str, float | str] = {}
             
             # Extract submitted values
-            root = submitted_values.get("root_value")
-            square = submitted_values.get("square_value")
-            submitted_domain = submitted_values.get("domain")
+            root = values.submitted.get("root_value")
+            square = values.submitted.get("square_value")
+            submitted_domain = values.submitted.get("domain")
             
-            # Get current domain from essential values
-            current_domain = essential_values.get("domain", "positive")
+            # Get current domain from complete current state
+            current_domain = values.current.get("domain", "positive")
             
             # When all three values are present (validation mode), check consistency
-            if all(k in submitted_values for k in ["root_value", "square_value", "domain"]):
+            if all(k in values.submitted for k in ["root_value", "square_value", "domain"]):
                 # Validate that the values are consistent
                 if not isinstance(root, (int, float)) or not isinstance(square, (int, float)):
                     return (False, {})
@@ -331,14 +327,14 @@ class TestObservableSync:
                 return (True, {})
             
             # Case 1: root_value was submitted (primary value)
-            if "root_value" in submitted_values and isinstance(root, (int, float)):
+            if "root_value" in values.submitted and isinstance(root, (int, float)):
                 # Calculate square from root
                 result["square_value"] = root * root
                 # Update domain to match the sign of the root
                 result["domain"] = "positive" if root >= 0 else "negative"
             
             # Case 2: square_value was submitted (use current or submitted domain)
-            elif "square_value" in submitted_values:
+            elif "square_value" in values.submitted:
                 if not isinstance(square, (int, float)):
                     return (False, {})
                 if square < 0:
@@ -352,7 +348,7 @@ class TestObservableSync:
                 result["root_value"] = -sqrt_val if domain_to_use == "negative" else sqrt_val
             
             # Case 3: Only domain was submitted
-            elif "domain" in submitted_values:
+            elif "domain" in values.submitted:
                 # Can't change domain without knowing current root
                 # Return no changes; this will be checked during validation
                 pass
@@ -361,15 +357,13 @@ class TestObservableSync:
 
         # Create ObservableSync with initial valid state
         # Initial state: √4 = 2 (positive domain)
-        # Mark 'domain' as essential so it's always available to the callback
         sync = ObservableSync[str, float | str](
-            sync_values_initially_valid={
+            function_input_hooks={
                 "square_value": 4.0,
                 "root_value": 2.0,
                 "domain": "positive"
             },
-            sync_values_callback=sync_callback,
-            essential_sync_value_keys={"domain"},  # Domain is essential - always pass to callback
+            function_callable=sync_callback,
             logger=logger
         )
 

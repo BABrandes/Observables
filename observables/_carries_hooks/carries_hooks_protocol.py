@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, TypeVar, Optional, Mapping, Protocol, final, L
 from logging import Logger
 
 from .._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
+from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.hook_nexus import HookNexus
 from .._hooks.hook_aliases import Hook, ReadOnlyHook
@@ -191,9 +192,15 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
     # Main sync system methods
     #########################################################################
 
-    def _add_values_to_be_updated(self, current_values: Mapping[HK, HV], submitted_values: Mapping[HK, HV]) -> Mapping[HK, HV]:
+    def _add_values_to_be_updated(self, values: UpdateFunctionValues[HK, HV]) -> Mapping[HK, HV]:
         """
         Add values to be updated.
+        
+        Args:
+            values: UpdateFunctionValues containing current (complete state) and submitted (being updated) values
+            
+        Returns:
+            Mapping of additional hook keys to values that should be updated
         """
         ...
 

@@ -2,7 +2,8 @@ from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 from types import MappingProxyType
 
-from ..._hooks.hook_aliases import Hook
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableOptionalSelectionDictProtocol
 
@@ -52,9 +53,9 @@ class ObservableOptionalDefaultSelectionDict(
 
     def __init__(
         self,
-        dict_hook: Mapping[K, V] | Hook[Mapping[K, V]],
-        key_hook: Optional[K] | Hook[Optional[K]] = None,
-        value_hook: Optional[Hook[Optional[V]]] = None,
+        dict_hook: Mapping[K, V] | Hook[Mapping[K, V]]| ReadOnlyHook[Mapping[K, V]],
+        key_hook: Optional[K] | Hook[Optional[K]] | ReadOnlyHook[Optional[K]] = None,
+        value_hook: Optional[Hook[Optional[V]]] | ReadOnlyHook[Optional[V]] = None,
         default_value: V | Callable[[K], V] = None,  # type: ignore
         logger: Optional[Logger] = None
     ):
@@ -72,17 +73,17 @@ class ObservableOptionalDefaultSelectionDict(
         self._default_value: V | Callable[[K], V] = default_value
         
         # Pre-process dict to add default entry if needed (before wrapping in MappingProxyType)
-        if not isinstance(dict_hook, Hook):
+        if not isinstance(dict_hook, ManagedHookProtocol):
             # Extract initial key
-            initial_key = key_hook.value if isinstance(key_hook, Hook) else key_hook
+            initial_key = key_hook.value if isinstance(key_hook, ManagedHookProtocol) else key_hook # type: ignore
             # Add default entry if key is not None and not in dict
-            if initial_key is not None and initial_key not in dict_hook:
-                _dict = dict(dict_hook)
-                _dict[initial_key] = self._get_default_value(initial_key)
-                dict_hook = _dict
+            if initial_key is not None and initial_key not in dict_hook: # type: ignore
+                _dict = dict(dict_hook) # type: ignore
+                _dict[initial_key] = self._get_default_value(initial_key) # type: ignore
+                dict_hook = _dict # type: ignore
         
         # Call parent constructor
-        super().__init__(dict_hook, key_hook, value_hook, invalidate_callback=None, logger=logger)
+        super().__init__(dict_hook, key_hook, value_hook, invalidate_callback=None, logger=logger) # type: ignore
 
     def _get_default_value(self, key: K) -> V:
         """Helper to get default value (call if callable, return if constant)."""

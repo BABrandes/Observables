@@ -6,7 +6,7 @@ secondary hooks are properly recomputed when component values change.
 """
 
 import pytest
-from observables import ObservableList, ObservableDict, ObservableSet, ObservableTuple, ObservableSingleValue, ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
+from observables import ObservableList, ObservableSelectionDict, ObservableSet, ObservableList, ObservableSingleValue, ObservableSelectionOption, ObservableOptionalSelectionOption, ObservableMultiSelectionOption
 
 class TestEmitterHooksBasicFunctionality:
     """Test basic secondary hook functionality."""
@@ -25,11 +25,11 @@ class TestEmitterHooksBasicFunctionality:
         assert obs_list.length == 3
     
     def test_observable_dict_length_secondary_hook(self):
-        """Test that ObservableDict has a length secondary hook.""" 
-        obs_dict = ObservableDict({"a": 1, "b": 2})
+        """Test that ObservableSelectionDict has a length secondary hook."""
+        obs_dict = ObservableSelectionDict({"a": 1, "b": 2}, "a")
         
         # Check that length hook exists
-        assert "dict_length" in [key for key in obs_dict._secondary_hooks.keys()] # type: ignore
+        assert "length" in [key for key in obs_dict._secondary_hooks.keys()] # type: ignore
         
         # Check initial length value
         assert obs_dict.length == 2
@@ -51,8 +51,8 @@ class TestEmitterHooksBasicFunctionality:
         assert obs_set.length == 4
     
     def test_observable_tuple_length_secondary_hook(self):
-        """Test that ObservableTuple has a length secondary hook."""
-        obs_tuple = ObservableTuple((1, 2, 3, 4, 5))
+        """Test that ObservableList has a length secondary hook."""
+        obs_tuple = ObservableList((1, 2, 3, 4, 5))
         
         # Check that length hook exists
         assert "length" in [key for key in obs_tuple._secondary_hooks.keys()] # type: ignore
@@ -109,13 +109,13 @@ class TestEmitterHooksRecomputation:
     
     def test_observable_dict_length_updates_on_modification(self):
         """Test that length secondary hook updates when dict is modified."""
-        obs_dict = ObservableDict({"a": 1, "b": 2})
+        obs_dict = ObservableSelectionDict({"a": 1, "b": 2}, "a")
         
         # Initial length should be 2
         assert obs_dict.length == 2
         
-        # Add a new key-value pair
-        obs_dict["c"] = 3
+        # Change to a dict with more keys
+        obs_dict.set_dict_and_key({"a": 1, "b": 2, "c": 3}, "a")
         
         # Length should now be 3
         assert obs_dict.length == 3, "Length secondary hook should update when dict changes"
@@ -135,7 +135,7 @@ class TestEmitterHooksRecomputation:
     
     def test_observable_tuple_length_updates_on_modification(self):
         """Test that length secondary hook updates when tuple is modified."""
-        obs_tuple = ObservableTuple((1, 2, 3))
+        obs_tuple = ObservableList((1, 2, 3))
         
         # Initial length should be 3
         assert obs_tuple.length == 3

@@ -2,11 +2,12 @@ from typing import Generic, TypeVar, Optional, Mapping
 from pathlib import Path
 from logging import Logger
 
-from .._carries_hooks.carries_hooks_base import CarriesHooksBase
-from .._carries_hooks.observable_serializable import ObservableSerializable
-from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
-from .._nexus_system.hook_nexus import HookNexus
+from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
+from ..._carries_hooks.observable_serializable import ObservableSerializable
+from ..._hooks.owned_hook import OwnedHook
+from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
+from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.update_function_values import UpdateFunctionValues
 
 EK = TypeVar("EK", bound=str)
 
@@ -132,32 +133,32 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
 
         def add_values_to_be_updated_callback(
             self_ref: "ObservableRootedPaths[EK]",
-            current_values: Mapping[str, Path|str|None],
-            submitted_values: Mapping[str, Path|str|None]) -> Mapping[str, Path|str|None]:
+            update_values: UpdateFunctionValues[str, Path|str|None]
+        ) -> Mapping[str, Path|str|None]:
             """
             Add values to be updated.
             """
 
             additional_values: Mapping[str, Path|str|None] = {}
-            if ROOT_PATH_KEY in submitted_values:
-                root_path: Optional[Path] = submitted_values[ROOT_PATH_KEY] # type: ignore
+            if ROOT_PATH_KEY in update_values.submitted:
+                root_path: Optional[Path] = update_values.submitted[ROOT_PATH_KEY] # type: ignore
             else:
-                root_path = current_values.get(ROOT_PATH_KEY) # type: ignore
+                root_path = update_values.current.get(ROOT_PATH_KEY) # type: ignore
                 additional_values[ROOT_PATH_KEY] = root_path
 
             for key in self._rooted_element_keys:
 
                 # Take care of the relative path
                 relative_path_key: str = self.element_key_to_relative_path_key(key)
-                if relative_path_key in submitted_values:
-                    relative_path: Optional[str] = submitted_values[relative_path_key] # type: ignore
+                if relative_path_key in update_values.submitted:
+                    relative_path: Optional[str] = update_values.submitted[relative_path_key] # type: ignore
                 else:
-                    relative_path = current_values.get(relative_path_key) # type: ignore
+                    relative_path = update_values.current.get(relative_path_key) # type: ignore
                     additional_values[relative_path_key] = relative_path
 
                 # Take care of the absolute path
                 absolute_path_key: str = self.element_key_to_absolute_path_key(key)
-                if absolute_path_key not in submitted_values:
+                if absolute_path_key not in update_values.submitted:
                     if root_path is not None and relative_path is not None:
                         # Ensure root_path is a Path object
                         if isinstance(root_path, str):

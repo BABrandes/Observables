@@ -69,12 +69,14 @@ Performance Characteristics:
 from typing import Callable, Generic, Mapping, Optional, TypeVar, Literal
 from logging import Logger
 
-from .._hooks.owned_hook import OwnedHook
-from .._hooks.hook_aliases import Hook
-from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
-from .._auxiliary.listening_base import ListeningBase
-from .._carries_hooks.carries_hooks_base import CarriesHooksBase
-from .._nexus_system.hook_nexus import HookNexus
+from ..._hooks.owned_hook import OwnedHook
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
+from ..._auxiliary.listening_base import ListeningBase
+from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
+from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.update_function_values import UpdateFunctionValues
 
 # Type variables for input and output hook names
 IHK = TypeVar("IHK")  # Input Hook Keys
@@ -111,7 +113,7 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
 
     def __init__(
         self,
-        input_trigger_hooks: Mapping[IHK, Hook[IHV]|IHV],
+        input_trigger_hooks: Mapping[IHK, Hook[IHV]|ReadOnlyHook[IHV]],
         forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
         output_trigger_hook_keys: set[OHK],
         reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = None,
@@ -174,8 +176,8 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
         self._forward_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = forward_callable
         self._reverse_callable: Optional[Callable[[Mapping[OHK, OHV]], Mapping[IHK, IHV]]] = reverse_callable
 
-        self._input_hooks: dict[IHK, Hook[IHV]|IHV] = {}
-        self._output_hooks: dict[OHK, Hook[OHV]|OHV] = {}
+        self._input_hooks: dict[IHK, ManagedHookProtocol[IHV]|IHV] = {}
+        self._output_hooks: dict[OHK, ManagedHookProtocol[OHV]|OHV] = {}
 
         self._assume_inverse_callable_is_always_valid: bool = assume_inverse_callable_is_always_valid
         self._precision_threshold_for_inverse_callable_validation: float = precision_threshold_for_inverse_callable_validation
@@ -183,7 +185,7 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
         # Create input hooks for all keys, connecting to external hooks when provided
         for key, external_hook_or_value in input_trigger_hooks.items():
             # Create internal hook with invalidation callback
-            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, Hook) else external_hook_or_value # type: ignore
+            initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, ManagedHookProtocol) else external_hook_or_value # type: ignore
             internal_hook_input: OwnedHook[IHV] = OwnedHook(
                 owner=self,
                 initial_value=initial_value_input,
@@ -209,16 +211,15 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
 
         def add_values_to_be_updated_callback(
             self_ref: "ObservableTransfer[IHK, OHK, IHV, OHV]",
-            current_values: Mapping[IHK|OHK, IHV|OHV],
-            submitted_values: Mapping[IHK|OHK, IHV|OHV]
+            update_values: UpdateFunctionValues[IHK|OHK, IHV|OHV]
         ) -> Mapping[IHK|OHK, IHV|OHV]:
             """
             Add values to be updated by triggering transformations.
             This callback is called when any hook value changes.
             
             NOTE: Both forward_callable and reverse_callable are ALWAYS called with
-            COMPLETE sets of values by merging submitted_values (changed keys) with
-            current_values (unchanged keys). This ensures transformations always have
+            COMPLETE sets of values by merging update_values.submitted (changed keys) with
+            update_values.current (unchanged keys). This ensures transformations always have
             all required inputs available.
             """
 
@@ -231,37 +232,37 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
 
             # Check if any input values changed - if so, trigger forward transformation
             input_keys = set(input_trigger_hooks.keys())
-            if any(key in submitted_values for key in input_keys):
+            if any(key in update_values.submitted for key in input_keys):
                 # Trigger forward transformation
 
                 # Use submitted values for changed keys, current values for unchanged keys
                 input_values: Mapping[IHK, IHV] = {}
                 for key in input_keys:
-                    if key in submitted_values:
-                        input_values[key] = submitted_values[key] # type: ignore
+                    if key in update_values.submitted:
+                        input_values[key] = update_values.submitted[key] # type: ignore
                     else:
-                        input_values[key] = current_values[key] # type: ignore
+                        input_values[key] = update_values.current[key] # type: ignore
                 output_values: Mapping[OHK, OHV] = forward_callable(input_values)
                 values_to_be_added.update(output_values) # type: ignore
             
             # Check if any output values changed - if so, trigger reverse transformation
             if reverse_callable is not None:
                 output_keys = set(output_trigger_hook_keys)
-                if any(key in submitted_values for key in output_keys):
+                if any(key in update_values.submitted for key in output_keys):
                     # Use submitted values for changed keys, current values for unchanged keys
                     output_values = {}
                     for key in output_keys:
-                        if key in submitted_values:
-                            output_values[key] = submitted_values[key] # type: ignore
+                        if key in update_values.submitted:
+                            output_values[key] = update_values.submitted[key] # type: ignore
                         else:
-                            output_values[key] = current_values[key] # type: ignore
+                            output_values[key] = update_values.current[key] # type: ignore
                     input_values = reverse_callable(output_values)
                     # For reverse transformation, we need to return the input values
                     # but they should be applied to the input hooks, not output hooks
                     values_to_be_added.update(input_values) # type: ignore
 
             # Remove values that are already in the submitted values
-            for key in submitted_values:
+            for key in update_values.submitted:
                 values_to_be_added.pop(key, None)
 
             return values_to_be_added
@@ -283,7 +284,7 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
         # Connect the internal hook to the external hook if provided
         for key, external_hook_or_value in input_trigger_hooks.items():
             internal_hook_input = self._input_hooks[key] # type: ignore
-            if isinstance(external_hook_or_value, Hook):
+            if isinstance(external_hook_or_value, ManagedHookProtocol):
                 internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################

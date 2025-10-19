@@ -11,6 +11,16 @@ through a centralized value storage system. Unlike traditional reactive librarie
 duplicate data across observables, this system stores values in centralized HookNexus 
 objects that observables reference, ensuring efficient synchronization.
 
+**Modern API (Recommended):**
+For new code, use the clean X-prefixed aliases:
+- XValue, XList, XSet - Basic observables
+- XSelectionDict, XSelectionOption - Selection management
+- XTransfer, XSync - Advanced transformations
+
+**Legacy API (Deprecated):**
+The verbose Observable* names are kept for backwards compatibility but are deprecated.
+Use the X-prefixed aliases instead.
+
 Core Features:
 - Centralized value storage with shared references (no data duplication)
 - Bidirectional bindings through hook group merging
@@ -53,38 +63,53 @@ Available Observable Types:
 - ObservableMultiSelectionOption: Combined available options set and multiple selected values management
 - ObservableEnum: Reactive enum with options management and validation
 
-Example Usage:
-    >>> from observables import ObservableSingleValue, ObservableList
+Example Usage (Modern API):
+    >>> from observables import XValue, XList, XSet
     
     >>> # Create reactive values (each has its own central HookNexus)
-    >>> name = ObservableSingleValue("John")
-    >>> age = ObservableSingleValue(25)
+    >>> name = XValue("John")
+    >>> age = XValue(25)
     
     >>> # Add listeners for change notifications
     >>> name.add_listeners(lambda: print("Name changed!"))
     >>> age.add_listeners(lambda: print("Age changed!"))
     
     >>> # Create bidirectional binding (merges hook groups, no value copying)
-    >>> name_copy = ObservableSingleValue(name)
-    >>> name_copy.single_value = "Jane"  # Updates central value, both observables see it
+    >>> name_copy = XValue(name)
+    >>> name_copy.value = "Jane"  # Updates central value, both observables see it
     Name changed!
     
-    >>> # Reactive lists (same central value principle)
-    >>> todo_list = ObservableList(["Buy groceries", "Walk dog"])
-    >>> todo_copy = ObservableList(todo_list)
-    >>> todo_copy.append("Read book")  # Updates central list, both observables see it
+    >>> # Reactive lists (immutable tuples internally)
+    >>> todo_list = XList(["Buy groceries", "Walk dog"])
+    >>> todo_copy = XList(todo_list)
+    >>> todo_copy.append("Read book")  # Creates new tuple, both observables see it
     
-    >>> print(name.single_value, age.single_value, todo_list.list_value)
-    Jane 25 ['Buy groceries', 'Walk dog', 'Read book']
+    >>> print(name.value, age.value, todo_list.value)
+    Jane 25 ('Buy groceries', 'Walk dog', 'Read book')
 
     >>> # Using protocols for type hints
-    >>> from observables import CarriesDistinctSingleValueHook, CarriesDistinctListHook
+    >>> from observables import XValueProtocol, XListProtocol
     
-    >>> def process_observable(obs: CarriesDistinctSingleValueHook[str]) -> str:
-    ...     return obs.distinct_single_value_reference.upper()
+    >>> def process_value(obs: XValueProtocol[str]) -> str:
+    ...     return obs.value.upper()
     
-    >>> def process_list_observable(obs: CarriesDistinctListHook[str]) -> list[str]:
-    ...     return [item.upper() for item in obs.distinct_list_reference]
+    >>> def process_list(obs: XListProtocol[str]) -> tuple[str, ...]:
+    ...     return tuple(item.upper() for item in obs.value)
+    
+    >>> # One-way transformations with XOneWayFunction
+    >>> from observables import XOneWayFunction
+    >>> 
+    >>> celsius = XValue(0.0)
+    >>> converter = XOneWayFunction(
+    ...     function_input_hooks={'celsius': celsius.hook},
+    ...     function_output_hook_keys={'fahrenheit', 'kelvin'},
+    ...     function_callable=lambda inputs: {
+    ...         'fahrenheit': inputs['celsius'] * 9/5 + 32,
+    ...         'kelvin': inputs['celsius'] + 273.15
+    ...     }
+    ... )
+    >>> celsius.value = 100.0
+    >>> print(converter.get_output_hook('fahrenheit').value)  # 212.0
 
 For more information, see the individual class documentation or run the demo:
     python observables/examples/demo.py
@@ -95,43 +120,114 @@ Advanced Usage:
     >>> # Create custom observable types with low-level components
 """
 
-from ._observables_basic.observable_dict import ObservableDict, ObservableDictProtocol
-from ._observables_basic.observable_list import ObservableList, ObservableListProtocol
-from ._observables_basic.observable_set import ObservableSet, ObservableSetProtocol
-from ._observables_basic.observable_single_value import ObservableSingleValue, ObservableSingleValueProtocol
-from ._observables_basic.observable_tuple import ObservableTuple, ObservableTupleProtocol
-from ._observables_advanced.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionProtocol, ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionProtocol
-from ._observables_advanced.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum  
-from ._observables_advanced.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionProtocol
-from ._observables_advanced.observable_transfer import ObservableTransfer
-from ._observables_advanced.observable_sync import ObservableSync
-from ._observables_advanced.dictionaries.observable_selection_dict import ObservableSelectionDict
-from ._observables_advanced.dictionaries.observable_optional_selection_dict import ObservableOptionalSelectionDict
-from ._observables_advanced.dictionaries.observable_default_selection_dict import ObservableDefaultSelectionDict
-from ._observables_advanced.dictionaries.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
-from ._observables_advanced.observable_rooted_paths import ObservableRootedPaths
-from ._observables_advanced.observable_raise_none import ObservableRaiseNone
+from ._observables.observable_single_value import ObservableSingleValue, ObservableSingleValueProtocol
+from ._observables.list_like.observable_list import ObservableList, ObservableListProtocol
+from ._observables.set_like.observable_set import ObservableSet, ObservableSetProtocol
+from ._observables.set_like.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionProtocol
+from ._observables.set_like.observable_selection_option import ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionProtocol
+from ._observables.set_like.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum  
+from ._observables.complex.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionProtocol
+from ._observables.function_like.observable_transfer import ObservableTransfer
+from ._observables.function_like.observable_function import ObservableFunction as ObservableSync
+from ._observables.function_like.observable_one_way_function import ObservableOneWayFunction
+from ._observables.dict_like.observable_selection_dict import ObservableSelectionDict
+from ._observables.dict_like.observable_optional_selection_dict import ObservableOptionalSelectionDict
+from ._observables.dict_like.observable_default_selection_dict import ObservableDefaultSelectionDict
+from ._observables.dict_like.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
+from ._observables.dict_like.observable_dict import ObservableDict
+from ._observables.complex.observable_rooted_paths import ObservableRootedPaths
+from ._observables.complex.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
 from ._hooks.hook_aliases import Hook, ReadOnlyHook
 from ._nexus_system.system_analysis import write_report
+from ._observables.function_like.function_values import FunctionValues
+from ._nexus_system.update_function_values import UpdateFunctionValues
 from ._carries_hooks.observable_serializable import ObservableSerializable
-from ._observables_advanced.observable_subscriber import ObservableSubscriber
+from ._observables.complex.observable_subscriber import ObservableSubscriber
 from ._publisher_subscriber.publisher_protocol import PublisherProtocol
 from ._publisher_subscriber.value_publisher import ValuePublisher
 from ._publisher_subscriber.publisher import Publisher
 
+# Modern, clean aliases (recommended for new code)
+
+XValue = ObservableSingleValue
+XList = ObservableList
+XSet = ObservableSet
+XDict = ObservableDict
+
+XSelectionDict = ObservableSelectionDict
+XOptionalSelectionDict = ObservableOptionalSelectionDict
+XDefaultSelectionDict = ObservableDefaultSelectionDict
+XOptionalDefaultSelectionDict = ObservableOptionalDefaultSelectionDict
+
+XSelectionOption = ObservableSelectionOption
+XOptionalSelectionOption = ObservableOptionalSelectionOption
+
+XSelectionEnum = ObservableSelectionEnum
+XOptionalSelectionEnum = ObservableOptionalSelectionEnum
+
+XFunction = ObservableSync
+XOneWayFunction = ObservableOneWayFunction
+
+XMultiSelectionOption = ObservableMultiSelectionOption
+XRootedPaths = ObservableRootedPaths
+XRaiseNone = ObservableRaiseNone
+XSubscriber = ObservableSubscriber
+
+# Deprecated aliases (kept for backwards compatibility)
+XTransfer = ObservableTransfer  # Use XOneWayFunction instead
+
+# Protocol aliases
+XValueProtocol = ObservableSingleValueProtocol
+XListProtocol = ObservableListProtocol
+XSetProtocol = ObservableSetProtocol
+XSelectionOptionProtocol = ObservableSelectionOptionProtocol
+XOptionalSelectionOptionProtocol = ObservableOptionalSelectionOptionProtocol
+XMultiSelectionOptionProtocol = ObservableMultiSelectionOptionProtocol
+
 __all__ = [
-    # Observable types
-    'ObservableDict',
+    # Modern clean aliases (RECOMMENDED - use these for new code!)
+    'XValue',
+    'XList',
+    'XSet',
+    'XDict',
+    'XSelectionDict',
+    'XOptionalSelectionDict',
+    'XDefaultSelectionDict',
+    'XOptionalDefaultSelectionDict',
+    'XSelectionOption',
+    'XOptionalSelectionOption',
+    'XMultiSelectionOption',
+    'XSelectionEnum',
+    'XOptionalSelectionEnum',
+    'XFunction',
+    'XOneWayFunction',
+    'XRootedPaths',
+    'XRaiseNone',
+    'XSubscriber',
+    
+    # Deprecated aliases (kept for backwards compatibility)
+    'XTransfer',  # Use XOneWayFunction instead
+    
+    # Modern protocol aliases
+    'XValueProtocol',
+    'XListProtocol',
+    'XSetProtocol',
+    'XSelectionOptionProtocol',
+    'XOptionalSelectionOptionProtocol',
+    'XMultiSelectionOptionProtocol',
+    
+    # Legacy names (DEPRECATED - kept for backwards compatibility)
     'ObservableList',
     'ObservableSet',
+    'ObservableDict',
     'ObservableSingleValue',
-    'ObservableTuple',
     'ObservableSelectionOption',
     'ObservableOptionalSelectionOption',
     'ObservableMultiSelectionOption',
     'ObservableTransfer',
     'ObservableSync',
+    'ObservableOneWayFunction',
     'ObservableSelectionDict',
     'ObservableOptionalSelectionDict',
     'ObservableDefaultSelectionDict',
@@ -141,23 +237,25 @@ __all__ = [
     'ObservableOptionalSelectionEnum',
     'ObservableRaiseNone',
     'ObservableSubscriber',
-
-    # Protocol types for type hints
-    'ObservableDictProtocol',
+    
+    # Legacy protocols (DEPRECATED)
     'ObservableListProtocol',
     'ObservableSetProtocol',
     'ObservableSingleValueProtocol',
-    'ObservableTupleProtocol',
     'ObservableSelectionOptionProtocol',
     'ObservableOptionalSelectionOptionProtocol',
     'ObservableMultiSelectionOptionProtocol',
 
-    # hooks (user-facing)
+    # Hooks (user-facing)
     'FloatingHook',
     'Hook',
     'ReadOnlyHook',
+    
+    # Function utilities
+    'FunctionValues',
+    'UpdateFunctionValues',
 
-    # Other
+    # Publisher/Subscriber
     'PublisherProtocol',
     'ValuePublisher',
     'Publisher',

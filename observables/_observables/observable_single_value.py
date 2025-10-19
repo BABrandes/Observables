@@ -1,7 +1,8 @@
 from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
 from logging import Logger
 
-from .._hooks.hook_aliases import Hook
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
+from .._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
@@ -129,7 +130,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         ...
     
     @overload
-    def __init__(self, hook: Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, hook: Hook[T]|ReadOnlyHook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
@@ -138,7 +139,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         """Initialize with another observable, establishing a bidirectional binding."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: T | Hook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: T | Hook[T]|ReadOnlyHook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableSingleValue.
         
@@ -185,15 +186,15 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
                 )
         """
 
-        if isinstance(observable_or_hook_or_value, Hook):
+        if isinstance(observable_or_hook_or_value, ManagedHookProtocol):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
-            hook: Optional[Hook[T]] = observable_or_hook_or_value #type: ignore
+            hook: Optional[ManagedHookProtocol[T]] = observable_or_hook_or_value #type: ignore
         elif isinstance(observable_or_hook_or_value, ObservableSingleValueProtocol):
             initial_value: T = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.hook # type: ignore
         else:
             # Assume the value is T
-            initial_value: T = observable_or_hook_or_value
+            initial_value: T = observable_or_hook_or_value # type: ignore
             hook = None
 
         validator: Optional[Callable[[T], tuple[bool, str]]] = validator

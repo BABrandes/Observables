@@ -1,11 +1,12 @@
 from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator, Mapping
 from logging import Logger
 
-from .._hooks.hook_aliases import Hook, ReadOnlyHook
-from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
-from .._carries_hooks.complex_observable_base import ComplexObservableBase
-from .._carries_hooks.observable_serializable import ObservableSerializable
-from .._nexus_system.submission_error import SubmissionError
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from ..._carries_hooks.complex_observable_base import ComplexObservableBase
+from ..._carries_hooks.observable_serializable import ObservableSerializable
+from ..._nexus_system.submission_error import SubmissionError
 
 T = TypeVar("T")
 
@@ -13,32 +14,35 @@ T = TypeVar("T")
 class ObservableListProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
     """
     Protocol for observable list objects.
+    
+    Note:
+        Internally stores values as tuple for immutability.
     """
     
     @property
-    def value(self) -> list[T]:
+    def value(self) -> tuple[T, ...]:
         """
-        Get the list value.
+        Get the list value as immutable tuple.
         """
         ...
     
     @value.setter
-    def value(self, value: list[T]) -> None:
+    def value(self, value: Iterable[T]) -> None:
         """
-        Set the list value.
+        Set the list value (accepts any iterable, stores as tuple).
         """
         ...
 
-    def change_value(self, new_value: list[T]) -> None:
+    def change_value(self, new_value: Iterable[T]) -> None:
         """
         Change the list value (lambda-friendly method).
         """
         ...
     
     @property
-    def value_hook(self) -> Hook[list[T]]:
+    def value_hook(self) -> Hook[tuple[T, ...]]:
         """
-        Get the hook for the list.
+        Get the hook for the list (contains tuple).
         """
         ...
 
@@ -57,7 +61,7 @@ class ObservableListProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
         ...
     
 
-class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], list[T], int, "ObservableList"], ObservableListProtocol[T], ObservableSerializable[Literal["value"], list[T]], Generic[T]):
+class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableList"], ObservableListProtocol[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
     """
     Observable wrapper for Python lists with full list interface and bidirectional binding.
     
@@ -81,7 +85,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
     
     Key Features:
         - **Full List Interface**: append(), extend(), insert(), remove(), pop(), clear(), etc.
-        - **Automatic Copying**: Input lists are copied to prevent external modification
+        - **Immutable Storage**: Internally stores as tuple for true immutability
         - **Bidirectional Binding**: Connect multiple lists to share the same data
         - **Change Notifications**: Listeners triggered on any modification
         - **Secondary Hooks**: Length hook automatically updates when list changes
@@ -120,13 +124,13 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
     """
 
     @overload
-    def __init__(self, list_value: list[T], logger: Optional[Logger] = None) -> None:
-        """Initialize with a direct list value."""
+    def __init__(self, list_value: Iterable[T], logger: Optional[Logger] = None) -> None:
+        """Initialize with any iterable (stored as tuple)."""
         ...
 
     @overload
-    def __init__(self, observable_or_hook: Hook[list[T]], logger: Optional[Logger] = None) -> None:
-        """Initialize with another observable list, establishing a bidirectional binding."""
+    def __init__(self, observable_or_hook: Hook[tuple[T, ...]] | ReadOnlyHook[tuple[T, ...]], logger: Optional[Logger] = None) -> None:
+        """Initialize with a hook, establishing a bidirectional binding."""
         ...
 
     @overload
@@ -139,39 +143,39 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: list[T] | Hook[list[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: Iterable[T] | Hook[tuple[T, ...]] | ReadOnlyHook[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableList.
         
         This constructor supports four initialization patterns:
         
-        1. **Direct list**: Pass a list directly (will be copied)
-        2. **From hook**: Pass a Hook[list[T]] to bind to
+        1. **Direct iterable**: Pass any iterable (will be converted to tuple)
+        2. **From hook**: Pass a Hook[tuple[T, ...]] to bind to
         3. **From observable**: Pass another ObservableList to bind to
         4. **Empty list**: Pass None to create an empty list
         
         Args:
             observable_or_hook_or_value: Can be one of four types:
-                - list[T]: A Python list (will be copied to prevent external modification)
-                - Hook[list[T]]: A hook to bind to (establishes bidirectional connection)
+                - Iterable[T]: Any iterable (will be converted to immutable tuple)
+                - Hook[tuple[T, ...]]: A hook to bind to (establishes bidirectional connection)
                 - ObservableListProtocol[T]: Another observable list to bind to
-                - None: Creates an empty list
+                - None: Creates an empty tuple
             logger: Optional logger for debugging observable operations. If provided,
                 operations like appending, extending, value changes, and hook connections
                 will be logged. Default is None.
         
         Raises:
-            ValueError: If the value is not a list type (validation failure).
+            ValueError: If the value is not iterable (validation failure).
         
         Note:
-            When initialized with a direct list, the list is **copied** to prevent
-            external code from modifying the internal state. This ensures that all
+            When initialized with an iterable, it is **converted to tuple** for immutability.
+            This ensures that external code cannot modify the internal state. All
             changes go through the observable's methods and trigger proper notifications.
         
         Example:
             Four initialization patterns::
             
-                # 1. Direct list (copied)
+                # 1. From any iterable (converted to tuple)
                 todos = ObservableList(["Task 1", "Task 2"])
                 
                 # 2. Empty list
@@ -188,21 +192,22 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
 
         if observable_or_hook_or_value is None:
-            initial_value: list[T] = []
-            hook: Optional[Hook[list[T]]] = None
+            initial_value: tuple[T, ...] = ()
+            hook: Optional[ManagedHookProtocol[tuple[T, ...]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, Hook):
-            initial_value = observable_or_hook_or_value.value
-            hook = observable_or_hook_or_value
+        elif isinstance(observable_or_hook_or_value, ManagedHookProtocol):
+            initial_value = observable_or_hook_or_value.value # type: ignore
+            hook = observable_or_hook_or_value # type: ignore
         else:
-            initial_value = observable_or_hook_or_value.copy()
+            # Convert any iterable to tuple
+            initial_value = tuple(observable_or_hook_or_value) # type: ignore
             hook = None
 
         super().__init__(
             initial_component_values_or_hooks={"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], list) else (False, "Value is not a list"), # type: ignore
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"), # type: ignore
             secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
@@ -211,25 +216,33 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
     @property
-    def value(self) -> list[T]:
+    def value(self) -> tuple[T, ...]:
         """
-        Get a copy of the current list value.
+        Get the current list value as immutable tuple.
         
         Returns:
-            A copy of the current list to prevent external modification
+            The current tuple value (immutable).
+            
+        Note:
+            Returns tuple for immutability. Use append(), extend(), etc.
+            for modifications, or create a new tuple and assign.
         """
-        return self._primary_hooks["value"].value.copy()
+        return self._primary_hooks["value"].value # type: ignore
     
     @value.setter
-    def value(self, value: list[T]) -> None:
+    def value(self, value: Iterable[T]|tuple[T, ...]) -> None:
         """
-        Set the current value of the list.
+        Set the current value of the list from any iterable.
+        
+        Args:
+            value: Any iterable (will be converted to tuple)
         """
-        success, msg = self.submit_value("value", value)
+        new_value = tuple(value) if not isinstance(value, tuple) else value
+        success, msg = self.submit_value("value", new_value)
         if not success:
             raise SubmissionError(msg, value)
 
-    def change_value(self, new_value: list[T]) -> None:
+    def change_value(self, new_value: Iterable[T]|tuple[T, ...]) -> None:
         """
         Change the list value (lambda-friendly method).
         
@@ -237,20 +250,22 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         in lambda expressions and other contexts where property assignment isn't suitable.
         
         Args:
-            new_value: The new list value to set
+            new_value: Any iterable (will be converted to tuple)
         """
-        success, msg = self.submit_value("value", new_value)
+        converted_value = tuple(new_value) if not isinstance(new_value, tuple) else new_value
+        success, msg = self.submit_value("value", converted_value)
         if not success:
             raise SubmissionError(msg, new_value, "value")
 
     @property
-    def value_hook(self) -> Hook[list[T]]:
+    def value_hook(self) -> Hook[tuple[T, ...]]:
         """
         Get the hook for the list value.
         
         This hook can be used for binding operations with other observables.
+        Returns tuple for immutability.
         """
-        return self._primary_hooks["value"]
+        return self._primary_hooks["value"] # type: ignore
     
     @property
     def length(self) -> int:
@@ -274,11 +289,12 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
         Add an item to the end of the list.
         
+        Creates a new tuple with the appended item.
+        
         Args:
             item: The item to add to the list
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.append(item) # type: ignore
+        new_list = self._primary_hooks["value"].value + (item,) # type: ignore
         success, msg = self.submit_values({"value": new_list})
         if not success:
             raise SubmissionError(msg, new_list, "value")
@@ -287,11 +303,12 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
         Extend the list by appending elements from the iterable.
         
+        Creates a new tuple with the extended elements.
+        
         Args:
             iterable: The iterable containing elements to add
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.extend(iterable) # type: ignore
+        new_list = self._primary_hooks["value"].value + tuple(iterable) # type: ignore
         if new_list != self._primary_hooks["value"].value:
             self.value = new_list
     
@@ -299,40 +316,42 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
         Insert an item at a given position.
         
+        Creates a new tuple with the item inserted.
+        
         Args:
             index: The position to insert the item at
             item: The item to insert
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.insert(index, item) # type: ignore
+        current = self._primary_hooks["value"].value # type: ignore
+        new_list = current[:index] + (item,) + current[index:] # type: ignore
         self.value = new_list
     
     def remove(self, item: T) -> None:
         """
         Remove the first occurrence of a value from the list.
         
-        This method removes the first occurrence of the specified item from the list,
-        using set_observed_values to ensure all changes go through the centralized protocol method.
+        Creates a new tuple without the first occurrence of the item.
         
         Args:
             item: The item to remove from the list
             
-        Note:
-            If the item is not found in the list, no action is taken and no
-            notifications are triggered.
+        Raises:
+            ValueError: If the item is not in the list
         """
-        if item in self._primary_hooks["value"].value:
-            new_list = self._primary_hooks["value"].value.copy()
-            new_list.remove(item) # type: ignore
-            if new_list != self._primary_hooks["value"].value:
-                self.value = new_list
+        current = self._primary_hooks["value"].value # type: ignore
+        if item not in current:
+            raise ValueError(f"{item} not in list")
+        
+        # Find index and create new tuple without that element
+        index = current.index(item)
+        new_list = current[:index] + current[index+1:] # type: ignore
+        self.value = new_list
     
     def pop(self, index: int = -1) -> T:
         """
         Remove and return the item at the specified index.
         
-        This method removes the item at the specified index from the list and returns it,
-        using set_observed_values to ensure all changes go through the centralized protocol method.
+        Creates a new tuple without the popped item.
         
         Args:
             index: The index of the item to remove (default: -1, last item)
@@ -343,38 +362,42 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         Raises:
             IndexError: If the index is out of range
         """
-        item: T = self._primary_hooks["value"].value[index] # type: ignore
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.pop(index) # type: ignore
-        if new_list != self._primary_hooks["value"].value:
-            self.value = new_list
-        return item # type: ignore
+        current = self._primary_hooks["value"].value # type: ignore
+        item: T = current[index] # type: ignore
+        # Create new tuple without the item at index
+        if index == -1 or index == len(current) - 1:
+            new_list = current[:-1] # type: ignore
+        elif index == 0:
+            new_list = current[1:] # type: ignore
+        else:
+            # Normalize negative index
+            if index < 0:
+                index = len(current) + index
+            new_list = current[:index] + current[index+1:] # type: ignore
+        self.value = new_list
+        return item
     
     def clear(self) -> None:
         """
         Remove all items from the list.
         
-        This method removes all items from the list, making it empty. It uses
-        set_observed_values to ensure all changes go through the centralized protocol method.
+        Creates an empty tuple.
         """
         if self._primary_hooks["value"].value:
-            new_list: list[T] = []
-            if new_list != self._primary_hooks["value"].value:
-                self.value = new_list # type: ignore
+            new_list: tuple[T, ...] = ()
+            self.value = new_list # type: ignore
     
     def sort(self, key: Optional[Callable[[T], Any]] = None, reverse: bool = False) -> None:
         """
         Sort the list in place.
         
-        This method sorts the list in ascending order (or descending if reverse=True),
-        using set_observed_values to ensure all changes go through the centralized protocol method.
+        Creates a new sorted tuple.
         
         Args:
             key: Optional function to extract comparison key from each element
             reverse: If True, sort in descending order (default: False)
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.sort(key=key, reverse=reverse) # type: ignore
+        new_list = tuple(sorted(self._primary_hooks["value"].value, key=key, reverse=reverse)) # type: ignore
         if new_list != self._primary_hooks["value"].value:
             self.value = new_list
     
@@ -382,11 +405,9 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
         Reverse the elements of the list in place.
         
-        This method reverses the order of elements in the list, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
+        Creates a new tuple with elements in reversed order.
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list.reverse() # type: ignore
+        new_list = tuple(reversed(self._primary_hooks["value"].value)) # type: ignore
         if new_list != self._primary_hooks["value"].value:
             self.value = new_list
     
@@ -455,40 +476,43 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
     
     def __setitem__(self, index: int, value: T) -> None:
         """
-        Set an item at the specified index or slice.
+        Set an item at the specified index.
         
-        This method sets the item at the specified index or slice, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
+        Creates a new tuple with the item replaced.
         
         Args:
-            index: Integer index or slice object
-            value: The value to set (can be a single item or iterable for slices)
+            index: Integer index
+            value: The value to set
             
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        new_list[index] = value
-        if new_list != self._primary_hooks["value"].value:
+        current = self._primary_hooks["value"].value # type: ignore
+        # Convert to list, modify, convert back to tuple
+        temp_list = list(current)
+        temp_list[index] = value
+        new_list = tuple(temp_list)
+        if new_list != current:
             self.value = new_list
     
     def __delitem__(self, index: int) -> None:
         """
-        Delete an item at the specified index or slice.
+        Delete an item at the specified index.
         
-        This method deletes the item at the specified index or slice, using set_observed_values
-        to ensure all changes go through the centralized protocol method.
+        Creates a new tuple without the deleted item.
         
         Args:
-            index: Integer index or slice object
+            index: Integer index
             
         Raises:
             IndexError: If the index is out of range
         """
-        new_list = self._primary_hooks["value"].value.copy()
-        del new_list[index]
-        if new_list != self._primary_hooks["value"].value:
-            self.value = new_list
+        current = self._primary_hooks["value"].value # type: ignore
+        # Create tuple without the item at index
+        if index < 0:
+            index = len(current) + index
+        new_list = current[:index] + current[index+1:] # type: ignore
+        self.value = new_list
     
     def __contains__(self, item: T) -> bool:
         """
@@ -602,21 +626,21 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             return self._primary_hooks["value"].value >= other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value >= other
     
-    def __add__(self, other: Any) -> list[T]:
+    def __add__(self, other: Any) -> tuple[T, ...]:
         """
         Concatenate this list with another list or observable list.
         
         Args:
-            other: Another list or ObservableList to concatenate with
+            other: Another iterable or ObservableList to concatenate with
             
         Returns:
-            A new list containing all items from both lists
+            A new tuple containing all items from both collections
         """
         if isinstance(other, ObservableList):
             return self._primary_hooks["value"].value + other._primary_hooks["value"].value # type: ignore
-        return self._primary_hooks["value"].value + other
+        return self._primary_hooks["value"].value + tuple(other) # type: ignore
     
-    def __mul__(self, other: int) -> list[T]:
+    def __mul__(self, other: int) -> tuple[T, ...]:
         """
         Repeat the list a specified number of times.
         
@@ -624,11 +648,11 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             other: The number of times to repeat the list
             
         Returns:
-            A new list with the original items repeated
+            A new tuple with the original items repeated
         """
         return self._primary_hooks["value"].value * other # type: ignore
     
-    def __rmul__(self, other: int) -> list[T]:
+    def __rmul__(self, other: int) -> tuple[T, ...]:
         """
         Repeat the list a specified number of times (right multiplication).
         
@@ -636,7 +660,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             other: The number of times to repeat the list
             
         Returns:
-            A new list with the original items repeated
+            A new tuple with the original items repeated
         """
         return other * self._primary_hooks["value"].value # type: ignore
     
@@ -645,14 +669,14 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         Get the hash value based on the current list contents.
         
         Returns:
-            Hash value of the list as a tuple
+            Hash value of the tuple
         """
-        return hash(tuple(self._primary_hooks["value"].value)) # type: ignore
+        return hash(self._primary_hooks["value"].value) # type: ignore
 
     #### ObservableSerializable implementation ####
 
-    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], list[T]]:
+    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], tuple[T, ...]]:
         return {"value": self._primary_hooks["value"].value}
 
-    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], list[T]]) -> None:
+    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], tuple[T, ...]]) -> None:
         self.value = values["value"]

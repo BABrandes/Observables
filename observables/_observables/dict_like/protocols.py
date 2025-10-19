@@ -1,11 +1,87 @@
-from typing import TypeVar, Optional, Protocol, Mapping
+from typing import TypeVar, Optional, Protocol, Mapping, runtime_checkable
 from types import MappingProxyType
 
-from ..._hooks.hook_aliases import Hook
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 
 K = TypeVar("K")
 V = TypeVar("V")
 
+@runtime_checkable
+class ObservableDictProtocol(Protocol[K, V]):
+    """
+    Protocol for observable dictionary objects.
+    """
+    
+    @property
+    def dict(self) -> MappingProxyType[K, V]:
+        """
+        Get the immutable dictionary value.
+        """
+        ...
+    
+    @dict.setter
+    def dict(self, value: Mapping[K, V]) -> None:
+        """
+        Set the dictionary value.
+        """
+        ...
+
+    @property
+    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
+        """
+        Get the hook for the dictionary.
+        """
+        ...
+
+    def change_dict(self, new_dict: Mapping[K, V]) -> None:
+        """
+        Change the dictionary value (lambda-friendly method).
+        """
+        ...
+    
+    @property
+    def length(self) -> int:
+        """
+        Get the current length of the dictionary.
+        """
+        ...
+    
+    @property
+    def length_hook(self) -> ReadOnlyHook[int]:
+        """
+        Get the hook for the dictionary length.
+        """
+        ...
+
+    @property
+    def keys(self) -> frozenset[K]:
+        """
+        Get all keys from the dictionary as a frozenset.
+        """
+        ...
+    
+    @property
+    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
+        """
+        Get the hook for the dictionary keys.
+        """
+        ...
+
+    @property
+    def values(self) -> tuple[V, ...]:
+        """
+        Get all values from the dictionary as a tuple.
+        """
+        ...
+    
+    @property
+    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
+        """
+        Get the hook for the dictionary values.
+        """
+        ...
+
+@runtime_checkable
 class ObservableSelectionDictProtocol(Protocol[K, V]):
     """
     Protocol for observable selection dictionary functionality.
@@ -60,6 +136,7 @@ class ObservableSelectionDictProtocol(Protocol[K, V]):
         """Set the dictionary and key behind this hook."""
         ...
 
+@runtime_checkable
 class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
     """
     Protocol for observable optional selection dictionary functionality.
@@ -113,6 +190,7 @@ class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
         """Set the dictionary and key behind this hook."""
         ...
 
+@runtime_checkable
 class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
     """
     Protocol for observable default selection dictionary functionality.
@@ -164,6 +242,7 @@ class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
         """Set the dictionary and key behind this hook."""
         ...
 
+@runtime_checkable
 class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
     """
     Protocol for observable optional default selection dictionary functionality.

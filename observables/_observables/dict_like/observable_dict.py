@@ -1,91 +1,16 @@
-from typing import Generic, TypeVar, Optional, overload, Callable, Protocol, runtime_checkable, Literal, Any, Mapping
+from typing import Generic, TypeVar, Optional, overload, Callable, Literal, Any, Mapping
 from logging import Logger
 from types import MappingProxyType
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
-from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from ..._carries_hooks.observable_serializable import ObservableSerializable
 from ..._nexus_system.submission_error import SubmissionError
+from .protocols import ObservableDictProtocol
 
 K = TypeVar("K")
 V = TypeVar("V")
-
-@runtime_checkable
-class ObservableDictProtocol(CarriesHooksProtocol[Any, Any], Protocol[K, V]):
-    """
-    Protocol for observable dictionary objects.
-    """
-    
-    @property
-    def dict(self) -> MappingProxyType[K, V]:
-        """
-        Get the immutable dictionary value.
-        """
-        ...
-    
-    @dict.setter
-    def dict(self, value: Mapping[K, V]) -> None:
-        """
-        Set the dictionary value.
-        """
-        ...
-
-    @property
-    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
-        """
-        Get the hook for the dictionary.
-        """
-        ...
-
-    def change_dict(self, new_dict: Mapping[K, V]) -> None:
-        """
-        Change the dictionary value (lambda-friendly method).
-        """
-        ...
-    
-    @property
-    def length(self) -> int:
-        """
-        Get the current length of the dictionary.
-        """
-        ...
-    
-    @property
-    def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the hook for the dictionary length.
-        """
-        ...
-
-    @property
-    def keys(self) -> frozenset[K]:
-        """
-        Get all keys from the dictionary as a frozenset.
-        """
-        ...
-    
-    @property
-    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
-        """
-        Get the hook for the dictionary keys.
-        """
-        ...
-
-    @property
-    def values(self) -> tuple[V, ...]:
-        """
-        Get all values from the dictionary as a tuple.
-        """
-        ...
-    
-    @property
-    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
-        """
-        Get the hook for the dictionary values.
-        """
-        ...
     
 class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "keys", "values"], MappingProxyType[K, V], int|frozenset[K]|tuple[V, ...], "ObservableDict"], ObservableDictProtocol[K, V], ObservableSerializable[Literal["dict"], MappingProxyType[K, V]], Generic[K, V]):
     """

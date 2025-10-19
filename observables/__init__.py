@@ -135,6 +135,7 @@ from ._observables.dict_like.observable_optional_selection_dict import Observabl
 from ._observables.dict_like.observable_default_selection_dict import ObservableDefaultSelectionDict
 from ._observables.dict_like.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
 from ._observables.dict_like.observable_dict import ObservableDict
+from ._observables.dict_like.protocols import ObservableDictProtocol
 from ._observables.complex.observable_rooted_paths import ObservableRootedPaths
 from ._observables.complex.observable_raise_none import ObservableRaiseNone
 from ._hooks.floating_hook import FloatingHook
@@ -184,6 +185,7 @@ XSetProtocol = ObservableSetProtocol
 XSelectionOptionProtocol = ObservableSelectionOptionProtocol
 XOptionalSelectionOptionProtocol = ObservableOptionalSelectionOptionProtocol
 XMultiSelectionOptionProtocol = ObservableMultiSelectionOptionProtocol
+XDictProtocol = ObservableDictProtocol
 
 __all__ = [
     # Modern clean aliases (RECOMMENDED - use these for new code!)
@@ -211,6 +213,7 @@ __all__ = [
     
     # Modern protocol aliases
     'XValueProtocol',
+    'XDictProtocol',
     'XListProtocol',
     'XSetProtocol',
     'XSelectionOptionProtocol',
@@ -240,6 +243,7 @@ __all__ = [
     
     # Legacy protocols (DEPRECATED)
     'ObservableListProtocol',
+    'ObservableDictProtocol',
     'ObservableSetProtocol',
     'ObservableSingleValueProtocol',
     'ObservableSelectionOptionProtocol',

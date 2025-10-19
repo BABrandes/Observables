@@ -284,7 +284,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
                 raise ValueError("Cannot connect to None hook")
 
             if isinstance(target_hook, CarriesSingleHookProtocol):
-                target_hook = target_hook._get_single_value_hook() # type: ignore
+                target_hook = target_hook._get_single_hook() # type: ignore
             
             if initial_sync_mode == "use_caller_value":
                 success, msg = Nexus[T].link_hook_pairs((self, target_hook))  # type: ignore
@@ -360,7 +360,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
         with self._lock:
             if isinstance(hook_or_carries_single_hook, CarriesSingleHookProtocol):
-                hook_or_carries_single_hook = hook_or_carries_single_hook._get_single_value_hook() # type: ignore
+                hook_or_carries_single_hook = hook_or_carries_single_hook._get_single_hook() # type: ignore
             return hook_or_carries_single_hook in self._hook_nexus.hooks
 
     def _replace_nexus(self, nexus: "Nexus[T]") -> None:

@@ -358,7 +358,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
                         primary_values_dict[key] = value # type: ignore
                     elif key in self_ref._secondary_hooks:
                         # Check if internal secondary values are equal to the values
-                        if not self_ref.nexus_manager.is_equal(self_ref._secondary_values[key], value):
+                        if not self_ref._get_nexus_manager().is_equal(self_ref._secondary_values[key], value):
                             return False, f"Internal secondary value for key {key} ( {self_ref._secondary_values[key]} ) is not equal to the submitted value {value}"
                     else:
                         raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
@@ -440,10 +440,10 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         #-------------------------------- Initialize finished --------------------------------
 
     #########################################################################
-    # BaseCarriesHooks abstract methods implementation
+    # CarriesHooksBase methods implementation
     #########################################################################
 
-    def _get_hook(self, key: PHK|SHK) -> OwnedHookProtocol[PHV|SHV]:
+    def _get_hook_by_key(self, key: PHK|SHK) -> OwnedHookProtocol[PHV|SHV]:
         """
         Get a hook by its key.
         
@@ -475,37 +475,6 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         else:
             raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
 
-    def _get_value_reference_of_hook(self, key: PHK|SHK) -> PHV|SHV:
-        """
-        Get the current value of a hook by its key.
-        
-        Parameters
-        ----------
-        key : PHK or SHK
-            The key identifying the hook (primary or secondary)
-            
-        Returns
-        -------
-        PHV or SHV
-            The current value of the hook
-            
-        Raises
-        ------
-        ValueError
-            If the key is not found in primary or secondary hooks
-            
-        Notes
-        -----
-        This method must be implemented by subclasses to provide access to hook values.
-        It should return the current value of the hook associated with the given key.
-        """
-        if key in self._primary_hooks:
-            return self._primary_hooks[key].value # type: ignore
-        elif key in self._secondary_hooks:
-            return self._secondary_hooks[key].value # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in component_hooks or secondary_hooks")
-
     def _get_hook_keys(self) -> set[PHK|SHK]:
         """
         Get all hook keys (primary and secondary).
@@ -522,7 +491,13 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         """
         return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[PHV|SHV]|Nexus[PHV|SHV]) -> PHK|SHK:
+    def _get_value_by_key(self, key: PHK|SHK) -> PHV|SHV:
+        """
+        Get a value by its key.
+        """
+        return self._get_hook_by_key(key).value
+
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: OwnedHookProtocol[PHV|SHV]|Nexus[PHV|SHV]) -> PHK|SHK:
         """
         Get the key for a hook or nexus.
 

@@ -53,7 +53,7 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind them
-        obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
         
         # Test binding works
         obs1.value = "new_value"
@@ -73,7 +73,7 @@ class TestEssentialMemoryManagement:
         obs_list = ObservableList([1, 2, 3])
         
         # Access secondary hook
-        length_hook = obs_list.get_hook("length")
+        length_hook = obs_list._get_hook_by_key("length")  # type: ignore
         initial_length = length_hook.value
         assert initial_length == 3
         
@@ -126,11 +126,11 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind, test, detach
-        obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
-        obs1.disconnect_hook("value")
+        obs1._unlink("value")  # type: ignore
         obs1.value = "detached_value"
         assert obs2.value == "bound_value"  # Should not change
         
@@ -162,8 +162,8 @@ class TestMemoryStressScenarios:
             
             # Create some bindings
             for i in range(len(cycle_observables) - 1):
-                cycle_observables[i].connect_hook(  # type: ignore
-                    cycle_observables[i + 1].get_hook("value"),
+                cycle_observables[i]._link(  # type: ignore
+                    cycle_observables[i + 1].hook,
                     "value",
                     "use_caller_value"
                 )

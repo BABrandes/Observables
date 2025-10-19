@@ -1,53 +1,17 @@
-from typing import Any, Callable, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Literal, Mapping
+from typing import Any, Callable, Generic, Optional, TypeVar, overload, Literal
 from logging import Logger
 
 from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._hooks.hook_protocols.managed_hook import ManagedHookProtocol
-from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
-from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
-from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._nexus_system.submission_error import SubmissionError
 from .._nexus_system.nexus import Nexus
-from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 from .._hooks.owned_hook import OwnedHook
+from .observable_single_value_protocol import ObservableSingleValueProtocol
 
 T = TypeVar("T")
 
-@runtime_checkable
-class ObservableSingleValueProtocol(CarriesSingleHookProtocol[T], CarriesHooksProtocol[Any, T], Protocol[T]):
-    """
-    Protocol for observable single value objects.
-    """
-    
-    @property
-    def value(self) -> T:
-        """
-        Get the value.
-        """
-        ...
-    
-    @value.setter
-    def value(self, value: T) -> None:
-        """
-        Set the value.
-        """
-        ...
-
-    def change_value(self, value: T) -> None:
-        """
-        Change the value (lambda-friendly method).
-        """
-        ...
-
-    @property
-    def hook(self) -> Hook[T]: # type: ignore
-        """
-        Get the hook for the value.
-        """
-        ...
-    
-class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueProtocol[T], ObservableSerializable[Literal["value"], T], Generic[T]):
+class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueProtocol[T], Generic[T]):
     """
     Observable wrapper for a single value with validation and bidirectional binding.
     
@@ -210,7 +174,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
             logger=logger
         )
 
-        self._single_value_hook: OwnedHook[T] = self._get_single_value_hook() # type: ignore
+        self._single_value_hook: OwnedHook[T] = self._primary_hooks["value"] # type: ignore
         self._nexus: Nexus[T] = self._single_value_hook._get_nexus() # type: ignore
 
         if hook is not None:
@@ -218,6 +182,56 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
 
     #########################################################
     # CarriesSingleHookProtocol implementation
+    #########################################################
+
+    def _get_single_hook(self) -> OwnedHook[T]:
+        """
+        Get the hook for the single value.
+
+        ** This method is not thread-safe and should only be called by the get_single_value_hook method.
+
+        Returns:
+            The hook for the single value
+        """
+        return self._single_value_hook
+
+    def _get_single_value(self) -> T:
+        """
+        Get the value of the single hook.
+
+        ** This method is not thread-safe and should only be called by the get_single_value method.
+
+        Returns:
+            The value of the single hook
+        """
+        return self._single_value_hook.value
+
+    def _change_single_value(self, value: T) -> None:
+        """
+        Change the value of the single hook.
+
+        ** This method is not thread-safe and should only be called by the change_single_value method.
+
+        Args:
+            value: The new value to set
+        """
+        success, msg = self._submit_value("value", value)
+        if not success:
+            raise SubmissionError(msg, value, "value")
+
+    def _get_nexus(self) -> Nexus[T]:
+        """
+        Get the nexus for the single value.
+
+        ** This method is not thread-safe and should only be called by the get_nexus method.
+
+        Returns:
+            The nexus for the single value
+        """
+        return self._nexus
+
+    #########################################################
+    # ObservableSingleValueProtocol implementation
     #########################################################
 
     @property
@@ -251,7 +265,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         if not success:
             raise SubmissionError(msg, value, "value")
 
-    def change_value(self, value: T) -> None:
+    def change_value(self, new_value: T) -> None:
         """
         Change the value (lambda-friendly method).
         
@@ -261,40 +275,9 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         Args:
             new_value: The new value to set
         """
-        success, msg = self._submit_value("value", value)
+        success, msg = self._submit_value("value", new_value)
         if not success:
-            raise SubmissionError(msg, value, "value")
-
-    def _get_nexus(self) -> Nexus[T]:
-        return self._nexus
-
-    def _get_hook_keys(self) -> set[Literal["value"]]:
-        return {"value"}
-
-    def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[T]|Nexus[T]) -> Literal["value"]:
-        if isinstance(hook_or_nexus, HookWithOwnerProtocol):
-            return "value"
-        return "value"
-
-    def _get_single_value_hook(self) -> OwnedHook[T]:
-        return self._single_value_hook
-
-    def _get_value_of_hook_impl(self, key: Literal["value"]) -> T:
-        return self._single_value_hook.value
-
-    def _get_hook_keys_impl(self) -> set[Literal["value"]]:
-        return {"value"}
-
-    def _get_hook_key_impl(self, hook_or_nexus: HookWithOwnerProtocol[T]|Nexus[T]) -> Literal["value"]:
-        if isinstance(hook_or_nexus, HookWithOwnerProtocol):
-            return "value"
-        return "value"
-
-    def _get_hook_impl(self, key: Literal["value"]) -> OwnedHook[T]:
-        return self._single_value_hook
-
-    def _change_value_of_hook_impl(self, key: Literal["value"], value: T) -> None:
-        self._single_value_hook.change_value(value)
+            raise SubmissionError(msg, new_value, "value")
 
     #########################################################
     # Standard object methods
@@ -495,11 +478,3 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         """
         import math
         return math.trunc(self._primary_hooks["value"].value) # type: ignore
-
-    #### ObservableSerializable implementation ####
-
-    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], T]:
-        return {"value": self._primary_hooks["value"].value}
-
-    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], T]) -> None:
-        self.value = values["value"]

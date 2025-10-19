@@ -10,7 +10,7 @@ from .._nexus_system.nexus import Nexus
 from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .._nexus_system.has_nexus_manager import HasNexusManager
+from .._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
 from .._nexus_system.submission_error import SubmissionError
 from .._hooks.hook_aliases import Hook, ReadOnlyHook
 
@@ -24,7 +24,7 @@ HK = TypeVar("HK")
 HV = TypeVar("HV")
 O = TypeVar("O", bound="CarriesHooksBase[Any, Any, Any]")
 
-class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK, HV, O], ABC):
+class CarriesHooksBase(CarriesHooksProtocol[HK, HV], HasNexusManagerProtocol, Generic[HK, HV, O], ABC):
     """
     Base class for observables in the new hook-based architecture.
     
@@ -106,8 +106,6 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         """
         Initialize the CarriesHooksBase.
         """
-
-        HasNexusManager.__init__(self, nexus_manager)
 
         # Store weak references to callbacks to avoid circular references
         self._self_ref = weakref.ref(self)
@@ -261,7 +259,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             The value of the hook
         """
 
-        value = self._get_value_of_hook_impl(key)
+        value = self._get_value_by_key(key)
         return value
 
     @final
@@ -275,8 +273,8 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             A dictionary of keys to hooks
         """
         hook_dict: dict[HK, OwnedHookProtocol[HV]] = {}
-        for key in self._get_hook_keys_impl():
-            hook_dict[key] = self._get_hook_impl(key)
+        for key in self._get_hook_keys():
+            hook_dict[key] = self._get_hook_by_key(key)
         return hook_dict
 
     @final
@@ -291,7 +289,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         """
 
         hook_value_dict: dict[HK, Any] = {}
-        for key in self._get_hook_keys_impl():
+        for key in self._get_hook_keys():
             hook_value_dict[key] = self._get_value_of_hook(key)
         return hook_value_dict
 
@@ -324,8 +322,8 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         ** This method is not thread-safe and should only be called by the link method.
         """
 
-        if to_key in self._get_hook_keys_impl():
-            hook_of_observable: OwnedHookProtocol[HV] = self._get_hook_impl(to_key)
+        if to_key in self._get_hook_keys():
+            hook_of_observable: OwnedHookProtocol[HV] = self._get_hook_by_key(to_key)
             if isinstance(hook, CarriesSingleHookProtocol):
                 hook = hook.hook # type: ignore
             success, msg = hook_of_observable._link(hook, initial_sync_mode) # type: ignore
@@ -352,7 +350,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
 
         hook_pairs: list[tuple[HookWithConnectionProtocol[HV], HookWithConnectionProtocol[HV]]] = []
         for key, hook in hooks.items():
-            hook_of_observable = self._get_hook_impl(key)
+            hook_of_observable = self._get_hook_by_key(key)
             match initial_sync_mode:
                 case "use_caller_value":
                     hook_pairs.append((hook_of_observable, hook))
@@ -376,7 +374,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             for hook in self._get_dict_of_hooks().values():
                 hook._unlink() # type: ignore
         else:
-            self._get_hook_impl(key)._unlink() # type: ignore
+            self._get_hook_by_key(key)._unlink() # type: ignore
 
     def _destroy(self) -> None:
         """
@@ -413,9 +411,9 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             A tuple of (success: bool, message: str)
         """
 
-        hook: OwnedHookProtocol[HV] = self._get_hook_impl(hook_key)
+        hook: OwnedHookProtocol[HV] = self._get_hook_by_key(hook_key)
 
-        success, msg = self._nexus_manager.submit_values({hook._get_hook_nexus(): value}, mode="Check values") # type: ignore
+        success, msg = self._nexus_manager.submit_values({hook._get_nexus(): value}, mode="Check values") # type: ignore
         if success == False:
             return False, msg
         else:
@@ -459,7 +457,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         """
         with self._lock:
             success, msg = self._nexus_manager.submit_values(
-                {self._get_hook_impl(key)._get_hook_nexus(): value}, # type: ignore
+                {self._get_hook_by_key(key)._get_hook_nexus(): value}, # type: ignore
                 mode="Normal submission",
                 logger=logger
             )
@@ -505,7 +503,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         """
         nexus_and_values: dict[Nexus[Any], Any] = {}
         for key, value in values.items():
-            nexus_and_values[self._get_hook_impl(key)._get_nexus()] = value # type: ignore
+            nexus_and_values[self._get_hook_by_key(key)._get_nexus()] = value # type: ignore
         return nexus_and_values
 
     def _get_nexus_manager(self) -> "NexusManager":
@@ -514,7 +512,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
     # ------------------ To be implemented by subclasses ------------------
 
     @abstractmethod
-    def _get_hook_impl(self, key: HK) -> OwnedHookProtocol[HV]:
+    def _get_hook_by_key(self, key: HK) -> OwnedHookProtocol[HV]:
         """
         Get a hook by its key.
 
@@ -531,7 +529,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         ...
 
     @abstractmethod
-    def _get_value_of_hook_impl(self, key: HK) -> HV:
+    def _get_value_by_key(self, key: HK) -> HV:
         """
         Get a value as a copy by its key.
 
@@ -545,7 +543,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         ...
 
     @abstractmethod
-    def _get_hook_keys_impl(self) -> set[HK]:
+    def _get_hook_keys(self) -> set[HK]:
         """
         Get all keys of the hooks.
 
@@ -559,7 +557,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         ...
 
     @abstractmethod
-    def _get_hook_key_impl(self, hook_or_nexus: OwnedHookProtocol[HV]|Nexus[HV]) -> HK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: OwnedHookProtocol[HV]|Nexus[HV]) -> HK:
         """
         Get the key for a hook or nexus.
 

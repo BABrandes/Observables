@@ -337,7 +337,7 @@ class Nexus(Generic[T]):
         
         # Ensure that the value in both hook nexuses is the same
         # The source_hook's value becomes the source of truth
-        success, msg = nexus_manager.submit_values({target_hook._get_hook_nexus(): source_hook.value})  # type: ignore
+        success, msg = nexus_manager.submit_values({target_hook._get_nexus(): source_hook.value})  # type: ignore
         if not success:
             raise ValueError(msg)
             

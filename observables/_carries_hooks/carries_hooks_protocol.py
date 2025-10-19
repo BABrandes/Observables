@@ -23,7 +23,7 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
     # Methods to get hooks and values
     #########################################################################
 
-    def _get_hook(self, key: HK) -> OwnedHookProtocol[HV]:
+    def _get_hook_by_key(self, key: HK) -> OwnedHookProtocol[HV]:
         """
         Get a hook by its key.
         """
@@ -35,13 +35,13 @@ class CarriesHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
         """
         ...
 
-    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[HV]|Nexus[HV]) -> HK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: OwnedHookProtocol[HV]|Nexus[HV]) -> HK:
         """
         Get the key of a hook or nexus.
         """
         ...
 
-    def _get_value_of_hook(self, key: HK) -> HV:
+    def _get_value_by_key(self, key: HK) -> HV:
         """
         Get a value as a copy by its key.
 

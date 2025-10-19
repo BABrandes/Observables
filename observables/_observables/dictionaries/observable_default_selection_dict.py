@@ -5,6 +5,7 @@ from types import MappingProxyType
 from ..._hooks.hook_aliases import Hook
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableSelectionDictProtocol
+from ..._nexus_system.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -75,15 +76,15 @@ class ObservableDefaultSelectionDict(
         # Pre-process dict to add default entry if needed (before wrapping in MappingProxyType)
         if not isinstance(dict_hook, Hook):
             # Extract initial key
-            initial_key = key_hook.value if isinstance(key_hook, Hook) else key_hook
+            initial_key = key_hook.value if isinstance(key_hook, Hook) else key_hook # type: ignore
             # Add default entry if key not in dict
             if initial_key not in dict_hook:
                 _dict = dict(dict_hook)
-                _dict[initial_key] = self._get_default_value(initial_key)
+                _dict[initial_key] = self._get_default_value(initial_key) # type: ignore
                 dict_hook = _dict
         
         # Call parent constructor
-        super().__init__(dict_hook, key_hook, value_hook, invalidate_callback=None, logger=logger)
+        super().__init__(dict_hook, key_hook, value_hook, invalidate_callback=None, logger=logger) # type: ignore
 
     def _get_default_value(self, key: K) -> V:
         """Helper to get default value (call if callable, return if constant)."""
@@ -229,20 +230,21 @@ class ObservableDefaultSelectionDict(
             dict_value: The new mapping
             key_value: The new key (will be auto-created if not present)
         """
+        
         if key_value not in dict_value:
             # Auto-create default entry
             _inferred_value = self._get_default_value(key_value)
             _dict = dict(dict_value)
             _dict[key_value] = _inferred_value
-            dict_value = MappingProxyType(_dict)
         else:
             _inferred_value = dict_value[key_value]
-            # Wrap in MappingProxyType for immutability
-            if not isinstance(dict_value, MappingProxyType):
-                dict_value = MappingProxyType(dict(dict_value))
+            _dict = dict_value
         
-        self.submit_values({
-            "dict": dict_value, 
+        values = {
+            "dict": _dict, 
             "key": key_value, 
             "value": _inferred_value
-        })
+        }
+        success, msg = self._submit_values(values) # type: ignore
+        if not success:
+            raise SubmissionError(msg, values)

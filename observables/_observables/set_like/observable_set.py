@@ -103,7 +103,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], A
     #-------------------------------- set value --------------------------------
 
     @property
-    def set_hook(self) -> Hook[AbstractSet[T]]:
+    def value_hook(self) -> Hook[AbstractSet[T]]:
         """
         Get the hook for the set.
         
@@ -113,7 +113,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], A
         return self._primary_hooks["value"] # type: ignore
 
     @property
-    def set(self) -> AbstractSet[T]:
+    def value(self) -> AbstractSet[T]:
         """
         Get the current set value as immutable AbstractSet.
         
@@ -126,20 +126,20 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], A
         """
         return self._primary_hooks["value"].value # type: ignore
     
-    @set.setter
-    def set(self, set: Iterable[T]) -> None:
+    @value.setter
+    def value(self, value: Iterable[T]) -> None:
         """
         Set the current value of the set.
         
         Args:
-            set: Any set (automatically converted to frozenset by nexus system)
+            value: Any set (automatically converted to frozenset by nexus system)
         """
         # Let nexus system handle immutability conversion
-        success, msg = self._submit_values({"value": frozenset(set)})
+        success, msg = self._submit_values({"value": frozenset(value)})
         if not success:
             raise ValueError(msg)
 
-    def change_set(self, set: Iterable[T]) -> None:
+    def change_value(self, new_value: Iterable[T]) -> None:
         """
         Change the set value (lambda-friendly method).
         
@@ -147,9 +147,9 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], A
         in lambda expressions and other contexts where property assignment isn't suitable.
         
         Args:
-            set: Any iterable (will be converted to AbstractSet)
+            new_value: Any iterable (will be converted to frozenset)
         """
-        success, msg = self._submit_values({"value": frozenset(set)})
+        success, msg = self._submit_values({"value": frozenset(new_value)})
         if not success:
             raise ValueError(msg)
 

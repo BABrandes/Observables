@@ -125,7 +125,7 @@ class ObservableDictBase(
                 "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0  # type: ignore
             },
             verification_method=self._create_validation_callback(),
-            add_values_to_be_updated_callback=self._create_add_values_callback(),
+            add_values_to_be_updated_callback=self._create_add_values_callback(), # type: ignore
             invalidate_callback=invalidate_callback,
             logger=logger
         )
@@ -207,7 +207,7 @@ class ObservableDictBase(
         # Wrap in MappingProxyType for immutability
         if not isinstance(value, MappingProxyType):
             value = MappingProxyType(dict(value))
-        success, msg = self.submit_value("dict", value)
+        success, msg = self._submit_value("dict", value)
         if not success:
             raise ValueError(msg)
 
@@ -233,7 +233,7 @@ class ObservableDictBase(
         """
         Set the key behind this hook.
         """
-        success, msg = self.submit_value("key", value)
+        success, msg = self._submit_value("key", value)
         if not success:
             raise ValueError(msg)
 
@@ -241,7 +241,7 @@ class ObservableDictBase(
         """
         Change the key behind this hook.
         """
-        success, msg = self.submit_value("key", value)
+        success, msg = self._submit_value("key", value)
         if not success:
             raise ValueError(msg)
 
@@ -267,7 +267,7 @@ class ObservableDictBase(
         """
         Set the value behind this hook.
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self._submit_value("value", value)
         if not success:
             raise ValueError(msg)
 
@@ -275,7 +275,7 @@ class ObservableDictBase(
         """
         Change the value behind this hook.
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self._submit_value("value", value)
         if not success:
             raise ValueError(msg)
 
@@ -333,12 +333,16 @@ class ObservableDictBase(
     # Utility method
     ########################################################
 
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: KT) -> None:
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: KT) -> None:
         """
-        Set the dictionary and key behind this hook.
+        Change the dictionary and key behind this hook.
         
+        Args:
+            dict_value: The new dictionary value
+            key_value: The new key value
+            
         This method must be implemented by subclasses as the value computation
         logic differs (e.g., handling None keys in optional variants).
         """
-        raise NotImplementedError("Subclasses must implement set_dict_and_key")
+        raise NotImplementedError("Subclasses must implement change_dict_and_key")
 

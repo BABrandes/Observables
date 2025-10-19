@@ -3,6 +3,7 @@ from types import MappingProxyType
 
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableSelectionDictProtocol
+from ..._nexus_system.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -167,20 +168,22 @@ class ObservableSelectionDict(
         """
         return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
         """
-        Set the dictionary and key behind this hook atomically.
+        Change the dictionary and key behind this hook atomically.
         
         Args:
             dict_value: The new mapping
             key_value: The new key (must be in dict_value)
         """
         _inferred_value = dict_value[key_value]
-        # Wrap in MappingProxyType for immutability
-        if not isinstance(dict_value, MappingProxyType):
-            dict_value = MappingProxyType(dict(dict_value))
-        self.submit_values({
+
+        values = {
             "dict": dict_value, 
             "key": key_value, 
             "value": _inferred_value
-        })
+        }
+
+        success, msg = self._submit_values(values) # type: ignore
+        if not success:
+            raise SubmissionError(msg, values)

@@ -56,8 +56,17 @@ class ObservableSelectionDictProtocol(Protocol[K, V]):
         """Set the current key."""
         ...
     
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
+        """
+        Change the dictionary and key behind this hook.
+
+        Args:
+            dict_value: The new dictionary value
+            key_value: The new key value
+            
+        This method must be implemented by subclasses as the value computation
+        logic differs (e.g., handling None keys in optional variants).
+        """
         ...
 
 class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
@@ -109,8 +118,17 @@ class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
         """Set the current key."""
         ...
     
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
+        """
+        Change the dictionary and key behind this hook.
+
+        Args:
+            dict_value: The new dictionary value
+            key_value: The new key value
+            
+        This method must be implemented by subclasses as the value computation
+        logic differs (e.g., handling None keys in optional variants).
+        """
         ...
 
 class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
@@ -160,8 +178,17 @@ class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
         """Set the current key."""
         ...
     
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
+        """
+        Change the dictionary and key behind this hook.
+
+        Args:
+            dict_value: The new dictionary value
+            key_value: The new key value
+            
+        This method must be implemented by subclasses as the value computation
+        logic differs (e.g., handling None keys in optional variants).
+        """
         ...
 
 class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
@@ -210,6 +237,15 @@ class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
         """Set the current key."""
         ...
     
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
+        """
+        Change the dictionary and key behind this hook.
+
+        Args:
+            dict_value: The new dictionary value
+            key_value: The new key value
+            
+        This method must be implemented by subclasses as the value computation
+        logic differs (e.g., handling None keys in optional variants).
+        """
         ...

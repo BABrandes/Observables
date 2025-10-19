@@ -3,9 +3,10 @@ from logging import Logger
 from types import MappingProxyType
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableOptionalSelectionDictProtocol
+from ..._nexus_system.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
@@ -251,9 +252,9 @@ class ObservableOptionalDefaultSelectionDict(
         else:
             return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
+    def change_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
         """
-        Set the dictionary and key behind this hook atomically.
+        Change the dictionary and key behind this hook atomically.
         
         If key is not None and not in dict, auto-creates a default entry.
         
@@ -263,23 +264,23 @@ class ObservableOptionalDefaultSelectionDict(
         """
         if key_value is None:
             _inferred_value = None
-            # Wrap in MappingProxyType for immutability
-            if not isinstance(dict_value, MappingProxyType):
-                dict_value = MappingProxyType(dict(dict_value))
+            _dict = dict_value
+
         elif key_value not in dict_value:
             # Auto-create default entry
             _inferred_value = self._get_default_value(key_value)
             _dict = dict(dict_value)
             _dict[key_value] = _inferred_value
-            dict_value = MappingProxyType(_dict)
         else:
             _inferred_value = dict_value[key_value]
-            # Wrap in MappingProxyType for immutability
-            if not isinstance(dict_value, MappingProxyType):
-                dict_value = MappingProxyType(dict(dict_value))
+            _dict = dict_value
 
-        self.submit_values({
-            "dict": dict_value, 
+        values = {
+            "dict": _dict, 
             "key": key_value, 
             "value": _inferred_value
-        })
+        }
+
+        success, msg = self._submit_values(values) # type: ignore
+        if not success:
+            raise SubmissionError(msg, values)

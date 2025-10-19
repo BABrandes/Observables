@@ -71,7 +71,7 @@ from logging import Logger
 
 from ..._hooks.owned_hook import OwnedHook
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase

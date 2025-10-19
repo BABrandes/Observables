@@ -90,7 +90,7 @@ class CarriesHooksBase(CarriesHooksProtocol[HK, HV], HasNexusManagerProtocol, Ge
                 
             def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[Any]|Nexus[Any]) -> str:
                 for key, hook in self._hooks.items():
-                    if hook is hook_or_nexus or hook.hook_nexus is hook_or_nexus:
+                    if hook is hook_or_nexus or hook._get_nexus() is hook_or_nexus:  # type: ignore
                         return key
                 raise ValueError("Hook not found")
     """
@@ -457,7 +457,7 @@ class CarriesHooksBase(CarriesHooksProtocol[HK, HV], HasNexusManagerProtocol, Ge
         """
         with self._lock:
             success, msg = self._nexus_manager.submit_values(
-                {self._get_hook_by_key(key)._get_hook_nexus(): value}, # type: ignore
+                {self._get_hook_by_key(key)._get_nexus(): value}, # type: ignore
                 mode="Normal submission",
                 logger=logger
             )

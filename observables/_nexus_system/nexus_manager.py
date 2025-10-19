@@ -237,7 +237,7 @@ class NexusManager:
             for hook in nexus.hooks:
                 if isinstance(hook, HookWithOwnerProtocol):
                     if hook.owner is owner:
-                        hook_key: Any = owner.get_hook_key(hook) # type: ignore
+                        hook_key: Any = owner._get_key_by_hook_or_nexus(hook) # type: ignore
                         key_and_value_dict[hook_key] = value
                         key_and_hook_dict[hook_key] = hook # type: ignore
         return key_and_value_dict, key_and_hook_dict
@@ -256,9 +256,9 @@ class NexusManager:
         for hook_key in owner._get_hook_keys(): # type: ignore
             if hook_key not in value_dict:
                 if as_reference_values:
-                    value_dict[hook_key] = owner._get_value_of_hook(hook_key) # type: ignore
+                    value_dict[hook_key] = owner._get_value_by_key(hook_key) # type: ignore
                 else:
-                    value_dict[hook_key] = owner._get_value_of_hook(hook_key) # type: ignore
+                    value_dict[hook_key] = owner._get_value_by_key(hook_key) # type: ignore
 
     def _complete_nexus_and_values_dict(self, nexus_and_values: dict["Nexus[Any]", Any]) -> tuple[bool, str]:
         """
@@ -309,7 +309,7 @@ class NexusManager:
                 if error_msg is not None:
                     return None, f"Value of type {type(value).__name__} cannot be made immutable: {error_msg}"
                 value_dict[hook_key] = immutable_value
-                hook_dict[hook_key] = owner._get_hook(hook_key) # type: ignore
+                hook_dict[hook_key] = owner._get_hook_by_key(hook_key) # type: ignore
 
             # Step 5: Insert the value and hook dict into the nexus and values
             number_of_items_before: int = len(nexus_and_values)

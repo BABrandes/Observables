@@ -288,8 +288,8 @@ class Nexus(Generic[T]):
         # This ensures both nexuses have the same value before merging
         nexus_and_values: dict["Nexus[Any]", Any] = {}
         for hook_pair in hook_pairs:
-            nexus_to_take_value_from: Nexus[Any] = hook_pair[0].hook_nexus # type: ignore
-            nexus_to_be_updated: Nexus[Any] = hook_pair[1].hook_nexus # type: ignore
+            nexus_to_take_value_from: Nexus[Any] = hook_pair[0]._get_nexus() # type: ignore
+            nexus_to_be_updated: Nexus[Any] = hook_pair[1]._get_nexus() # type: ignore
             nexus_and_values[nexus_to_be_updated] = nexus_to_take_value_from.value # type: ignore
         success, msg = nexus_manager.link_values(nexus_and_values)  # type: ignore
         if not success:
@@ -298,8 +298,8 @@ class Nexus(Generic[T]):
         # Step 3: Merge nexuses now that they have the same value
         # This establishes the connection by making both hooks share the same nexus
         for hook_pair in hook_pairs:
-            hook_nexus_1: Nexus[Any] = hook_pair[0].hook_nexus # type: ignore   
-            hook_nexus_2: Nexus[Any] = hook_pair[1].hook_nexus # type: ignore
+            hook_nexus_1: Nexus[Any] = hook_pair[0]._get_nexus() # type: ignore   
+            hook_nexus_2: Nexus[Any] = hook_pair[1]._get_nexus() # type: ignore
             merged_nexus: Nexus[T] = Nexus[T]._merge_nexuses(hook_nexus_1, hook_nexus_2) # type: ignore
             for hook in merged_nexus._get_hooks():
                 hook._replace_nexus(merged_nexus) # type: ignore

@@ -55,8 +55,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 5, "b": 3, "c": 0},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 5, "b": 3, "c": 0},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -75,8 +75,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 10, "b": 20},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 10, "b": 20},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -95,8 +95,8 @@ class TestObservableSync:
 
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                function_input_hooks={"a": 5, "b": 3, "c": 1},
-                function_callable=invalid_sync_callback,
+                complete_variables_per_key={"a": 5, "b": 3, "c": 1},
+                completing_function_callable=invalid_sync_callback,
                 logger=logger
             )
         
@@ -108,8 +108,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 5, "b": 10},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 5, "b": 10},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -138,8 +138,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 5, "b": 10},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 5, "b": 10},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -156,8 +156,8 @@ class TestObservableSync:
 
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                function_input_hooks={"a": 5},
-                function_callable=error_sync_callback,
+                complete_variables_per_key={"a": 5},
+                completing_function_callable=error_sync_callback,
                 logger=logger
             )
         
@@ -170,8 +170,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={},
-            function_callable=sync_callback,
+            complete_variables_per_key={},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -182,8 +182,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync_with_none = ObservableSync[str, Optional[int]](
-            function_input_hooks={"a": None, "b": 5},
-            function_callable=sync_callback_with_none,
+            complete_variables_per_key={"a": None, "b": 5},
+            completing_function_callable=sync_callback_with_none,
             logger=logger
         )
 
@@ -197,8 +197,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 5},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 5},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -226,8 +226,8 @@ class TestObservableSync:
             return (True, dict(values.submitted))
 
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 5, "b": 10},
-            function_callable=sync_callback,
+            complete_variables_per_key={"a": 5, "b": 10},
+            completing_function_callable=sync_callback,
             logger=logger
         )
 
@@ -251,8 +251,8 @@ class TestObservableSync:
 
         # This should work - callback handles all combinations correctly
         sync = ObservableSync[str, int](
-            function_input_hooks={"a": 1, "b": 2, "c": 3},
-            function_callable=valid_sync_callback,
+            complete_variables_per_key={"a": 1, "b": 2, "c": 3},
+            completing_function_callable=valid_sync_callback,
             logger=logger
         )
 
@@ -276,8 +276,8 @@ class TestObservableSync:
         # This should fail during validation
         with pytest.raises(ValueError):
             ObservableSync[str, int](
-                function_input_hooks={"a": 1, "b": 2, "c": 3},
-                function_callable=invalid_sync_callback,
+                complete_variables_per_key={"a": 1, "b": 2, "c": 3},
+                completing_function_callable=invalid_sync_callback,
                 logger=logger
             )
         
@@ -358,12 +358,12 @@ class TestObservableSync:
         # Create ObservableSync with initial valid state
         # Initial state: √4 = 2 (positive domain)
         sync = ObservableSync[str, float | str](
-            function_input_hooks={
+            complete_variables_per_key={
                 "square_value": 4.0,
                 "root_value": 2.0,
                 "domain": "positive"
             },
-            function_callable=sync_callback,
+            completing_function_callable=sync_callback,
             logger=logger
         )
 

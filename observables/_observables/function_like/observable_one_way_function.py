@@ -66,12 +66,10 @@ from logging import Logger
 from ..._hooks.owned_hook import OwnedHook
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
-from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
-from ..._nexus_system.submission_error import SubmissionError
 
 # Type variables for input and output hook names and values
 IHK = TypeVar("IHK")  # Input Hook Keys
@@ -106,8 +104,8 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
 
     def __init__(
         self,
-        function_input_hooks: Mapping[IHK, Hook[IHV]|ReadOnlyHook[IHV]],
-        function_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
+        input_variables_per_key: Mapping[IHK, Hook[IHV]|ReadOnlyHook[IHV]],
+        one_way_function_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]],
         function_output_hook_keys: set[OHK],
         logger: Optional[Logger] = None
     ):
@@ -154,13 +152,13 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             >>> # area and perimeter are automatically recalculated
         """
 
-        self._function_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = function_callable
+        self._one_way_function_callable: Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]] = one_way_function_callable
 
         self._input_hooks: dict[IHK, OwnedHook[IHV]] = {}
         self._output_hooks: dict[OHK, OwnedHook[OHV]] = {}
 
         # Create input hooks for all keys, connecting to external hooks when provided
-        for key, external_hook_or_value in function_input_hooks.items():
+        for key, external_hook_or_value in input_variables_per_key.items():
             # Create internal hook
             initial_value_input: IHV = external_hook_or_value.value if isinstance(external_hook_or_value, ManagedHookProtocol) else external_hook_or_value # type: ignore
             internal_hook_input: OwnedHook[IHV] = OwnedHook(
@@ -171,7 +169,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             self._input_hooks[key] = internal_hook_input
 
         # Create output hooks for all keys
-        output_values: dict[OHK, OHV] = self._function_callable(self.get_input_values()) # type: ignore
+        output_values: dict[OHK, OHV] = self._one_way_function_callable(self.get_input_values()) # type: ignore
         for key in function_output_hook_keys:
             if key not in output_values:
                 raise ValueError(f"Function callable must return all output keys. Missing key: {key}")
@@ -200,7 +198,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             values_to_be_added: dict[IHK|OHK, IHV|OHV] = {}
 
             # Check if any input values changed - if so, trigger function transformation
-            input_keys = set(function_input_hooks.keys())
+            input_keys = set(input_variables_per_key.keys())
             if any(key in update_values.submitted for key in input_keys):
                 # Trigger function transformation
 
@@ -213,7 +211,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
                         input_values[key] = update_values.current[key] # type: ignore
                 
                 # Call function callable with complete input values
-                output_values: Mapping[OHK, OHV] = function_callable(input_values)
+                output_values: Mapping[OHK, OHV] = one_way_function_callable(input_values)
                 
                 # Add all output values to be updated
                 values_to_be_added.update(output_values) # type: ignore
@@ -233,17 +231,30 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
         )
 
         # Connect internal input hooks to external hooks if provided
-        for key, external_hook_or_value in function_input_hooks.items():
+        for key, external_hook_or_value in input_variables_per_key.items():
             internal_hook_input = self._input_hooks[key]
             if isinstance(external_hook_or_value, ManagedHookProtocol): # type: ignore
                 internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################
-    # BaseCarriesHooks abstract methods
+    # CarriesHooksBase abstract methods
     #########################################################################
 
-    def _get_hook(self, key: IHK|OHK) -> OwnedFullHookProtocol[IHV|OHV]:
-        """Get a hook by its key (either input or output)."""
+    def _get_hook_by_key(self, key: IHK|OHK) -> OwnedHook[IHV|OHV]:
+        """
+        Get a hook by its key.
+
+        ** This method is not thread-safe and should only be called by the get_hook method.
+
+        ** Must be implemented by subclasses to provide efficient lookup for hooks.
+
+        Args:
+            key: The key of the hook to get
+
+        Returns:
+            The hook associated with the key
+        """
+
         if key in self._input_hooks:
             return self._input_hooks[key] # type: ignore
         elif key in self._output_hooks:
@@ -251,7 +262,18 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def _get_value_reference_of_hook(self, key: IHK|OHK) -> IHV|OHV:
+    def _get_value_by_key(self, key: IHK|OHK) -> IHV|OHV:
+        """
+        Get a value as a copy by its key.
+
+        ** This method is not thread-safe and should only be called by the get_value_of_hook method.
+
+        ** Must be implemented by subclasses to provide efficient lookup for values.
+
+        Args:
+            key: The key of the hook to get the value of
+        """
+
         if key in self._input_hooks:
             return self._input_hooks[key].value # type: ignore
         elif key in self._output_hooks:
@@ -260,9 +282,34 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             raise ValueError(f"Key {key} not found in hooks")
 
     def _get_hook_keys(self) -> set[IHK|OHK]:
+        """
+        Get all keys of the hooks.
+
+        ** This method is not thread-safe and should only be called by the get_hook_keys method.
+
+        ** Must be implemented by subclasses to provide efficient lookup for hooks.
+
+        Returns:
+            The set of keys for the hooks
+        """
+
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "Hook[IHV|OHV]|Nexus[IHV|OHV]") -> IHK|OHK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Hook[IHV|OHV]|Nexus[IHV|OHV]) -> IHK|OHK:
+        """
+        Get the key for a hook or nexus.
+
+        ** This method is not thread-safe and should only be called by the get_hook_key method.
+
+        ** Must be implemented by subclasses to provide efficient lookup for hooks.
+
+        Args:
+            hook_or_nexus: The hook or nexus to get the key for
+
+        Returns:
+            The key for the hook or nexus
+        """
+
         for key, hook in self._input_hooks.items():
             if hook is hook_or_nexus:
                 return key
@@ -271,76 +318,69 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
                 return key
         raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
 
+
     #########################################################################
     # Public API
     #########################################################################
 
+    #-------------------------------- Hooks, values, and keys --------------------------------
+
+    def hook(self, key: IHK|OHK) -> Hook[IHV|OHV]:
+        """
+        Get a hook by its key.
+
+        ** Thread-safe **
+
+        Returns:
+            The hook associated with the key.
+        """
+        with self._lock:
+            return self._get_hook_by_key(key)
+
+    def keys(self) -> set[IHK|OHK]:
+        """
+        Get all hook keys.
+
+        ** Thread-safe **
+
+        Returns:
+            The set of all hook keys.
+        """
+        with self._lock:
+            return set(self._get_hook_keys())
+
+    def hooks(self) -> dict[IHK|OHK, Hook[IHV|OHV]]:
+        """
+        Get all hooks.
+
+        ** Thread-safe **
+
+        Returns:
+            The dictionary of hooks.
+        """
+        with self._lock:
+            return self._get_dict_of_hooks() # type: ignore
+
+    def value(self, key: IHK|OHK) -> IHV|OHV:
+        """
+        Get a value by its key.
+
+        ** Thread-safe **
+
+        Returns:
+            The value of the hook.
+        """
+        with self._lock:
+            return self._get_value_by_key(key)
+
+    #-------------------------------- Functionality --------------------------------
+
     @property
     def function_callable(self) -> Callable[[Mapping[IHK, IHV]], Mapping[OHK, OHV]]:
         """Get the function callable."""
-        return self._function_callable
+        return self._one_way_function_callable
 
-    def get_input_hooks(self) -> dict[IHK, OwnedHook[IHV]]:
-        """Get the input hooks as a copied dictionary."""
-        return self._input_hooks.copy() # type: ignore
-    
-    def get_output_hooks(self) -> dict[OHK, OwnedHook[OHV]]:
-        """Get the output hooks as a copied dictionary."""
-        return self._output_hooks.copy() # type: ignore
-
-    def get_input_hook(self, key: IHK) -> OwnedHook[IHV]:
-        """Get an input hook by its key."""
-        return self._input_hooks[key] # type: ignore
-    
-    def get_output_hook(self, key: OHK) -> OwnedHook[OHV]:
-        """Get an output hook by its key."""
-        return self._output_hooks[key] # type: ignore
-
-    def get_input_values(self) -> Mapping[IHK, IHV]:
-        """Get the current input values as a dictionary."""
-        input_values: dict[IHK, IHV] = {}
-        for key, hook in self._input_hooks.items():
-            value: IHV = hook.value # type: ignore
-            input_values[key] = value
-        return input_values
-    
-    def get_output_values(self) -> Mapping[OHK, OHV]:
-        """Get the current output values as a dictionary."""
-        output_values: dict[OHK, OHV] = {}
-        for key, hook in self._output_hooks.items():
-            value: OHV = hook.value # type: ignore
-            output_values[key] = value
-        return output_values
-
-    def submit_input_values(self, values: Mapping[IHK, IHV]) -> None:
-        """
-        Submit input values to trigger the forward transformation.
-
-        Args:
-            values: Mapping of input hook keys to their new values
-        """
-        values_to_submit: dict[IHK, IHV] = {}
-        for key, value in values.items():
-            if key not in self._input_hooks:
-                raise ValueError(f"Key {key} not found in input hooks")
-            values_to_submit[key] = value # type: ignore
-        success, msg = self._submit_values(values_to_submit) # type: ignore
-        if not success:
-            raise SubmissionError(msg, values_to_submit, "input values")
-
-    def validate_input_values(self, values: Mapping[IHK, IHV]) -> None:
-        """
-        Validate input values without submitting them.
-
-        Args:
-            values: Mapping of input hook keys to their new values
-        """
-        values_to_validate: dict[IHK, IHV] = {}
-        for key, value in values.items():
-            if key not in self._input_hooks:
-                raise ValueError(f"Key {key} not found in input hooks")
-            values_to_validate[key] = value # type: ignore
-        success, msg = self._validate_values(values_to_validate) # type: ignore
-        if not success:
-            raise SubmissionError(msg, values_to_validate, "input values")
-
+    def input_variable_keys(self) -> set[IHK]:
+        """Get the input variable keys."""
+        with self._lock:
+            return set(self._input_hooks.keys())

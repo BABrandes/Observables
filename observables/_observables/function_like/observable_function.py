@@ -116,16 +116,16 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
 
     def __init__(
         self,
-        function_input_hooks: Mapping[SHK, Hook[SHV]|ReadOnlyHook[SHV]],
-        function_callable: Callable[[FunctionValues[SHK, SHV]], tuple[bool, dict[SHK, SHV]]],
+        complete_variables_per_key: Mapping[SHK, Hook[SHV]|ReadOnlyHook[SHV]],
+        completing_function_callable: Callable[[FunctionValues[SHK, SHV]], tuple[bool, dict[SHK, SHV]]],
         logger: Optional[Logger] = None):
         """
         Initialize the ObservableFunction.
 
         Args:
-            function_input_hooks: Dictionary mapping hook keys to their initial values or hooks.
+            complete_variables_per_key: Dictionary mapping hook keys to their initial values or hooks.
                 These are the hooks that will be synchronized by the function.
-            function_callable: The synchronization function that maintains relationships between hooks.
+            completing_function_callable: The synchronization function that maintains relationships between hooks.
                 Signature: (values: FunctionValues[K, V]) -> (success, synced_values)
                 - values.submitted: The values that were just changed
                 - values.current: The complete current state of all hooks
@@ -140,16 +140,11 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
             ...     return (True, {})
         """
 
-        self._function_callable = function_callable
-    
-        # Validate sync_values_callback with every combination of given values
-        #success, message = self._validate_sync_callback_with_combinations(sync_values_initially_valid, sync_values_callback)
-        #if not success:
-        #    raise ValueError(f"Sync callback validation failed: {message}")
+        self._completing_function_callable = completing_function_callable
 
         # Create sync hooks with initial values
         self._sync_hooks: dict[SHK, OwnedHook[SHV]] = {}
-        for key, initial_value in function_input_hooks.items():
+        for key, initial_value in complete_variables_per_key.items():
             sync_hook: OwnedHook[SHV] = OwnedHook[SHV](
                 owner=self,
                 initial_value=initial_value.value if isinstance(initial_value, ManagedHookProtocol) else initial_value, # type: ignore
@@ -175,7 +170,7 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
                
             # Create FunctionValues object and call the function
             function_values = FunctionValues(submitted=update_values.submitted, current=update_values.current)
-            success, synced_values = self_ref._function_callable(function_values)
+            success, synced_values = self_ref._completing_function_callable(function_values)
 
             if not success:
                 raise ValueError(f"Function callable returned invalid values for combination {update_values.submitted}")
@@ -198,7 +193,7 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
             # Call the function again with completed values to validate the final state
             try:
                 completed_function_values = FunctionValues(submitted=completed_values, current=completed_values)
-                success, _ = self_ref._function_callable(completed_function_values)
+                success, _ = self_ref._completing_function_callable(completed_function_values)
                 if not success:
                     raise ValueError(f"Function callable returned invalid values for final state {completed_values}")
             except Exception as e:
@@ -215,74 +210,64 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
         )
 
         # Connect internal hooks to external hooks if provided
-        for key, external_hook_or_value in function_input_hooks.items():
+        for key, external_hook_or_value in complete_variables_per_key.items():
             internal_hook = self._sync_hooks[key]
-            if isinstance(external_hook_or_value, ManagedHookProtocol):
-                internal_hook.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
+            if isinstance(external_hook_or_value, ManagedHookProtocol): # type: ignore
+                internal_hook.link(external_hook_or_value, "use_caller_value") # type: ignore
 
-    def _validate_function_with_combinations(
-        self, 
-        values_to_validate: Mapping[SHK, SHV], 
-        function_callable: Callable[[FunctionValues[SHK, SHV]], tuple[bool, dict[SHK, SHV]]]
-    ) -> tuple[bool, str]:
+    #########################################################################
+    # CarriesHooksBase abstract methods
+    #########################################################################
+
+    def _get_hook_by_key(self, key: SHK) -> OwnedFullHookProtocol[SHV]:
         """
-        Validate the function_callable with every combination of given values.
-        For example, if 3 values are synced (A, B, C), it tests A, AB, AC, B, BC, C, ABC.
-        This ensures a valid state from the beginning, assuming function_callable is correct.
-        """
-        import itertools
+        Get a hook by its key.
         
-        keys = list(values_to_validate.keys())
+        ** This method is not thread-safe and should only be called by internally.
 
-        # Test every possible combination of keys (excluding empty set)
-        for r in range(1, len(keys) + 1):  # Start from 1, not 0
-            for combination in itertools.combinations(keys, r):
-                # Create a subset of values for this combination (submitted values)
-                test_values = {key: values_to_validate[key] for key in combination}
-                
-                try:
-                    # Call the function with FunctionValues object
-                    function_values = FunctionValues(submitted=test_values, current=values_to_validate)
-                    success, result_values = function_callable(function_values)
-
-                    if not success:
-                        return False, f"Function callable returned invalid values for combination {combination}"
-
-                    # Complete the result with the values that are not in the result
-                    for key in values_to_validate:
-                        if key not in result_values:
-                            result_values[key] = values_to_validate[key]
-                    
-                    # Validate that the result has the same keys as input
-                    if result_values != values_to_validate:
-                        return False, f"Function callable returned different values for combination {combination}: expected {values_to_validate}, got {result_values}"
-                        
-                except Exception as e:
-                    return False, f"Function callable validation failed for combination {combination}: {e}"
-
-        return True, "Function callable validation passed for all combinations"
-
-    #########################################################################
-    # BaseCarriesHooks abstract methods
-    #########################################################################
-
-    def _get_hook(self, key: SHK) -> OwnedFullHookProtocol[SHV]:
-        """Get a hook by its key."""
+        Returns:
+            The hook associated with the key.
+        """
         if key in self._sync_hooks:
             return self._sync_hooks[key] # type: ignore
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
-    def _get_value_reference_of_hook(self, key: SHK) -> SHV:
+    def _get_value_by_key(self, key: SHK) -> SHV:
+        """
+        Get a value by its key.
+
+        ** This method is not thread-safe and should only be called by internally.
+
+        Returns:
+            The value of the hook.
+        """
+
         if key in self._sync_hooks:
             return self._sync_hooks[key].value # type: ignore
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
     def _get_hook_keys(self) -> set[SHK]:
+        """
+        Get all hook keys.
+
+        ** This method is not thread-safe and should only be called by internally.
+
+        Returns:
+            The set of all hook keys.
+        """
         return set(self._sync_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|Nexus[SHV]") -> SHK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|Nexus[SHV]") -> SHK:
+        """
+        Get a key by its hook or nexus.
+
+        ** This method is not thread-safe and should only be called by internally.
+
+        Returns:
+            The key associated with the hook or nexus.
+        """
         for key, hook in self._sync_hooks.items():
             if hook is hook_or_nexus:
                 return key
@@ -292,11 +277,59 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
     # Public methods
     #########################################################################
 
-    def get_sync_hook(self, key: SHK) -> OwnedHook[SHV]:
-        return self._sync_hooks[key] # type: ignore
+    #-------------------------------- Hooks, values, and keys --------------------------------
 
-    def get_sync_keys(self) -> set[SHK]:
-        return set(self._sync_hooks.keys())
+    def hook(self, key: SHK) -> Hook[SHV]:
+        """
+        Get a hook by its key.
 
-    def get_sync_hooks(self) -> dict[SHK, OwnedHook[SHV]]:
-        return self._sync_hooks.copy() # type: ignore
+        ** Thread-safe **
+
+        Returns:
+            The hook associated with the key.
+        """
+        with self._lock:
+            return self._get_hook_by_key(key)
+
+    def keys(self) -> set[SHK]:
+        """
+        Get all hook keys.
+
+        ** Thread-safe **
+
+        Returns:
+            The set of all hook keys.
+        """
+        with self._lock:
+            return set(self._get_hook_keys())
+
+    def hooks(self) -> dict[SHK, Hook[SHV]]:
+        """
+        Get all hooks.
+
+        ** Thread-safe **
+
+        Returns:
+            The dictionary of hooks.
+        """
+        with self._lock:
+            return self._get_dict_of_hooks() # type: ignore
+
+    def value(self, key: SHK) -> SHV:
+        """
+        Get a value by its key.
+
+        ** Thread-safe **
+
+        Returns:
+            The value of the hook.
+        """
+        with self._lock:
+            return self._get_value_by_key(key)
+
+    #-------------------------------- Functionality --------------------------------
+
+    @property
+    def completing_function_callable(self) -> Callable[[FunctionValues[SHK, SHV]], tuple[bool, dict[SHK, SHV]]]:
+        """Get the completing function callable."""
+        return self._completing_function_callable

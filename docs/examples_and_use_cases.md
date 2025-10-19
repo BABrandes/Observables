@@ -34,11 +34,11 @@ class ConfigurationManager:
         })
         
         # Bind configurations together
-        self.ui_config.connect_hook(self.main_config.value_hook, "value", "use_target_value")
-        self.api_config.connect_hook(self.main_config.value_hook, "value", "use_target_value")
+        self.ui_config.link(self.main_config.value_hook, "value", "use_target_value")
+        self.api_config.link(self.main_config.value_hook, "value", "use_target_value")
         
         # Add listeners for logging
-        self.main_config.add_listeners(self._log_config_change)
+        self.main_config.add_listener(self._log_config_change)
     
     def _log_config_change(self):
         print(f"Configuration changed: {self.main_config.dict}")
@@ -79,13 +79,13 @@ class UserProfileView:
         self.age_field = ObservableSingleValue(0)
         
         # Bind all fields together
-        self.name_field.connect_hook(self.email_field.hook, "value", "use_target_value")
-        self.email_field.connect_hook(self.age_field.hook, "value", "use_target_value")
+        self.name_field.link(self.email_field.hook, "value", "use_target_value")
+        self.email_field.link(self.age_field.hook, "value", "use_target_value")
         
         # Add listeners for UI updates
-        self.name_field.add_listeners(self._update_name_display)
-        self.email_field.add_listeners(self._update_email_display)
-        self.age_field.add_listeners(self._update_age_display)
+        self.name_field.add_listener(self._update_name_display)
+        self.email_field.add_listener(self._update_email_display)
+        self.age_field.add_listener(self._update_age_display)
     
     def _update_name_display(self):
         print(f"Name display updated: {self.name_field.value}")
@@ -108,7 +108,7 @@ class UserListViewModel:
         
         # Bind to profile view
         self.profile_view = UserProfileView()
-        self.selected_user.connect_hook(self.profile_view.name_field.hook, "value", "use_caller_value")
+        self.selected_user.link(self.profile_view.name_field.hook, "value", "use_caller_value")
     
     def select_user(self, user: User):
         """Select a user - profile view updates automatically."""
@@ -147,14 +147,14 @@ class DataPipeline:
         self.results = ObservableList([])
         
         # Bind pipeline stages together
-        self.raw_data.connect_hook(self.processed_data.value_hook, "value", "use_target_value")
-        self.processed_data.connect_hook(self.filtered_data.value_hook, "value", "use_target_value")
-        self.filtered_data.connect_hook(self.results.value_hook, "value", "use_target_value")
+        self.raw_data.link(self.processed_data.value_hook, "value", "use_target_value")
+        self.processed_data.link(self.filtered_data.value_hook, "value", "use_target_value")
+        self.filtered_data.link(self.results.value_hook, "value", "use_target_value")
         
         # Add processing listeners
-        self.raw_data.add_listeners(self._process_data)
-        self.processed_data.add_listeners(self._filter_data)
-        self.filtered_data.add_listeners(self._generate_results)
+        self.raw_data.add_listener(self._process_data)
+        self.processed_data.add_listener(self._filter_data)
+        self.filtered_data.add_listener(self._generate_results)
     
     def _process_data(self):
         """Process raw data."""
@@ -204,7 +204,7 @@ class FormValidator:
         self.is_valid = ObservableSingleValue(False)
         
         # Bind validation state
-        self.errors.add_listeners(self._update_validity)
+        self.errors.add_listener(self._update_validity)
     
     def _update_validity(self):
         """Update validity based on error count."""
@@ -224,18 +224,18 @@ class UserForm:
         self.validator = FormValidator()
         
         # Bind fields for validation
-        self.username.add_listeners(self._validate_username)
-        self.email.add_listeners(self._validate_email)
-        self.password.add_listeners(self._validate_password)
-        self.confirm_password.add_listeners(self._validate_password_confirmation)
-        self.country.add_listeners(self._validate_state)
-        self.state.add_listeners(self._validate_state)
+        self.username.add_listener(self._validate_username)
+        self.email.add_listener(self._validate_email)
+        self.password.add_listener(self._validate_password)
+        self.confirm_password.add_listener(self._validate_password_confirmation)
+        self.country.add_listener(self._validate_state)
+        self.state.add_listener(self._validate_state)
         
         # Bind password fields together
-        self.password.connect_hook(self.confirm_password.hook, "value", "use_caller_value")
+        self.password.link(self.confirm_password.hook, "value", "use_caller_value")
         
         # Bind validation results
-        self.validator.is_valid.add_listeners(self._on_validation_change)
+        self.validator.is_valid.add_listener(self._on_validation_change)
     
     def _validate_username(self):
         """Validate username field."""
@@ -318,7 +318,7 @@ class Store:
         self.subscribers: List[Callable] = []
         
         # Bind state changes to subscribers
-        self.state.add_listeners(self._notify_subscribers)
+        self.state.add_listener(self._notify_subscribers)
     
     def _notify_subscribers(self):
         """Notify all subscribers of state changes."""
@@ -415,17 +415,17 @@ class ConditionalBindingExample:
         self.display_value = ObservableSingleValue(10)
         
         # Bind based on mode
-        self.mode.add_listeners(self._update_binding)
+        self.mode.add_listener(self._update_binding)
         self._update_binding()
     
     def _update_binding(self):
         """Update binding based on current mode."""
         if self.mode.selected_option == "simple":
             # Bind to simple value
-            self.simple_value.connect_hook(self.display_value.hook, "value", "use_caller_value")
+            self.simple_value.link(self.display_value.hook, "value", "use_caller_value")
         else:
             # Bind to advanced value
-            self.advanced_value.connect_hook(self.display_value.hook, "value", "use_caller_value")
+            self.advanced_value.link(self.display_value.hook, "value", "use_caller_value")
 ```
 
 ### 2. Binding Chains with Validation
@@ -443,9 +443,9 @@ class ValidationChain:
         self.final_value = ObservableSingleValue(0)
         
         # Create validation chain
-        self.input_value.add_listeners(self._validate_input)
-        self.validated_value.add_listeners(self._process_value)
-        self.processed_value.add_listeners(self._finalize_value)
+        self.input_value.add_listener(self._validate_input)
+        self.validated_value.add_listener(self._process_value)
+        self.processed_value.add_listener(self._finalize_value)
     
     def _validate_input(self):
         """Validate input value."""
@@ -487,8 +487,8 @@ class TransformBinding:
         self.fahrenheit = ObservableSingleValue(32)
         
         # Bind with transformations
-        self.celsius.add_listeners(self._celsius_to_fahrenheit)
-        self.fahrenheit.add_listeners(self._fahrenheit_to_celsius)
+        self.celsius.add_listener(self._celsius_to_fahrenheit)
+        self.fahrenheit.add_listener(self._fahrenheit_to_celsius)
     
     def _celsius_to_fahrenheit(self):
         """Convert Celsius to Fahrenheit."""
@@ -567,8 +567,8 @@ def test_transitive_binding():
     obs3 = ObservableSingleValue(30)
     
     # Build chain
-    obs1.connect_hook(obs2.hook, "value", "use_target_value")
-    obs2.connect_hook(obs3.hook, "value", "use_target_value")
+    obs1.link(obs2.hook, "value", "use_target_value")
+    obs2.link(obs3.hook, "value", "use_target_value")
     
     # Test transitive binding
     obs1.value = 100
@@ -590,8 +590,8 @@ def test_detachion_behavior():
     obs3 = ObservableSingleValue(30)
     
     # Build chain
-    obs1.connect_hook(obs2.hook, "value", "use_target_value")
-    obs2.connect_hook(obs3.hook, "value", "use_target_value")
+    obs1.link(obs2.hook, "value", "use_target_value")
+    obs2.link(obs3.hook, "value", "use_target_value")
     
     # Disconnect middle
     obs2.detach()

@@ -1,6 +1,6 @@
 # Observables - Centralized Reactive Programming
 
-A Python library for creating observable objects with centralized value storage, automatic transitive binding, and **full immutability**. The library stores each value in a single central location (HookNexus) using immutable data structures for thread safety and data integrity.
+A Python library for creating observable objects with centralized value storage, automatic transitive binding, and **full immutability**. The library stores each value in a single central location (Nexus) using immutable data structures for thread safety and data integrity.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -28,7 +28,7 @@ from observables import ObservableSingleValue, ObservableList  # Legacy (depreca
 Thread-safe by design with immutable collections:
 - `XList` → `tuple` internally
 - `XSet` → `frozenset` internally
-- `XDict` → `MappingProxyType` internally
+- `XDict` → `Map (from immutables)` internally
 
 ### **Typed Parameter Objects**
 No more parameter order confusion:
@@ -47,9 +47,9 @@ def my_function(values: FunctionValues[str, int]) -> tuple[bool, dict[str, int]]
 The library uses a centralized value storage approach with three distinct notification philosophies:
 
 ### **Centralized Storage**
-- **Centralized Storage**: Each value is stored in exactly one HookNexus
+- **Centralized Storage**: Each value is stored in exactly one Nexus
 - **Hook-Based Binding**: Observables connect through hooks, managed by NexusManager
-- **Transitive Binding**: When you bind A→B and B→C, all three share the same HookNexus
+- **Transitive Binding**: When you bind A→B and B→C, all three share the same Nexus
 - **No Data Copying**: Values are never duplicated between observables
 - **Atomic Updates**: All connected hooks see changes simultaneously
 
@@ -62,7 +62,7 @@ The system supports three distinct notification mechanisms, each optimized for d
 - Execute synchronously during value changes
 - **Unidirectional**: Listeners observe changes but cannot validate or reject them
 - **Use Case**: UI updates, logging, simple reactions to state changes
-- **Example**: `observable.add_listeners(lambda: print(observable.value))`
+- **Example**: `observable.add_listener(lambda: print(observable.value))`
 
 #### **2. Publish-Subscribe (Asynchronous Unidirectional)**
 - Based on Publisher/Subscriber pattern with asyncio
@@ -76,16 +76,16 @@ The system supports three distinct notification mechanisms, each optimized for d
 - **Example**: `publisher.publish(mode="async")  # Non-blocking!`
 
 #### **3. Hooks (Synchronous Bidirectional with Validation)**
-- Connected hooks share values through HookNexus
+- Connected hooks share values through Nexus
 - Validation occurs before value changes (enforces valid state)
 - **Bidirectional**: Any connected hook can reject changes via validation
 - **Use Case**: Maintaining invariants across connected state, bidirectional data binding
-- **Example**: `obs1.connect_hook(obs2.hook, "value", "use_caller_value")`
+- **Example**: `obs1.link(obs2.hook, "value", "use_caller_value")`
 
 ## Key Features
 
 ### **Bidirectional Binding**
-Observables connected through hooks share the same HookNexus storage:
+Observables connected through hooks share the same Nexus storage:
 
 ```python
 from observables import XValue
@@ -95,7 +95,7 @@ temp_celsius = XValue(25.0)
 temp_fahrenheit = XValue(77.0)
 
 # Bind them bidirectionally - celsius value takes precedence
-temp_celsius.connect_hook(temp_fahrenheit.hook, "value", "use_caller_value")
+temp_celsius.link(temp_fahrenheit.hook, "value", "use_caller_value")
 
 # 🔄 Changes propagate in BOTH directions
 temp_celsius.value = 30.0
@@ -188,8 +188,8 @@ obs2 = XValue(200)
 obs3 = XValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 
 # obs1 is automatically connected to obs3 through transitive binding
 
@@ -204,22 +204,22 @@ The system automatically centralizes storage when observables are bound:
 ```python
 from observables import XValue
 
-# Initially, each observable has its own HookNexus
+# Initially, each observable has its own Nexus
 obs1 = XValue(100)
 obs2 = XValue(200)
 
-print(f"Initial HookNexus IDs:")
-print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
+print(f"Initial Nexus IDs:")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].nexus)}")
 # Output: Different IDs - separate storage
 
-# Bind them together (merges their HookNexus instances)
+# Bind them together (merges their Nexus instances)
 # Using "use_target_value" means obs1 adopts obs2's value
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
 
-print(f"After binding - HookNexus IDs:")
-print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
+print(f"After binding - Nexus IDs:")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].nexus)}")
 # Output: Same ID - shared storage!
 ```
 
@@ -235,10 +235,10 @@ obs2 = ObservableList(large_dataset)
 obs3 = ObservableList(large_dataset)
 
 # Bind them together
-obs1.connect_hook(obs2.value_hook, "value", "use_target_value")
-obs2.connect_hook(obs3.value_hook, "value", "use_target_value")
+obs1.link(obs2.value_hook, "value", "use_target_value")
+obs2.link(obs3.value_hook, "value", "use_target_value")
 
-# Now all three share the same HookNexus
+# Now all three share the same Nexus
 print(f"Memory efficiency:")
 print(f"  Traditional: 3 × 10,000 = 30,000 items stored")
 print(f"  Our system: 1 × 10,000 = 10,000 items stored")
@@ -247,9 +247,9 @@ print(f"  Savings: 20,000 items = 160,000 bytes (64-bit)")
 
 ## Features
 
-- **🎯 Centralized Value Storage**: HookNexus architecture for shared state
+- **🎯 Centralized Value Storage**: Nexus architecture for shared state
 - **🔄 Transitive Binding**: Automatic network formation
-- **🔀 Dynamic Centralization**: HookNexus instances merge automatically
+- **🔀 Dynamic Centralization**: Nexus instances merge automatically
 - **💾 Memory Efficient**: Zero data duplication
 - **⚡ High Performance**: Centralized operations scale efficiently
 - **🔒 Thread Safe & Immutable**: All collections use immutable types internally
@@ -278,7 +278,7 @@ pip install observables[dev]
 from observables import XValue, Publisher
 from observables.core import Subscriber
 
-# Create observable values (each has its own central HookNexus)
+# Create observable values (each has its own central Nexus)
 temperature = XValue(20.0)
 display_temp = XValue(0.0)
 
@@ -287,7 +287,7 @@ display_temp = XValue(0.0)
 def on_temp_change():
     print(f"🔔 Listener: Temperature changed to {temperature.value}°C")
 
-temperature.add_listeners(on_temp_change)
+temperature.add_listener(on_temp_change)
 
 # 2️⃣ PUBLISH-SUBSCRIBE (Asynchronous Unidirectional)  
 # Non-blocking async reactions for I/O operations
@@ -302,7 +302,7 @@ if isinstance(temperature, Publisher):
 
 # 3️⃣ HOOKS (Synchronous Bidirectional with Validation)
 # True bidirectional binding with state validation
-display_temp.connect_hook(temperature.hook, "value", "use_target_value")
+display_temp.link(temperature.hook, "value", "use_target_value")
 
 # Now observe all three in action:
 print("\nChanging temperature to 25°C...")
@@ -375,8 +375,8 @@ obs2 = XValue(200)
 obs3 = XValue(300)
 
 # Bind them in a chain - this creates transitive behavior!
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
-obs2.connect_hook(obs3.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
+obs2.link(obs3.hook, "value", "use_target_value")
 
 # Now obs1 is automatically connected to obs3!
 obs1.value = 500
@@ -397,7 +397,7 @@ print(obs2.value)  # 500 (unchanged, no longer bound)
 ```python
 from observables import XList
 
-# Create a large dataset (stored once in central HookNexus as immutable tuple)
+# Create a large dataset (stored once in central Nexus as immutable tuple)
 large_dataset = XList(list(range(10000)))
 
 # Create multiple views that reference the same data
@@ -405,9 +405,9 @@ view1 = XList(large_dataset)  # References same data
 view2 = XList(large_dataset)  # References same data
 view3 = XList(large_dataset)  # References same data
 
-# Bind them together (all share same HookNexus)
-view1.connect_hook(view2.hook, "value", "use_target_value")
-view2.connect_hook(view3.hook, "value", "use_target_value")
+# Bind them together (all share same Nexus)
+view1.link(view2.hook, "value", "use_target_value")
+view2.link(view3.hook, "value", "use_target_value")
 
 # All views automatically stay synchronized
 # Internally uses immutable tuple for thread safety
@@ -448,18 +448,18 @@ print(f"Values are immutable: {type(view1.value)}")  # <class 'tuple'>
 ### **Network Efficiency**
 - **Automatic Transitive Behavior**: No manual management of complex networks
 - **Dynamic Centralization**: System adapts to your binding patterns
-- **Efficient Cleanup**: Unused HookNexus instances are automatically cleaned up
+- **Efficient Cleanup**: Unused Nexus instances are automatically cleaned up
 
 ## 🔍 **How It Works**
 
 ### **1. Centralized Storage**
-Each value is stored in exactly one `HookNexus` - a central storage unit that coordinates all observables referencing that value.
+Each value is stored in exactly one `Nexus` - a central storage unit that coordinates all observables referencing that value.
 
 ### **2. Hook References**
-Observables don't store values directly. Instead, they hold `Hook` objects that reference values stored in central `HookNexus` instances.
+Observables don't store values directly. Instead, they hold `Hook` objects that reference values stored in central `Nexus` instances.
 
 ### **3. Automatic Merging**
-When observables bind, their `HookNexus` instances merge, creating shared storage. This enables automatic transitive binding.
+When observables bind, their `Nexus` instances merge, creating shared storage. This enables automatic transitive binding.
 
 ### **4. Dynamic Adaptation**
 The system automatically adapts to your binding patterns, centralizing storage where possible and creating isolated storage when needed.
@@ -469,7 +469,7 @@ The system automatically adapts to your binding patterns, centralizing storage w
 ### **Basic Types (Modern X-Prefixed API)**
 - **`XValue[T]`**: Single values with validation
 - **`XList[T]`**: Observable lists (internally immutable `tuple`)
-- **`XDict[K, V]`**: Observable dictionaries (internally immutable `MappingProxyType`)
+- **`XDict[K, V]`**: Observable dictionaries (internally immutable `Map (from immutables)`)
 - **`XSet[T]`**: Observable sets (internally immutable `frozenset`)
 
 ### **Selection Types**
@@ -503,8 +503,8 @@ The system automatically adapts to your binding patterns, centralizing storage w
 
 ### **Core Binding Methods**
 
-#### **`connect_hook(hook, to_key, initial_sync_mode)`**
-Binds this observable to another observable's hook, merging their HookNexus instances for bidirectional synchronization.
+#### **`link(hook, to_key, initial_sync_mode)`**
+Binds this observable to another observable's hook, merging their Nexus instances for bidirectional synchronization.
 
 **Parameters:**
 - `hook: HookLike` - The hook of the target observable to bind to
@@ -523,12 +523,12 @@ source = XValue(10)
 target = XValue(20)
 
 # Connect source to target - target becomes 10
-source.connect_hook(target.hook, "value", "use_caller_value")
+source.link(target.hook, "value", "use_caller_value")
 print(target.value)  # 10
 ```
 
 #### **`detach()`**
-Disconnects this observable from all bindings, creating its own isolated HookNexus.
+Disconnects this observable from all bindings, creating its own isolated Nexus.
 
 ### **Hook Properties**
 
@@ -537,7 +537,7 @@ Each observable provides hooks for different aspects of its data:
 - **`XValue`**: `.hook` - Access to the single value
 - **`XList`**: `.hook` - Access to the list (immutable tuple), `.length_hook` - Access to list length
 - **`XSet`**: `.hook` - Access to the set (immutable frozenset), `.length_hook` - Access to set size  
-- **`XDict`**: `.dict_hook` - Access to the dict (immutable MappingProxyType)
+- **`XDict`**: `.dict_hook` - Access to the dict (immutable Map (from immutables))
 - **`XSelectionDict`**: `.dict_hook`, `.key_hook`, `.value_hook` - Dictionary selection components
 - **`XSelectionOption`**: `.selected_option_hook`, `.available_options_hook` (immutable frozenset)
 
@@ -565,8 +565,8 @@ obs1 = XValue(100)
 obs2 = XValue(200)
 obs3 = XValue(300)
 
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 # ✅ obs1 automatically connects to obs3 (no need to bind obs1 to obs3)
 ```
 
@@ -592,8 +592,8 @@ set_obs.add(4)      # Creates new frozenset
 # When an observable is no longer needed in the network
 obs1.detach()
 
-# This creates a new HookNexus for obs1
-# Other observables remain connected through their shared HookNexus
+# This creates a new Nexus for obs1
+# Other observables remain connected through their shared Nexus
 ```
 
 ## 🚀 **Get Started**
@@ -610,12 +610,12 @@ name = XValue("John")
 scores = XList([85, 90, 78])  # Internally uses immutable tuple
 
 # Add listeners
-name.add_listeners(lambda: print(f"Name changed to: {name.value}"))
-scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
+name.add_listener(lambda: print(f"Name changed to: {name.value}"))
+scores.add_listener(lambda: print(f"Scores updated: {scores.value}"))
 
-# Create bindings (automatic HookNexus merging)
+# Create bindings (automatic Nexus merging)
 name_display = XValue("")
-name_display.connect_hook(name.hook, "value", "use_target_value")
+name_display.link(name.hook, "value", "use_target_value")
 
 # Changes propagate automatically
 name.value = "Jane"  # Updates both name and name_display
@@ -634,7 +634,7 @@ The new X-prefixed API is simple to adopt:
 | `ObservableSingleValue` | `XValue` | Any type |
 | `ObservableList` | `XList` | `tuple` |
 | `ObservableSet` | `XSet` | `frozenset` |
-| `ObservableDict` | `XDict` | `MappingProxyType` |
+| `ObservableDict` | `XDict` | `Map (from immutables)` |
 | `ObservableSelectionOption` | `XSelectionOption` | `frozenset` for options |
 | `ObservableMultiSelectionOption` | `XMultiSelectionOption` | `frozenset` |
 | `ObservableSync` | `XFunction` | N/A |
@@ -715,7 +715,7 @@ def my_func(values: FunctionValues[str, int]):
 
 **Key advantages of centralized value storage:**
 
-- **🎯 Single Source of Truth**: Each value stored in exactly one `HookNexus`
+- **🎯 Single Source of Truth**: Each value stored in exactly one `Nexus`
 - **🔄 Transitive Binding**: Automatic network formation (A→B + B→C = A→C)
 - **🔀 Dynamic Centralization**: Storage merges when observables bind
 - **💾 Memory Efficient**: No data copying between observables

@@ -38,7 +38,7 @@ print(f"Fahrenheit: {temperature_fahrenheit.value}") # 77.0
 
 # Bind them together - celsius pushes its value to fahrenheit
 # Using "use_caller_value" means the caller's value (celsius) takes precedence
-temperature_celsius.connect_hook(
+temperature_celsius.link(
     temperature_fahrenheit.hook, 
     "value", 
     "use_caller_value"
@@ -76,7 +76,7 @@ obs1 = ObservableSingleValue("Hello")
 obs2 = ObservableSingleValue("World")
 
 # Using "use_caller_value": obs1's value overwrites obs2's value
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 print(f"After use_caller_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='Hello', obs2='Hello'
 
@@ -86,7 +86,7 @@ obs1.value = "Hello"
 obs2.value = "World"
 
 # Using "use_target_value": obs1 takes obs2's value
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
 print(f"After use_target_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='World', obs2='World'
 ```
@@ -109,7 +109,7 @@ username = ObservableSingleValue("Your Name")
 display_name = ObservableSingleValue("Placeholder")
 
 # Bind username to display_name
-username.connect_hook(display_name.hook, "value", "use_caller_value")
+username.link(display_name.hook, "value", "use_caller_value")
 
 # Test bidirectional binding
 print(f"Username: {username.value}")
@@ -122,28 +122,28 @@ display_name.value = "Bob"
 print(f"After display change - Username: {username.value}, Display: {display_name.value}")
 ```
 
-## 📚 **Chapter 2: The HookNexus - Central Storage System**
+## 📚 **Chapter 2: The Nexus - Central Storage System**
 
 ### **Understanding Shared Storage**
 
-The secret to bidirectional binding is the **HookNexus** - a central storage system where values live:
+The secret to bidirectional binding is the **Nexus** - a central storage system where values live:
 
 ```python
-# Create observables - each starts with its own HookNexus
+# Create observables - each starts with its own Nexus
 obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 print("Before binding - separate storage:")
-print(f"obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
+print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Different IDs = separate storage
 
 # Bind them together
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 
 print("\nAfter binding - shared storage:")
-print(f"obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
+print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Same ID = shared storage! This is why binding is bidirectional.
 
 # Verify they share the same value
@@ -169,19 +169,19 @@ footer_display = ObservableSingleValue("Footer")
 print("Before binding - all separate:")
 for name, obs in [("user", user_name), ("header", header_display), 
                   ("sidebar", sidebar_display), ("footer", footer_display)]:
-    hook_id = id(obs._component_hooks['single_value'].hook_nexus)
-    print(f"{name}: {obs.value} (HookNexus: {hook_id})")
+    hook_id = id(obs._component_hooks['single_value'].nexus)
+    print(f"{name}: {obs.value} (Nexus: {hook_id})")
 
 # Create binding chain: user → header → sidebar → footer
-user_name.connect_hook(header_display.hook, "value", "use_caller_value")
-header_display.connect_hook(sidebar_display.hook, "value", "use_caller_value")
-sidebar_display.connect_hook(footer_display.hook, "value", "use_caller_value")
+user_name.link(header_display.hook, "value", "use_caller_value")
+header_display.link(sidebar_display.hook, "value", "use_caller_value")
+sidebar_display.link(footer_display.hook, "value", "use_caller_value")
 
 print("\nAfter chaining - all connected:")
 for name, obs in [("user", user_name), ("header", header_display), 
                   ("sidebar", sidebar_display), ("footer", footer_display)]:
-    hook_id = id(obs._component_hooks['single_value'].hook_nexus)
-    print(f"{name}: {obs.value} (HookNexus: {hook_id})")
+    hook_id = id(obs._component_hooks['single_value'].nexus)
+    print(f"{name}: {obs.value} (Nexus: {hook_id})")
 
 # 🎯 Change from ANY observable - ALL others update
 user_name.value = "Alice"
@@ -216,9 +216,9 @@ save_button_text = ObservableSingleValue("")
 status_message = ObservableSingleValue("")
 
 # Build the chain
-input_field.connect_hook(validation_display.hook, "value", "use_caller_value")
-validation_display.connect_hook(save_button_text.hook, "value", "use_caller_value")
-save_button_text.connect_hook(status_message.hook, "value", "use_caller_value")
+input_field.link(validation_display.hook, "value", "use_caller_value")
+validation_display.link(save_button_text.hook, "value", "use_caller_value")
+save_button_text.link(status_message.hook, "value", "use_caller_value")
 
 # Test the network
 input_field.value = "user@example.com"
@@ -316,7 +316,7 @@ print(f"  theme1: {theme1.selected_option} from {theme1.available_options}")
 print(f"  theme2: {theme2.selected_option} from {theme2.available_options}")
 
 # ✅ Binding succeeds - both have "dark" as an option
-theme1.connect_hook(theme2.selected_option_hook, "selected_option", "use_caller_value")
+theme1.link(theme2.selected_option_hook, "selected_option", "use_caller_value")
 
 print("\nAfter successful binding:")
 print(f"  theme1: {theme1.selected_option}")
@@ -327,7 +327,7 @@ incompatible_theme = ObservableSelectionOption("high_contrast", {"high_contrast"
 
 # ❌ Binding fails - "high_contrast" is not available in theme1's options
 try:
-    theme1.connect_hook(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
+    theme1.link(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
     print("ERROR: This should not print!")
 except ValueError as e:
     print(f"\n❌ Binding validation failed: {e}")
@@ -368,7 +368,7 @@ print(f"After atomic update: {payment_method.selected_option}")
 # Test binding validation
 another_payment = ObservableSelectionOption("cash", {"cash", "check"})
 try:
-    payment_method.connect_hook(another_payment.selected_option_hook, "selected_option", "use_target_value")
+    payment_method.link(another_payment.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
 ```
@@ -387,21 +387,21 @@ obs_c = ObservableSingleValue("C")
 obs_d = ObservableSingleValue("D")
 
 # Build chain: A ↔ B ↔ C ↔ D
-obs_a.connect_hook(obs_b.hook, "value", "use_caller_value")
-obs_b.connect_hook(obs_c.hook, "value", "use_caller_value")
-obs_c.connect_hook(obs_d.hook, "value", "use_caller_value")
+obs_a.link(obs_b.hook, "value", "use_caller_value")
+obs_b.link(obs_c.hook, "value", "use_caller_value")
+obs_c.link(obs_d.hook, "value", "use_caller_value")
 
 print("Network after creation (all share same value):")
 for name, obs in [("A", obs_a), ("B", obs_b), ("C", obs_c), ("D", obs_d)]:
     print(f"  {name}: {obs.value}")
 
-# Verify they all share the same HookNexus
+# Verify they all share the same Nexus
 all_same_nexus = all(
-    id(obs._component_hooks['single_value'].hook_nexus) == 
-    id(obs_a._component_hooks['single_value'].hook_nexus)
+    id(obs._component_hooks['single_value'].nexus) == 
+    id(obs_a._component_hooks['single_value'].nexus)
     for obs in [obs_b, obs_c, obs_d]
 )
-print(f"All share same HookNexus: {all_same_nexus}")
+print(f"All share same Nexus: {all_same_nexus}")
 
 # Detach B from the network
 obs_b.detach()
@@ -438,9 +438,9 @@ profile_name = ObservableSingleValue("John Doe")
 settings_name = ObservableSingleValue("John Doe")
 
 # Connect everything initially
-user_info.connect_hook(header_name.hook, "value", "use_caller_value")
-header_name.connect_hook(profile_name.hook, "value", "use_caller_value")
-profile_name.connect_hook(settings_name.hook, "value", "use_caller_value")
+user_info.link(header_name.hook, "value", "use_caller_value")
+header_name.link(profile_name.hook, "value", "use_caller_value")
+profile_name.link(settings_name.hook, "value", "use_caller_value")
 
 print("All connected initially:")
 user_info.value = "Alice Smith"
@@ -486,10 +486,10 @@ sidebar_title = ObservableSingleValue("Home")
 footer_link = ObservableSingleValue("Home")
 
 # Connect all in chain
-nav_title.connect_hook(page_header.hook, "value", "use_caller_value")
-page_header.connect_hook(breadcrumb.hook, "value", "use_caller_value")
-breadcrumb.connect_hook(sidebar_title.hook, "value", "use_caller_value")
-sidebar_title.connect_hook(footer_link.hook, "value", "use_caller_value")
+nav_title.link(page_header.hook, "value", "use_caller_value")
+page_header.link(breadcrumb.hook, "value", "use_caller_value")
+breadcrumb.link(sidebar_title.hook, "value", "use_caller_value")
+sidebar_title.link(footer_link.hook, "value", "use_caller_value")
 
 # Test network
 nav_title.value = "Dashboard"
@@ -825,7 +825,7 @@ Congratulations! You've learned the core concepts of the Observables library:
 
 ### **1. True Bidirectional Binding**
 - Changes propagate in both directions automatically
-- Observables share the same HookNexus storage when bound
+- Observables share the same Nexus storage when bound
 - No need for manual synchronization
 
 ### **2. Transitive Binding Networks**

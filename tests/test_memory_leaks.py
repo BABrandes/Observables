@@ -215,7 +215,7 @@ class TestMemoryLeaks:
         def listener():
             pass
         
-        obs.add_listeners(listener)
+        obs.add_listener(listener)
         
         # Delete the observable
         del obs

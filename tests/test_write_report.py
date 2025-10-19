@@ -99,7 +99,7 @@ class TestWriteReport:
         
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[TaskStatus] = ObservableMultiSelectionOption(set(), available_statuses)
-        status_backup.connect_hooks({
+        status_backup.link_many({
             "selected_options": cast(HookWithOwnerProtocol[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
             "available_options": cast(HookWithOwnerProtocol[set[TaskStatus] | int], current_task_statuses.available_options_hook)
         }, "use_target_value")
@@ -148,7 +148,7 @@ class TestWriteReport:
         # Count how many hooks exist in total
         total_hooks = 0
         for name, observable in observables_dict.items():
-            total_hooks += len(observable.get_hook_keys())
+            total_hooks += len(observable._get_hook_keys()) # type: ignore
         
         print(f"Total observables: {total_observables}")
         print(f"Total hooks: {total_hooks}")

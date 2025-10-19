@@ -9,6 +9,7 @@ from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
+from ..._nexus_system.submission_error import SubmissionError
 from .function_values import FunctionValues
 
 SHK = TypeVar("SHK")
@@ -259,7 +260,7 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
         """
         return set(self._sync_hooks.keys())
 
-    def _get_key_by_hook_or_nexus(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|Nexus[SHV]") -> SHK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: "Hook[SHV]|Nexus[SHV]") -> SHK:
         """
         Get a key by its hook or nexus.
 
@@ -303,6 +304,18 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
         with self._lock:
             return set(self._get_hook_keys())
 
+    def key(self, hook: Hook[SHV]) -> SHK:
+        """
+        Get a key by its hook.
+
+        ** Thread-safe **
+
+        Returns:
+            The key associated with the hook.
+        """
+        with self._lock:
+            return self._get_key_by_hook_or_nexus(hook)
+
     def hooks(self) -> dict[SHK, Hook[SHV]]:
         """
         Get all hooks.
@@ -333,3 +346,11 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
     def completing_function_callable(self) -> Callable[[FunctionValues[SHK, SHV]], tuple[bool, dict[SHK, SHV]]]:
         """Get the completing function callable."""
         return self._completing_function_callable
+
+    def change_values(self, values: Mapping[SHK, SHV]) -> None:
+        """
+        Change the values of the observable.
+        """
+        success, msg = self._submit_values(values)
+        if not success:
+            raise SubmissionError(msg, values)

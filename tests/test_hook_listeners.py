@@ -19,7 +19,7 @@ class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
     def is_valid_hook_value(self, hook_key: Any, value: Any) -> tuple[bool, str]:
         return True, "Valid"
     
-    def _get_hook_key(self, hook_or_nexus: Hook[Any]|Nexus[Any]) -> Any:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Hook[Any]|Nexus[Any]) -> Any:
         """Return a mock key for the hook."""
         return "mock_key"
     
@@ -27,14 +27,14 @@ class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
         """Return a set of mock keys."""
         return {"mock_key"}
     
-    def _get_hook(self, key: Any) -> Any:
+    def _get_hook_by_key(self, key: Any) -> Any:
         """Return a mock hook."""
         # Return a mock hook that won't cause issues in the nexus manager
         if key not in self._hooks:
             self._hooks[key] = OwnedHook(self, "mock_value")
         return self._hooks[key]
     
-    def _get_value_reference_of_hook(self, key: Any) -> Any:
+    def _get_value_by_key(self, key: Any) -> Any:
         """Return a mock value."""
         return "mock_value"
 
@@ -60,7 +60,7 @@ class TestHookListeners:
     def test_add_single_listener(self):
         """Test adding a single listener."""
         callback = Mock()
-        self.hook.add_listeners(callback)
+        self.hook.add_listener(callback)
         
         assert len(self.hook.listeners) == 1
         assert self.hook.is_listening_to(callback)
@@ -72,7 +72,7 @@ class TestHookListeners:
         callback2 = Mock()
         callback3 = Mock()
         
-        self.hook.add_listeners(callback1, callback2, callback3)
+        self.hook.add_listener(callback1, callback2, callback3)
         
         assert len(self.hook.listeners) == 3
         assert self.hook.is_listening_to(callback1)
@@ -84,9 +84,9 @@ class TestHookListeners:
         callback = Mock()
         
         # Add the same callback multiple times
-        self.hook.add_listeners(callback)
-        self.hook.add_listeners(callback)
-        self.hook.add_listeners(callback)
+        self.hook.add_listener(callback)
+        self.hook.add_listener(callback)
+        self.hook.add_listener(callback)
         
         # Should only be added once
         assert len(self.hook.listeners) == 1
@@ -95,13 +95,13 @@ class TestHookListeners:
     def test_remove_single_listener(self):
         """Test removing a single listener."""
         callback = Mock()
-        self.hook.add_listeners(callback)
+        self.hook.add_listener(callback)
         
         # Verify listener was added
         assert len(self.hook.listeners) == 1
         
         # Remove listener
-        self.hook.remove_listeners(callback)
+        self.hook.remove_listener(callback)
         
         # Verify listener was removed
         assert len(self.hook.listeners) == 0
@@ -113,11 +113,11 @@ class TestHookListeners:
         callback2 = Mock()
         callback3 = Mock()
         
-        self.hook.add_listeners(callback1, callback2, callback3)
+        self.hook.add_listener(callback1, callback2, callback3)
         assert len(self.hook.listeners) == 3
         
         # Remove two listeners
-        self.hook.remove_listeners(callback1, callback3)
+        self.hook.remove_listener(callback1, callback3)
         
         # Verify only callback2 remains
         assert len(self.hook.listeners) == 1
@@ -130,7 +130,7 @@ class TestHookListeners:
         callback = Mock()
         
         # Try to remove a listener that was never added
-        self.hook.remove_listeners(callback)
+        self.hook.remove_listener(callback)
         
         # Should not raise an error
         assert len(self.hook.listeners) == 0
@@ -141,7 +141,7 @@ class TestHookListeners:
         callback2 = Mock()
         callback3 = Mock()
         
-        self.hook.add_listeners(callback1, callback2, callback3)
+        self.hook.add_listener(callback1, callback2, callback3)
         assert len(self.hook.listeners) == 3
         
         # Remove all listeners
@@ -158,7 +158,7 @@ class TestHookListeners:
     def test_listeners_copy_is_returned(self):
         """Test that listeners property returns a copy, not the original set."""
         callback = Mock()
-        self.hook.add_listeners(callback)
+        self.hook.add_listener(callback)
         
         listeners_copy = self.hook.listeners
         
@@ -182,7 +182,7 @@ class TestHookListeners:
         callback2 = make_callback("second")
         callback3 = make_callback("third")
         
-        self.hook.add_listeners(callback1, callback2, callback3)
+        self.hook.add_listener(callback1, callback2, callback3)
         
         # Trigger notification
         self.hook._notify_listeners() # type: ignore
@@ -201,11 +201,11 @@ class TestHookListeners:
         
         # callback2 will remove itself when called
         def self_removing_callback():
-            self.hook.remove_listeners(callback2)
+            self.hook.remove_listener(callback2)
         
         callback2.side_effect = self_removing_callback
         
-        self.hook.add_listeners(callback1, callback2, callback3)
+        self.hook.add_listener(callback1, callback2, callback3)
         
         # Trigger notification - should not raise RuntimeError
         self.hook._notify_listeners() # type: ignore
@@ -231,8 +231,8 @@ class TestHookListeners:
         callback1 = Mock()
         callback2 = Mock()
         
-        hook1.add_listeners(callback1)
-        hook2.add_listeners(callback2)
+        hook1.add_listener(callback1)
+        hook2.add_listener(callback2)
         
         # Verify each hook has its own listeners
         assert len(hook1.listeners) == 1

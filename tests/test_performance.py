@@ -37,14 +37,14 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
-            obs.connect_hook(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
+            obs.link(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
             bound_observables.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
-        hook = main_obs.get_hook("value")
+        hook = main_obs.hook
         
         # Time the first call (should do linear search + populate cache)
-        def first_call():
+        def first_call() -> str:
             return main_obs.get_hook_key(hook) # type: ignore
         
         result1, time1 = time_operation(first_call)
@@ -53,7 +53,7 @@ class TestCachePerformance:
         # Time subsequent calls (should use cache)
         times: list[float] = []
         for _ in range(10):
-            def cached_call():
+            def cached_call() -> str:
                 return main_obs.get_hook_key(hook) # type: ignore
             
             result, elapsed = time_operation(cached_call)
@@ -68,7 +68,7 @@ class TestCachePerformance:
         
         # Clean up
         for obs in bound_observables: # type: ignore
-            obs.disconnect_hook("value")
+            obs.unlink()
 
     def test_secondary_hook_cache_performance(self):
         """Test that secondary hook lookups are cached."""
@@ -110,8 +110,8 @@ class TestCachePerformance:
             return obs.value
         
         def operation2():
-            hook = obs.get_hook("value")
-            hook.submit_value("modified2")
+            hook = obs.hook
+            hook.change_value("modified2")
             return hook.value
         
         def operation3():
@@ -155,7 +155,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.connect_hook(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                obs.link(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -168,7 +168,7 @@ class TestScalabilityPerformance:
             
             # Clean up
             for obs in bound_observables:
-                obs.disconnect_hook("value")
+                obs.unlink()
         
         # Performance should not degrade dramatically with scale
         # (With O(1) cache, it should be roughly linear or better)
@@ -228,12 +228,12 @@ class TestScalabilityPerformance:
         
         # Create a simpler binding pattern that avoids nexus conflicts
         # Connect obs_single to obs_list.length_hook
-        obs_single.connect_hook(obs_list.length_hook, "value", "use_target_value")  # type: ignore
+        obs_single.link(obs_list.length_hook, "value", "use_target_value")  # type: ignore
         
         # Create a separate binding for obs_dict to avoid conflicts
         # Use a different approach: bind obs_dict.length_hook to a new observable
         obs_dict_tracker = ObservableSingleValue(1)
-        obs_dict.length_hook.connect_hook(obs_dict_tracker.hook, "use_caller_value")  # type: ignore
+        obs_dict.length_hook.link(obs_dict_tracker.hook, "use_caller_value")  # type: ignore
         
         # Time complex operations
         def complex_operation():
@@ -248,7 +248,8 @@ class TestScalabilityPerformance:
             # Modify dict by adding a key
             current_dict = dict(obs_dict.dict_hook.value)
             current_dict["new_key"] = "new_value"
-            obs_dict.set_dict_and_key(current_dict, obs_dict.key)
+            obs_dict.change_dict(current_dict)
+            obs_dict.key = "new_key"
             
             return single_val, list_len, dict_len
         
@@ -298,7 +299,7 @@ class TestPerformanceRegression:
         start_time = time.perf_counter()
         
         for _ in range(num_operations):
-            hook = obs.get_hook("value")
+            hook = obs.hook
             _ = hook.value
         
         total_time = time.perf_counter() - start_time
@@ -322,7 +323,7 @@ class TestPerformanceRegression:
                     counter[0] += 1
                 return listener
             
-            obs.add_listeners(make_listener(count))
+            obs.add_listener(make_listener(count))
         
         # Time operations with listener notifications
         num_operations = 100
@@ -357,13 +358,13 @@ class TestPerformanceRegression:
             
             # Perform various operations
             obs.value = f"modified_{cycle}"
-            hook = obs.get_hook("value")
+            hook = obs.hook
             _ = hook.value
             
             # Add and remove listener
             listener = lambda: None
-            obs.add_listeners(listener)
-            obs.remove_listeners(listener)
+            obs.add_listener(listener)
+            obs.remove_listener(listener)
             
             # Clean up explicitly
             del obs, hook, listener

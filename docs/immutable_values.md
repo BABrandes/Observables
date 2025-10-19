@@ -244,9 +244,9 @@ def store_config(config: dict[str, Any]) -> None:
 - **Manual**: Error-prone, easy to miss nested structures
 - **make_immutable**: Automatic recursive conversion
 
-### vs. `types.MappingProxyType`
+### vs. `types.Map (from immutables)`
 
-- **MappingProxyType**: Read-only view, original dict still modifiable
+- **Map (from immutables)**: Read-only view, original dict still modifiable
 - **immutables.Map**: True immutable data structure
 
 ## API Reference

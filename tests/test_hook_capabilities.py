@@ -352,7 +352,7 @@ class TestHookCapabilities:
         )
         
         # Test validation - should delegate to owner
-        success, message = hook._validate_value("new_value")
+        success, message = hook._validate_value("new_value") # type: ignore
         # The actual result depends on the owner's validation logic
         assert isinstance(success, bool)
         assert isinstance(message, str)
@@ -410,7 +410,7 @@ class TestHookCapabilities:
         def writer():
             for i in range(100):
                 try:
-                    hook.submit_value(f"value_{i}")
+                    hook.change_value(f"value_{i}")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -450,7 +450,7 @@ class TestHookCapabilities:
                 try:
                     _ = hook.owner
                     _ = hook._get_nexus()  # type: ignore
-                    _ = hook.lock
+                    _ = hook._lock  # type: ignore
                     time.sleep(0.0005)
                 except Exception:
                     pass
@@ -495,7 +495,7 @@ class TestHookCapabilities:
         def method_caller():
             for _ in range(150):
                 try:
-                    hook.submit_value("test")
+                    hook.change_value("test")
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -545,10 +545,10 @@ class TestHookCapabilities:
             for _ in range(100):
                 try:
                     # Add hook2 to hook1's hook nexus
-                    hook1._get_nexus().add_hook  # type: ignore(hook2)
+                    hook1._get_nexus().add_hook(hook2)  # type: ignore
                     time.sleep(0.002)
                     # Remove hook2 from hook1's hook nexus
-                    hook1._get_nexus().remove_hook  # type: ignore(hook2)
+                    hook1._get_nexus().remove_hook(hook2)  # type: ignore
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -558,7 +558,7 @@ class TestHookCapabilities:
                 try:
                     _ = hook1._get_nexus().hooks  # type: ignore
                     _ = len(hook1._get_nexus().hooks)  # type: ignore
-                    _ = hook1.is_connected_to(hook2)
+                    _ = hook1.is_linked_to(hook2)
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -647,7 +647,7 @@ class TestHookCapabilities:
         def submit_caller():
             for _ in range(100):
                 try:
-                    hook.submit_value("test")
+                    hook.change_value("test")
                     time.sleep(0.002)
                 except Exception:
                     pass
@@ -704,8 +704,8 @@ class TestHookCapabilities:
         def connection_checker():
             for _ in range(200):
                 try:
-                    _ = hook1.is_connected_to(hook2)
-                    _ = hook2.is_connected_to(hook1)
+                    _ = hook1.is_linked_to(hook2)
+                    _ = hook2.is_linked_to(hook1)
                     time.sleep(0.001)
                 except Exception:
                     pass
@@ -744,7 +744,7 @@ class TestHookCapabilities:
                 try:
                     # Mix of operations
                     if i % 5 == 0:
-                        hook.submit_value(f"value_{worker_id}_{i}")
+                        hook.change_value(f"value_{worker_id}_{i}")
                     elif i % 5 == 2:
                         _ = hook._get_nexus()  # type: ignore
                         _ = len(hook._get_nexus().hooks)  # type: ignore
@@ -786,17 +786,17 @@ class TestHookCapabilities:
         def lock_contender():
             for _ in range(100):
                 try:
-                    with hook.lock:
+                    with hook._lock:  # type: ignore
                         # Hold the lock for a bit to create contention
                         time.sleep(0.001)
-                        hook.submit_value("contended")
+                        hook.change_value("contended")
                 except Exception:
                     pass
         
         def lock_waiter():
             for _ in range(100):
                 try:
-                    with hook.lock:
+                    with hook._lock:  # type: ignore
                         time.sleep(0.001)
                 except Exception:
                     pass
@@ -975,7 +975,3 @@ class TestHookCapabilities:
         
         # Test that safe callback works
         hook.invalidate_owner()  # Should not raise error
-
-
-if __name__ == '__main__':
-    unittest.main()

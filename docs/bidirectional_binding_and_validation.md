@@ -6,7 +6,7 @@ The Observables library provides a revolutionary approach to reactive programmin
 
 ### **What Makes Our Binding Truly Bidirectional?**
 
-Unlike traditional reactive libraries that implement one-way data flow, Observables provides **genuine bidirectional binding** through a centralized storage system. When observables are bound together, they share the **same underlying storage (HookNexus)**, ensuring that changes propagate in both directions automatically.
+Unlike traditional reactive libraries that implement one-way data flow, Observables provides **genuine bidirectional binding** through a centralized storage system. When observables are bound together, they share the **same underlying storage (Nexus)**, ensuring that changes propagate in both directions automatically.
 
 ```python
 from observables import ObservableSingleValue
@@ -16,7 +16,7 @@ temperature_celsius = ObservableSingleValue(25.0)
 temperature_fahrenheit = ObservableSingleValue(77.0)
 
 # Bind them together - they now share the same storage
-temperature_celsius.connect_hook(
+temperature_celsius.link(
     temperature_fahrenheit.value_hook, 
     "single_value", 
     "use_caller_value"
@@ -31,26 +31,26 @@ temperature_fahrenheit.value = 100.0
 print(temperature_celsius.value)   # 100.0 (same value, shared storage)
 ```
 
-### **The HookNexus: Central Storage Architecture**
+### **The Nexus: Central Storage Architecture**
 
-The secret to true bidirectional binding is the **HookNexus** - a central storage system where values are stored exactly once:
+The secret to true bidirectional binding is the **Nexus** - a central storage system where values are stored exactly once:
 
 ```python
-# Each observable starts with its own HookNexus
+# Each observable starts with its own Nexus
 obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 print(f"Before binding:")
-print(f"  obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"  obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"  obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
+print(f"  obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Different IDs = separate storage
 
 # Bind them together
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 
 print(f"After binding:")
-print(f"  obs1 HookNexus ID: {id(obs1._component_hooks['single_value'].hook_nexus)}")
-print(f"  obs2 HookNexus ID: {id(obs2._component_hooks['single_value'].hook_nexus)}")
+print(f"  obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
+print(f"  obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Same ID = shared storage! ✅
 
 # Now changes propagate bidirectionally because they share the same storage
@@ -73,11 +73,11 @@ header_name = ObservableSingleValue("John")
 sidebar_name = ObservableSingleValue("John")
 
 # Create binding chain
-user_name.connect_hook(display_name.hook, "value", "use_caller_value")
-display_name.connect_hook(header_name.hook, "value", "use_caller_value")
-header_name.connect_hook(sidebar_name.hook, "value", "use_caller_value")
+user_name.link(display_name.hook, "value", "use_caller_value")
+display_name.link(header_name.hook, "value", "use_caller_value")
+header_name.link(sidebar_name.hook, "value", "use_caller_value")
 
-# ✅ All four observables now share the same HookNexus
+# ✅ All four observables now share the same Nexus
 # Changes from ANY observable propagate to ALL others bidirectionally
 
 # Change from the first one
@@ -109,16 +109,16 @@ obs_c = ObservableSingleValue(1)
 obs_d = ObservableSingleValue(1)
 
 # Build the chain
-obs_a.connect_hook(obs_b.hook, "value", "use_caller_value")
-obs_b.connect_hook(obs_c.hook, "value", "use_caller_value")
-obs_c.connect_hook(obs_d.hook, "value", "use_caller_value")
+obs_a.link(obs_b.hook, "value", "use_caller_value")
+obs_b.link(obs_c.hook, "value", "use_caller_value")
+obs_c.link(obs_d.hook, "value", "use_caller_value")
 
-# All four share the same HookNexus
-print(f"All HookNexus IDs are the same:")
-print(f"  A: {id(obs_a._component_hooks['single_value'].hook_nexus)}")
-print(f"  B: {id(obs_b._component_hooks['single_value'].hook_nexus)}")
-print(f"  C: {id(obs_c._component_hooks['single_value'].hook_nexus)}")
-print(f"  D: {id(obs_d._component_hooks['single_value'].hook_nexus)}")
+# All four share the same Nexus
+print(f"All Nexus IDs are the same:")
+print(f"  A: {id(obs_a._component_hooks['single_value'].nexus)}")
+print(f"  B: {id(obs_b._component_hooks['single_value'].nexus)}")
+print(f"  C: {id(obs_c._component_hooks['single_value'].nexus)}")
+print(f"  D: {id(obs_d._component_hooks['single_value'].nexus)}")
 
 # Disconnect B from the network
 obs_b.detach()
@@ -169,7 +169,7 @@ primary_selector = ObservableSelectionOption("red", {"red", "green", "blue"})
 secondary_selector = ObservableSelectionOption("red", {"red", "green", "yellow"})
 
 # Bind them together
-primary_selector.connect_hook(
+primary_selector.link(
     secondary_selector.selected_option_hook, 
     "selected_option", 
     "use_caller_value"
@@ -238,9 +238,9 @@ config_backup = ObservableSelectionOption("test", {"test", "validation", "sandbo
 # ❌ Sequential binding can cause validation errors
 # When binding selected_option first, "production" might not be in backup's available options
 try:
-    config_primary.connect_hook(config_backup.selected_option_hook, "selected_option", "use_target_value")
+    config_primary.link(config_backup.selected_option_hook, "selected_option", "use_target_value")
     # This could fail if "test" is not in primary's available options
-    config_primary.connect_hook(config_backup.available_options_hook, "available_options", "use_target_value")
+    config_primary.link(config_backup.available_options_hook, "available_options", "use_target_value")
 except ValueError as e:
     print(f"Sequential binding failed: {e}")
 
@@ -271,7 +271,7 @@ config_a = ObservableSelectionOption("production", {"production", "staging", "de
 config_b = ObservableSelectionOption("staging", {"staging", "development", "test"})
 
 # ✅ Binding succeeds because current values can be made compatible
-config_a.connect_hook(config_b.selected_option_hook, "selected_option", "use_caller_value")
+config_a.link(config_b.selected_option_hook, "selected_option", "use_caller_value")
 print(f"After binding - both have: {config_a.selected_option}")  # staging
 
 # Create incompatible observables
@@ -279,7 +279,7 @@ config_c = ObservableSelectionOption("invalid_option", {"option1", "option2"})
 
 # ❌ Binding fails due to validation
 try:
-    config_a.connect_hook(config_c.selected_option_hook, "selected_option", "use_target_value")
+    config_a.link(config_c.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
     print(f"Binding validation failed: {e}")
     # Output: "Selected option invalid_option not in options {'staging', 'development', 'test'}"
@@ -453,7 +453,7 @@ print(f"Temperature remains: {room_temp.value}°C")  # 25.0
 outdoor_temp = ValidatedTemperature(15.0, min_temp=-40.0, max_temp=60.0)
 
 # ✅ Compatible ranges - binding succeeds
-room_temp.connect_hook(outdoor_temp.hook, "value", "use_caller_value")
+room_temp.link(outdoor_temp.hook, "value", "use_caller_value")
 
 # ❌ Updates that violate validation are rejected
 try:
@@ -700,9 +700,9 @@ def inspect_validation_state(observable, operation_description):
     print(f"  Valid: {observable.selected_option in observable.available_options}")
     
     if hasattr(observable, '_component_hooks'):
-        hook_nexus = observable._component_hooks['selected_option'].hook_nexus
-        print(f"  HookNexus ID: {id(hook_nexus)}")
-        print(f"  Hook count: {len(hook_nexus._hooks) if hasattr(hook_nexus, '_hooks') else 'N/A'}")
+        nexus = observable._component_hooks['selected_option'].nexus
+        print(f"  Nexus ID: {id(nexus)}")
+        print(f"  Hook count: {len(nexus._hooks) if hasattr(nexus, '_hooks') else 'N/A'}")
 
 # Usage
 selector = ObservableSelectionOption("red", {"red", "green", "blue"})
@@ -742,17 +742,17 @@ selector.set_selected_option_and_available_options("new_option", {"new_option", 
 # ✅ Good: Validate once when building networks
 if all(is_compatible(obs) for obs in observables_to_bind):
     for i in range(len(observables_to_bind) - 1):
-        observables_to_bind[i].connect_hook(observables_to_bind[i + 1].hook, "value", "use_caller_value")
+        observables_to_bind[i].link(observables_to_bind[i + 1].hook, "value", "use_caller_value")
 
 # ✅ Good: Use appropriate initial sync modes to minimize validation
-obs1.connect_hook(obs2.hook, "component", "use_caller_value")  # Sync from obs1 to obs2
+obs1.link(obs2.hook, "component", "use_caller_value")  # Sync from obs1 to obs2
 ```
 
 ---
 
 ## 🎯 **Key Takeaways**
 
-1. **True Bidirectional Binding**: Changes propagate in both directions through shared HookNexus storage
+1. **True Bidirectional Binding**: Changes propagate in both directions through shared Nexus storage
 2. **Rigorous Validation**: Invalid states are never allowed, even temporarily
 3. **Atomic Operations**: Multi-component changes are validated and applied atomically
 4. **Network Resilience**: Binding networks survive partial disconnections

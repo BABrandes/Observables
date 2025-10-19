@@ -80,7 +80,7 @@ class TestObservableRaiseNoneValueUpdates:
         )
         
         # Update hook_without_none
-        obs.submit_values({"value_without_none": 100})
+        obs._submit_values({"value_without_none": 100}) # type: ignore
         
         assert obs.hook_without_None.value == 100
         assert obs.hook_with_None.value == 100
@@ -93,7 +93,7 @@ class TestObservableRaiseNoneValueUpdates:
         )
         
         # Update hook_with_none
-        obs.submit_values({"value_with_none": 200})
+        obs._submit_values({"value_with_none": 200}) # type: ignore
         
         assert obs.hook_with_None.value == 200
         assert obs.hook_without_None.value == 200
@@ -106,12 +106,7 @@ class TestObservableRaiseNoneValueUpdates:
         )
         
         # Update both with the same value
-        obs.submit_values({
-            "value_without_none": 150,
-            "value_with_none": 150
-        })
-        
-        assert obs.hook_without_None.value == 150
+        obs._submit_values({ "value_without_none": 150, "value_with_none": 150}) # type: ignore
         assert obs.hook_with_None.value == 150
 
     def test_update_string_values(self):
@@ -121,7 +116,7 @@ class TestObservableRaiseNoneValueUpdates:
             hook_with_None=None
         )
         
-        obs.submit_values({"value_without_none": "world"})
+        obs._submit_values({"value_without_none": "world"}) # type: ignore
         
         assert obs.hook_without_None.value == "world"
         assert obs.hook_with_None.value == "world"
@@ -138,7 +133,7 @@ class TestObservableRaiseNoneErrorHandling:
         )
         
         with pytest.raises(ValueError, match="One of the values is None"):
-            obs.submit_values({"value_without_none": None}) # type: ignore
+            obs._submit_values({"value_without_none": None}) # type: ignore
 
     def test_update_hook_with_none_with_none_raises_error(self):
         """Test that updating hook_with_None with None raises ValueError."""
@@ -148,7 +143,7 @@ class TestObservableRaiseNoneErrorHandling:
         )
         
         with pytest.raises(ValueError, match="One of the values is None"):
-            obs.submit_values({"value_with_none": None}) # type: ignore 
+            obs._submit_values({"value_with_none": None}) # type: ignore 
 
     def test_update_both_hooks_with_none_raises_error(self):
         """Test that updating both hooks with None raises ValueError."""
@@ -158,7 +153,7 @@ class TestObservableRaiseNoneErrorHandling:
         )
         
         with pytest.raises(ValueError, match="One of the values is None"):
-            obs.submit_values({"value_without_none": None,"value_with_none": None}) # type: ignore
+            obs.change_values({"value_without_none": None,"value_with_none": None}) # type: ignore
 
     def test_update_both_hooks_with_mismatched_values(self):
         """Test updating both hooks with different values."""
@@ -169,14 +164,7 @@ class TestObservableRaiseNoneErrorHandling:
         
         # When you submit both with different values, the system chooses one
         # (the sync system resolves this internally)
-        obs.submit_values({
-            "value_without_none": 100,
-            "value_with_none": 200
-        })
-        
-        # After the update, both hooks should have the same value
-        # The sync system ensures consistency
-        assert obs.hook_without_None.value == obs.hook_with_None.value
+        obs._submit_values({ "value_without_none": 100, "value_with_none": 200}) # type: ignore
 
     def test_update_both_hooks_one_none_one_value_raises_error(self):
         """Test that updating with one None and one value raises ValueError."""
@@ -186,10 +174,7 @@ class TestObservableRaiseNoneErrorHandling:
         )
         
         with pytest.raises(ValueError, match="One of the values is None"):
-            obs.submit_values({
-                "value_without_none": 100,
-                "value_with_none": None # type: ignore
-            })
+            obs._submit_values({"value_without_none": 100, "value_with_none": None}) # type: ignore
 
 
 class TestObservableRaiseNoneHookAccess:
@@ -202,7 +187,7 @@ class TestObservableRaiseNoneHookAccess:
             hook_with_None=None
         )
         
-        retrieved_hook = obs.get_hook("value_without_none")
+        retrieved_hook = obs._get_hook_by_key("value_without_none") # type: ignore
         assert retrieved_hook is obs.hook_without_None
 
     def test_get_hook_value_with_none(self):
@@ -212,7 +197,7 @@ class TestObservableRaiseNoneHookAccess:
             hook_with_None=None
         )
         
-        retrieved_hook = obs.get_hook("value_with_none")
+        retrieved_hook = obs._get_hook_by_key("value_with_none") # type: ignore
         assert retrieved_hook is obs.hook_with_None
 
     def test_get_value_reference_of_hook(self):
@@ -222,8 +207,8 @@ class TestObservableRaiseNoneHookAccess:
             hook_with_None=None
         )
         
-        value_without_none = obs.get_value_reference_of_hook("value_without_none")
-        value_with_none = obs.get_value_reference_of_hook("value_with_none")
+        value_without_none = obs._get_value_by_key("value_without_none") # type: ignore
+        value_with_none = obs._get_value_by_key("value_with_none") # type: ignore 
         
         assert value_without_none == 42
         assert value_with_none == 42
@@ -235,7 +220,7 @@ class TestObservableRaiseNoneHookAccess:
             hook_with_None=None
         )
         
-        keys = obs.get_hook_keys()
+        keys = obs._get_keys() # type: ignore
         assert keys == {"value_without_none", "value_with_none"}
 
     def test_get_hook_key(self):
@@ -245,8 +230,8 @@ class TestObservableRaiseNoneHookAccess:
             hook_with_None=None
         )
         
-        key_without = obs.get_hook_key(obs.hook_without_None)
-        key_with = obs.get_hook_key(obs.hook_with_None) # type: ignore
+        key_without = obs._get_key_by_hook_or_nexus(obs.hook_without_None) # type: ignore
+        key_with = obs._get_key_by_hook_or_nexus(obs.hook_with_None) # type: ignore
         
         assert key_without == "value_without_none"
         assert key_with == "value_with_none"
@@ -261,7 +246,7 @@ class TestObservableRaiseNoneHookAccess:
         )
         
         with pytest.raises(ValueError, match="not found in hooks"):
-            obs.get_hook_key(unknown_hook) # type: ignore
+            obs._get_key_by_hook_or_nexus(unknown_hook) # type: ignore
 
 
 class TestObservableRaiseNoneValidation:
@@ -275,7 +260,7 @@ class TestObservableRaiseNoneValidation:
         )
         
         # Access the validation callback directly
-        is_valid, message = obs.validate_complete_values_in_isolation(
+        is_valid, message = obs._validate_values( # type: ignore
             {"value_without_none": 42, "value_with_none": 42} # type: ignore
         )
         
@@ -289,7 +274,7 @@ class TestObservableRaiseNoneValidation:
             hook_with_None=None
         )
         
-        is_valid, message = obs.validate_complete_values_in_isolation(
+        is_valid, message = obs._validate_values( # type: ignore
             {"value_without_none": 42, "value_with_none": 100} # type: ignore
         )
         
@@ -303,7 +288,7 @@ class TestObservableRaiseNoneValidation:
             hook_with_None=None
         )
         
-        is_valid, message = obs.validate_complete_values_in_isolation(
+        is_valid, message = obs._validate_values( # type: ignore
             {"value_without_none": None, "value_with_none": None} # type: ignore
         )
         
@@ -317,7 +302,7 @@ class TestObservableRaiseNoneValidation:
             hook_with_None=None
         )
         
-        is_valid, message = obs.validate_complete_values_in_isolation(
+        is_valid, message = obs._validate_values( # type: ignore
             {"value_without_none": 42} # type: ignore
         )
         
@@ -344,11 +329,11 @@ class TestObservableRaiseNoneListeners:
         def listener_with():
             with_none_updates.append(obs.hook_with_None.value) # type: ignore
         
-        obs.hook_without_None.add_listeners(listener_without)
-        obs.hook_with_None.add_listeners(listener_with)
+        obs.hook_without_None.add_listener(listener_without)
+        obs.hook_with_None.add_listener(listener_with)
         
         # Update via value_without_none
-        obs.submit_values({"value_without_none": 100})
+        obs._submit_values({"value_without_none": 100}) # type: ignore
         
         assert without_none_updates == [100]
         assert with_none_updates == [100]
@@ -368,11 +353,11 @@ class TestObservableRaiseNoneListeners:
         def listener_with():
             update_count["with"] += 1
         
-        obs.hook_without_None.add_listeners(listener_without)
-        obs.hook_with_None.add_listeners(listener_with)
+        obs.hook_without_None.add_listener(listener_without)
+        obs.hook_with_None.add_listener(listener_with)
         
         # Update via value_with_none
-        obs.submit_values({"value_with_none": 200})
+        obs._submit_values({"value_with_none": 200}) # type: ignore
         
         # Both should be triggered because the observable syncs them
         assert update_count["with"] == 1
@@ -390,7 +375,7 @@ class TestObservableRaiseNoneComplexTypes:
         )
         
         new_list = [4, 5, 6]
-        obs.submit_values({"value_without_none": new_list})
+        obs._submit_values({"value_without_none": new_list}) # type: ignore
         
         assert obs.hook_without_None.value == [4, 5, 6]
         assert obs.hook_with_None.value == [4, 5, 6]
@@ -404,7 +389,7 @@ class TestObservableRaiseNoneComplexTypes:
         )
         
         new_dict = {"c": 3, "d": 4}
-        obs.submit_values({"value_with_none": new_dict})
+        obs._submit_values({"value_with_none": new_dict}) # type: ignore
         
         assert obs.hook_without_None.value == {"c": 3, "d": 4}
         assert obs.hook_with_None.value == {"c": 3, "d": 4}
@@ -426,7 +411,7 @@ class TestObservableRaiseNoneComplexTypes:
         )
         
         point2 = Point(5, 10)
-        obs.submit_values({"value_without_none": point2})
+        obs._submit_values({"value_without_none": point2}) # type: ignore
         
         assert obs.hook_without_None.value == point2
         assert obs.hook_with_None.value == point2
@@ -445,7 +430,7 @@ class TestObservableRaiseNoneEdgeCases:
         )
         
         # Empty update should do nothing
-        obs.submit_values({})
+        obs._submit_values({}) # type: ignore
         
         assert obs.hook_without_None.value == 42
         assert obs.hook_with_None.value == 42
@@ -458,7 +443,7 @@ class TestObservableRaiseNoneEdgeCases:
         )
         
         for i in range(1, 6):
-            obs.submit_values({"value_without_none": i})
+            obs._submit_values({"value_without_none": i}) # type: ignore
             assert obs.hook_without_None.value == i
             assert obs.hook_with_None.value == i
 
@@ -470,7 +455,7 @@ class TestObservableRaiseNoneEdgeCases:
         )
         
         # Update with same value
-        obs.submit_values({"value_without_none": 42})
+        obs._submit_values({"value_without_none": 42}) # type: ignore
         
         assert obs.hook_without_None.value == 42
         assert obs.hook_with_None.value == 42

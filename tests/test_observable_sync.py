@@ -20,18 +20,18 @@ class MockObservable(CarriesHooksBase[str, int, "MockObservable"]):
         # Initialize BaseCarriesHooks
         super().__init__()
     
-    def _get_hook(self, key: str) -> OwnedHook[int]:
+    def _get_hook_by_key(self, key: str) -> OwnedHook[int]:
         return self._hooks[key]
     
-    def _get_value_reference_of_hook(self, key: str) -> int:
+    def _get_value_by_key(self, key: str) -> int:
         return self._hooks[key].value
     
     def _get_hook_keys(self) -> set[str]:
         return set(self._hooks.keys())
     
-    def _get_hook_key(self, hook_or_nexus: Any) -> str:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Any) -> str:
         for key, hook in self._hooks.items():
-            if hook is hook_or_nexus:
+            if hook is hook_or_nexus or hook._get_nexus() is hook_or_nexus:  # type: ignore
                 return key
         raise ValueError(f"Hook {hook_or_nexus} not found")
     
@@ -61,12 +61,12 @@ class TestObservableSync:
         )
 
         # Check that sync hooks were created correctly
-        assert sync.get_sync_hook("a").value == 5  # Original value
-        assert sync.get_sync_hook("b").value == 3  # Original value
-        assert sync.get_sync_hook("c").value == 0   # Original value
+        assert sync.hook("a").value == 5  # Original value
+        assert sync.hook("b").value == 3  # Original value
+        assert sync.hook("c").value == 0   # Original value
 
         # Check hook keys
-        assert sync.get_hook_keys() == {"a", "b", "c"}
+        assert sync.keys == {"a", "b", "c"}
 
     def test_basic_creation_with_hooks(self):
         """Test basic ObservableSync creation with initial values (no longer supports hooks)."""
@@ -81,8 +81,8 @@ class TestObservableSync:
         )
 
         # Check that sync hooks were created with initial values
-        assert sync.get_sync_hook("a").value == 10  # Original value
-        assert sync.get_sync_hook("b").value == 20  # Original value
+        assert sync.hook("a").value == 10  # Original value
+        assert sync.hook("b").value == 20  # Original value
 
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_sync_callback_validation(self):
@@ -114,23 +114,23 @@ class TestObservableSync:
         )
 
         # Test _get_hook
-        hook_a = sync.get_hook("a")
+        hook_a = sync.hook("a")
         assert hook_a.value == 5
 
         # Test _get_value_reference_of_hook
-        value_a = sync.get_value_reference_of_hook("a")
+        value_a = sync.value("a")
         assert value_a == 5
 
         # Test _get_hook_key
-        hook_key = sync.get_hook_key(hook_a)
+        hook_key = sync.key(hook_a)
         assert hook_key == "a"
 
         # Test error cases
         with pytest.raises(ValueError):
-            sync.get_hook("nonexistent")
+            sync.hook("nonexistent")
 
         with pytest.raises(ValueError):
-            sync.get_value_reference_of_hook("nonexistent")
+            sync.value("nonexistent")
 
     def test_basic_sync(self):
         """Test basic ObservableSync with simple pass-through callback."""
@@ -144,8 +144,8 @@ class TestObservableSync:
         )
 
         # Should have sync hooks
-        assert sync.get_hook_keys() == {"a", "b"}
-        assert len(sync.get_sync_hooks()) == 2
+        assert sync.keys == {"a", "b"}
+        assert len(sync.hooks()) == 2
 
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_error_handling_in_callbacks(self):
@@ -175,11 +175,11 @@ class TestObservableSync:
             logger=logger
         )
 
-        assert sync.get_hook_keys() == set()
+        assert sync.keys() == set()
 
         # None values
         def sync_callback_with_none(submitted_values: Mapping[str, Optional[int]]) -> tuple[bool, dict[str, Optional[int]]]:
-            return (True, dict(values.submitted))
+            return (True, dict(submitted_values))
 
         sync_with_none = ObservableSync[str, Optional[int]](
             complete_variables_per_key={"a": None, "b": 5},
@@ -187,8 +187,8 @@ class TestObservableSync:
             logger=logger
         )
 
-        assert sync_with_none.get_sync_hook("a").value is None
-        assert sync_with_none.get_sync_hook("b").value == 5
+        assert sync_with_none.hook("a").value is None
+        assert sync_with_none.hook("b").value == 5
 
 
     def test_listener_notification(self):
@@ -207,10 +207,10 @@ class TestObservableSync:
         def listener():
             notifications.append("notified")
 
-        sync.add_listeners(listener)
+        sync.add_listener(listener)
 
         # Change a value
-        sync.get_sync_hook("a").submit_value(10)
+        sync.hook("a").submit_value(10)
 
         # Check that listener was notified
         assert len(notifications) > 0
@@ -232,12 +232,12 @@ class TestObservableSync:
         )
 
         # Check initial state
-        assert sync.get_sync_hook("a").value == 5  # Original value
-        assert sync.get_sync_hook("b").value == 10  # Original value
+        assert sync.hook("a").value == 5  # Original value
+        assert sync.hook("b").value == 10  # Original value
 
         # Now connect to external observables after initialization
-        sync.get_sync_hook("a").connect_hook(external_a.hook, "use_caller_value")
-        sync.get_sync_hook("b").connect_hook(external_b.hook, "use_caller_value")
+        sync.hook("a").link(external_a.hook, "use_caller_value")
+        sync.hook("b").link(external_b.hook, "use_caller_value")
 
         # Check that external values are updated to match sync values
         assert external_a.value == 5  # Matches sync value
@@ -257,9 +257,9 @@ class TestObservableSync:
         )
 
         # Check that values are preserved during initialization
-        assert sync.get_sync_hook("a").value == 1  # Original value
-        assert sync.get_sync_hook("b").value == 2  # Original value
-        assert sync.get_sync_hook("c").value == 3  # Original value
+        assert sync.hook("a").value == 1  # Original value
+        assert sync.hook("b").value == 2  # Original value
+        assert sync.hook("c").value == 3  # Original value
 
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
     def test_combination_validation_failure(self):
@@ -358,7 +358,7 @@ class TestObservableSync:
         # Create ObservableSync with initial valid state
         # Initial state: √4 = 2 (positive domain)
         sync = ObservableSync[str, float | str](
-            complete_variables_per_key={
+            complete_variables_per_key= {
                 "square_value": 4.0,
                 "root_value": 2.0,
                 "domain": "positive"
@@ -368,94 +368,94 @@ class TestObservableSync:
         )
 
         # Verify initial state
-        assert sync.get_sync_hook("square_value").value == 4.0
-        assert sync.get_sync_hook("root_value").value == 2.0
-        assert sync.get_sync_hook("domain").value == "positive"
+        assert sync.hook("square_value").value == 4.0
+        assert sync.hook("root_value").value == 2.0
+        assert sync.hook("domain").value == "positive"
 
         # Test 1: Change root_value → square_value should update
-        sync.get_sync_hook("root_value").submit_value(3.0)
-        assert sync.get_sync_hook("square_value").value == 9.0  # 3² = 9
-        assert sync.get_sync_hook("root_value").value == 3.0
-        assert sync.get_sync_hook("domain").value == "positive"  # Still positive
+        sync.hook("root_value").change_value(3.0)
+        assert sync.hook("square_value").value == 9.0  # 3² = 9
+        assert sync.hook("root_value").value == 3.0
+        assert sync.hook("domain").value == "positive"  # Still positive
 
         # Test 2: Change root_value to negative → domain should update
-        sync.get_sync_hook("root_value").submit_value(-4.0)
-        assert sync.get_sync_hook("square_value").value == 16.0  # (-4)² = 16
-        assert sync.get_sync_hook("root_value").value == -4.0
-        assert sync.get_sync_hook("domain").value == "negative"  # Now negative
+        sync.hook("root_value").change_value(-4.0)
+        assert sync.hook("square_value").value == 16.0  # (-4)² = 16
+        assert sync.hook("root_value").value == -4.0
+        assert sync.hook("domain").value == "negative"  # Now negative
 
         # Test 3: Change to a positive root → square_value and domain should update
-        sync.get_sync_hook("root_value").submit_value(5.0)
-        assert sync.get_sync_hook("square_value").value == 25.0  # 5² = 25
-        assert sync.get_sync_hook("root_value").value == 5.0
-        assert sync.get_sync_hook("domain").value == "positive"  # Positive root
+        sync.hook("root_value").change_value(5.0)
+        assert sync.hook("square_value").value == 25.0  # 5² = 25
+        assert sync.hook("root_value").value == 5.0
+        assert sync.hook("domain").value == "positive"  # Positive root
 
         # Test 4: Change square_value alone → root_value should be positive (default)
-        sync.get_sync_hook("square_value").submit_value(36.0)
-        assert sync.get_sync_hook("square_value").value == 36.0
-        assert sync.get_sync_hook("root_value").value == 6.0  # √36 = 6 (positive default)
-        assert sync.get_sync_hook("domain").value == "positive"
+        sync.hook("square_value").change_value(36.0)
+        assert sync.hook("square_value").value == 36.0
+        assert sync.hook("root_value").value == 6.0  # √36 = 6 (positive default)
+        assert sync.hook("domain").value == "positive"
 
         # Test 5: Change back to negative root → demonstrates both solutions
-        sync.get_sync_hook("root_value").submit_value(-6.0)
-        assert sync.get_sync_hook("square_value").value == 36.0  # (-6)² = 36
-        assert sync.get_sync_hook("root_value").value == -6.0
-        assert sync.get_sync_hook("domain").value == "negative"  # Negative root
+        sync.hook("root_value").change_value(-6.0)
+        assert sync.hook("square_value").value == 36.0  # (-6)² = 36
+        assert sync.hook("root_value").value == -6.0
+        assert sync.hook("domain").value == "negative"  # Negative root
 
         # Test 6: Edge case - square root of 0
-        sync.get_sync_hook("root_value").submit_value(0.0)
-        assert sync.get_sync_hook("square_value").value == 0.0
-        assert sync.get_sync_hook("root_value").value == 0.0
-        assert sync.get_sync_hook("domain").value == "positive"  # 0 is considered positive
+        sync.hook("root_value").change_value(0.0)
+        assert sync.hook("square_value").value == 0.0
+        assert sync.hook("root_value").value == 0.0
+        assert sync.hook("domain").value == "positive"  # 0 is considered positive
         
         # Test 7: Large values
-        sync.get_sync_hook("root_value").submit_value(-10.0)
-        assert sync.get_sync_hook("square_value").value == 100.0
-        assert sync.get_sync_hook("root_value").value == -10.0
-        assert sync.get_sync_hook("domain").value == "negative"
+        sync.hook("root_value").change_value(-10.0)
+        assert sync.hook("square_value").value == 100.0
+        assert sync.hook("root_value").value == -10.0
+        assert sync.hook("domain").value == "negative"
 
         # Test 8: Submit multiple values at once - square_value and domain together
         # This demonstrates the power of coordinated updates!
-        sync.submit_values({
+        sync.change_values({
             "square_value": 49.0,
             "domain": "negative"
         })
-        assert sync.get_sync_hook("square_value").value == 49.0
-        assert sync.get_sync_hook("root_value").value == -7.0  # √49 = -7 (negative domain)
-        assert sync.get_sync_hook("domain").value == "negative"
+        assert sync.hook("square_value").value == 49.0
+        assert sync.hook("root_value").value == -7.0  # √49 = -7 (negative domain)
+        assert sync.hook("domain").value == "negative"
 
         # Test 9: Submit square_value and domain (positive) together
-        sync.submit_values({
+        sync.change_values({
             "square_value": 64.0,
             "domain": "positive"
         })
-        assert sync.get_sync_hook("square_value").value == 64.0
-        assert sync.get_sync_hook("root_value").value == 8.0  # √64 = 8 (positive domain)
-        assert sync.get_sync_hook("domain").value == "positive"
+        assert sync.hook("square_value").value == 64.0
+        assert sync.hook("root_value").value == 8.0  # √64 = 8 (positive domain)
+        assert sync.hook("domain").value == "positive"
 
         # Test 10: Submit all three values at once (they must be consistent)
-        sync.submit_values({
+        sync.change_values({
             "square_value": 81.0,
             "root_value": 9.0,
             "domain": "positive"
         })
-        assert sync.get_sync_hook("square_value").value == 81.0
-        assert sync.get_sync_hook("root_value").value == 9.0
-        assert sync.get_sync_hook("domain").value == "positive"
+        assert sync.hook("square_value").value == 81.0
+        assert sync.hook("root_value").value == 9.0
+        assert sync.hook("domain").value == "positive"
 
         # Test 11: Submit all three values with negative root
-        sync.submit_values({
+        sync.change_values({
             "square_value": 121.0,
             "root_value": -11.0,
             "domain": "negative"
         })
-        assert sync.get_sync_hook("square_value").value == 121.0
-        assert sync.get_sync_hook("root_value").value == -11.0
-        assert sync.get_sync_hook("domain").value == "negative"
+        assert sync.hook("square_value").value == 121.0
+        assert sync.hook("root_value").value == -11.0
+        assert sync.hook("domain").value == "negative"
 
         # Test 12: Try to submit inconsistent values - should fail
         with pytest.raises(ValueError):
-            sync.submit_values({
+            sync.change_values({
                 "square_value": 100.0,
                 "root_value": 5.0,  # Inconsistent! 5² ≠ 100
                 "domain": "positive"

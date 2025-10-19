@@ -22,7 +22,7 @@ from observables import (
 )
 
 # Hook types (for advanced usage)
-from observables import Hook, HookProtocol, OwnedHook, FloatingHook, HookNexus
+from observables import Hook, HookProtocol, OwnedHook, FloatingHook, Nexus
 from observables import HookWithOwnerProtocol, HookWithIsolatedValidationProtocol, HookWithReactionLike
 
 # Utility types
@@ -45,11 +45,11 @@ source = ObservableSingleValue(100)
 target = ObservableSingleValue(200)
 
 # Use caller's value (100) for initial synchronization
-source.connect_hook(target.hook, "value", "use_caller_value")
+source.link(target.hook, "value", "use_caller_value")
 print(target.value)  # 100
 
 # Use target's value (200) for initial synchronization  
-source.connect_hook(target.hook, "value", "use_target_value")
+source.link(target.hook, "value", "use_target_value")
 print(source.value)  # 200
 ```
 
@@ -83,7 +83,7 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind obs1 to obs2 with bidirectional sync
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 
 # Now changes propagate in both directions
 obs1.value = 100
@@ -143,7 +143,7 @@ print(f"obs2 selected: {obs2.selected_option}")   # "orange"
 
 #### **`detach()`**
 
-Disconnects this observable from all bindings, creating an isolated HookNexus.
+Disconnects this observable from all bindings, creating an isolated Nexus.
 
 **Returns:** `None`
 
@@ -156,8 +156,8 @@ obs2 = ObservableSingleValue(20)
 obs3 = ObservableSingleValue(30)
 
 # Create binding chain
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 
 # Detach obs2 - obs1 and obs3 remain connected
 obs2.detach()
@@ -183,7 +183,7 @@ obs2 = ObservableSingleValue(20)
 
 print(obs1.is_attached_to(obs2))  # False
 
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 print(obs1.is_attached_to(obs2))  # True
 ```
 
@@ -274,7 +274,7 @@ obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
 # Bind using hooks
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 ```
 
 ### **Methods**
@@ -349,7 +349,7 @@ obs1 = ObservableList([1, 2, 3])
 obs2 = ObservableList([])
 
 # Bind lists bidirectionally
-obs1.connect_hook(obs2.value_hook, "list_value", "use_caller_value")
+obs1.link(obs2.value_hook, "list_value", "use_caller_value")
 
 # Changes propagate in both directions
 obs1.append(4)
@@ -482,7 +482,7 @@ primary = ObservableSelectionOption("option1", {"option1", "option2", "option3"}
 secondary = ObservableSelectionOption("option1", {"option1", "option2"})
 
 # Bind selected options bidirectionally
-primary.connect_hook(secondary.selected_option_hook, "selected_option", "use_caller_value")
+primary.link(secondary.selected_option_hook, "selected_option", "use_caller_value")
 
 # Changes propagate in both directions
 primary.selected_option = "option2"
@@ -663,13 +663,13 @@ The foundation protocol that all hooks must implement. Provides the core interfa
 - `value: T` - The current value (returns a copy)
 - `value_reference: T` - The value reference (do not modify!)
 - `previous_value: T` - The previous value
-- `hook_nexus: HookNexus[T]` - The hook nexus this hook belongs to
+- `nexus: Nexus[T]` - The hook nexus this hook belongs to
 - `lock: RLock` - Thread safety lock
 
 **Key Methods:**
-- `connect_hook(target_hook: HookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
-- `disconnect_hook() -> None`
-- `is_connected_to(hook: HookProtocol[T]) -> bool`
+- `link(target_hook: HookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
+- `dislink() -> None`
+- `is_linked_to(hook: HookProtocol[T]) -> bool`
 
 #### **`Hook[T]`** - Standalone Hook
 
@@ -734,7 +734,7 @@ Protocol for hooks with custom validation logic (implemented by `FloatingHook`).
 ##### **`HookWithReactionProtocol[T]`**
 Protocol for hooks that react to value changes (implemented by `FloatingHook`).
 
-#### **`HookNexus[T]`**
+#### **`Nexus[T]`**
 
 Central storage for values shared between bound hooks.
 
@@ -806,7 +806,7 @@ room_temp = ObservableTemperature(22.0, min_temp=10.0, max_temp=35.0)
 outdoor_temp = ObservableTemperature(15.0, min_temp=-20.0, max_temp=45.0)
 
 # Bind temperatures bidirectionally using the new connect_hook method
-room_temp.connect_hook(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
+room_temp.link(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
 
 # Changes propagate with validation
 room_temp.temperature = 25.0
@@ -873,8 +873,8 @@ def debug_observable_state(obs):
     print(f"Observable type: {type(obs).__name__}")
     for name, hook in obs._component_hooks.items():
         print(f"  {name}: {hook.value}")
-        print(f"    HookNexus ID: {id(hook.hook_nexus)}")
-        print(f"    Bound hooks: {len(hook.hook_nexus._hooks)}")
+        print(f"    Nexus ID: {id(hook.nexus)}")
+        print(f"    Bound hooks: {len(hook.nexus._hooks)}")
 ```
 
 ## ⚡ **Performance Considerations**
@@ -908,8 +908,8 @@ When binding observables with multiple dependent components, use `connect_hooks`
 
 ```python
 # ❌ Slower: Sequential binding with potential validation conflicts
-obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value")
-obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value")
+obs1.link(obs2.selected_option_hook, "selected_option", "use_target_value")
+obs1.link(obs2.available_options_hook, "available_options", "use_target_value")
 
 # ✅ Faster: Atomic multi-binding
 obs1.connect_hooks({
@@ -945,10 +945,10 @@ Select the sync mode that minimizes unnecessary value transfers:
 
 ```python
 # If you want to keep the caller's values
-obs1.connect_hook(obs2.hook, "component", "use_caller_value")
+obs1.link(obs2.hook, "component", "use_caller_value")
 
 # If you want to adopt the target's values
-obs1.connect_hook(obs2.hook, "component", "use_target_value")
+obs1.link(obs2.hook, "component", "use_target_value")
 ```
 
 #### **Performance Test Guidelines**

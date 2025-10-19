@@ -14,7 +14,7 @@ Core Components:
 - Hook/HookProtocol: Core hook implementations and protocols
 - OwnedHook/HookWithOwnerProtocol: Owned hook implementations and protocols
 - FloatingHook: Advanced hook with validation and reaction capabilities
-- HookNexus: Central storage for actual data values
+- Nexus: Central storage for actual data values
 - BaseCarriesHooks/CarriesHooksProtocol: Base classes for hook carriers
 - HookWithIsolatedValidationProtocol: Protocol for hooks with custom validation
 - HookWithReactionProtocol: Protocol for hooks that react to changes

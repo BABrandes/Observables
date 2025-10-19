@@ -33,16 +33,16 @@ Core Features:
 
 Architecture:
 The library uses a hook-based architecture where:
-- HookNexus: Central storage for actual data values
+- Nexus: Central storage for actual data values
 - Hooks: References/views to central values
 - Observables: User-facing interfaces that access values through hooks
 - Binding: Merging hook groups so multiple observables reference the same central value
 
 Central Value Storage:
-The system stores each value in exactly one HookNexus and creates hooks that reference 
-these central values. When observables are bound, their hook groups are merged, ensuring 
-all bound observables view the same central data. This approach reduces memory usage and 
-provides atomic updates across all bound observables.
+The system stores each value in exactly one Nexus and creates hooks that reference 
+these central values. When observables are bound (via .link()), their hook groups are 
+merged, ensuring all bound observables view the same central data. This approach reduces 
+memory usage and provides atomic updates across all bound observables.
 
 Protocols and Interfaces:
 The library provides several protocols that can be used for type hints and interface definitions:
@@ -66,13 +66,13 @@ Available Observable Types:
 Example Usage (Modern API):
     >>> from observables import XValue, XList, XSet
     
-    >>> # Create reactive values (each has its own central HookNexus)
+    >>> # Create reactive values (each has its own central Nexus)
     >>> name = XValue("John")
     >>> age = XValue(25)
     
     >>> # Add listeners for change notifications
-    >>> name.add_listeners(lambda: print("Name changed!"))
-    >>> age.add_listeners(lambda: print("Age changed!"))
+    >>> name.add_listener(lambda: print("Name changed!"))
+    >>> age.add_listener(lambda: print("Age changed!"))
     
     >>> # Create bidirectional binding (merges hook groups, no value copying)
     >>> name_copy = XValue(name)
@@ -131,7 +131,6 @@ from ._observables.set_like.observable_multi_selection_set import ObservableMult
 from ._observables.set_like.protocols import ObservableOptionalSelectionOptionProtocol, ObservableSelectionOptionsProtocol, ObservableMultiSelectionOptionsProtocol
 
 from ._observables.function_like.function_values import FunctionValues
-from ._observables.function_like.observable_transfer import ObservableTransfer
 from ._observables.function_like.observable_function import ObservableFunction as ObservableSync
 from ._observables.function_like.observable_one_way_function import ObservableOneWayFunction
 
@@ -182,10 +181,6 @@ XRootedPaths = ObservableRootedPaths
 XRaiseNone = ObservableRaiseNone
 XSubscriber = ObservableSubscriber
 
-# Deprecated aliases (kept for backwards compatibility)
-
-XTransfer = ObservableTransfer  # Use XOneWayFunction instead
-
 # Protocol aliases
 
 XValueProtocol = ObservableSingleValueProtocol
@@ -221,9 +216,6 @@ __all__ = [
     'XRaiseNone',
     'XSubscriber',
     
-    # Deprecated aliases (kept for backwards compatibility)
-    'XTransfer',  # Use XOneWayFunction instead
-    
     # Modern protocol aliases
     'XValueProtocol',
     'XDictProtocol',
@@ -241,7 +233,6 @@ __all__ = [
     'ObservableSelectionSet',
     'ObservableOptionalSelectionSet',
     'ObservableMultiSelectionSet',
-    'ObservableTransfer',
     'ObservableSync',
     'ObservableOneWayFunction',
     'ObservableSelectionDict',

@@ -195,25 +195,25 @@ class TestObservableOptionalDefaultSelectionDict:
         )
         
         # Test valid values with key
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
+        success, msg = selection_dict._validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1}) # type: ignore
         assert success
         
         # Test valid values with None key and None value
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": None})
+        success, msg = selection_dict._validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": None}) # type: ignore
         assert success
         
         # Test invalid - None key with non-None value
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": 123})
+        success, msg = selection_dict._validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": 123}) # type: ignore
         assert not success
         assert "not None when key is None" in msg
         
         # Test invalid - key not in dict
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
+        success, msg = selection_dict._validate_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1}) # type: ignore
         assert not success
         assert "not in dictionary" in msg
         
         # Test invalid - value doesn't match dictionary value
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
+        success, msg = selection_dict._validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999}) # type: ignore
         assert not success
         assert "not equal to value in dictionary" in msg
 
@@ -231,19 +231,19 @@ class TestObservableOptionalDefaultSelectionDict:
         
         # Set valid dict and key
         new_dict = {"x": 100, "y": 200}
-        selection_dict.set_dict_and_key(new_dict, "x")
+        selection_dict.change_dict_and_key(new_dict, "x")
         assert selection_dict.dict_hook.value == new_dict
         assert selection_dict.key == "x"
         assert selection_dict.value == 100
         
         # Set dict and None key
-        selection_dict.set_dict_and_key(new_dict, None)
+        selection_dict.change_dict_and_key(new_dict, None)
         assert selection_dict.dict_hook.value == new_dict
         assert selection_dict.key is None
         assert selection_dict.value == None
 
         # Set dict and missing key - should create default entry
-        selection_dict.set_dict_and_key(new_dict, "z")
+        selection_dict.change_dict_and_key(new_dict, "z")
         assert selection_dict.key == "z"
         assert selection_dict.value == default_value
         assert selection_dict.dict_hook.value["z"] == default_value

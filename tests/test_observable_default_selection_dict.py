@@ -317,7 +317,7 @@ class TestObservableDefaultSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect_hook(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.link(external_hook, "key", "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
@@ -470,7 +470,7 @@ class TestObservableDefaultSelectionDict:
             nonlocal listener_called
             listener_called = True
         
-        selection_dict.add_listeners(test_listener)
+        selection_dict.add_listener(test_listener)
         
         # Destroy should remove listeners and disconnect hooks
         # Just remove listeners - hooks may already be disconnected

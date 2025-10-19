@@ -154,7 +154,7 @@ class TestObservableSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.connect_hook(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.link(external_hook, "key", "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
@@ -766,7 +766,7 @@ class TestObservableOptionalSelectionDict:
         def dummy_listener():
             pass
         
-        selection_dict.add_listeners(dummy_listener)
+        selection_dict.add_listener(dummy_listener)
         assert selection_dict.has_listeners()
         
         # Test destroy method exists and can be called

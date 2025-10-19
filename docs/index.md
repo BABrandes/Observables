@@ -21,7 +21,7 @@ The Observables library provides a Python framework for reactive programming wit
 
 **Hooks** are the connection points between observables. When you bind observables, you connect their hooks.
 
-**HookNexus** is the central storage that:
+**Nexus** is the central storage that:
 - Stores the actual value
 - Manages all hooks connected to that value
 - Maintains references to all hooks that should see the same value
@@ -42,7 +42,7 @@ The observables system provides three distinct notification mechanisms, each des
 - **Pattern**: Observer pattern with callbacks
 - **Execution**: Synchronous - runs immediately during value changes
 - **Direction**: Unidirectional - listeners cannot validate or reject changes
-- **Registration**: `observable.add_listeners(callback)`
+- **Registration**: `observable.add_listener(callback)`
 - **Use Case**: UI updates, logging, simple reactions to state changes
 - **Thread Safety**: Protected by the same lock as value submission
 - **Characteristics**: Simple, fast, blocking
@@ -64,17 +64,17 @@ The observables system provides three distinct notification mechanisms, each des
 - **Pattern**: Value synchronization with bidirectional binding
 - **Execution**: Synchronous - integrated into value submission flow
 - **Direction**: Bidirectional - any connected hook can validate and reject changes
-- **Connection**: `observable.connect_hook(target_hook, key, sync_mode)`
+- **Connection**: `observable.link(target_hook, key, sync_mode)`
 - **Use Case**: Maintaining invariants, bidirectional data binding, enforcing valid state
 - **Thread Safety**: Protected by the same lock as value submission
 - **Characteristics**: Validates before changes, enforces consistency, bidirectional
 
 ### **Key Features**
 
-- **Centralized Storage**: Each value is stored once in a HookNexus
+- **Centralized Storage**: Each value is stored once in a Nexus
 - **Hook-Based Binding**: Observables bind via their hooks, not directly
-- **Transitive Binding**: When A's hook connects to B's hook and B's hook connects to C's hook, all three share the same HookNexus
-- **Automatic Synchronization**: NexusManager ensures all hooks referencing a HookNexus see the same value
+- **Transitive Binding**: When A's hook connects to B's hook and B's hook connects to C's hook, all three share the same Nexus
+- **Automatic Synchronization**: NexusManager ensures all hooks referencing a Nexus see the same value
 - **Multiple Notification Paths**: Choose the right notification mechanism for your use case
 
 ## How It Works
@@ -83,8 +83,8 @@ The observables system provides three distinct notification mechanisms, each des
 
 When you connect two observables:
 1. Each observable exposes its data through a hook
-2. You call `observable1.connect_hook(observable2.hook, "value", "use_caller_value")`
-3. Behind the scenes, the hooks merge to reference the same HookNexus
+2. You call `observable1.link(observable2.hook, "value", "use_caller_value")`
+3. Behind the scenes, the hooks merge to reference the same Nexus
 4. Both observables now read and write to the same central storage
 
 ### **Value Updates and Notifications**
@@ -105,7 +105,7 @@ When you change a value, the NexusManager orchestrates a comprehensive 6-phase s
 - If validation fails, entire submission is rejected (atomicity)
 
 **Phase 5: Value Update**
-- Updates all HookNexus instances with new values
+- Updates all Nexus instances with new values
 - All connected hooks see changes simultaneously
 
 **Phase 6: Notifications** (Four mechanisms in order)
@@ -119,9 +119,9 @@ This multi-phase approach ensures consistency, validation, and proper notificati
 ### **Transitive Binding**
 
 When you bind A→B→C:
-1. A's hook and B's hook merge to reference HookNexus #1
-2. B's hook and C's hook merge to reference HookNexus #2
-3. Since B's hook is involved in both, all three hooks end up referencing the same HookNexus
+1. A's hook and B's hook merge to reference Nexus #1
+2. B's hook and C's hook merge to reference Nexus #2
+3. Since B's hook is involved in both, all three hooks end up referencing the same Nexus
 4. Result: A, B, and C all share one central storage point
 
 ## Examples
@@ -134,11 +134,11 @@ obs2 = ObservableSingleValue(200)
 obs3 = ObservableSingleValue(300)
 
 # Bind obs1 to obs2, then obs2 to obs3
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 
 # obs1 is automatically connected to obs3
-# This happens through HookNexus merging during the binding process
+# This happens through Nexus merging during the binding process
 
 obs1.value = 500
 print(obs2.value)  # 500 (through direct binding)
@@ -153,30 +153,30 @@ print(obs3.value)  # 1000 (transitive connection maintained)
 print(obs2.value)  # 500 (unchanged, no longer bound)
 ```
 
-### **2. HookNexus Merging - Dynamic Centralization**
+### **2. Nexus Merging - Dynamic Centralization**
 ```python
-# Initially, each observable has its own HookNexus
+# Initially, each observable has its own Nexus
 obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
 
-print(f"Initial HookNexus IDs:")
-print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
+print(f"Initial Nexus IDs:")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].nexus)}")
 # Output: Different IDs - separate storage
 
-# Bind them together (their hooks now reference the same HookNexus)
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+# Bind them together (their hooks now reference the same Nexus)
+obs1.link(obs2.hook, "value", "use_caller_value")
 
-print(f"After binding - HookNexus IDs:")
-print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
+print(f"After binding - Nexus IDs:")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].nexus)}")
 # Output: Same ID - shared storage!
 
-# When obs2 detaches, it gets its own HookNexus again
+# When obs2 detaches, it gets its own Nexus again
 obs2.detach()
 print(f"After obs2 detach:")
-print(f"  Obs1: {id(obs1._primary_hooks['value'].hook_nexus)}")
-print(f"  Obs2: {id(obs2._primary_hooks['value'].hook_nexus)}")
+print(f"  Obs1: {id(obs1._primary_hooks['value'].nexus)}")
+print(f"  Obs2: {id(obs2._primary_hooks['value'].nexus)}")
 # Output: Different IDs again - separate storage
 ```
 
@@ -192,11 +192,11 @@ obs1 = ObservableList(large_dataset)
 obs2 = ObservableList(large_dataset)
 obs3 = ObservableList(large_dataset)
 
-# Bind them together - hooks reference the same HookNexus
-obs1.connect_hook(obs2.value_hook, "value", "use_target_value")
-obs2.connect_hook(obs3.value_hook, "value", "use_target_value")
+# Bind them together - hooks reference the same Nexus
+obs1.link(obs2.value_hook, "value", "use_target_value")
+obs2.link(obs3.value_hook, "value", "use_target_value")
 
-# Now all three share the same HookNexus
+# Now all three share the same Nexus
 print(f"Memory efficiency:")
 print(f"  Traditional: 3 × 10,000 = 30,000 items stored")
 print(f"  Our system: 1 × 10,000 = 10,000 items stored")
@@ -222,7 +222,7 @@ print(f"  Obs3 length: {len(obs3.value)}")
           └───────────────────────┼───────────────────────┘
                                   │
                     ┌─────────────▼─────────────┐
-                    │       HookNexus           │
+                    │       Nexus           │
                     │                           │
                     │  • Stores the value       │
                     │  • Manages hook refs      │
@@ -257,8 +257,8 @@ print(f"  Obs3 length: {len(obs3.value)}")
 
 ### **Core Binding Methods**
 
-#### **`connect_hook(hook, to_key, initial_sync_mode)`**
-Connects this observable's hook to another observable's hook. After connection, both hooks reference the same HookNexus for bidirectional synchronization.
+#### **`link(hook, to_key, initial_sync_mode)`**
+Connects this observable's hook to another observable's hook. After connection, both hooks reference the same Nexus for bidirectional synchronization.
 
 **Parameters:**
 - `hook: HookLike` - The hook of the target observable to connect to
@@ -275,22 +275,22 @@ obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
 
 # obs2 gets obs1's value (100)
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
 print(obs2.value)  # 100
 
 # obs1 gets obs2's value (200)
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
 print(obs1.value)  # 200
 ```
 
 #### **`detach()`**
-Disconnects this observable from all bindings, creating its own isolated HookNexus.
+Disconnects this observable from all bindings, creating its own isolated Nexus.
 
 **Example:**
 ```python
 obs1 = ObservableSingleValue(100)
 obs2 = ObservableSingleValue(200)
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
 
 # Disconnect obs1
 obs1.detach()
@@ -338,13 +338,13 @@ Note: Secondary hooks like `length_hook` are computed from primary hooks and can
 ### **1. Leverage Transitive Binding**
 ```python
 # Instead of manually binding every pair
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
-obs1.connect_hook(obs3.hook, "value", "use_caller_value")  # ❌ Redundant!
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
+obs1.link(obs3.hook, "value", "use_caller_value")  # ❌ Redundant!
 
 # Just create the chain - transitive binding handles the rest
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 # ✅ obs1 automatically connects to obs3
 ```
 
@@ -366,8 +366,8 @@ view3 = ObservableList(large_dataset)  # References same data
 # When an observable is no longer needed in the network
 obs1.detach()
 
-# This creates a new HookNexus for obs1
-# Other observables remain connected through their shared HookNexus
+# This creates a new Nexus for obs1
+# Other observables remain connected through their shared Nexus
 ```
 
 ## Performance Characteristics
@@ -385,15 +385,15 @@ obs1.detach()
 ### **Network Efficiency**
 - **Automatic Transitive Behavior**: No manual management of complex networks
 - **Dynamic Centralization**: System adapts to your binding patterns
-- **Efficient Cleanup**: Unused HookNexus instances are automatically cleaned up
+- **Efficient Cleanup**: Unused Nexus instances are automatically cleaned up
 
 ## 🔍 **Advanced Concepts**
 
-### **HookNexus Lifecycle**
-1. **Creation**: Each observable starts with its own HookNexus
-2. **Merging**: When observables bind, their HookNexus instances merge
+### **Nexus Lifecycle**
+1. **Creation**: Each observable starts with its own Nexus
+2. **Merging**: When observables bind, their Nexus instances merge
 3. **Sharing**: Bound observables share the same central storage
-4. **Separation**: When bindings break, observables get new HookNexus instances
+4. **Separation**: When bindings break, observables get new Nexus instances
 
 ### **Transitive Binding Rules**
 - **Automatic**: Transitive connections form automatically
@@ -401,7 +401,7 @@ obs1.detach()
 - **Efficient**: No additional overhead for transitive behavior
 
 ### **Validation and Consistency**
-- **Centralized**: Validation happens in HookNexus, not per observable
+- **Centralized**: Validation happens in Nexus, not per observable
 - **Consistent**: All bound observables see the same validation results
 - **Efficient**: Single validation per change, not per bound observable
 
@@ -447,12 +447,12 @@ name = ObservableSingleValue("John")
 scores = ObservableList([85, 90, 78])
 
 # Add listeners
-name.add_listeners(lambda: print(f"Name changed to: {name.value}"))
-scores.add_listeners(lambda: print(f"Scores updated: {scores.value}"))
+name.add_listener(lambda: print(f"Name changed to: {name.value}"))
+scores.add_listener(lambda: print(f"Scores updated: {scores.value}"))
 
-# Create bindings (automatic HookNexus merging)
+# Create bindings (automatic Nexus merging)
 name_display = ObservableSingleValue("")
-name_display.connect_hook(name.hook, "value", "use_target_value")
+name_display.link(name.hook, "value", "use_target_value")
 
 # Changes propagate automatically
 name.value = "Jane"  # Updates both name and name_display
@@ -480,13 +480,13 @@ scores.append(95)           # Triggers listener notification
 ## Key Characteristics
 
 ### **Bidirectional Binding**
-When observables are connected through their hooks, they share the same HookNexus. Changes propagate in both directions automatically.
+When observables are connected through their hooks, they share the same Nexus. Changes propagate in both directions automatically.
 
 ### **State Validation**
 The system validates all value changes before applying them. Invalid operations are rejected with descriptive error messages.
 
 ### **Transitive Binding**
-When you bind A→B→C, all three observables end up referencing the same HookNexus. The system handles transitive connections automatically.
+When you bind A→B→C, all three observables end up referencing the same Nexus. The system handles transitive connections automatically.
 
 ### **Centralized Storage**
-Values are stored once in HookNexus instances. Multiple observables reference the same storage, eliminating synchronization issues.
+Values are stored once in Nexus instances. Multiple observables reference the same storage, eliminating synchronization issues.

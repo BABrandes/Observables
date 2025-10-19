@@ -86,7 +86,7 @@ class TestCollectiveHooks:
         assert self.selector2.selected_option == "Blue"
         
         # Remove binding
-        self.selector1.disconnect_hook()
+        self.selector1.unlink()
         
         # Verify binding is removed
         self.selector1.selected_option = "Green"
@@ -325,7 +325,7 @@ class TestCollectiveHooks:
         assert self.selector2.selected_option == "TestValue"
         
         # Break the binding by disconnecting selector1
-        self.selector1.disconnect_hook()
+        self.selector1.unlink()
         
         # Verify binding is broken
         self.selector1.change_selected_option_and_available_options("NewValue", {"NewValue", "Red", "Green", "Blue"})
@@ -435,14 +435,14 @@ class TestCollectiveHooks:
         selector.connect_hook(options.value_hook, "available_options", "use_caller_value") # type: ignore
         
         # Disconnect_hook all
-        selector.disconnect_hook()
+        selector.unlink()
         # Don't disconnect value and options multiple times - they might already be disconnected
         try:
-            value.disconnect_hook()
+            value.unlink()
         except ValueError:
             pass  # Already disconnected
         try:
-            options.disconnect_hook()
+            options.unlink()
         except ValueError:
             pass  # Already disconnected
         

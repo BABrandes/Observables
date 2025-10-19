@@ -16,13 +16,13 @@ class TestReentrancyProtection:
         def bad_listener():
             # This listener tries to submit to the same hook being updated
             # This should be caught and raise RuntimeError
-            hook.submit_value(200)
+            hook._submit_value("value", 200, raise_submission_error_flag=False) # type: ignore
         
-        hook.add_listeners(bad_listener)
+        hook.add_listener(bad_listener)
         
         # Try to update hook - this should trigger the listener which tries to submit to the same hook
         with pytest.raises(RuntimeError, match="overlapping hook nexuses"):
-            hook.submit_value(99)
+            hook._submit_value("value", 99, raise_submission_error_flag=False) # type: ignore
 
     def test_independent_recursive_submit_allowed(self):
         """Test that recursive submit to DIFFERENT hooks is allowed."""
@@ -33,13 +33,13 @@ class TestReentrancyProtection:
         # Create a listener that updates a different, independent hook (OK!)
         def listener_updates_independent_hook():
             # This is fine - hook2 is independent from hook1
-            hook2.submit_value(99)
+            hook2._submit_value("value", 99, raise_submission_error_flag=False) # type: ignore
         
-        hook1.add_listeners(listener_updates_independent_hook)
+        hook1.add_listener(listener_updates_independent_hook)
         
         # Update hook1 - this should trigger the listener which updates hook2
         # This should NOT raise an error because the hooks are independent
-        result = hook1.submit_value(42)
+        result = hook1._submit_value("value", 42, raise_submission_error_flag=False) # type: ignore
         
         assert result == (True, 'Values are submitted')
         assert hook1.value == 42
@@ -54,17 +54,17 @@ class TestReentrancyProtection:
         
         # hook1 listener updates hook2
         def listener1():
-            hook2.submit_value(hook1.value * 10)
+            hook2._submit_value("value", hook1.value * 10, raise_submission_error_flag=False) # type: ignore
         
         # hook2 listener updates hook3
         def listener2():
-            hook3.submit_value(hook2.value * 10)
+            hook3._submit_value("value", hook2.value * 10, raise_submission_error_flag=False) # type: ignore    
         
-        hook1.add_listeners(listener1)
-        hook2.add_listeners(listener2)
+        hook1.add_listener(listener1)
+        hook2.add_listener(listener2)
         
         # Update hook1 - should cascade through hook2 to hook3
-        hook1.submit_value(5)
+        hook1._submit_value("value", 5, raise_submission_error_flag=False) # type: ignore
         
         assert hook1.value == 5
         assert hook2.value == 50   # 5 * 10

@@ -20,7 +20,7 @@ from observables import (
     XValue,           # Single values
     XList,            # Lists (immutable tuple internally)
     XSet,             # Sets (immutable frozenset internally) 
-    XDict,            # Dicts (immutable MappingProxyType internally)
+    XDict,            # Dicts (immutable Map (from immutables) internally)
     XSelectionOption, # Selection from options
     XFunction,        # Custom synchronization functions
 )
@@ -49,7 +49,7 @@ print(username.value)  # "Alice"
 def on_username_change():
     print(f"Username changed to: {username.value}")
 
-username.add_listeners(on_username_change)
+username.add_listener(on_username_change)
 
 # Changes trigger listeners
 username.value = "Bob"  # Prints: "Username changed to: Bob"
@@ -70,7 +70,7 @@ display_name = XValue("Display")
 # The third parameter specifies initial sync mode:
 # - "use_caller_value": Use the caller's current value
 # - "use_target_value": Use the target's current value
-primary_name.connect_hook(
+primary_name.link(
     display_name.hook, 
     "value", 
     "use_caller_value"
@@ -133,8 +133,8 @@ page_title = XValue("Page")
 navigation_title = XValue("Nav")
 
 # Connect them in a chain
-header_title.connect_hook(page_title.hook, "value", "use_caller_value")
-page_title.connect_hook(navigation_title.hook, "value", "use_caller_value")
+header_title.link(page_title.hook, "value", "use_caller_value")
+page_title.link(navigation_title.hook, "value", "use_caller_value")
 
 # 🎯 Change the header - all others update automatically
 header_title.value = "Dashboard"
@@ -167,7 +167,7 @@ tags = XSet({"python", "reactive"})
 print(type(tags.value))   # <class 'frozenset'>
 tags.add("immutable")     # Creates new frozenset
 
-# Dicts use MappingProxyType internally
+# Dicts use Map (from immutables) internally
 config = XDict({"theme": "dark", "lang": "en"})
 print(type(config.dict))  # <class 'mappingproxy'>
 ```
@@ -194,13 +194,13 @@ class UserProfileForm:
         self.is_valid = XValue(False)
         
         # Bind form fields to display fields
-        self.name.connect_hook(self.display_name.hook, "value", "use_caller_value")
-        self.email.connect_hook(self.header_email.hook, "value", "use_caller_value")
+        self.name.link(self.display_name.hook, "value", "use_caller_value")
+        self.email.link(self.header_email.hook, "value", "use_caller_value")
         
         # Add validation listeners
-        self.name.add_listeners(self._validate)
-        self.email.add_listeners(self._validate)
-        self.role.add_listeners(self._validate)
+        self.name.add_listener(self._validate)
+        self.email.add_listener(self._validate)
+        self.role.add_listener(self._validate)
     
     def _validate(self):
         """Validate the form."""
@@ -259,8 +259,8 @@ user_preferences = ObservableSelectionOption("dark", {"dark", "light", "auto"})
 display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
 
 # ❌ Individual binding might cause validation conflicts
-# user_preferences.connect_hook(display_settings.selected_option_hook, "selected_option", "use_target_value")
-# user_preferences.connect_hook(display_settings.available_options_hook, "available_options", "use_target_value")
+# user_preferences.link(display_settings.selected_option_hook, "selected_option", "use_target_value")
+# user_preferences.link(display_settings.available_options_hook, "available_options", "use_target_value")
 
 # ✅ Atomic binding prevents validation conflicts
 user_preferences.connect_hooks({
@@ -296,9 +296,9 @@ display = ObservableSingleValue("Current")
 use_advanced = True
 
 if use_advanced:
-    advanced_mode.connect_hook(display.hook, "value", "use_caller_value")
+    advanced_mode.link(display.hook, "value", "use_caller_value")
 else:
-    simple_mode.connect_hook(display.hook, "value", "use_caller_value")
+    simple_mode.link(display.hook, "value", "use_caller_value")
 
 print(f"Display shows: {display.value}")  # "Advanced"
 ```
@@ -328,8 +328,8 @@ obs2 = ObservableSingleValue("Connected")
 obs3 = ObservableSingleValue("Connected")
 
 # Connect them
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")
-obs2.connect_hook(obs3.hook, "value", "use_caller_value")
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
 
 # Disconnect the middle one
 obs2.detach()
@@ -351,10 +351,10 @@ print(f"obs3: {obs3.value}")  # "Updated" (still connected to obs1)
 - `ObservableSet[T]` - Sets
 
 ### **Binding Methods**
-- `connect_hook(hook, to_key, initial_sync_mode)` - Bind to another observable
+- `link(hook, to_key, initial_sync_mode)` - Bind to another observable
 - `connect_hooks(hooks_dict, initial_sync_mode)` - Atomically bind multiple components
 - `detach()` - Disconnect from all bindings
-- `is_connected_to(hook)` - Check if bound to another hook
+- `is_linked_to(hook)` - Check if bound to another hook
 
 ### **Initial Sync Modes**
 
@@ -369,10 +369,10 @@ source = ObservableSingleValue(10)
 target = ObservableSingleValue(20)
 
 # Using "use_caller_value": target becomes 10
-source.connect_hook(target.hook, "value", "use_caller_value")
+source.link(target.hook, "value", "use_caller_value")
 
 # Using "use_target_value": source would become 20
-# source.connect_hook(target.hook, "value", "use_target_value")
+# source.link(target.hook, "value", "use_target_value")
 ```
 
 ### **Common Hooks**
@@ -394,7 +394,7 @@ You now know the fundamentals! Ready to dive deeper?
 - **Bidirectional Binding**: Changes propagate in both directions automatically
 - **State Validation**: Invalid states are rejected immediately
 - **Network Formation**: Complex networks form automatically through transitive binding
-- **Shared Storage**: Bound observables share the same underlying storage (HookNexus)
+- **Shared Storage**: Bound observables share the same underlying storage (Nexus)
 - **Memory Efficient**: Values are stored once, referenced multiple times
 
 Start building reactive applications with guaranteed consistency and automatic synchronization! 🚀

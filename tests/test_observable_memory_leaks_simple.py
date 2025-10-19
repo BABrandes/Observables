@@ -61,7 +61,7 @@ def test_observable_with_listeners_gc():
     def listener():
         pass
     
-    obs.add_listeners(listener)
+    obs.add_listener(listener)
     
     # Delete the observable
     del obs

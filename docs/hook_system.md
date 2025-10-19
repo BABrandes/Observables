@@ -34,9 +34,9 @@ The Observables library is built around a sophisticated protocol-based hook arch
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     HookNexus & Binding System                 │
+│                     Nexus & Binding System                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  HookNexus[T]  ←→  NexusManager  ←→  Validation & Sync         │
+│  Nexus[T]  ←→  NexusManager  ←→  Validation & Sync         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,14 +66,14 @@ class HookLike(BaseListeningProtocol, Protocol[T]):
     @property
     def previous_value(self) -> T: ...
     @property
-    def hook_nexus(self) -> "HookNexus[T]": ...
+    def nexus(self) -> "Nexus[T]": ...
     @property
     def lock(self) -> RLock: ...
     
-    def connect_hook(self, target_hook: "HookProtocol[T]", 
+    def link(self, target_hook: "HookProtocol[T]", 
                     initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]: ...
-    def disconnect_hook(self) -> None: ...
-    def is_connected_to(self, hook: "HookProtocol[T]") -> bool: ...
+    def dislink(self) -> None: ...
+    def is_linked_to(self, hook: "HookProtocol[T]") -> bool: ...
 ```
 
 ##### `HookWithOwnerProtocol[T]` - Owner Protocol
@@ -128,7 +128,7 @@ class Hook(HookProtocol[T], BaseListening, Generic[T]):
         BaseListening.__init__(self, logger)
         self._value = value
         self._nexus_manager = nexus_manager
-        self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
+        self._nexus = Nexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
         self._lock = RLock()
 ```
 
@@ -164,20 +164,20 @@ class FloatingHook(Hook[T], HookWithIsolatedValidationProtocol[T], HookWithReact
         Hook.__init__(self, value=value, nexus_manager=nexus_manager, logger=logger)
 ```
 
-### HookNexus - Central Value Storage
+### Nexus - Central Value Storage
 
-`HookNexus[T]` is the central storage point for a value, with multiple hooks referencing it. When hooks are bound together, they merge to reference the same HookNexus.
+`Nexus[T]` is the central storage point for a value, with multiple hooks referencing it. When hooks are bound together, they merge to reference the same Nexus.
 
 #### Nexus Management
 
 ```python
-class HookNexus[T]:
+class Nexus[T]:
     def __init__(self, initial_value: T):
         self._value = initial_value       # The central value
         self._hooks = WeakSet()           # All hooks referencing this nexus
         self._lock = threading.Lock()     # Thread safety
     
-    def replace_nexus(old_nexus: "HookNexus[T]", new_nexus: "HookNexus[T]"):
+    def replace_nexus(old_nexus: "Nexus[T]", new_nexus: "Nexus[T]"):
         """Transfer all hooks from old_nexus to new_nexus."""
         # Move all hooks to reference the new nexus
 ```
@@ -215,12 +215,12 @@ def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
             raise ValueError(msg)
     
     # Then merge the hook nexuss
-    merged_hook_group = HookNexus[T].merge_hook_groups(
+    merged_hook_group = Nexus[T].merge_hook_groups(
         from_hook.hook_group, to_hook.hook_group
     )
     
     # Check if all hooks are synced
-    success, msg = HookNexus[T].check_all_hooks_synced(merged_hook_group)
+    success, msg = Nexus[T].check_all_hooks_synced(merged_hook_group)
     if not success:
         raise ValueError(msg)
 ```
@@ -260,7 +260,7 @@ def detach(self) -> None:
     self._hook_group.remove_hook(self)
     
     # Create new isolated group
-    new_group = HookNexus([self])
+    new_group = Nexus([self])
     self._hook_group = new_group
     
     # The remaining hooks in the old group will continue to be bound together
@@ -275,7 +275,7 @@ The system supports different initial synchronization behaviors:
 The calling observable takes the target's value upon binding:
 
 ```python
-obs1.connect_hook(obs2.hook, "value", "use_target_value")
+obs1.link(obs2.hook, "value", "use_target_value")
 # Result: obs1.value = obs2.value
 ```
 
@@ -284,7 +284,7 @@ obs1.connect_hook(obs2.hook, "value", "use_target_value")
 The target observable takes the calling observable's value upon binding:
 
 ```python
-obs1.connect_hook(obs2.hook, "value", "use_caller_value")  
+obs1.link(obs2.hook, "value", "use_caller_value")  
 # Result: obs2.value = obs1.value
 ```
 
@@ -306,7 +306,7 @@ After merging groups, the system ensures all hooks are properly synchronized:
 
 ```python
 @staticmethod
-def check_all_hooks_synced(hook_group: "HookNexus[T]") -> tuple[bool, str]:
+def check_all_hooks_synced(hook_group: "Nexus[T]") -> tuple[bool, str]:
     """Check if all hooks in a group are synchronized."""
     # Implementation details for consistency checking...
 ```
@@ -394,7 +394,7 @@ def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
 print(hook.hook_group._hooks)
 
 # Verify binding status
-print(hook.is_connected_to(other_hook))
+print(hook.is_linked_to(other_hook))
 
 # Check group consistency
 success, message = hook_group.check_all_hooks_synced()

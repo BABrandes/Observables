@@ -13,10 +13,6 @@ import immutables
 
 from observables._nexus_system.immutable_values import (
     check_and_convert_to_immutable,
-    check_and_convert_item_to_immutable,
-    check_and_convert_sequence_to_immutable,
-    check_and_convert_dictionary_to_immutable,
-    check_and_convert_set_to_immutable,
 )
 from observables._nexus_system.nexus_manager import NexusManager
 
@@ -148,7 +144,7 @@ class TestDictConversion:
             pass
         
         d = {"item": CustomObject()}
-        error, result = check_and_convert_to_immutable(d)
+        error, _ = check_and_convert_to_immutable(d)
         assert error is not None
         assert "value cannot be made immutable" in error.lower()
     
@@ -158,7 +154,7 @@ class TestDictConversion:
         error, result = check_and_convert_to_immutable(d)
         assert error is None
         assert isinstance(result, immutables.Map)
-        assert len(result) == 0
+        assert len(result) == 0 # type: ignore
 
 
 class TestListConversion:
@@ -187,7 +183,7 @@ class TestListConversion:
         error, result = check_and_convert_to_immutable(lst)
         assert error is None
         assert isinstance(result, tuple)
-        assert len(result) == 0
+        assert len(result) == 0 # type: ignore
     
     def test_list_with_dict(self) -> None:
         """Test list containing dicts."""
@@ -212,11 +208,11 @@ class TestSetConversion:
     
     def test_empty_set(self) -> None:
         """Test that empty set is converted correctly."""
-        s = set()
+        s = set() # type: ignore
         error, result = check_and_convert_to_immutable(s)
         assert error is None
         assert isinstance(result, frozenset)
-        assert len(result) == 0
+        assert len(result) == 0 # type: ignore
     
     def test_frozenset_is_immutable(self) -> None:
         """Test that frozensets are recognized as immutable."""
@@ -273,7 +269,7 @@ class TestImmutablesLibraryTypes:
     
     def test_empty_immutable_map(self) -> None:
         """Test empty immutables.Map."""
-        m = immutables.Map()
+        m = immutables.Map() # type: ignore
         error, result = check_and_convert_to_immutable(m)
         assert error is None
         assert result is m
@@ -575,10 +571,10 @@ class TestEdgeCases:
         error, result = check_and_convert_to_immutable(data)
         assert error is None
         assert isinstance(result, immutables.Map)
-        assert len(result) == 100
+        assert len(result) == 100 # type: ignore
         # Spot check one value
         assert isinstance(result["key_0"], tuple)
-        assert len(result["key_0"]) == 100
+        assert len(result["key_0"]) == 100 # type: ignore
     
     def test_nexus_manager_parameter_is_optional(self) -> None:
         """Test that nexus_manager parameter is optional everywhere."""
@@ -598,7 +594,7 @@ class TestEdgeCases:
             pass
         
         obj = CustomObject()
-        error, result = check_and_convert_to_immutable(obj)
+        error, _ = check_and_convert_to_immutable(obj)
         assert error is not None
         assert "CustomObject" in error
         assert "cannot be made immutable" in error

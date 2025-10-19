@@ -17,27 +17,27 @@ class ObservableSetProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
     #-------------------------------- set value --------------------------------
     
     @property
-    def set_hook(self) -> Hook[AbstractSet[T]]:
+    def value_hook(self) -> Hook[AbstractSet[T]]:
         """
         Get the hook for the set (contains AbstractSet).
         """
         ...
 
     @property
-    def set(self) -> AbstractSet[T]:
+    def value(self) -> AbstractSet[T]:
         """
         Get the set as immutable AbstractSet.
         """
         ...
     
-    @set.setter
-    def set(self, set: Iterable[T]) -> None:
+    @value.setter
+    def value(self, value: Iterable[T]) -> None:
         """
         Set the set value (accepts any iterable, stores as frozenset).
         """
         ...
 
-    def change_set(self, set: Iterable[T]) -> None:
+    def change_value(self, value: Iterable[T]) -> None:
         """
         Change the set value (lambda-friendly method).
         """
@@ -157,14 +157,14 @@ class ObservableOptionalSelectionOptionProtocol(Protocol[T]):
     #-------------------------------- length --------------------------------
     
     @property
-    def length_hook(self) -> ReadOnlyHook[int]:
+    def number_of_available_options_hook(self) -> ReadOnlyHook[int]:
         """
         Get the hook for the set length.
         """
         ...
 
     @property
-    def length(self) -> int:
+    def number_of_available_options(self) -> int:
         """
         Get the current length of the set.
         """

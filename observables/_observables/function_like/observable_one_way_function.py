@@ -70,6 +70,7 @@ from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
+from ..._nexus_system.submission_error import SubmissionError
 
 # Type variables for input and output hook names and values
 IHK = TypeVar("IHK")  # Input Hook Keys
@@ -295,7 +296,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
 
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Hook[IHV|OHV]|Nexus[IHV|OHV]) -> IHK|OHK:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Hook[IHV]|ReadOnlyHook[OHV]|Nexus[IHV|OHV]) -> IHK|OHK: # type: ignore
         """
         Get the key for a hook or nexus.
 
@@ -349,6 +350,18 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
         with self._lock:
             return set(self._get_hook_keys())
 
+    def key(self, hook: Hook[IHV]|ReadOnlyHook[OHV]) -> IHK|OHK:
+        """
+        Get a key by its hook.
+
+        ** Thread-safe **
+
+        Returns:
+            The key associated with the hook.
+        """
+        with self._lock:
+            return self._get_key_by_hook_or_nexus(hook)
+
     def hooks(self) -> dict[IHK|OHK, Hook[IHV|OHV]]:
         """
         Get all hooks.
@@ -384,3 +397,11 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
         """Get the input variable keys."""
         with self._lock:
             return set(self._input_hooks.keys())
+
+    def change_values(self, values: Mapping[IHK|OHK, IHV|OHV]) -> None:
+        """
+        Change the values of the observable.
+        """
+        success, msg = self._submit_values(values)
+        if not success:
+            raise SubmissionError(msg, values)

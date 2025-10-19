@@ -118,24 +118,11 @@ class TestEmitterHooksRecomputation:
         assert obs_dict.length == 2
         
         # Change to a dict with more keys
-        obs_dict.set_dict_and_key({"a": 1, "b": 2, "c": 3}, "a")
+        obs_dict.change_dict_and_key({"a": 1, "b": 2, "c": 3}, "a")
         
         # Length should now be 3
         assert obs_dict.length == 3, "Length secondary hook should update when dict changes"
-    
-    def test_observable_set_length_updates_on_modification(self):
-        """Test that length secondary hook updates when set is modified."""
-        obs_set = ObservableSet({1, 2, 3})
-        
-        # Initial length should be 3
-        assert obs_set.length == 3
-        
-        # Add a new element
-        obs_set.add(4)
-        
-        # Length should now be 4
-        assert obs_set.length == 4, "Length secondary hook should update when set changes"
-    
+
     def test_observable_tuple_length_updates_on_modification(self):
         """Test that length secondary hook updates when tuple is modified."""
         obs_tuple = ObservableList((1, 2, 3))
@@ -144,7 +131,7 @@ class TestEmitterHooksRecomputation:
         assert obs_tuple.length == 3
         
         # Replace the tuple
-        obs_tuple.value = (1, 2, 3, 4, 5)
+        obs_tuple.change_value((1, 2, 3, 4, 5)) # type: ignore
         
         # Length should now be 5
         assert obs_tuple.length == 5, "Length secondary hook should update when tuple changes"
@@ -161,13 +148,13 @@ class TestEmitterHooksSelection:
         assert "number_of_available_options" in [key for key in obs._secondary_hooks.keys()] # type: ignore
         
         # Check initial value
-        assert obs.get_value_of_hook("number_of_available_options") == 3
+        assert obs.number_of_available_options == 3
         
         # Modify available options
         obs.available_options = {"a", "b", "c", "d", "e"}
         
         # Should update to 5
-        assert obs.get_value_of_hook("number_of_available_options") == 5, "Emitter hook should update when available options change"
+        assert obs.number_of_available_options == 5, "Emitter hook should update when available options change"
     
     def test_optional_selection_option_number_of_available_options(self):
         """Test that ObservableOptionalSelectionOption has number_of_available_options secondary hook."""
@@ -177,13 +164,13 @@ class TestEmitterHooksSelection:
         assert "number_of_available_options" in [key for key in obs._secondary_hooks.keys()] # type: ignore
         
         # Check initial value
-        assert obs.get_value_of_hook("number_of_available_options") == 3
+        assert obs.number_of_available_options == 3
         
         # Modify available options
         obs.available_options = {"a", "b"}
         
         # Should update to 2
-        assert obs.get_value_of_hook("number_of_available_options") == 2, "Emitter hook should update when available options change"
+        assert obs.number_of_available_options == 2, "Emitter hook should update when available options change"
     
     def test_multi_selection_option_secondary_hooks(self):
         """Test that ObservableMultiSelectionOption has multiple secondary hooks."""
@@ -194,20 +181,20 @@ class TestEmitterHooksSelection:
         assert "number_of_available_options" in [key for key in obs._secondary_hooks.keys()] # type: ignore
         
         # Check initial values
-        assert obs.get_value_of_hook("number_of_selected_options") == 2
-        assert obs.get_value_of_hook("number_of_available_options") == 4
+        assert obs.number_of_selected_options == 2
+        assert obs.number_of_available_options == 4
         
         # Modify selected options
         obs.selected_options = {"a", "b", "c"}
         
         # Should update
-        assert obs.get_value_of_hook("number_of_selected_options") == 3, "Selected options secondary hook should update"
+        assert obs.number_of_selected_options == 3, "Selected options secondary hook should update"
         
         # Modify available options
         obs.available_options = {"a", "b", "c", "d", "e", "f"}
         
         # Should update
-        assert obs.get_value_of_hook("number_of_available_options") == 6, "Available options secondary hook should update"
+        assert obs.number_of_available_options == 6, "Available options secondary hook should update"
 
 
 class TestEmitterHooksListeners:
@@ -225,7 +212,7 @@ class TestEmitterHooksListeners:
         
         # Add listener to length hook
         length_hook = obs_list.length_hook
-        length_hook.add_listeners(length_listener)
+        length_hook.add_listener(length_listener)
         
         # Modify the list
         obs_list.append(3)

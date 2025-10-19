@@ -7,6 +7,7 @@ from observables._hooks.hook_protocols.managed_hook_protocol import ManagedHookP
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_aliases import Hook, ReadOnlyHook
 from observables._nexus_system.update_function_values import UpdateFunctionValues
+from observables._nexus_system.nexus import Nexus
 
 T = TypeVar("T")
 
@@ -262,8 +263,36 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
         else:
             raise ValueError(f"Hook {hook} not found in hooks")
 
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Hook[T]|ReadOnlyHook[T]|Nexus[T]) -> Literal["value_without_none", "value_with_none"]:
+        """
+        Get a key by its hook or nexus.
+        """
+        if hook_or_nexus == self._hook_without_None:
+            return "value_without_none"
+        elif hook_or_nexus == self._hook_with_None:
+            return "value_with_none"
+        else:
+            raise ValueError(f"Hook {hook_or_nexus} not found in hooks")
+
+    def _get_hook_keys(self) -> set[Literal["value_without_none", "value_with_none"]]:
+        """
+        Get all keys of the hooks.
+        """
+        return {"value_without_none", "value_with_none"}
+
+    def _get_value_by_key(self, key: Literal["value_without_none"]) -> T: # type: ignore
+        """
+        Get a value by its key.
+        """
+        if key == "value_without_none":
+            return self._hook_without_None.value
+        elif key == "value_with_none":
+            return self._hook_with_None.value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
     #########################################################################
-    #Accessors
+    #Public properties
     #########################################################################
 
     @property

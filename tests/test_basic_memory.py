@@ -209,12 +209,12 @@ class TestEssentialMemoryManagement:
         
         # Test add
         obs_set.add(4)
-        assert 4 in obs_set.set
+        assert 4 in obs_set.value
         assert obs_set.length == 4
         
         # Test discard
         obs_set.discard(2)
-        assert 2 not in obs_set.set
+        assert 2 not in obs_set.value
         assert obs_set.length == 3
         
         # Test remove

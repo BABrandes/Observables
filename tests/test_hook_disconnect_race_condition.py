@@ -28,8 +28,8 @@ def test_disconnect_connect_race_condition():
     hook1.link(hook2, "use_caller_value")
     
     # Verify they're connected
-    assert hook1.is_connected_to(hook2)
-    assert hook2.is_connected_to(hook1)
+    assert hook1.is_linked_to(hook2)
+    assert hook2.is_linked_to(hook1)
     assert hook1.value == 1
     assert hook2.value == 1
     

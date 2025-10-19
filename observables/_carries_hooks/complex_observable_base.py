@@ -12,6 +12,7 @@ from .._nexus_system.nexus import Nexus
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._utils import log
+from .._nexus_system.submission_error import SubmissionError
 
 from .carries_hooks_base import CarriesHooksBase
 from .._nexus_system.update_function_values import UpdateFunctionValues
@@ -624,6 +625,14 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
     #########################################################################
     # Other public methods
     #########################################################################
+
+    def change_values(self, values: Mapping[PHK|SHK, PHV|SHV]) -> None:
+        """
+        Change the values of the observable.
+        """
+        success, msg = self._submit_values(values)
+        if not success:
+            raise SubmissionError(msg, values)
 
     @property
     def primary_hooks(self) -> dict[PHK, OwnedFullHookProtocol[PHV]]:

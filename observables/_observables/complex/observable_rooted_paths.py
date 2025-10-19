@@ -234,7 +234,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
     # CarriesHooks interface implementation
     ##########################################
 
-    def _get_hook(self, key: str) -> OwnedFullHookProtocol[Path|str|None]:
+    def _get_hook_by_key(self, key: str) -> OwnedFullHookProtocol[Path|str|None]:
         """
         Get a hook by its key.
         """
@@ -242,17 +242,6 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             return self._root_path_hook # type: ignore
         elif key in self._rooted_element_path_hooks:
             return self._rooted_element_path_hooks[key] # type: ignore
-        else:
-            raise ValueError(f"Key {key} not found in hooks")
-
-    def _get_value_reference_of_hook(self, key: str) -> Path|str|None:
-        """
-        Get a value as a reference by its key.
-        """
-        if key == ROOT_PATH_KEY:
-            return self._root_path_hook.value
-        elif key in self._rooted_element_path_hooks:
-            return self._rooted_element_path_hooks[key].value # type: ignore
         else:
             raise ValueError(f"Key {key} not found in hooks")
 
@@ -266,7 +255,18 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             keys.add(self.element_key_to_absolute_path_key(key))
         return keys
 
-    def _get_hook_key(self, hook_or_nexus: OwnedFullHookProtocol[Path|str|None]|Nexus[Path|str|None]) -> EK:
+    def _get_value_by_key(self, key: str) -> Path|str|None:
+        """
+        Get the value of a hook by its key.
+        """
+        if key == ROOT_PATH_KEY:
+            return self._root_path_hook.value
+        elif key in self._rooted_element_path_hooks:
+            return self._rooted_element_path_hooks[key].value # type: ignore
+        else:
+            raise ValueError(f"Key {key} not found in hooks")
+
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: OwnedFullHookProtocol[Path|str|None]|Nexus[Path|str|None]) -> EK:
         """
         Get the key of a hook or nexus.
         """

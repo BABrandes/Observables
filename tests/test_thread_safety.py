@@ -70,7 +70,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                    obs1.link(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -79,7 +79,7 @@ class TestThreadSafety:
                     _ = obs2.value
                     
                     # Detach
-                    obs1.disconnect_hook("value")
+                    obs1.unlink("value")
                     
                     time.sleep(0.001)  # Small delay
                     
@@ -130,9 +130,9 @@ class TestThreadSafety:
             """Thread that adds/removes listeners."""
             try:
                 for _ in range(25):
-                    obs.add_listeners(listener)
+                    obs.add_listener(listener)
                     time.sleep(0.01)
-                    obs.remove_listeners(listener)
+                    obs.remove_listener(listener)
                     time.sleep(0.01)
             except Exception as e:
                 errors.append(f"Listener manager error: {e}")
@@ -267,15 +267,15 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
-                    obs2.connect_hook(obs3.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                    obs1.link(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                    obs2.link(obs3.get_hook("value"), "value", "use_caller_value")  # type: ignore
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
                     
                     # Break the chain
-                    obs1.disconnect_hook("value")
-                    obs2.disconnect_hook("value")
+                    obs1.unlink("value")
+                    obs2.unlink("value")
                     
             except Exception as e:
                 errors.append(f"Rapid binder error: {e}")
@@ -368,19 +368,19 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.connect_hook(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                        obs1.link(obs2.get_hook("value"), "value", "use_caller_value")  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
-                        obs1.disconnect_hook("value")
+                        obs1.unlink("value")
                     elif i % 4 == 1:
                         # Listener operations
                         listener = Mock()
-                        obs1.add_listeners(listener)
+                        obs1.add_listener(listener)
                         obs1.value = f"worker_{worker_id}_listen_{i}"
-                        obs1.remove_listeners(listener)
+                        obs1.remove_listener(listener)
                     elif i % 4 == 2:
                         # Hook operations
-                        hook = obs1.get_hook("value")
-                        hook.submit_value(f"worker_{worker_id}_hook_{i}")
+                        hook = obs1.hook
+                        hook.change_value(f"worker_{worker_id}_hook_{i}")
                     else:
                         # Direct value operations
                         obs1.value = f"worker_{worker_id}_direct_{i}"

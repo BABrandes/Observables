@@ -220,8 +220,8 @@ class TestObservableRootedPaths:
         )
         
         # Test validation with current values
-        hook_keys = manager.get_hook_keys()
-        _ = {key: manager.get_value_reference_of_hook(key) for key in hook_keys}
+        hook_keys = manager._get_hook_keys() # type: ignore
+        _ = {key: manager._get_value_by_key(key) for key in hook_keys} # type: ignore
         
         # This should pass validation
         # Note: We can't directly test the validation callback as it's private,
@@ -277,7 +277,7 @@ class TestObservableRootedPaths:
             rooted_elements_initial_relative_path_values=initial_values
         )
         
-        hook_keys = manager.get_hook_keys()
+        hook_keys = manager._get_hook_keys() # type: ignore
         
         # Should include root path key
         assert ROOT_PATH_KEY in hook_keys
@@ -295,13 +295,13 @@ class TestObservableRootedPaths:
         )
         
         # Test getting key from root path hook
-        root_hook = manager.get_hook(ROOT_PATH_KEY)
-        key = manager.get_hook_key(root_hook)
+        root_hook = manager._get_hook_by_key(ROOT_PATH_KEY) # type: ignore
+        key = manager._get_key_by_hook_or_nexus(root_hook) # type: ignore
         assert key == ROOT_PATH_KEY
         
         # Test getting key from element hook
-        data_hook: HookWithOwnerProtocol[Optional[str]] = manager.get_relative_path_hook("data")
-        key = manager.get_hook_key(data_hook) # type: ignore
+        data_hook: HookWithOwnerProtocol[Optional[str]] = manager.get_relative_path_hook("data") # type: ignore
+        key = manager._get_key_by_hook_or_nexus(data_hook) # type: ignore
         assert key == "data_relative_path"
 
     def test_hook_key_retrieval_with_nonexistent_hook(self):
@@ -312,7 +312,7 @@ class TestObservableRootedPaths:
         mock_hook = Mock()
         
         with pytest.raises(ValueError):
-            manager.get_hook_key(mock_hook)
+            manager._get_key_by_hook_or_nexus(mock_hook) # type: ignore
 
     def test_value_reference_retrieval(self):
         """Test getting value references from hooks."""
@@ -323,11 +323,11 @@ class TestObservableRootedPaths:
         )
         
         # Test getting root path value reference
-        root_value = manager.get_value_reference_of_hook(ROOT_PATH_KEY)
+        root_value = manager._get_value_by_key(ROOT_PATH_KEY) # type: ignore
         assert root_value == self.test_root
         
         # Test getting element value reference
-        data_value = manager.get_value_reference_of_hook("data_relative_path")
+        data_value = manager._get_value_by_key("data_relative_path") # type: ignore
         assert data_value == "data/"
 
     def test_value_reference_retrieval_with_nonexistent_key(self):
@@ -335,7 +335,7 @@ class TestObservableRootedPaths:
         manager = ObservableRootedPaths[str]()
         
         with pytest.raises(ValueError):
-            manager.get_value_reference_of_hook("nonexistent_key")
+            manager._get_value_by_key("nonexistent_key") # type: ignore
 
     def test_serialization_callback(self):
         """Test the complete serialization and deserialization cycle."""
@@ -371,8 +371,8 @@ class TestObservableRootedPaths:
             "cache": manager.get_absolute_path_hook("cache").value,
         }
         
-        # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
-        serialized_data = manager.get_value_references_for_serialization()
+        # Step 3: Serialize it and get a dict from "get_values_for_serialization"
+        serialized_data = manager.get_values_for_serialization()
         
         # Verify serialized data contains expected keys
         assert ROOT_PATH_KEY in serialized_data
@@ -398,8 +398,8 @@ class TestObservableRootedPaths:
         # Verify it starts empty/different
         assert manager_restored.root_path is None
         
-        # Step 6: Use "set_value_references_from_serialization"
-        manager_restored.set_value_references_from_serialization(serialized_data)
+        # Step 6: Use "set_values_from_serialization"
+        manager_restored.set_values_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
         assert manager_restored.root_path == expected_root
@@ -515,7 +515,7 @@ class TestObservableRootedPaths:
         
         # Connect the root path hook to the observable
         root_path_hook: Hook[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
-        root_path_hook.connect_hook(root_path_observable.hook, "use_caller_value")
+        root_path_hook.link(root_path_observable.hook, "use_caller_value") # type: ignore
         
         # Verify initial state
         assert manager.root_path == self.test_root
@@ -550,7 +550,7 @@ class TestObservableRootedPaths:
         
         # Connect the relative path hook to the observable
         relative_path_hook: HookWithOwnerProtocol[Optional[str]] = manager.get_relative_path_hook("data")
-        relative_path_hook.connect_hook(relative_path_observable.hook, "use_caller_value")
+        relative_path_hook.link(relative_path_observable.hook, "use_caller_value")
         
         # Verify initial state
         assert manager.get_relative_path_hook("data").value == "data/"
@@ -583,7 +583,7 @@ class TestObservableRootedPaths:
         
         # Connect the absolute path hook to the observable
         absolute_path_hook: HookWithOwnerProtocol[Optional[Path]] = manager.get_absolute_path_hook("data")
-        absolute_path_hook.connect_hook(absolute_path_observable.hook, "use_caller_value")
+        absolute_path_hook.link(absolute_path_observable.hook, "use_caller_value")
         
         # Verify initial state
         assert manager.get_absolute_path_hook("data").value == self.test_root / "data/"
@@ -623,16 +623,16 @@ class TestObservableRootedPaths:
         # Connect hooks to observables
         root_path_hook: Hook[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
         observable_root_path_hook: Hook[Path|None] = root_observable.hook # type: ignore
-        root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
+        root_path_hook.link(observable_root_path_hook, "use_caller_value") # type: ignore
         data_relative_hook: HookWithOwnerProtocol[Optional[str]] = manager.get_relative_path_hook("data")
         observable_data_relative_hook: Hook[Optional[str]] = data_relative_observable.hook # type: ignore
-        data_relative_hook.connect_hook(observable_data_relative_hook, "use_caller_value")
+        data_relative_hook.link(observable_data_relative_hook, "use_caller_value")
         config_relative_hook: HookWithOwnerProtocol[Optional[str]] = manager.get_relative_path_hook("config")
         observable_config_relative_hook: Hook[Optional[str]] = config_relative_observable.hook # type: ignore
-        config_relative_hook.connect_hook(observable_config_relative_hook, "use_caller_value")
+        config_relative_hook.link(observable_config_relative_hook, "use_caller_value")
         logs_absolute_hook: HookWithOwnerProtocol[Optional[Path]] = manager.get_absolute_path_hook("logs")
         observable_logs_absolute_hook: Hook[Optional[Path]] = logs_absolute_observable.hook # type: ignore
-        logs_absolute_hook.connect_hook(observable_logs_absolute_hook, "use_caller_value")
+        logs_absolute_hook.link(observable_logs_absolute_hook, "use_caller_value")
         
         # Verify initial state
         assert manager.root_path == self.test_root
@@ -682,7 +682,7 @@ class TestObservableRootedPaths:
         # Connect bidirectionally
         root_path_hook: Hook[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
         observable_root_path_hook: Hook[Path|None] = root_path_observable.hook # type: ignore
-        root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
+        root_path_hook.link(observable_root_path_hook, "use_caller_value") # type: ignore
         
         # Verify initial state
         assert manager.root_path == self.test_root
@@ -722,9 +722,9 @@ class TestObservableRootedPaths:
         # Connect in a chain: manager -> observable1 -> observable2 -> observable3
         root_path_hook: Hook[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
         observable_root_path_hook: Hook[Path|None] = root_observable1.hook # type: ignore
-        root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
-        root_observable1.hook.connect_hook(root_observable2.hook, "use_caller_value")
-        root_observable2.hook.connect_hook(root_observable3.hook, "use_caller_value")
+        root_path_hook.link(observable_root_path_hook, "use_caller_value") # type: ignore       
+        root_observable1.hook.link(root_observable2.hook, "use_caller_value") # type: ignore
+        root_observable2.hook.link(root_observable3.hook, "use_caller_value") # type: ignore
         
         # Verify initial state
         assert manager.root_path == self.test_root
@@ -769,7 +769,7 @@ class TestObservableRootedPaths:
         # Connect the hooks
         root_path_hook: Hook[Path|None] = manager.get_hook(ROOT_PATH_KEY) # type: ignore
         observable_root_path_hook: Hook[Path|None] = root_path_observable.hook # type: ignore
-        root_path_hook.connect_hook(observable_root_path_hook, "use_caller_value")
+        root_path_hook.link(observable_root_path_hook, "use_caller_value") # type: ignore
         
         # Verify initial state
         assert manager.root_path == self.test_root

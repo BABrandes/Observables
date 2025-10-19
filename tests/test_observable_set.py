@@ -26,20 +26,20 @@ class TestObservableSet(ObservableTestCase):
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
-        self.observable.add_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
         self.observable.add(7)
         assert self.notification_count == 1
     
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
-        self.observable.add_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
         self.observable.add(1)  # Same value
         assert self.notification_count == 0
     
     def test_remove_listeners(self):
         """Test removing a listener"""
-        self.observable.add_listeners(self.notification_callback)
-        self.observable.remove_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
+        self.observable.remove_listener(self.notification_callback)
         self.observable.add(10)
         assert self.notification_count == 0
     
@@ -55,8 +55,8 @@ class TestObservableSet(ObservableTestCase):
             nonlocal count2
             count2 += 1
         
-        self.observable.add_listeners(callback1)
-        self.observable.add_listeners(callback2)
+        self.observable.add_listener(callback1)
+        self.observable.add_listener(callback2)
         self.observable.add(13)
         
         assert count1 == 1
@@ -116,7 +116,7 @@ class TestObservableSet(ObservableTestCase):
         assert target.value == {100, 200}
         
         # Unbind them
-        target.disconnect_hook()
+        target.unlink()
         
         # Change source, target should not update
         source.add(300)
@@ -175,8 +175,8 @@ class TestObservableSet(ObservableTestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        assert target.value_hook.is_connected_to(source.value_hook)
-        assert source.value_hook.is_connected_to(target.value_hook)
+        assert target.value_hook.is_linked_to(source.value_hook)
+        assert source.value_hook.is_linked_to(target.value_hook)
     
     def test_initialization_with_carries_bindable_set_performance(self):
         """Test performance of initialization with CarriesBindableSet"""
@@ -205,7 +205,7 @@ class TestObservableSet(ObservableTestCase):
         obs2 = ObservableSet({20})
         
         # Bind obs1 to obs2
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
         
         # Change obs1, obs2 should update to include obs1's elements
         obs1.add(30)
@@ -221,13 +221,13 @@ class TestObservableSet(ObservableTestCase):
         obs2 = ObservableSet({200})
         
         # USE_CALLER_VALUE: target (obs2) gets caller's value
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
         assert obs2.value == {100}
         
         # Test update_observable_from_self mode
         obs3 = ObservableSet({300})
         obs4 = ObservableSet({400})
-        obs3.connect_hook(obs4.value_hook, "value", "use_target_value")  # type: ignore
+        obs3.link(obs4.value_hook, "value", "use_target_value")  # type: ignore
         # USE_TARGET_VALUE means caller gets target's value
         assert obs3.value == {400}
     
@@ -236,8 +236,8 @@ class TestObservableSet(ObservableTestCase):
         obs1 = ObservableSet({10})
         obs2 = ObservableSet({20})
         
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs1.disconnect_hook()
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.unlink()
         
         # Changes should no longer propagate
         obs1.add(50)
@@ -248,7 +248,7 @@ class TestObservableSet(ObservableTestCase):
         """Test that binding to self raises an error"""
         obs = ObservableSet({10})
         with pytest.raises(ValueError):
-            obs.connect_hook(obs.value_hook, "value", "use_caller_value")  # type: ignore
+            obs.link(obs.value_hook, "value", "use_caller_value")  # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -257,8 +257,8 @@ class TestObservableSet(ObservableTestCase):
         obs3 = ObservableSet({30})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs2.connect_hook(obs3.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs2.link(obs3.value_hook, "value", "use_caller_value")  # type: ignore
         
         # Verify chain works
         obs1.add(100)
@@ -266,7 +266,7 @@ class TestObservableSet(ObservableTestCase):
         assert obs3.value == {10, 100}
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect_hook()
+        obs2.unlink()
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.add(200)
@@ -292,10 +292,10 @@ class TestObservableSet(ObservableTestCase):
         # Test is_listening_to
         assert not obs.is_listening_to(self.notification_callback)
         
-        obs.add_listeners(self.notification_callback)
+        obs.add_listener(self.notification_callback)
         assert obs.is_listening_to(self.notification_callback)
         
-        obs.remove_listeners(self.notification_callback)
+        obs.remove_listener(self.notification_callback)
         assert not obs.is_listening_to(self.notification_callback)
     
     def test_multiple_bindings(self):
@@ -305,8 +305,8 @@ class TestObservableSet(ObservableTestCase):
         obs3 = ObservableSet({30})
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect_hook(obs1.value_hook, "value", "use_caller_value")  # type: ignore
-        obs3.connect_hook(obs1.value_hook, "value", "use_caller_value")  # type: ignore
+        obs2.link(obs1.value_hook, "value", "use_caller_value")  # type: ignore
+        obs3.link(obs1.value_hook, "value", "use_caller_value")  # type: ignore
         
         # Change obs1, both should update to obs1's value
         obs1.add(100)
@@ -378,7 +378,7 @@ class TestObservableSet(ObservableTestCase):
         # Test binding empty sets
         obs1: ObservableSet[int] = ObservableSet(set())
         obs2: ObservableSet[int] = ObservableSet(set())
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
         
         obs1.add(1)
         assert obs2.value == {1}
@@ -386,7 +386,7 @@ class TestObservableSet(ObservableTestCase):
         # Test binding sets with same initial values
         obs3 = ObservableSet({42})
         obs4 = ObservableSet({42})
-        obs3.connect_hook(obs4.value_hook, "value", "use_caller_value")  # type: ignore
+        obs3.link(obs4.value_hook, "value", "use_caller_value")  # type: ignore
         
         obs3.add(100)
         assert obs4.value == {42, 100}
@@ -440,21 +440,21 @@ class TestObservableSet(ObservableTestCase):
         # Check binding consistency
         
         # Check that they are properly bound
-        assert target.value_hook.is_connected_to(source.value_hook)
-        assert source.value_hook.is_connected_to(target.value_hook)
+        assert target.value_hook.is_linked_to(source.value_hook)
+        assert source.value_hook.is_linked_to(target.value_hook)
     
     def test_set_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableSet({10})
         with pytest.raises(ValueError):
-            obs.connect_hook(None, "value", "use_caller_value")  # type: ignore
+            obs.link(None, "value", "use_caller_value")  # type: ignore
     
     def test_set_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSet({42})
         obs2 = ObservableSet({42})
         
-        obs1.connect_hook(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.link(obs2.value_hook, "value", "use_caller_value")  # type: ignore
         # Both should still have the same value
         assert obs1.value == {42}
         assert obs2.value == {42}
@@ -464,10 +464,10 @@ class TestObservableSet(ObservableTestCase):
         obs = ObservableSet({10})
         callback = lambda: None
         
-        obs.add_listeners(callback, callback)
+        obs.add_listener(callback)
         assert len(obs.listeners) == 1
         
-        obs.add_listeners(callback)
+        obs.add_listener(callback)
         assert len(obs.listeners) == 1
     
     def test_remove_nonexistent_listener(self):
@@ -476,7 +476,7 @@ class TestObservableSet(ObservableTestCase):
         callback = lambda: None
         
         # Should not raise an error
-        obs.remove_listeners(callback)
+        obs.remove_listener(callback)
         assert len(obs.listeners) == 0
 
     def test_serialization(self):
@@ -490,14 +490,15 @@ class TestObservableSet(ObservableTestCase):
         obs.remove(2)
         
         # Store the expected state after step 2
-        expected_set = obs.value.copy()
+        expected_set = obs.value
         
         # Step 3: Serialize it and get a dict from "get_value_references_for_serialization"
-        serialized_data = obs.get_value_references_for_serialization()
+        serialized_data = obs.get_values_for_serialization()
         
         # Verify serialized data contains expected keys
         assert "value" in serialized_data
-        assert serialized_data["value"] == expected_set
+        # Serialized data may be frozenset internally
+        assert frozenset(serialized_data["value"]) == frozenset(expected_set) # type: ignore
         
         # Step 4: Delete the object
         del obs
@@ -509,7 +510,7 @@ class TestObservableSet(ObservableTestCase):
         assert obs_restored.value == set()
         
         # Step 6: Use "set_value_references_from_serialization"
-        obs_restored.set_value_references_from_serialization(serialized_data)
+        obs_restored.set_values_from_serialization(serialized_data)
         
         # Step 7: Check if the object is the same as after step 2
         assert obs_restored.value == expected_set

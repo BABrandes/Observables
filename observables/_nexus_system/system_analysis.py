@@ -3,15 +3,15 @@ from typing import Any
 from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from .._hooks.hook_aliases import Hook
 
-from ...nexus_system.nexus import Nexus
+from .nexus import Nexus
 
 
 def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksProtocol[Any, Any]]) -> dict[Nexus[Any], list[tuple[str, CarriesHooksProtocol[Any, Any], Hook[Any]]]]:
 
     hook_nexuses: dict[Nexus[Any], list[tuple[str, CarriesHooksProtocol[Any, Any], Hook[Any]]]] = {}
     for name, carries_hook in dict_of_carries_hooks.items():
-        for hook in carries_hook.get_dict_of_hooks().values():
-            hook_nexus = hook.hook_nexus
+        for hook in carries_hook._get_dict_of_hooks().values(): # type: ignore
+            hook_nexus = hook._get_nexus() # type: ignore
             if hook_nexus not in hook_nexuses:
                 hook_nexuses[hook_nexus] = []
             hook_nexuses[hook_nexus].append((name, carries_hook, hook))

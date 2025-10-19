@@ -69,8 +69,9 @@ from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
-from ...nexus_system.nexus import Nexus
+from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
+from ..._nexus_system.submission_error import SubmissionError
 
 # Type variables for input and output hook names and values
 IHK = TypeVar("IHK")  # Input Hook Keys
@@ -234,7 +235,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
         # Connect internal input hooks to external hooks if provided
         for key, external_hook_or_value in function_input_hooks.items():
             internal_hook_input = self._input_hooks[key]
-            if isinstance(external_hook_or_value, ManagedHookProtocol):
+            if isinstance(external_hook_or_value, ManagedHookProtocol): # type: ignore
                 internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################
@@ -323,9 +324,9 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             if key not in self._input_hooks:
                 raise ValueError(f"Key {key} not found in input hooks")
             values_to_submit[key] = value # type: ignore
-        success, msg = self.submit_values(values_to_submit) # type: ignore
+        success, msg = self._submit_values(values_to_submit) # type: ignore
         if not success:
-            raise ValueError(msg)
+            raise SubmissionError(msg, values_to_submit, "input values")
 
     def validate_input_values(self, values: Mapping[IHK, IHV]) -> None:
         """
@@ -339,7 +340,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
             if key not in self._input_hooks:
                 raise ValueError(f"Key {key} not found in input hooks")
             values_to_validate[key] = value # type: ignore
-        success, msg = self.validate_values(values_to_validate) # type: ignore
+        success, msg = self._validate_values(values_to_validate) # type: ignore
         if not success:
-            raise ValueError(msg)
+            raise SubmissionError(msg, values_to_validate, "input values")
 

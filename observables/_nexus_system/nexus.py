@@ -47,7 +47,7 @@ class Nexus(Generic[T]):
     Example:
         Direct nexus usage (typically created automatically)::
         
-            from ...nexus_system.nexus import Nexus
+            from ..._nexus_system.nexus import Nexus
             from observables._hooks.hook import Hook
             
             # Create hooks

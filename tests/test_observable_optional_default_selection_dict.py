@@ -342,11 +342,68 @@ class TestObservableOptionalDefaultSelectionDict:
         selection_dict.key = "xyz"
         assert selection_dict.value == 300  # len("xyz") * 100 = 300
         assert selection_dict.dict_hook.value["xyz"] == 300
+
+    def test_behavior_matrix(self):
+        """
+        Test the documented behavior matrix:
+        ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+        │                 │    if key in dict        │  if key not in dict      │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ not None        │           ✓              │   default (auto-create)  │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ None            │      None (value)        │      None (value)        │
+        └─────────────────┴──────────────────────────┴──────────────────────────┘
+        """
+        test_dict = {"a": 1, "b": 2}
+        default_value = 999
         
-        # Set key to "hello" (not in dict) - should use callable with different result
-        selection_dict.key = "hello"
-        assert selection_dict.value == 500  # len("hello") * 100 = 500
-        assert selection_dict.dict_hook.value["hello"] == 500
+        # Case 1: key is not None AND key in dict -> ✓
+        selection_dict = ObservableOptionalDefaultSelectionDict(
+            dict_hook=test_dict,
+            key_hook="a",
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict.key == "a"
+        assert selection_dict.value == 1
+        
+        # Case 2: key is not None AND key not in dict -> default (auto-create)
+        selection_dict_autocreate = ObservableOptionalDefaultSelectionDict(
+            dict_hook=test_dict.copy(),
+            key_hook="z",
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict_autocreate.key == "z"
+        assert selection_dict_autocreate.value == default_value
+        assert selection_dict_autocreate.dict_hook.value["z"] == default_value
+        
+        # Case 3: key is None AND key in dict -> None (value)
+        selection_dict_none = ObservableOptionalDefaultSelectionDict(
+            dict_hook=test_dict,
+            key_hook=None,
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict_none.key is None
+        assert selection_dict_none.value is None
+        
+        # Case 4: key is None AND key not in dict -> None (value)
+        empty_dict: dict[str, int] = {}
+        selection_dict_empty = ObservableOptionalDefaultSelectionDict(
+            dict_hook=empty_dict,
+            key_hook=None,
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict_empty.key is None
+        assert selection_dict_empty.value is None
 
     def test_callable_default_value_in_initialization(self):
         """Test callable default value during initialization."""

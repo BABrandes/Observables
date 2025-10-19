@@ -187,7 +187,7 @@ class TestObservableSelectionDict:
     def test_invalidation(self):
         """Test invalidation behavior."""
         test_dict = {"a": 1, "b": 2}
-        invalidation_called = []
+        invalidation_called: list[bool] = []
         def invalidate_callback() -> None:
             invalidation_called.append(True)
         selection_dict = ObservableSelectionDict(
@@ -199,7 +199,7 @@ class TestObservableSelectionDict:
         )
         
         # Test invalidation
-        success, msg = selection_dict.invalidate()
+        success, _ = selection_dict.invalidate()
         assert success
         assert len(invalidation_called) == 1
 
@@ -237,6 +237,46 @@ class TestObservableSelectionDict:
         selection_dict.value = 999
         assert selection_dict.dict_hook.value["a"] == 999
         assert selection_dict.value == 999
+
+    def test_behavior_matrix(self):
+        """
+        Test the documented behavior matrix:
+        ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+        │                 │    if key in dict        │  if key not in dict      │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ not None        │           ✓              │         error            │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ None            │         error            │         error            │
+        └─────────────────┴──────────────────────────┴──────────────────────────┘
+        """
+        test_dict = {"a": 1, "b": 2}
+        
+        # Case 1: key is not None AND key in dict -> ✓
+        selection_dict = ObservableSelectionDict(
+            dict_hook=test_dict,
+            key_hook="a",
+            value_hook=None,
+            logger=logger
+        )
+        assert selection_dict.key == "a"
+        assert selection_dict.value == 1
+        
+        # Case 2: key is not None AND key not in dict -> error
+        with pytest.raises(KeyError):
+            ObservableSelectionDict(
+                dict_hook=test_dict,
+                key_hook="nonexistent",
+                value_hook=None,
+                logger=logger
+            )
+        
+        # Case 3: key is None AND key in dict -> error (can't pass None as key)
+        # This is prevented by type system - K cannot be None
+        
+        # Case 4: key is None AND key not in dict -> error (can't pass None as key)
+        # This is prevented by type system - K cannot be None
 
 
 class TestObservableOptionalSelectionDict:
@@ -728,3 +768,58 @@ class TestObservableOptionalSelectionDict:
         # Note: destroy method should remove listeners but we can't easily test
         # the complete cleanup without internal access
         assert hasattr(selection_dict, 'destroy')
+
+    def test_behavior_matrix(self):
+        """
+        Test the documented behavior matrix:
+        ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+        │                 │    if key in dict        │  if key not in dict      │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ not None        │           ✓              │         error            │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ None            │      None (value)        │      None (value)        │
+        └─────────────────┴──────────────────────────┴──────────────────────────┘
+        """
+        test_dict = {"a": 1, "b": 2}
+        
+        # Case 1: key is not None AND key in dict -> ✓
+        selection_dict = ObservableOptionalSelectionDict(
+            dict_hook=test_dict,
+            key_hook="a",
+            value_hook=None,
+            logger=logger
+        )
+        assert selection_dict.key == "a"
+        assert selection_dict.value == 1
+        
+        # Case 2: key is not None AND key not in dict -> error
+        with pytest.raises(KeyError):
+            ObservableOptionalSelectionDict(
+                dict_hook=test_dict,
+                key_hook="nonexistent",
+                value_hook=None,
+                logger=logger
+            )
+        
+        # Case 3: key is None AND key in dict -> None (value)
+        selection_dict_none = ObservableOptionalSelectionDict(
+            dict_hook=test_dict,
+            key_hook=None,
+            value_hook=None,
+            logger=logger
+        )
+        assert selection_dict_none.key is None
+        assert selection_dict_none.value is None
+        
+        # Case 4: key is None AND key not in dict -> None (value)
+        empty_dict: dict[str, int] = {}
+        selection_dict_empty = ObservableOptionalSelectionDict(
+            dict_hook=empty_dict,
+            key_hook=None,
+            value_hook=None,
+            logger=logger
+        )
+        assert selection_dict_empty.key is None
+        assert selection_dict_empty.value is None

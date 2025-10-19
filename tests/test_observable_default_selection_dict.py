@@ -525,3 +525,48 @@ class TestObservableDefaultSelectionDict:
         # Should have created default entry using callable
         assert selection_dict.value == ord("z")  # 122
         assert selection_dict.dict_hook.value["z"] == ord("z")
+
+    def test_behavior_matrix(self):
+        """
+        Test the documented behavior matrix:
+        ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+        │                 │    if key in dict        │  if key not in dict      │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ not None        │           ✓              │   default (auto-create)  │
+        ├─────────────────┼──────────────────────────┼──────────────────────────┤
+        │ if key is       │                          │                          │
+        │ None            │         error            │         error            │
+        └─────────────────┴──────────────────────────┴──────────────────────────┘
+        """
+        test_dict = {"a": 1, "b": 2}
+        default_value = 999
+        
+        # Case 1: key is not None AND key in dict -> ✓
+        selection_dict = ObservableDefaultSelectionDict(
+            dict_hook=test_dict,
+            key_hook="a",
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict.key == "a"
+        assert selection_dict.value == 1
+        
+        # Case 2: key is not None AND key not in dict -> default (auto-create)
+        selection_dict_autocreate = ObservableDefaultSelectionDict(
+            dict_hook=test_dict.copy(),
+            key_hook="z",
+            value_hook=None,
+            default_value=default_value,
+            logger=logger
+        )
+        assert selection_dict_autocreate.key == "z"
+        assert selection_dict_autocreate.value == default_value
+        assert selection_dict_autocreate.dict_hook.value["z"] == default_value
+        
+        # Case 3: key is None AND key in dict -> error (can't pass None as key)
+        # This is prevented by type system - K cannot be None
+        
+        # Case 4: key is None AND key not in dict -> error (can't pass None as key)
+        # This is prevented by type system - K cannot be None

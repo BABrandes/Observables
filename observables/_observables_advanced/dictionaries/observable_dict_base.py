@@ -62,9 +62,9 @@ class ObservableDictBase(
         self,
         dict_hook: dict[K, V] | Hook[dict[K, V]],
         key_hook: KT | Hook[KT],
-        value_hook: Optional[Hook[VT]],
-        logger: Optional[Logger] = None,
-        invalidate_callback: Optional[Callable[[], None]] = None
+        value_hook: Optional[Hook[VT]] = None,
+        invalidate_callback: Optional[Callable[[], None]] = None,
+        logger: Optional[Logger] = None
     ):
         """
         Initialize the ObservableDictBase.

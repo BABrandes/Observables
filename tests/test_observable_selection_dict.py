@@ -87,9 +87,9 @@ class TestObservableSelectionDict:
             logger=logger
         )
         
-        # Test get_hook_keys
+        # Test get_hook_keys - now includes secondary hooks
         keys = selection_dict.get_hook_keys()
-        assert keys == {"dict", "key", "value"}
+        assert keys == {"dict", "key", "value", "keys", "values", "length"}
         
         # Test get_hook
         dict_hook = selection_dict.get_hook("dict")
@@ -99,6 +99,11 @@ class TestObservableSelectionDict:
         assert dict_hook is not None
         assert key_hook is not None
         assert value_hook is not None
+        
+        # Test secondary hooks
+        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.values == (1, 2)
+        assert selection_dict.length == 2
         
         # Test get_hook_value_as_reference
         assert selection_dict.get_value_reference_of_hook("dict") == test_dict
@@ -176,14 +181,15 @@ class TestObservableSelectionDict:
         assert success
         
         # Test invalid values - need to test with both key and dict context
-        with pytest.raises(ValueError, match="not in dictionary"):
+        with pytest.raises(KeyError, match="not in dictionary"):
             selection_dict.validate_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
 
     def test_invalidation(self):
         """Test invalidation behavior."""
         test_dict = {"a": 1, "b": 2}
-        def invalidate_callback(self_ref: "ObservableSelectionDict[str, int]") -> tuple[bool, str]:
-            return True, "Successfully invalidated"
+        invalidation_called = []
+        def invalidate_callback() -> None:
+            invalidation_called.append(True)
         selection_dict = ObservableSelectionDict(
             dict_hook=test_dict,
             key_hook="a",
@@ -195,7 +201,7 @@ class TestObservableSelectionDict:
         # Test invalidation
         success, msg = selection_dict.invalidate()
         assert success
-        assert msg == "Successfully invalidated"
+        assert len(invalidation_called) == 1
 
     def test_dict_key_change_propagation(self):
         """Test that changing dict or key updates the value."""

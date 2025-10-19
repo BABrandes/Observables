@@ -53,7 +53,8 @@ class ObservableDictBase(
         dict_hook: dict[K, V] | Hook[dict[K, V]],
         key_hook: KT | Hook[KT],
         value_hook: Optional[Hook[VT]],
-        logger: Optional[Logger] = None
+        logger: Optional[Logger] = None,
+        invalidate_callback: Optional[Callable[..., tuple[bool, str]]] = None
     ):
         """
         Initialize the ObservableDictBase.
@@ -63,6 +64,7 @@ class ObservableDictBase(
             key_hook: The initial key or hook
             value_hook: Optional hook for the value (if None, will be computed)
             logger: Optional logger for debugging
+            invalidate_callback: Optional callback called after value changes
         """
         
         # Extract initial values
@@ -83,6 +85,8 @@ class ObservableDictBase(
                 _initial_key_value
             )
         else:
+            if not isinstance(value_hook, Hook):
+                raise ValueError("value_hook must be a Hook or None")
             _initial_value_value = value_hook.value
 
         # Initialize ListeningBase
@@ -103,7 +107,7 @@ class ObservableDictBase(
             },
             verification_method=self._create_validation_callback(),
             add_values_to_be_updated_callback=self._create_add_values_callback(),
-            invalidate_callback=None,
+            invalidate_callback=invalidate_callback,
             logger=logger
         )
 

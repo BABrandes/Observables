@@ -425,7 +425,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             self._primary_hooks[key] = hook
             
             if isinstance(value, HookWithGetterProtocol):
-                value.connect_hook(hook, "value", "use_target_value") # type: ignore
+                value.connect_hook(hook, "use_target_value") # type: ignore
 
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
         for key, _callback in secondary_hook_callbacks.items():

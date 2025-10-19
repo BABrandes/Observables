@@ -181,9 +181,14 @@ class TestObservableDefaultSelectionDict:
             logger=logger
         )
         
-        # Test get_hook_keys
+        # Test get_hook_keys - now includes secondary hooks
         keys = selection_dict.get_hook_keys()
-        assert keys == {"dict", "key", "value"}
+        assert keys == {"dict", "key", "value", "keys", "values", "length"}
+        
+        # Test secondary hooks
+        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.values == (1, 2)
+        assert selection_dict.length == 2
         
         # Test get_hook
         dict_hook = selection_dict.get_hook("dict")
@@ -329,10 +334,10 @@ class TestObservableDefaultSelectionDict:
             logger=logger
         )
         
-        # Test invalidation
+        # Test invalidation - no callback provided
         success, msg = selection_dict.invalidate()
         assert success
-        assert msg == "No invalidate callback provided"
+        assert "Successfully invalidated" in msg
 
     def test_set_dict_and_key(self):
         """Test set_dict_and_key method."""

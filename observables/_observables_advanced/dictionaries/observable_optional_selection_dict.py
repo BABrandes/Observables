@@ -1,18 +1,15 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any
 from logging import Logger
 
-from ..._hooks.hook_aliases import Hook
-from ..._hooks.owned_hook import OwnedHook
-from ..._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
-from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
-from ..._nexus_system.hook_nexus import HookNexus
+from ..._hooks.hook_aliases import Hook, ReadOnlyHook
+from ..._carries_hooks.complex_observable_base import ComplexObservableBase
 from ..._auxiliary.listening_base import ListeningBase
 from .protocols import ObservableOptionalSelectionDictProtocol
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "value"], Any, "ObservableOptionalSelectionDict[K, V]"], ObservableOptionalSelectionDictProtocol[K, V], ListeningBase, Generic[K, V]):
+class ObservableOptionalSelectionDict(ComplexObservableBase[Literal["dict", "key", "value"], Literal["keys", "values", "length"], Any, tuple[K, ...]|tuple[V, ...]|int, "ObservableOptionalSelectionDict[K, V]"], ObservableOptionalSelectionDictProtocol[K, V], ListeningBase, Generic[K, V]):
     """
     An observable that manages an optional selection from a dictionary in the new hook-based architecture.
     
@@ -40,7 +37,13 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         value_hook: Optional[Hook[Optional[V]]] = None,
         logger: Optional[Logger] = None):
         """
-
+        Initialize an ObservableOptionalSelectionDict.
+        
+        Args:
+            dict_hook: The dictionary or hook containing the dictionary
+            key_hook: The initial key or hook (can be None)
+            value_hook: Optional hook for the value (if None, will be derived from dict[key])
+            logger: Optional logger for debugging
         """
 
         def add_values_to_be_updated_callback(
@@ -113,7 +116,6 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
             raise ValueError("Invalid keys")
 
         def validate_complete_values_in_isolation_callback(
-            self_ref: "ObservableOptionalSelectionDict[K, V]",
             values: Mapping[Literal["dict", "key", "value"], Any]) -> tuple[bool, str]:
             """
             Validate the values in isolation.
@@ -147,15 +149,7 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
 
             return True, "Validation of complete value set in isolation passed"
 
-        ListeningBase.__init__(self, logger)
-        CarriesHooksBase.__init__( # type: ignore
-            self,
-            invalidate_callback=None,
-            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
-            add_values_to_be_updated_callback=add_values_to_be_updated_callback,
-            logger=logger
-        )
-
+        # Compute initial values before passing to ComplexObservableBase
         if isinstance(dict_hook, Hook):
             _initial_dict_value: dict[K, V] = dict_hook.value
         else:
@@ -179,61 +173,30 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         else:
             raise ValueError("value_hook parameter must either be None or a Hook")
 
-        self._ignore_invalidation_flag: bool = False
-
-        self._dict_hook: OwnedHook[dict[K, V]] = OwnedHook[dict[K, V]](self, _initial_dict_value, logger)
-        self._key_hook: OwnedHook[Optional[K]] = OwnedHook[K](self, _initial_key_value, logger) # type: ignore
-        self._value_hook: OwnedHook[Optional[V]] = OwnedHook[V](self, _initial_value_value, logger) # type: ignore
-
-        if isinstance(dict_hook, Hook):
-            self._dict_hook.connect_hook(dict_hook, "use_target_value")
-        if isinstance(key_hook, Hook):
-            self._key_hook.connect_hook(key_hook, "use_target_value") # type: ignore
-        if isinstance(value_hook, Hook):
-            self._value_hook.connect_hook(value_hook, "use_target_value") # type: ignore
-
-    ########################################################
-    # CarriesHooks interface
-    ########################################################
-
-    def _get_value_reference_of_hook(self, key: Literal["dict", "key", "value"]) -> Any:
-        if key == "dict":
-            return self._dict_hook.value
-        elif key == "key":
-            return self._key_hook.value
-        elif key == "value":
-            return self._value_hook.value
-        else:
-            raise ValueError(f"Invalid key: {key}")
-
-    def _get_hook_keys(self) -> set[Literal["dict", "key", "value"]]:
-        """Get all keys managed by this observable."""
-        return {"dict", "key", "value"}
-
-    def _get_hook(self, key: Literal["dict", "key", "value"]) -> OwnedHookProtocol[Any]:
-        if key == "dict":
-            return self._dict_hook
-        elif key == "key":
-            return self._key_hook
-        elif key == "value":
-            return self._value_hook
-        else:
-            raise ValueError(f"Invalid key: {key}")
-
-    def _get_hook_key(self, hook_or_nexus: "Hook[Any]|HookNexus[Any]") -> Literal["dict", "key", "value"]:
-        # Handle both hooks and their associated nexuses
-        if hook_or_nexus == self._dict_hook or (hasattr(self._dict_hook, 'hook_nexus') and hook_or_nexus == self._dict_hook.hook_nexus):
-            return "dict"
-        elif hook_or_nexus == self._key_hook or (hasattr(self._key_hook, 'hook_nexus') and hook_or_nexus == self._key_hook.hook_nexus):
-            return "key"
-        elif hook_or_nexus == self._value_hook or (hasattr(self._value_hook, 'hook_nexus') and hook_or_nexus == self._value_hook.hook_nexus):
-            return "value"
-        else:
-            raise ValueError(f"Invalid hook or nexus: {hook_or_nexus}")
+        ListeningBase.__init__(self, logger)
+        ComplexObservableBase.__init__( # type: ignore
+            self,
+            initial_component_values_or_hooks={
+                "dict": dict_hook,
+                "key": key_hook if key_hook is not None else _initial_key_value,
+                "value": value_hook if value_hook is not None else _initial_value_value
+            },
+            secondary_hook_callbacks={
+                "keys": lambda values: tuple(values["dict"].keys()) if values["dict"] is not None else (), # type: ignore
+                "values": lambda values: tuple(values["dict"].values()) if values["dict"] is not None else (), # type: ignore
+                "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0 # type: ignore
+            },
+            verification_method=validate_complete_values_in_isolation_callback,
+            add_values_to_be_updated_callback=add_values_to_be_updated_callback,
+            invalidate_callback=None,
+            logger=logger
+        )
 
 ########################################################
 # Specific properties
 ########################################################
+
+    # ------------------------- dict hook and value -------------------------
 
     @property
     def dict_hook(self) -> Hook[dict[K, V]]:
@@ -243,7 +206,17 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         Returns:
             The hook managing the dictionary value.
         """
-        return self._dict_hook
+        return self._primary_hooks["dict"] # type: ignore
+
+    def change_dict(self, value: dict[K, V]) -> None:
+        """
+        Change the dictionary behind this hook.
+        """
+        success, msg = self.submit_value("dict", value)
+        if not success:
+            raise ValueError(msg)
+
+    # ------------------------- key hook and value -------------------------
 
     @property
     def key_hook(self) -> Hook[Optional[K]]:
@@ -253,7 +226,34 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         Returns:
             The hook managing the dictionary key.
         """
-        return self._key_hook
+        return self.get_hook("key") # type: ignore
+
+    @property
+    def key(self) -> Optional[K]:
+        """
+        Get the key behind this hook.
+        """
+        return self.get_value_of_hook("key") # type: ignore
+    
+    @key.setter
+    def key(self, value: Optional[K]) -> None:
+        """
+        Set the key behind this hook.
+        """
+
+        success, msg = self.submit_value("key", value)
+        if not success:
+            raise ValueError(msg)
+
+    def change_key(self, value: Optional[K]) -> None:
+        """
+        Change the key behind this hook.
+        """
+        success, msg = self.submit_value("key", value)
+        if not success:
+            raise ValueError(msg)
+
+    # ------------------------- value hook and value -------------------------
 
     @property
     def value_hook(self) -> Hook[Optional[V]]:
@@ -263,41 +263,79 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         Returns:
             The hook managing the retrieved value.
         """
-        return self._value_hook
+        return self.get_hook("value") # type: ignore
 
     @property
     def value(self) -> Optional[V]:
         """
         Get the value behind this hook.
         """
-        return self._value_hook.value
+        return self.get_value_of_hook("value") # type: ignore
 
     @value.setter
     def value(self, value: Optional[V]) -> None:
         """
         Set the value behind this hook.
         """
-        success, msg = self._value_hook.submit_value(value)
+        success, msg = self.submit_value("value", value)
         if not success:
             raise ValueError(msg)
 
-    @property
-    def key(self) -> Optional[K]:
+    def change_value(self, value: Optional[V]) -> None:
         """
-        Get the key behind this hook.
+        Change the value behind this hook.
         """
-        return self._key_hook.value
-    
-    @key.setter
-    def key(self, value: Optional[K]) -> None:
-        """
-        Set the key behind this hook.
-        """
-        if value is not None and value not in self._dict_hook.value:
-            raise KeyError(f"Key {value} not in dictionary")
-        success, msg = self._key_hook.submit_value(value)
+        success, msg = self.submit_value("value", value)
         if not success:
             raise ValueError(msg)
+
+    # ------------------------- keys hook and keys -------------------------
+
+    @property
+    def keys_hook(self) -> ReadOnlyHook[tuple[K, ...]]:
+        """
+        Get the keys hook.
+        """
+        return self.get_hook("keys") # type: ignore
+
+    @property
+    def keys(self) -> tuple[K, ...]:
+        """
+        Get the keys behind this hook.
+        """
+        return self.get_value_of_hook("keys") # type: ignore
+
+    # ------------------------- values hook and values -------------------------
+
+    @property
+    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
+        """
+        Get the values hook.
+        """
+        return self.get_hook("values") # type: ignore
+
+    @property
+    def values(self) -> tuple[V, ...]:
+        """
+        Get the values behind this hook.
+        """
+        return self.get_value_of_hook("values") # type: ignore
+
+    # ------------------------- length hook and length -------------------------
+
+    @property
+    def length_hook(self) -> ReadOnlyHook[int]:
+        """
+        Get the length hook.
+        """
+        return self.get_hook("length") # type: ignore
+
+    @property
+    def length(self) -> int:
+        """
+        Get the length behind this hook.
+        """
+        return self.get_value_of_hook("length") # type: ignore
 
     ######################################################################
 
@@ -311,10 +349,4 @@ class ObservableOptionalSelectionDict(CarriesHooksBase[Literal["dict", "key", "v
         else:
             _inferred_value = dict_value[key_value]
 
-        OwnedHook[Any].submit_values(
-            {
-                self._dict_hook: dict_value,
-                self._key_hook: key_value,
-                self._value_hook: _inferred_value
-            }
-        )
+        self.submit_values({"dict": dict_value, "key": key_value, "value": _inferred_value})

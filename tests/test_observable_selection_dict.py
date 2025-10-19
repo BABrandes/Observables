@@ -316,9 +316,14 @@ class TestObservableOptionalSelectionDict:
             logger=logger
         )
         
-        # Test get_hook_keys
+        # Test get_hook_keys - now includes secondary hooks
         keys = selection_dict.get_hook_keys()
-        assert keys == {"dict", "key", "value"}
+        assert keys == {"dict", "key", "value", "keys", "values", "length"}
+        
+        # Test secondary hooks provide read-only access
+        assert selection_dict.keys == ("a", "b")
+        assert selection_dict.values == (1, 2)
+        assert selection_dict.length == 2
         
         # Test get_hook_value_as_reference - setting key to None sets value to None
         selection_dict.key = None
@@ -404,9 +409,19 @@ class TestObservableOptionalSelectionDict:
             logger=logger
         )
         
-        # Test get_collective_hook_keys
+        # Test get_collective_hook_keys - now includes secondary hooks
         collective_keys = selection_dict.get_hook_keys()
-        assert collective_keys == {"dict", "key", "value"}
+        assert collective_keys == {"dict", "key", "value", "keys", "values", "length"}
+        
+        # Test that secondary hooks are read-only (cannot submit values directly)
+        keys_hook = selection_dict.keys_hook
+        values_hook = selection_dict.values_hook
+        length_hook = selection_dict.length_hook
+        
+        # Verify they are ReadOnlyHook instances (have value but not submit_value)
+        assert hasattr(keys_hook, 'value')
+        assert hasattr(values_hook, 'value')
+        assert hasattr(length_hook, 'value')
         
         # Test that the interface is properly implemented
         # The connect_hooks functionality is tested elsewhere

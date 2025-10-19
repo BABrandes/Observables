@@ -1,4 +1,4 @@
-from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable, Protocol
+from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 from abc import ABC, abstractmethod
 
@@ -54,7 +54,7 @@ class ObservableDictBase(
         key_hook: KT | Hook[KT],
         value_hook: Optional[Hook[VT]],
         logger: Optional[Logger] = None,
-        invalidate_callback: Optional[Callable[..., tuple[bool, str]]] = None
+        invalidate_callback: Optional[Callable[[], None]] = None
     ):
         """
         Initialize the ObservableDictBase.
@@ -74,26 +74,26 @@ class ObservableDictBase(
             _initial_dict_value = dict_hook
 
         if isinstance(key_hook, Hook):
-            _initial_key_value: KT = key_hook.value
+            _initial_key_value: KT = key_hook.value  # type: ignore
         else:
-            _initial_key_value = key_hook
+            _initial_key_value = key_hook  # type: ignore
 
         # Compute initial value if not provided
         if value_hook is None:
             _initial_value_value: VT = self._compute_initial_value(
                 _initial_dict_value, 
-                _initial_key_value
+                _initial_key_value  # type: ignore
             )
         else:
-            if not isinstance(value_hook, Hook):
+            if not isinstance(value_hook, Hook):  # type: ignore
                 raise ValueError("value_hook must be a Hook or None")
-            _initial_value_value = value_hook.value
+            _initial_value_value = value_hook.value  # type: ignore
 
         # Initialize ListeningBase
         ListeningBase.__init__(self, logger)
         
         # Initialize ComplexObservableBase
-        ComplexObservableBase.__init__(
+        ComplexObservableBase.__init__(  # type: ignore
             self,
             initial_component_values_or_hooks={
                 "dict": dict_hook,
@@ -101,9 +101,9 @@ class ObservableDictBase(
                 "value": value_hook if value_hook is not None else _initial_value_value
             },
             secondary_hook_callbacks={
-                "keys": lambda values: tuple(values["dict"].keys()) if values["dict"] is not None else (),
-                "values": lambda values: tuple(values["dict"].values()) if values["dict"] is not None else (),
-                "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0
+                "keys": lambda values: tuple(values["dict"].keys()) if values["dict"] is not None else (),  # type: ignore
+                "values": lambda values: tuple(values["dict"].values()) if values["dict"] is not None else (),  # type: ignore
+                "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0  # type: ignore
             },
             verification_method=self._create_validation_callback(),
             add_values_to_be_updated_callback=self._create_add_values_callback(),
@@ -113,7 +113,7 @@ class ObservableDictBase(
 
     @abstractmethod
     def _create_add_values_callback(self) -> Callable[
-        ["ObservableDictBase[K, V, KT, VT]", Mapping[Literal["dict", "key", "value"], Any], Mapping[Literal["dict", "key", "value"], Any]], 
+        [Any, Mapping[Literal["dict", "key", "value"], Any], Mapping[Literal["dict", "key", "value"], Any]], 
         Mapping[Literal["dict", "key", "value"], Any]
     ]:
         """

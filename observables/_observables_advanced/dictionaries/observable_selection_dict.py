@@ -1,4 +1,4 @@
-from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
+from typing import Literal, TypeVar, Generic, Mapping, Any, Callable
 
 from .observable_dict_base import ObservableDictBase
 from .protocols import ObservableSelectionDictProtocol

@@ -6,7 +6,7 @@ from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ..._carries_hooks.observable_serializable import ObservableSerializable
 from ..._hooks.owned_hook import OwnedHook
 from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
-from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
 
 EK = TypeVar("EK", bound=str)
@@ -186,7 +186,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
 
     @root_path.setter
     def root_path(self, path: Optional[Path]) -> None:
-        success, msg = self._root_path_hook.submit_value(path)
+        success, msg = self._root_path_hook.change_value(path)
         if not success:
             raise ValueError(msg)
 
@@ -198,15 +198,15 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
 
     def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
         """Set the root path value."""
-        return self._root_path_hook.submit_value(path, raise_submission_error_flag=False)
+        return self._root_path_hook.change_value(path, raise_submission_error_flag=False)
 
     def set_relative_path(self, key: EK, path: Optional[str]) -> tuple[bool, str]:
         """Set the relative path for a specific element."""
-        return self.get_relative_path_hook(key).submit_value(path, raise_submission_error_flag=False)
+        return self.get_relative_path_hook(key).change_value(path, raise_submission_error_flag=False)
 
     def set_absolute_path(self, key: EK, path: Optional[Path]) -> tuple[bool, str]:
         """Set the absolute path for a specific element (usually not recommended)."""
-        return self.get_absolute_path_hook(key).submit_value(path, raise_submission_error_flag=False)
+        return self.get_absolute_path_hook(key).change_value(path, raise_submission_error_flag=False)
 
     @property
     def rooted_element_keys(self) -> set[EK]:
@@ -266,10 +266,11 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             keys.add(self.element_key_to_absolute_path_key(key))
         return keys
 
-    def _get_hook_key(self, hook_or_nexus: OwnedFullHookProtocol[Path|str|None]|HookNexus[Path|str|None]) -> EK:
+    def _get_hook_key(self, hook_or_nexus: OwnedFullHookProtocol[Path|str|None]|Nexus[Path|str|None]) -> EK:
         """
         Get the key of a hook or nexus.
         """
+        
         if isinstance(hook_or_nexus, OwnedFullHookProtocol):
             if hook_or_nexus is self._root_path_hook:
                 return ROOT_PATH_KEY # type: ignore
@@ -278,12 +279,12 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
                     if hook == hook_or_nexus:
                         return hook_key # type: ignore
                 raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
-        elif isinstance(hook_or_nexus, HookNexus): # type: ignore
-            if hook_or_nexus is self._root_path_hook.hook_nexus:
+        elif isinstance(hook_or_nexus, Nexus): # type: ignore
+            if hook_or_nexus is self._root_path_hook._get_nexus(): # type: ignore
                 return ROOT_PATH_KEY # type: ignore
             else:
                 for hook_key, hook in self._rooted_element_path_hooks.items():
-                    if hook.hook_nexus is hook_or_nexus:
+                    if hook._get_nexus() is hook_or_nexus: # type: ignore
                         return hook_key # type: ignore
             raise ValueError(f"Key {hook_or_nexus} not found in _rooted_element_path_hooks")
         else:
@@ -291,7 +292,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
 
     #### ObservableSerializable implementation ####
     
-    def get_value_references_for_serialization(self) -> Mapping[str, Path|str|None]:
+    def get_value_for_serialization(self) -> Mapping[str, Path|str|None]:
 
         root_path: Optional[Path] = self._root_path_hook.value
         if root_path is not None and not isinstance(root_path, Path): # type: ignore
@@ -305,7 +306,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             rooted_elements_initial_relative_path_values[key] = relative_path
         return {ROOT_PATH_KEY: root_path, **rooted_elements_initial_relative_path_values}
     
-    def set_value_references_from_serialization(self, values: Mapping[str, Path|str|None]) -> None:
+    def set_values_from_serialization(self, values: Mapping[str, Path|str|None]) -> None:
         root_path: Optional[Path] = values[ROOT_PATH_KEY] # type: ignore
         if root_path is not None and not isinstance(root_path, Path): # type: ignore
             raise ValueError("Root path must be a path")

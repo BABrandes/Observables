@@ -3,7 +3,7 @@ from logging import Logger
 
 if TYPE_CHECKING:
     from .nexus_manager import NexusManager
-    from .hook_nexus import HookNexus
+    from ...nexus_system.nexus import Nexus
     from .._hooks.hook_protocol import HookProtocol
 
 class HasNexusManagerProtocol(Protocol):
@@ -28,7 +28,7 @@ class HasNexusManagerProtocol(Protocol):
         if len(hooks_and_values) == 0:
             return True, "No values provided"
 
-        nexus_and_values: dict["HookNexus[Any]", Any] = {}
+        nexus_and_values: dict["Nexus[Any]", Any] = {}
         if isinstance(hooks_and_values, Mapping):
             for hook, value in hooks_and_values.items():
                 if hook.nexus_manager != self.nexus_manager:

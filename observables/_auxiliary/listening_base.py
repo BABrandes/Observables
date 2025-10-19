@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Any
 from logging import Logger
+from typing_extensions import deprecated
 
 from .listening_protocol import ListeningProtocol
 
@@ -61,7 +62,14 @@ class ListeningBase(ListeningProtocol):
         """
         return self._listeners.copy()
 
+    @deprecated("Will be removed in the future. Use add_listener instead.")
     def add_listeners(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Add one or more listeners to the observable.
+        """
+        self.add_listener(*callbacks)
+
+    def add_listener(self, *callbacks: Callable[[], None]) -> None:
         """
         Add one or more listeners to the observable.
         

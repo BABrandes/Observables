@@ -40,7 +40,7 @@ class ObservableSerializable(Generic[HK, HV]):
        >>> obs.value = 100
     
     2. **Serialize to get state:**
-       >>> serialized_data = obs.get_value_references_for_serialization()
+       >>> serialized_data = obs.get_values_for_serialization()
        >>> # serialized_data = {"value": 100}
     
     3. **Save to storage (your choice of format):**
@@ -54,20 +54,20 @@ class ObservableSerializable(Generic[HK, HV]):
        >>> obs_restored = ObservableSingleValue(0)  # Initial value doesn't matter
     
     6. **Restore state:**
-       >>> obs_restored.set_value_references_from_serialization(serialized_data)
+       >>> obs_restored.set_values_from_serialization(serialized_data)
        >>> # obs_restored.value == 100
     
     Implementation Requirements:
     ---------------------------
     Classes implementing this protocol must provide:
     
-    1. **get_value_references_for_serialization() -> Mapping[HK, HV]**
+    1. **get_values_for_serialization() -> Mapping[HK, HV]**
        - Returns a mapping of hook keys to their current values
        - Should only include PRIMARY hook values (not computed/secondary)
        - Values should be references (not copies) for efficiency
        - Must include all state needed for complete reconstruction
     
-    2. **set_value_references_from_serialization(values: Mapping[HK, HV]) -> None**
+    2. **set_values_from_serialization(values: Mapping[HK, HV]) -> None**
        - Restores observable state from serialized values
        - Should validate values if needed
        - Should update all relevant hooks atomically
@@ -78,22 +78,22 @@ class ObservableSerializable(Generic[HK, HV]):
     
     **Simple Observable (Single Value):**
         >>> class ObservableSingleValue(ObservableSerializable[Literal["value"], T]):
-        ...     def get_value_references_for_serialization(self):
+        ...     def get_values_for_serialization(self):
         ...         return {"value": self._hook.value}
         ...     
-        ...     def set_value_references_from_serialization(self, values):
+        ...     def set_values_from_serialization(self, values):
         ...         self.submit_values(values)
     
     **Complex Observable (Multiple Values):**
         >>> class ObservableRootedPaths(ObservableSerializable[str, Path|str|None]):
-        ...     def get_value_references_for_serialization(self):
+        ...     def get_values_for_serialization(self):
         ...         # Return root path and relative paths only
         ...         result = {"root_path": self._root_path}
         ...         for key in self._element_keys:
         ...             result[key] = self.get_relative_path(key)
         ...         return result
         ...     
-        ...     def set_value_references_from_serialization(self, values):
+        ...     def set_values_from_serialization(self, values):
         ...         # Rebuild internal state from serialized values
         ...         self.submit_values(self._prepare_values(values))
     
@@ -124,7 +124,7 @@ class ObservableSerializable(Generic[HK, HV]):
         >>> expected = obs.get_state()
         >>> 
         >>> # 2. Serialize
-        >>> data = obs.get_value_references_for_serialization()
+        >>> data = obs.get_values_for_serialization()
         >>> 
         >>> # 3. Delete original
         >>> del obs
@@ -133,7 +133,7 @@ class ObservableSerializable(Generic[HK, HV]):
         >>> obs_new = ObservableXYZ(different_value)
         >>> 
         >>> # 5. Deserialize
-        >>> obs_new.set_value_references_from_serialization(data)
+        >>> obs_new.set_values_from_serialization(data)
         >>> 
         >>> # 6. Verify
         >>> assert obs_new.get_state() == expected
@@ -146,7 +146,7 @@ class ObservableSerializable(Generic[HK, HV]):
     - ObservableSelectionEnum: Enum-based serialization
     """
 
-    def get_value_references_for_serialization(self) -> Mapping[HK, HV]:
+    def get_values_for_serialization(self) -> Mapping[HK, HV]:
         """
         Get the observable's state as a mapping for serialization.
         
@@ -161,7 +161,7 @@ class ObservableSerializable(Generic[HK, HV]):
         Example:
             >>> obs = ObservableSingleValue(42)
             >>> obs.value = 100
-            >>> data = obs.get_value_references_for_serialization()
+            >>> data = obs.get_values_for_serialization()
             >>> data
             {'value': 100}
         
@@ -172,7 +172,7 @@ class ObservableSerializable(Generic[HK, HV]):
         """
         ...
 
-    def set_value_references_from_serialization(self, values: Mapping[HK, HV]) -> None:
+    def set_values_from_serialization(self, values: Mapping[HK, HV]) -> None:
         """
         Restore the observable's state from serialized values.
         
@@ -182,7 +182,7 @@ class ObservableSerializable(Generic[HK, HV]):
         
         Args:
             values: A mapping of hook keys to values, as previously obtained
-                   from get_value_references_for_serialization()
+                   from get_values_for_serialization()
         
         Raises:
             ValueError: If the values are invalid or incompatible
@@ -190,7 +190,7 @@ class ObservableSerializable(Generic[HK, HV]):
         Example:
             >>> obs = ObservableSingleValue(0)
             >>> data = {'value': 100}
-            >>> obs.set_value_references_from_serialization(data)
+            >>> obs.set_values_from_serialization(data)
             >>> obs.value
             100
         

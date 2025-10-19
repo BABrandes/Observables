@@ -1,6 +1,8 @@
-from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional
-from threading import RLock
+from typing import TypeVar, runtime_checkable, Protocol, TYPE_CHECKING, Mapping, Any, final, Optional, Sequence
 from logging import Logger
+
+from .hook_with_connection_protocol import HookWithConnectionProtocol
+
 
 from ..._auxiliary.listening_protocol import ListeningProtocol
 from ..._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
@@ -8,8 +10,10 @@ from ..._publisher_subscriber.publisher_protocol import PublisherProtocol
 from ..._nexus_system.submission_error import SubmissionError
 
 if TYPE_CHECKING:
-    from ..._nexus_system.hook_nexus import HookNexus
+    from ..._nexus_system.nexus import Nexus
     from ..._nexus_system.nexus_manager import NexusManager
+    from ..._hooks.mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
+    from ..._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 
 T = TypeVar("T")
 
@@ -30,44 +34,23 @@ class HookWithSetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
         """
         ...
 
-    @property
-    def value_reference(self) -> T:
+    @value.setter
+    def value(self, value: T) -> None:
         """
-        Get the value reference behind this hook.
-
-        *This is a reference to the value behind this hook, not a copy. Do not modify it!*
-
-        Returns:
-            The value reference behind this hook.
+        Set the value behind this hook.
         """
         ...
 
-    @property
-    def previous_value(self) -> T:
+    def change_value(self, value: T, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
-        Get the previous value behind this hook.
-
-        ** The returned value is a copy, so modifying is allowed.
-        """
-        ...
-    
-    @property
-    def hook_nexus(self) -> "HookNexus[T]":
-        """
-        Get the hook nexus that this hook belongs to.
+        Submit a value to this hook. This will not invalidate the hook!
         """
         ...
 
-    @property
-    def lock(self) -> RLock:
+    @staticmethod
+    def change_values(hooks_and_values: Mapping["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]|Sequence[tuple["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]], *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
-        Get the lock for thread safety.
-        """
-        ...
-
-    def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
-        """
-        Replace the hook nexus that this hook belongs to.
+        Submit values to this hook. This will not invalidate the hook!
         """
         ...
 
@@ -76,9 +59,11 @@ class HookWithSetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
     #########################################################
 
     @final
-    def submit_value(self, value: T, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+    def _change_value(self, value: T, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit a value to this hook. This will not invalidate the hook!
+
+        ** This method is not thread-safe and should only be called by the change_value method.
 
         Args:
             value: The value to submit
@@ -86,7 +71,11 @@ class HookWithSetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
             raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
-        success, msg = self.nexus_manager.submit_values({self.hook_nexus: value}, mode="Normal submission", logger=logger)
+        if not isinstance(self, HookWithConnectionProtocol):
+            raise ValueError("This hook does not have connection functionality")
+
+        hook_nexus: Nexus[T] = self._get_nexus() # type: ignore
+        success, msg = self.nexus_manager.submit_values({hook_nexus: value}, mode="Normal submission", logger=logger)
         if not success and raise_submission_error_flag:
             raise SubmissionError(msg, value)
         return success, msg
@@ -94,9 +83,11 @@ class HookWithSetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
 
     @final
     @staticmethod
-    def submit_values(values: Mapping["HookWithSetterProtocol[Any]", Any], *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+    def _change_values(hooks_and_values: Mapping["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]|Sequence[tuple["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]], *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         Submit values to this hook. This will not invalidate the hook!
+
+        ** This method is not thread-safe and should only be called by the change_values method.
 
         Args:
             values: The values to submit
@@ -104,15 +95,31 @@ class HookWithSetterProtocol(ListeningProtocol, PublisherProtocol, HasNexusManag
             raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
         """
 
-        if len(values) == 0:
+        if len(hooks_and_values) == 0:
             return True, "No values provided"
-        hook_manager: "NexusManager" = next(iter(values.keys())).nexus_manager
-        hook_nexus_and_values: Mapping[HookNexus[Any], Any] = {}
-        for hook, value in values.items():
-            if hook.nexus_manager != hook_manager:
-                raise ValueError("The nexus managers must be the same")
-            hook_nexus_and_values[hook.hook_nexus] = value
-        success, msg = hook_manager.submit_values(hook_nexus_and_values, mode="Normal submission", logger=logger)
-        if not success and raise_submission_error_flag:
-            raise SubmissionError(msg, values)
-        return success, msg
+
+        from ..._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
+
+        nexus_and_values: dict["Nexus[Any]", Any] = {}
+        if isinstance(hooks_and_values, Mapping):
+            for hook, value in hooks_and_values.items():
+                if isinstance(hook, HookWithConnectionProtocol):
+                    nexus_and_values[hook._get_nexus()] = value # type: ignore
+                if isinstance(hook, CarriesSingleHookProtocol):
+                    nexus_and_values[hook._get_nexus()] = value # type: ignore
+
+        elif isinstance(hooks_and_values, Sequence): # type: ignore
+            for hook, value in hooks_and_values:
+                if isinstance(hook, HookWithConnectionProtocol):
+                    hook_nexus: Nexus[Any] = hook._get_nexus() # type: ignore
+                    if hook_nexus in nexus_and_values: # type: ignore
+                        raise ValueError("All hook nexuses must be unique")
+                    nexus_and_values[hook_nexus] = value # type: ignore
+                if isinstance(hook, CarriesSingleHookProtocol):
+                    nexus_and_values[hook._get_nexus()] = value # type: ignore
+        else:
+            raise ValueError("hooks_and_values must be a mapping or a sequence")
+
+        nexus: Nexus[Any] = nexus_and_values[next(iter(nexus_and_values.keys()))]
+        nexus_manager: "NexusManager" = nexus._nexus_manager # type: ignore
+        return nexus_manager.submit_values(nexus_and_values, mode="Normal submission", logger=logger)

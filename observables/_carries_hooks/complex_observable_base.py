@@ -8,13 +8,14 @@ from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtoc
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 from .._hooks.mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
-from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.nexus import Nexus
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from .._utils import log
 
 from .carries_hooks_base import CarriesHooksBase
 from .._nexus_system.update_function_values import UpdateFunctionValues
+from .._carries_hooks.observable_serializable import ObservableSerializable
 
 PHK = TypeVar("PHK")
 SHK = TypeVar("SHK")
@@ -22,7 +23,7 @@ PHV = TypeVar("PHV", covariant=True)
 SHV = TypeVar("SHV", covariant=True)
 O = TypeVar("O", bound="ComplexObservableBase[Any, Any, Any, Any, Any]")
 
-class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O], Generic[PHK, SHK, PHV, SHV, O]):
+class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O], ObservableSerializable[PHK|SHK, PHV|SHV], Generic[PHK, SHK, PHV, SHV, O]):
     """
     Base class for all observable objects in the hook-based architecture.
 
@@ -151,7 +152,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
 
     def __init__(
             self,
-            initial_component_values_or_hooks: Mapping[PHK, PHV|OwnedHookProtocol[PHV]],
+            initial_hook_values: Mapping[PHK, PHV|OwnedHookProtocol[PHV]],
             verification_method: Optional[Callable[[Mapping[PHK, PHV]], tuple[bool, str]]] = None,
             secondary_hook_callbacks: Mapping[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {},
             add_values_to_be_updated_callback: Optional[Callable[[O, UpdateFunctionValues[PHK, PHV]], Mapping[PHK, PHV]]] = None,
@@ -163,8 +164,8 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
 
         Parameters
         ----------
-        initial_component_values_or_hooks : Mapping[PHK, PHV|HookProtocol[PHV]]
-            Initial values or hooks for primary components.
+        initial_hook_values : Mapping[PHK, PHV|HookProtocol[PHV]]
+            Initial values or hooks for primary hooks.
             Can contain either direct values (PHV) or HookProtocol objects that will be connected.
             These represent the primary state of the observable.
             
@@ -325,7 +326,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         """Just to ensure that the secondary values cannot be modified from outside. They can be different, but only within the nexus manager's equality check. These values are never used for anything else."""
 
         # Eager Caching
-        self._primary_hook_keys = set(initial_component_values_or_hooks.keys())
+        self._primary_hook_keys = set(initial_hook_values.keys())
         self._secondary_hook_keys = set(secondary_hook_callbacks.keys())
 
         # Some checks:
@@ -414,7 +415,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         #-------------------------------- Set inital end --------------------------------
 
         initial_primary_hook_values: dict[PHK, PHV] = {}
-        for key, value in initial_component_values_or_hooks.items():
+        for key, value in initial_hook_values.items():
 
             if isinstance(value, HookWithGetterProtocol):
                 initial_value: PHV = value.value # type: ignore
@@ -521,13 +522,13 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         """
         return set(self._primary_hooks.keys()) | set(self._secondary_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK|SHK:
+    def _get_hook_key(self, hook_or_nexus: OwnedHookProtocol[PHV|SHV]|Nexus[PHV|SHV]) -> PHK|SHK:
         """
         Get the key for a hook or nexus.
 
         Parameters
         ----------
-        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or HookNexus[PHV|SHV]
+        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or Nexus[PHV|SHV]
             The hook or nexus to get the key for
 
         Returns
@@ -545,12 +546,12 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         This method must be implemented by subclasses to provide reverse lookup from hooks to keys.
         It should search through both primary and secondary hooks to find the matching key.
         """
-        if isinstance(hook_or_nexus, HookNexus):
+        if isinstance(hook_or_nexus, Nexus):
             for key, hook in self._primary_hooks.items():
-                if hook.hook_nexus == hook_or_nexus:
+                if hook._get_nexus() == hook_or_nexus: # type: ignore
                     return key
             for key, hook in self._secondary_hooks.items():
-                if hook.hook_nexus == hook_or_nexus:
+                if hook._get_nexus() == hook_or_nexus: # type: ignore
                     return key
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
         elif isinstance(hook_or_nexus, HookWithOwnerProtocol): #type: ignore
@@ -564,17 +565,30 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         else:
             raise ValueError(f"Hook {hook_or_nexus} not found in component_hooks or secondary_hooks")
 
+    #########################################################
+    # ObservableSerializable implementation
+    #########################################################
+
+    def get_values_for_serialization(self) -> Mapping[PHK|SHK, PHV|SHV]:
+        return {key: hook.value for key, hook in self._primary_hooks.items()}
+
+    def set_values_from_serialization(self, values: Mapping[PHK|SHK, PHV|SHV]) -> None:
+        success, msg = self._submit_values(values)
+        if not success:
+            raise ValueError(msg)
+
+
     #########################################################################
     # Other private methods
     #########################################################################
 
-    def _get_key_for_primary_hook(self, hook_or_nexus: OwnedFullHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> PHK:
+    def _get_key_for_primary_hook(self, hook_or_nexus: OwnedFullHookProtocol[PHV|SHV]|Nexus[PHV|SHV]) -> PHK:
         """
         Get the key for a primary hook.
         
         Parameters
         ----------
-        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or HookNexus[PHV|SHV]
+        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or Nexus[PHV|SHV]
             The hook or nexus to get the key for
             
         Returns
@@ -593,17 +607,17 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         It should only search through primary hooks and raise an error if not found.
         """
         for key, hook in self._primary_hooks.items():
-            if hook == hook_or_nexus or hook.hook_nexus == hook_or_nexus:
+            if hook == hook_or_nexus or hook._get_nexus() == hook_or_nexus: # type: ignore
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a primary hook!")
 
-    def _get_key_for_secondary_hook(self, hook_or_nexus: OwnedReadOnlyHookProtocol[PHV|SHV]|HookNexus[PHV|SHV]) -> SHK:
+    def _get_key_for_secondary_hook(self, hook_or_nexus: OwnedReadOnlyHookProtocol[PHV|SHV]|Nexus[PHV|SHV]) -> SHK:
         """
         Get the key for a secondary hook.
         
         Parameters
         ----------
-        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or HookNexus[PHV|SHV]
+        hook_or_nexus : HookWithOwnerProtocol[PHV|SHV] or Nexus[PHV|SHV]
             The hook or nexus to get the key for
             
         Returns
@@ -622,7 +636,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         It should only search through secondary hooks and raise an error if not found.
         """
         for key, hook in self._secondary_hooks.items():
-            if hook == hook_or_nexus or hook.hook_nexus == hook_or_nexus:
+            if hook == hook_or_nexus or hook._get_nexus() == hook_or_nexus: # type: ignore
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a secondary hook!")
 

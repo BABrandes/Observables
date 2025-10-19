@@ -6,7 +6,7 @@ from observables._hooks.hook_protocols.owned_full_hook_protocol import OwnedFull
 from observables._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from observables._hooks.owned_hook import OwnedHook
 from observables._hooks.hook_aliases import Hook, ReadOnlyHook
-from observables._nexus_system.hook_nexus import HookNexus
+from observables._nexus_system.nexus import Nexus
 from observables._nexus_system.update_function_values import UpdateFunctionValues
 
 T = TypeVar("T")
@@ -262,7 +262,7 @@ class ObservableRaiseNone(CarriesHooksBase[Literal["value_without_none", "value_
         """
         return {"value_without_none", "value_with_none"}
 
-    def _get_hook_key(self, hook_or_nexus: "Hook[T]|HookNexus[T]") -> Literal["value_without_none", "value_with_none"]:
+    def _get_hook_key(self, hook_or_nexus: "Hook[T]|Nexus[T]") -> Literal["value_without_none", "value_with_none"]:
         """
         Get a key by its hook or nexus.
         """

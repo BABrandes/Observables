@@ -7,7 +7,7 @@ from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
-from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
 from .function_values import FunctionValues
 
@@ -282,7 +282,7 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
     def _get_hook_keys(self) -> set[SHK]:
         return set(self._sync_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|HookNexus[SHV]") -> SHK:
+    def _get_hook_key(self, hook_or_nexus: "OwnedFullHookProtocol[SHV]|Nexus[SHV]") -> SHK:
         for key, hook in self._sync_hooks.items():
             if hook is hook_or_nexus:
                 return key

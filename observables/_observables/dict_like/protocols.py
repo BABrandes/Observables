@@ -1,5 +1,4 @@
 from typing import TypeVar, Optional, Protocol, Mapping, runtime_checkable
-from types import MappingProxyType
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 
@@ -11,9 +10,18 @@ class ObservableDictProtocol(Protocol[K, V]):
     """
     Protocol for observable dictionary objects.
     """
+
+    #-------------------------------- Dict --------------------------------
     
     @property
-    def dict(self) -> MappingProxyType[K, V]:
+    def dict_hook(self) -> Hook[Mapping[K, V]]:
+        """
+        Get the hook for the dictionary.
+        """
+        ...
+
+    @property
+    def dict(self) -> Mapping[K, V]:
         """
         Get the immutable dictionary value.
         """
@@ -26,18 +34,13 @@ class ObservableDictProtocol(Protocol[K, V]):
         """
         ...
 
-    @property
-    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
-        """
-        Get the hook for the dictionary.
-        """
-        ...
-
     def change_dict(self, new_dict: Mapping[K, V]) -> None:
         """
         Change the dictionary value (lambda-friendly method).
         """
         ...
+    
+    #-------------------------------- Length --------------------------------
     
     @property
     def length(self) -> int:
@@ -53,6 +56,8 @@ class ObservableDictProtocol(Protocol[K, V]):
         """
         ...
 
+    #-------------------------------- Keys --------------------------------
+
     @property
     def keys(self) -> frozenset[K]:
         """
@@ -66,6 +71,8 @@ class ObservableDictProtocol(Protocol[K, V]):
         Get the hook for the dictionary keys.
         """
         ...
+
+    #-------------------------------- Values --------------------------------
 
     @property
     def values(self) -> tuple[V, ...]:
@@ -81,8 +88,10 @@ class ObservableDictProtocol(Protocol[K, V]):
         """
         ...
 
+    #------------------------------------------------------------------------
+
 @runtime_checkable
-class ObservableSelectionDictProtocol(Protocol[K, V]):
+class ObservableSelectionDictProtocol(ObservableDictProtocol[K, V]):
     """
     Protocol for observable selection dictionary functionality.
     
@@ -94,19 +103,32 @@ class ObservableSelectionDictProtocol(Protocol[K, V]):
     
     Note:
         The dict_hook returns MappingProxyType for immutability. Do not attempt
-        to mutate it. Use change_dict() or set_dict_and_key() for modifications.
+        to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
     
-    @property
-    def dict_hook(self) -> "Hook[MappingProxyType[K, V]]":
-        """Get the dictionary hook (returns MappingProxyType for immutability)."""
-        ...
-    
+    #-------------------------------- Key --------------------------------
+
     @property
     def key_hook(self) -> "Hook[K]":
         """Get the key hook."""
         ...
-    
+
+    @property
+    def key(self) -> K:
+        """Get the current key."""
+        ...
+
+    @key.setter
+    def key(self, value: K) -> None:
+        """Set the current key."""
+        ...
+
+    def change_key(self, new_value: K) -> None:
+        """Change the current key."""
+        ...
+
+    #-------------------------------- Value --------------------------------
+
     @property
     def value_hook(self) -> "Hook[V]":
         """Get the value hook."""
@@ -121,23 +143,21 @@ class ObservableSelectionDictProtocol(Protocol[K, V]):
     def value(self, value: V) -> None:
         """Set the current value."""
         ...
-    
-    @property
-    def key(self) -> K:
-        """Get the current key."""
-        ...
-    
-    @key.setter
-    def key(self, value: K) -> None:
-        """Set the current key."""
-        ...
-    
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
-        """Set the dictionary and key behind this hook."""
+
+    def change_value(self, new_value: V) -> None:
+        """Change the current value."""
         ...
 
+    #-------------------------------- Convenience methods -------------------
+    
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: K) -> None:
+        """Change the dictionary and key behind this hook."""
+        ...
+
+    #------------------------------------------------------------------------
+
 @runtime_checkable
-class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
+class ObservableOptionalSelectionDictProtocol(ObservableDictProtocol[K, V]):
     """
     Protocol for observable optional selection dictionary functionality.
     
@@ -148,19 +168,33 @@ class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
     
     Note:
         The dict_hook returns MappingProxyType for immutability. Do not attempt
-        to mutate it. Use change_dict() or set_dict_and_key() for modifications.
+        to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
-    
-    @property
-    def dict_hook(self) -> "Hook[MappingProxyType[K, V]]":
-        """Get the dictionary hook (returns MappingProxyType for immutability)."""
-        ...
-    
+
+    #-------------------------------- Key --------------------------------
+
     @property
     def key_hook(self) -> "Hook[Optional[K]]":
         """Get the key hook."""
         ...
     
+
+    @property
+    def key(self) -> Optional[K]:
+        """Get the current key."""
+        ...
+    
+    @key.setter
+    def key(self, value: Optional[K]) -> None:
+        """Set the current key."""
+        ...
+
+    def change_key(self, new_value: Optional[K]) -> None:
+        """Change the current key."""
+        ...
+
+    #-------------------------------- Value --------------------------------
+
     @property
     def value_hook(self) -> "Hook[Optional[V]]":
         """Get the value hook."""
@@ -176,22 +210,20 @@ class ObservableOptionalSelectionDictProtocol(Protocol[K, V]):
         """Set the current value."""
         ...
     
-    @property
-    def key(self) -> Optional[K]:
-        """Get the current key."""
-        ...
-    
-    @key.setter
-    def key(self, value: Optional[K]) -> None:
-        """Set the current key."""
-        ...
-    
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_value(self, new_value: Optional[V]) -> None:
+        """Change the current value."""
         ...
 
+    #-------------------------------- Convenience methods -------------------
+    
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: Optional[K]) -> None:
+        """Change the dictionary and key behind this hook."""
+        ...
+
+    #------------------------------------------------------------------------
+
 @runtime_checkable
-class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
+class ObservableDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
     """
     Protocol for observable default selection dictionary functionality.
     
@@ -200,19 +232,32 @@ class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
     
     Note:
         The dict_hook returns MappingProxyType for immutability. Do not attempt
-        to mutate it. Use change_dict() or set_dict_and_key() for modifications.
+        to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
     
-    @property
-    def dict_hook(self) -> "Hook[MappingProxyType[K, V]]":
-        """Get the dictionary hook (returns MappingProxyType for immutability)."""
-        ...
-    
+    #-------------------------------- Key --------------------------------
+
     @property
     def key_hook(self) -> "Hook[K]":
         """Get the key hook."""
         ...
     
+    @property
+    def key(self) -> K:
+        """Get the current key."""
+        ...
+
+    @key.setter
+    def key(self, value: K) -> None:
+        """Set the current key."""
+        ...
+    
+    def change_key(self, new_value: K) -> None:
+        """Change the current key."""
+        ...
+
+    #-------------------------------- Value --------------------------------
+
     @property
     def value_hook(self) -> "Hook[V]":
         """Get the value hook."""
@@ -228,22 +273,20 @@ class ObservableDefaultSelectionDictProtocol(Protocol[K, V]):
         """Set the current value."""
         ...
     
-    @property
-    def key(self) -> K:
-        """Get the current key."""
-        ...
-    
-    @key.setter
-    def key(self, value: K) -> None:
-        """Set the current key."""
-        ...
-    
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
-        """Set the dictionary and key behind this hook."""
+    def change_value(self, new_value: V) -> None:
+        """Change the current value."""
         ...
 
+    #-------------------------------- Convenience methods -------------------
+    
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: K) -> None:
+        """Change the dictionary and key behind this hook."""
+        ...
+    
+    #------------------------------------------------------------------------
+
 @runtime_checkable
-class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
+class ObservableOptionalDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
     """
     Protocol for observable optional default selection dictionary functionality.
     
@@ -254,15 +297,28 @@ class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
         to mutate it. Use change_dict() or set_dict_and_key() for modifications.
     """
     
-    @property
-    def dict_hook(self) -> "Hook[MappingProxyType[K, V]]":
-        """Get the dictionary hook (returns MappingProxyType for immutability)."""
-        ...
-    
+    #-------------------------------- Key --------------------------------
+
     @property
     def key_hook(self) -> "Hook[Optional[K]]":
         """Get the key hook."""
         ...
+    
+    @property
+    def key(self) -> Optional[K]:
+        """Get the current key."""
+        ...
+
+    @key.setter
+    def key(self, value: Optional[K]) -> None:
+        """Set the current key."""
+        ...
+    
+    def change_key(self, new_value: Optional[K]) -> None:
+        """Change the current key."""
+        ...
+    
+    #-------------------------------- Value --------------------------------
     
     @property
     def value_hook(self) -> "Hook[Optional[V]]":
@@ -273,22 +329,20 @@ class ObservableOptionalDefaultSelectionDictProtocol(Protocol[K, V]):
     def value(self) -> Optional[V]:
         """Get the current value."""
         ...
-    
+
     @value.setter
     def value(self, value: Optional[V]) -> None:
         """Set the current value."""
         ...
     
-    @property
-    def key(self) -> Optional[K]:
-        """Get the current key."""
+    def change_value(self, new_value: Optional[V]) -> None:
+        """Change the current value."""
+        ...
+
+    #-------------------------------- Convenience methods -------------------
+
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: Optional[K]) -> None:
+        """Change the dictionary and key behind this hook."""
         ...
     
-    @key.setter
-    def key(self, value: Optional[K]) -> None:
-        """Set the current key."""
-        ...
-    
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
-        """Set the dictionary and key behind this hook."""
-        ...
+    #------------------------------------------------------------------------

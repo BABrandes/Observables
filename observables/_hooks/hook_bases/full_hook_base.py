@@ -1,13 +1,13 @@
-from typing import Generic, TypeVar, Optional, Literal, TYPE_CHECKING
+from typing import Generic, TypeVar, Optional, Mapping, Any, Sequence, TYPE_CHECKING
 import logging
 
 from ..hook_protocols.full_hook_protocol import FullHookProtocol
 from ..hook_bases.managed_hook_base import ManagedHookBase
 from ..._nexus_system.nexus_manager import NexusManager
 from ..._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
+from ..mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
 
 if TYPE_CHECKING:
-    from ..mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
     from ..._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 
 T = TypeVar("T")
@@ -106,13 +106,59 @@ class FullHookBase(ManagedHookBase[T], FullHookProtocol[T], Generic[T]):
         """
         ManagedHookBase.__init__(self, value, nexus_manager, logger) #type: ignore
 
-    def connect_hook(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
-        """Override to match ManagedHookBase signature."""
-        return super().connect_hook(target_hook, initial_sync_mode)
+    #########################################################
+    # Public properties and methods
+    #########################################################
 
-    def is_connected_to(self, hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
-        """Override to match ManagedHookBase signature."""
-        return super().is_connected_to(hook)
+    @property
+    def value(self) -> T:
+        """
+        Get the value behind this hook.
+
+        ** Thread-safe **
+        
+        Returns:
+            The immutable value stored in the hook nexus.
+            
+        Note:
+            All values are automatically converted to immutable forms by the nexus system:
+            - dict → immutables.Map
+            - list → tuple
+            - set → frozenset
+            - Primitives and frozen dataclasses remain unchanged
+            
+            Since values are immutable, it's safe to use them directly.
+        """
+        with self._lock:
+            return self._get_value()
+
+    @value.setter
+    def value(self, value: T) -> None:
+        """
+        Set the value behind this hook.
+
+        ** Thread-safe **
+        """
+        with self._lock:
+            self._change_value(value, logger=self._logger, raise_submission_error_flag=True)
+
+    def change_value(self, value: T, *, logger: Optional[logging.Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+        """
+        Change the value behind this hook.
+
+        ** Thread-safe **
+        """
+        with self._lock:
+            return self._change_value(value, logger=logger, raise_submission_error_flag=raise_submission_error_flag)
+
+    @staticmethod
+    def change_values(hooks_and_values: Mapping["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]|Sequence[tuple["HookWithGetterProtocol[Any]|CarriesSingleHookProtocol[Any]", Any]], *, logger: Optional[logging.Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+        """
+        Change the values behind this hook.
+
+        ** Thread-safe **
+        """
+        return FullHookBase._change_values(hooks_and_values, logger=logger, raise_submission_error_flag=raise_submission_error_flag)
 
     #########################################################
     # Debugging convenience methods

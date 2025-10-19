@@ -5,15 +5,16 @@ from types import MappingProxyType
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from .observable_dict_base import ObservableDictBase
-from .protocols import ObservableOptionalSelectionDictProtocol
+from .protocols import ObservableOptionalDefaultSelectionDictProtocol
 from ..._nexus_system.update_function_values import UpdateFunctionValues
+from ..._nexus_system.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
 
 class ObservableOptionalDefaultSelectionDict(
     ObservableDictBase[K, V, Optional[K], Optional[V]], 
-    ObservableOptionalSelectionDictProtocol[K, V], 
+    ObservableOptionalDefaultSelectionDictProtocol[K, V], 
     Generic[K, V]
 ):
     """
@@ -251,35 +252,66 @@ class ObservableOptionalDefaultSelectionDict(
         else:
             return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: Optional[K]) -> None:
-        """
-        Set the dictionary and key behind this hook atomically.
-        
-        If key is not None and not in dict, auto-creates a default entry.
-        
-        Args:
-            dict_value: The new mapping
-            key_value: The new key (can be None, will be auto-created if not present)
-        """
-        if key_value is None:
-            _inferred_value = None
-            # Wrap in MappingProxyType for immutability
-            if not isinstance(dict_value, MappingProxyType):
-                dict_value = MappingProxyType(dict(dict_value))
-        elif key_value not in dict_value:
-            # Auto-create default entry
-            _inferred_value = self._get_default_value(key_value)
-            _dict = dict(dict_value)
-            _dict[key_value] = _inferred_value
-            dict_value = MappingProxyType(_dict)
-        else:
-            _inferred_value = dict_value[key_value]
-            # Wrap in MappingProxyType for immutability
-            if not isinstance(dict_value, MappingProxyType):
-                dict_value = MappingProxyType(dict(dict_value))
+    #########################################################
+    # ObservableOptionalDefaultSelectionDictProtocol implementation
+    #########################################################
 
-        self.submit_values({
-            "dict": dict_value, 
-            "key": key_value, 
-            "value": _inferred_value
-        })
+    #-------------------------------- Key --------------------------------
+
+    @property
+    def key_hook(self) -> "Hook[Optional[K]]":
+        """Get the key hook."""
+        return self._primary_hooks["key"] # type: ignore
+    
+    @property
+    def key(self) -> Optional[K]:
+        """Get the current key."""
+        return self._primary_hooks["key"].value # type: ignore
+
+    @key.setter
+    def key(self, value: Optional[K]) -> None:
+        """Set the current key."""
+        success, msg = self._submit_value("key", value)
+        if not success:
+            raise ValueError(msg)
+    
+    def change_key(self, new_value: Optional[K]) -> None:
+        """Change the current key."""
+        success, msg = self._submit_value("key", new_value)
+        if not success:
+            raise ValueError(msg)
+    
+    #-------------------------------- Value --------------------------------
+    
+    @property
+    def value_hook(self) -> "Hook[Optional[V]]":
+        """Get the value hook."""
+        return self._primary_hooks["value"] # type: ignore
+    
+    @property
+    def value(self) -> Optional[V]:
+        """Get the current value."""
+        return self._primary_hooks["value"].value # type: ignore
+
+    @value.setter
+    def value(self, value: Optional[V]) -> None:
+        """Set the current value."""
+        success, msg = self._submit_value("value", value)
+        if not success:
+            raise ValueError(msg)
+    
+    def change_value(self, new_value: Optional[V]) -> None:
+        """Change the current value."""
+        success, msg = self._submit_value("value", new_value)
+        if not success:
+            raise ValueError(msg)
+
+    #-------------------------------- Convenience methods -------------------
+
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: Optional[K]) -> None:
+        """Change the dictionary and key behind this hook."""
+        success, msg = self._submit_values({"dict": new_dict_value, "key": new_key_value})
+        if not success:
+            raise SubmissionError(msg, {"dict": new_dict_value, "key": new_key_value}, "dict and key")
+    
+    #------------------------------------------------------------------------

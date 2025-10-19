@@ -75,7 +75,7 @@ from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from ..._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
 from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
-from ..._nexus_system.hook_nexus import HookNexus
+from ...nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
 
 # Type variables for input and output hook names
@@ -311,7 +311,7 @@ class ObservableTransfer(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "Obse
     def _get_hook_keys(self) -> set[IHK|OHK]:
         return set(self._input_hooks.keys()) | set(self._output_hooks.keys())
 
-    def _get_hook_key(self, hook_or_nexus: "Hook[IHV|OHV]|HookNexus[IHV|OHV]") -> IHK|OHK:
+    def _get_hook_key(self, hook_or_nexus: "Hook[IHV|OHV]|Nexus[IHV|OHV]") -> IHK|OHK:
         for key, hook in self._input_hooks.items():
             if hook is hook_or_nexus:
                 return key

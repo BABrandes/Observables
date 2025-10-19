@@ -1,18 +1,15 @@
 from typing import Literal, TypeVar, Generic, Mapping, Any, Callable
-from types import MappingProxyType
+from immutables import Map
 
-from .observable_dict_base import ObservableDictBase
+from .observable_dict_base import ObservableDictBase, Hook
 from .protocols import ObservableSelectionDictProtocol
 from ..._nexus_system.update_function_values import UpdateFunctionValues
+from ..._nexus_system.submission_error import SubmissionError
 
 K = TypeVar("K")
 V = TypeVar("V")
 
-class ObservableSelectionDict(
-    ObservableDictBase[K, V, K, V], 
-    ObservableSelectionDictProtocol[K, V], 
-    Generic[K, V]
-):
+class ObservableSelectionDict(ObservableDictBase[K, V, K, V], ObservableSelectionDictProtocol[K, V], Generic[K, V]):
     """
     An observable that manages a selection from a dictionary.
     
@@ -48,9 +45,7 @@ class ObservableSelectionDict(
     - Integrates with NexusManager for value submission
     """
 
-    def _create_add_values_callback(self) -> Callable[
-        ["ObservableSelectionDict[K, V]", UpdateFunctionValues[Literal["dict", "key", "value"], Any]], 
-        Mapping[Literal["dict", "key", "value"], Any]
+    def _create_add_values_callback(self) -> Callable[["ObservableSelectionDict[K, V]", UpdateFunctionValues[Literal["dict", "key", "value"], Any]], Mapping[Literal["dict", "key", "value"], Any]
     ]:
         """
         Create the add_values_to_be_updated_callback for selection logic.
@@ -96,7 +91,7 @@ class ObservableSelectionDict(
                         raise KeyError(f"Key {update_values.submitted['key']} not in current dictionary")
                     _dict = dict(update_values.current["dict"])
                     _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                    return {"dict": MappingProxyType(_dict)}
+                    return {"dict": Map(_dict)}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict
@@ -118,10 +113,7 @@ class ObservableSelectionDict(
         
         return add_values_to_be_updated_callback
 
-    def _create_validation_callback(self) -> Callable[
-        [Mapping[Literal["dict", "key", "value"], Any]], 
-        tuple[bool, str]
-    ]:
+    def _create_validation_callback(self) -> Callable[[Mapping[Literal["dict", "key", "value"], Any]], tuple[bool, str]]:
         """
         Create the validate_complete_values_in_isolation_callback for selection.
         
@@ -167,20 +159,75 @@ class ObservableSelectionDict(
         """
         return initial_dict[initial_key]
 
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: K) -> None:
-        """
-        Set the dictionary and key behind this hook atomically.
+    #########################################################
+    # ObservableSelectionDictProtocol implementation
+    #########################################################
+
+    #-------------------------------- Key --------------------------------
+
+    @property
+    def key_hook(self) -> "Hook[K]":
+        """Get the key hook."""
         
-        Args:
-            dict_value: The new mapping
-            key_value: The new key (must be in dict_value)
-        """
-        _inferred_value = dict_value[key_value]
-        # Wrap in MappingProxyType for immutability
-        if not isinstance(dict_value, MappingProxyType):
-            dict_value = MappingProxyType(dict(dict_value))
-        self.submit_values({
-            "dict": dict_value, 
-            "key": key_value, 
-            "value": _inferred_value
-        })
+        return self._primary_hooks["key"] # type: ignore
+
+    @property
+    def key(self) -> K:
+        """Get the current key."""
+        
+        return self._primary_hooks["key"].value # type: ignore
+
+    @key.setter
+    def key(self, value: K) -> None:
+        """Set the current key."""
+        
+        success, msg = self._submit_value("key", value)
+        if not success:
+            raise ValueError(msg)
+
+    def change_key(self, new_value: K) -> None:
+        """Change the current key."""
+
+        success, msg = self._submit_value("key", new_value)
+        if not success:
+            raise SubmissionError(msg, new_value, "key")
+
+    #-------------------------------- Value --------------------------------
+
+    @property
+    def value_hook(self) -> "Hook[V]":
+        """Get the value hook."""
+        
+        return self._primary_hooks["value"] # type: ignore
+    
+    @property
+    def value(self) -> V:
+        """Get the current value."""
+        
+        return self._primary_hooks["value"].value # type: ignore
+    
+    @value.setter
+    def value(self, value: V) -> None:
+        """Set the current value."""
+        
+        success, msg = self._submit_value("value", value)
+        if not success:
+            raise ValueError(msg)
+
+    def change_value(self, new_value: V) -> None:
+        """Change the current value."""
+        
+        success, msg = self._submit_value("value", new_value)
+        if not success:
+            raise SubmissionError(msg, new_value, "value")
+
+    #-------------------------------- Convenience methods -------------------
+    
+    def change_dict_and_key(self, new_dict_value: Mapping[K, V], new_key_value: K) -> None:
+        """Change the dictionary and key behind this hook."""
+        
+        success, msg = self._submit_values({"dict": new_dict_value, "key": new_key_value})
+        if not success:
+            raise SubmissionError(msg, {"dict": new_dict_value, "key": new_key_value}, "dict and key")
+
+    #------------------------------------------------------------------------

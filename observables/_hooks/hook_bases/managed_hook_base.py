@@ -9,7 +9,7 @@ from ..mixin_protocols.hook_with_connection_protocol import HookWithConnectionPr
 from ..._utils import log
 from ..._auxiliary.listening_base import ListeningBase
 from ..._nexus_system.nexus_manager import NexusManager
-from ..._nexus_system.hook_nexus import HookNexus
+from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
 from ..._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from ..._publisher_subscriber.publisher import Publisher
@@ -110,7 +110,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
                 logged_hook = GetterHookBase("data", logger=logger)
         """
 
-        from ..._nexus_system.hook_nexus import HookNexus
+        from ..._nexus_system.nexus import Nexus
 
         ListeningBase.__init__(self, logger)
         self._value = value
@@ -118,100 +118,144 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
         Publisher.__init__(self, preferred_publish_mode="off", logger=logger)
 
-        self._hook_nexus = HookNexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
-        self._lock = RLock()
+        self._hook_nexus: Nexus[T] = Nexus(value, hooks={self}, nexus_manager=nexus_manager, logger=logger)
+        self._lock: RLock = RLock()
+
+    #########################################################
+    # Public properties and methods
+    #########################################################
 
     @property
     def nexus_manager(self) -> "NexusManager":
-        """Get the nexus manager that this hook belongs to."""
-        return self._nexus_manager
+        """
+        Get the nexus manager that this hook belongs to.
+
+        ** Thread-safe **
+        """
+        with self._lock:
+            return self._nexus_manager
 
     @property
     def value(self) -> T:
         """
-        Get the value behind this hook (by reference).
+        Get the value behind this hook.
+
+        ** Thread-safe **
         
         Returns:
-            The actual value stored in the hook nexus (not a copy).
+            The immutable value stored in the hook nexus.
             
-        Important:
-            This returns a reference for performance. Do NOT mutate unless
-            you created the value. For mutable collections, use immutable
-            wrappers or call value_copy() if you need to modify.
+        Note:
+            All values are automatically converted to immutable forms by the nexus system:
+            - dict → immutables.Map
+            - list → tuple
+            - set → frozenset
+            - Primitives and frozen dataclasses remain unchanged
+            
+            Since values are immutable, it's safe to use them directly.
         """
         with self._lock:
             return self._get_value()
 
-    def value_copy(self) -> T:
-        """
-        Get a mutable copy of the value.
-        
-        Returns:
-            A copy of the stored value (if it has a copy() method), otherwise
-            the value itself.
-            
-        Use this when you need to modify the value without affecting the hook.
-        """
-        with self._lock:
-            return self._hook_nexus.value_copy()
+    @value.setter
+    def value(self, value: T) -> None:
+        raise ValueError("Value cannot be set for managed hooks without implementation of HookWithSetterProtocol")
 
     @property
-    def value_reference(self) -> T:
-        """
-        Get the value reference behind this hook.
-        
-        .. deprecated::
-            Use `value` instead. This property is now an alias for `value`.
-            Will be removed in a future version.
-        
-        Returns:
-            The actual value stored in the hook nexus (same as `value`).
-        """
-        import warnings
-        warnings.warn(
-            "value_reference is deprecated, use 'value' instead",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        with self._lock:
-            return self._get_value_reference()
-    
-    @property
     def previous_value(self) -> T:
-        """Get the previous value behind this hook."""
+        """
+        Get the previous value behind this hook.
+
+        ** Thread-safe **
+        """
         with self._lock:
             return self._get_previous_value()
 
-    @property
-    def hook_nexus(self) -> "HookNexus[T]":
-        """Get the hook nexus that this hook belongs to."""
-        with self._lock:
-            return self._get_hook_nexus()
+    def link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+        """
+        Link this hook to another hook.
 
-    @property
-    def lock(self) -> RLock:
-        """Get the lock for thread safety."""
-        return self._lock
+        ** Thread-safe **
+
+        Args:
+            target_hook: The hook or CarriesSingleHookProtocol to connect to
+            initial_sync_mode: Determines which hook's value is used initially:
+                - "use_caller_value": Use this hook's value (caller = self)
+                - "use_target_value": Use the target hook's value
+
+        Returns:
+            A tuple containing a boolean indicating if the connection was successful and a string message
+        """
+
+        with self._lock:
+            return self._link(target_hook, initial_sync_mode)
+
+    def unlink(self) -> None:
+        """
+        Unlink this hook from the hook nexus.
+
+        ** Thread-safe **
+        """
+        with self._lock:
+            self._unlink()
+
+    
+    def is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+        """
+        Check if this hook is connected to another hook or CarriesSingleHookLike.
+
+        ** Thread-safe **
+
+        Args:
+            hook_or_carries_single_hook: The hook or CarriesSingleHookProtocol to check if it is connected to
+
+        Returns:
+            True if the hook is connected to the other hook or CarriesSingleHookProtocol, False otherwise
+        """
+        with self._lock:
+            return self._is_linked_to(hook_or_carries_single_hook)
+
+    #########################################################
+    # Private methods
+    #########################################################
 
     def _get_value(self) -> T:
-        """Get the value behind this hook."""
+        """
+        Get the value behind this hook.
+
+        ** This method is not thread-safe and should only be called by the get_value method.
+        """
         return self._hook_nexus.value
 
-    def _get_value_reference(self) -> T:
-        """Get the value reference behind this hook."""
-        return self._hook_nexus.value_reference
-
     def _get_previous_value(self) -> T:
-        """Get the previous value behind this hook."""
+        """
+        Get the previous value behind this hook.
+
+        ** This method is not thread-safe and should only be called by the get_previous_value method.
+        """
         return self._hook_nexus.previous_value
 
-    def _get_hook_nexus(self) -> "HookNexus[T]":
-        """Get the hook nexus that this hook belongs to."""
+    def _get_nexus(self) -> "Nexus[T]":
+        """
+        Get the hook nexus that this hook belongs to.
+
+        ** This method is not thread-safe and should only be called by the get_hook_nexus method.
+        """
         return self._hook_nexus
 
-    def connect_hook(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def _get_nexus_manager(self) -> "NexusManager":
         """
-        Connect this hook to another hook.
+        Get the nexus manager that this hook belongs to.
+
+        ** This method is not thread-safe and should only be called by the get_nexus_manager method.
+        """
+        return self._nexus_manager
+
+    def _link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+        """
+        Link this hook to another hook.
+
+        ** This method is not thread-safe and should only be called by the link method.
 
         This method implements the core hook connection process:
         
@@ -232,7 +276,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
             A tuple containing a boolean indicating if the connection was successful and a string message
         """
 
-        from ..._nexus_system.hook_nexus import HookNexus
+        from ..._nexus_system.nexus import Nexus
 
         with self._lock:
 
@@ -240,12 +284,12 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
                 raise ValueError("Cannot connect to None hook")
 
             if isinstance(target_hook, CarriesSingleHookProtocol):
-                target_hook = target_hook.hook
+                target_hook = target_hook._get_single_value_hook() # type: ignore
             
             if initial_sync_mode == "use_caller_value":
-                success, msg = HookNexus[T].connect_hook_pairs((self, target_hook))  # type: ignore
+                success, msg = Nexus[T].link_hook_pairs((self, target_hook))  # type: ignore
             elif initial_sync_mode == "use_target_value":                
-                success, msg = HookNexus[T].connect_hook_pairs((target_hook, self))  # type: ignore
+                success, msg = Nexus[T].link_hook_pairs((target_hook, self))  # type: ignore
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 
@@ -253,9 +297,11 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
             return success, msg
     
-    def disconnect_hook(self) -> None:
+    def _unlink(self) -> None:
         """
-        Disconnect this hook from the hook nexus.
+        Unlink this hook from the hook nexus.
+        
+        ** This method is not thread-safe and should only be called by the unlink method.
 
         If this is the corresponding nexus has only this one hook, nothing will happen.
         """
@@ -264,7 +310,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
         with self._lock:
 
-            from ..._nexus_system.hook_nexus import HookNexus
+            from ..._nexus_system.nexus import Nexus
 
             # Check if we're being called during garbage collection by inspecting the call stack
             is_being_garbage_collected = any(frame.function == '__del__' for frame in inspect.stack())
@@ -285,7 +331,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
                 return
             
             # Create a new isolated nexus for this hook
-            new_hook_nexus = HookNexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
+            new_hook_nexus = Nexus(self.value, hooks={self}, nexus_manager=self._nexus_manager, logger=self._logger)
             
             # Remove this hook from the current nexus
             self._hook_nexus.remove_hook(self)
@@ -298,9 +344,12 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
             # The remaining hooks in the old nexus will continue to be bound together
             # This effectively breaks the connection between this hook and all others
 
-    def is_connected_to(self, hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+
+    def _is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
+
+        ** This method is not thread-safe and should only be called by the is_linked_to method.
 
         Args:
             hook: The hook or CarriesSingleHookProtocol to check if it is connected to
@@ -310,22 +359,22 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         """
 
         with self._lock:
-            if isinstance(hook, CarriesSingleHookProtocol):
-                hook = hook.hook
-            return hook in self._hook_nexus.hooks
-    
-    def _replace_hook_nexus(self, hook_nexus: "HookNexus[T]") -> None:
+            if isinstance(hook_or_carries_single_hook, CarriesSingleHookProtocol):
+                hook_or_carries_single_hook = hook_or_carries_single_hook._get_single_value_hook() # type: ignore
+            return hook_or_carries_single_hook in self._hook_nexus.hooks
+
+    def _replace_nexus(self, nexus: "Nexus[T]") -> None:
         """
-        Replace the hook nexus that this hook belongs to.
+        Replace the nexus that this hook belongs to.
 
         Args:
-            hook_nexus: The new hook nexus to replace the current one
+            nexus: The new nexus to replace the current one
         """
         
         with self._lock:
-            self._hook_nexus = hook_nexus
+            self._hook_nexus = nexus
         
-        log(self, "replace_hook_nexus", self._logger, True, "Successfully replaced hook nexus")
+        log(self, "replace_nexus", self._logger, True, "Successfully replaced nexus")
 
     #########################################################
     # Debugging convenience methods

@@ -14,8 +14,13 @@ class CarriesSingleHookProtocol(CarriesHooksProtocol[HK, HV], Protocol[HV]):
     """
 
     @property
-    def hook(self) -> OwnedHookProtocol[HV]:
+    def _get_single_value_hook(self) -> OwnedHookProtocol[HV]:
         """
         Get the hook for the single value.
+
+        ** This method is not thread-safe and should only be called by the get_single_value_hook method.
+
+        Returns:
+            The hook for the single value
         """
         ...

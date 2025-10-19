@@ -271,10 +271,11 @@ class TestObservableSingleValue:
         target_float = ObservableSingleValue(source_float.hook, logger=logger)
         assert target_float.value == 3.14
         
-        # Test with list type
+        # Test with list type (automatically converted to immutable tuple)
         source_list = ObservableSingleValue([1, 2, 3], logger=logger)
         target_list = ObservableSingleValue(source_list.hook, logger=logger)
-        assert target_list.value == [1, 2, 3]
+        # Lists are automatically converted to tuples for immutability
+        assert target_list.value == (1, 2, 3)
     
     def test_initialization_with_carries_bindable_single_value_chain(self):
         """Test initialization with CarriesBindableSingleValue in a chain"""

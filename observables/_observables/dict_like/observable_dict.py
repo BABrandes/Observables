@@ -1,18 +1,16 @@
 from typing import Generic, TypeVar, Optional, overload, Callable, Literal, Any, Mapping
 from logging import Logger
-from types import MappingProxyType
+from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
-from ..._carries_hooks.observable_serializable import ObservableSerializable
-from ..._nexus_system.submission_error import SubmissionError
 from .protocols import ObservableDictProtocol
 
 K = TypeVar("K")
 V = TypeVar("V")
     
-class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "keys", "values"], MappingProxyType[K, V], int|frozenset[K]|tuple[V, ...], "ObservableDict"], ObservableDictProtocol[K, V], ObservableSerializable[Literal["dict"], MappingProxyType[K, V]], Generic[K, V]):
+class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "keys", "values"], Mapping[K, V], int|frozenset[K]|tuple[V, ...], "ObservableDict"], ObservableDictProtocol[K, V], Generic[K, V]):
     """
     An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
     
@@ -45,7 +43,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
     """
 
     @overload
-    def __init__(self, observable_or_hook: Hook[MappingProxyType[K, V]] | ReadOnlyHook[MappingProxyType[K, V]], validator: Optional[Callable[[MappingProxyType[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: Hook[Mapping[K, V]] | ReadOnlyHook[Mapping[K, V]], validator: Optional[Callable[[Mapping[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
         """Initialize with a hook to a MappingProxyType."""
         ...
     
@@ -77,8 +75,8 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
 
         if observable_or_hook_or_value is None:
-            initial_dict_value: MappingProxyType[K, V] = MappingProxyType({})
-            hook: Optional[ManagedHookProtocol[MappingProxyType[K, V]]] = None
+            initial_dict_value: Mapping[K, V] = {}
+            hook: Optional[ManagedHookProtocol[Mapping[K, V]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableDictProtocol):
             initial_dict_value = observable_or_hook_or_value.dict # type: ignore
             hook = observable_or_hook_or_value.dict_hook # type: ignore
@@ -86,15 +84,13 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
             initial_dict_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value # type: ignore
         else:
-            # Convert Mapping to MappingProxyType
-            initial_dict_value = MappingProxyType(dict(observable_or_hook_or_value)) # type: ignore
-            hook = None
+            raise ValueError("Invalid initial value")
 
         def is_valid_value(x: Mapping[Literal["dict"], Any]) -> tuple[bool, str]:
-            return (True, "Verification method passed") if isinstance(x["dict"], MappingProxyType) else (False, "Value is not a MappingProxyType")
+            return (True, "Verification method passed") if isinstance(x["dict"], Map) else (False, "Value is not a Map")
 
         super().__init__(
-            initial_component_values_or_hooks={"dict": initial_dict_value},
+            initial_hook_values={"dict": initial_dict_value}, # type: ignore
             verification_method=is_valid_value,
             secondary_hook_callbacks={
                 "length": lambda x: len(x["dict"]),
@@ -107,107 +103,73 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         if hook is not None:
             self.connect_hook(hook, "dict", "use_target_value") # type: ignore
 
+    #########################################################
+    # ObservableDictProtocol implementation
+    #########################################################
+
+    #-------------------------------- Dict --------------------------------
+
     @property
-    def dict(self) -> MappingProxyType[K, V]:
-        """
-        Get the current dictionary as an immutable MappingProxyType.
+    def dict_hook(self) -> Hook[Mapping[K, V]]:
+        """Get the dictionary hook."""
         
-        Returns:
-            The current dictionary as a MappingProxyType (immutable view)
-        """
+        return self._primary_hooks["dict"] # type: ignore
+    
+    @property
+    def dict(self) -> Mapping[K, V]:
+        """Get the current dictionary."""
         return self._primary_hooks["dict"].value # type: ignore
     
     @dict.setter
     def dict(self, value: Mapping[K, V]) -> None:
-        """
-        Set the current value of the dictionary.
-        
-        Args:
-            value: A Mapping to set as the new dictionary value
-        """
-        proxy_value = MappingProxyType(dict(value))
-        success, msg = self.submit_value("dict", proxy_value)
-        if not success:
-            raise SubmissionError(msg, proxy_value, "dict")
-    
+        """Set the current dictionary."""
+        self._submit_value("dict", value)
+
     def change_dict(self, new_dict: Mapping[K, V]) -> None:
-        """
-        Change the dictionary value (lambda-friendly method).
-        
-        This method is equivalent to setting the .dict property but can be used
-        in lambda expressions and other contexts where property assignment isn't suitable.
-        
-        Args:
-            new_dict: The new dictionary to set (as a Mapping)
-        """
-        proxy_value = MappingProxyType(dict(new_dict))
-        success, msg = self.submit_value("dict", proxy_value)
+        """Change the current dictionary."""
+        success, msg = self._submit_value("dict", new_dict)
         if not success:
-            raise SubmissionError(msg, proxy_value, "dict")
+            raise ValueError(msg)
+
+    #-------------------------------- Length --------------------------------
 
     @property
-    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
-        """
-        Get the hook for the dictionary.
-        
-        This hook can be used for binding operations with other observables.
-        """
-        return self._primary_hooks["dict"] # type: ignore
-    
-    @property
     def length(self) -> int:
-        """
-        Get the current length of the dictionary.
-        """
+        """Get the current length of the dictionary."""
         return len(self._primary_hooks["dict"].value) # type: ignore
     
     @property
     def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the hook for the dictionary length.
-        
-        This hook can be used for binding operations that react to length changes.
-        """
+        """Get the hook for the dictionary length."""
         return self._secondary_hooks["length"] # type: ignore
+
+    #-------------------------------- Keys --------------------------------
 
     @property
     def keys(self) -> frozenset[K]:
-        """
-        Get all keys from the dictionary as a frozenset.
-
-        Returns:
-            A frozenset containing all keys in the dictionary
-        """
+        """Get the current keys of the dictionary."""
         return frozenset(self._primary_hooks["dict"].value.keys()) # type: ignore
     
     @property
     def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
-        """
-        Get the hook for the dictionary keys.
-        
-        This hook can be used for binding operations that react to key changes.
-        """
+        """Get the hook for the dictionary keys."""
         return self._secondary_hooks["keys"] # type: ignore
+
+    #-------------------------------- Values --------------------------------
 
     @property
     def values(self) -> tuple[V, ...]:
-        """
-        Get all values from the dictionary as a tuple.
-        
-        Returns:
-            A tuple containing all values in the dictionary
-        """
+        """Get the current values of the dictionary."""
         return tuple(self._primary_hooks["dict"].value.values()) # type: ignore
     
     @property
     def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
-        """
-        Get the hook for the dictionary values.
-        
-        This hook can be used for binding operations that react to value changes.
-        """
+        """Get the hook for the dictionary values."""
         return self._secondary_hooks["values"] # type: ignore
-    
+
+    #########################################################
+    # Standard dict interface implementation
+    #########################################################
     
     def set_item(self, key: K, value: V) -> None:
         """
@@ -224,7 +186,10 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
             return  # No change
         new_dict = dict(current)
         new_dict[key] = value
-        self.dict = MappingProxyType(new_dict)
+        
+        success, msg = self._submit_value("dict", new_dict)
+        if not success:
+            raise ValueError(msg)
     
     def get_item(self, key: K, default: Optional[V] = None) -> Optional[V]:
         """
@@ -264,7 +229,9 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         if key not in current:
             return  # No change
         new_dict = {k: v for k, v in current.items() if k != key}
-        self.dict = MappingProxyType(new_dict)
+        success, msg = self._submit_value("dict", new_dict)
+        if not success:
+            raise ValueError(msg)
     
     def clear(self) -> None:
         """
@@ -274,7 +241,9 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         if not self._primary_hooks["dict"].value:
             return  # No change
-        self.dict = MappingProxyType({})
+        success, msg = self._submit_value("dict", {})
+        if not success:
+            raise ValueError(msg)
     
     def update(self, other_dict: Mapping[K, V]) -> None:
         """
@@ -300,7 +269,9 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         
         new_dict = dict(current)
         new_dict.update(other_dict)
-        self.dict = MappingProxyType(new_dict)
+        success, msg = self._submit_value("dict", new_dict)
+        if not success:
+            raise ValueError(msg)
     
     def items(self) -> tuple[tuple[K, V], ...]:
         """
@@ -362,7 +333,9 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         current = self._primary_hooks["dict"].value
         new_dict = {**current, key: value}
-        self.dict = MappingProxyType(new_dict)
+        success, msg = self._submit_value("dict", new_dict)
+        if not success:
+            raise ValueError(msg)
     
     def __delitem__(self, key: K) -> None:
         """
@@ -380,7 +353,9 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         if key not in current:
             raise KeyError(f"Key '{key}' not found in dictionary")
         new_dict = {k: v for k, v in current.items() if k != key}
-        self.dict = MappingProxyType(new_dict)
+        success, msg = self._submit_value("dict", new_dict)
+        if not success:
+            raise ValueError(msg)
     
     def __str__(self) -> str:
         return f"OD(dict={dict(self._primary_hooks['dict'].value)})"
@@ -390,31 +365,10 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
 
     #### ObservableSerializable implementation ####
 
-    def get_value_references_for_serialization(self) -> Mapping[Literal["dict"], MappingProxyType[K, V]]:
+    def get_values_for_serialization(self) -> Mapping[Literal["dict", "length", "keys", "values"], Any]:
         return {"dict": self._primary_hooks["dict"].value}
 
-    def set_value_references_from_serialization(self, values: Mapping[Literal["dict"], MappingProxyType[K, V]]) -> None:
-        self.dict = values["dict"]
-
-    #########################################################
-    # Deprecated Hook Aliases (for backwards compatibility)
-    #########################################################
-
-    @property
-    def value(self) -> MappingProxyType[K, V]:
-        """Deprecated: Use .dict instead."""
-        return self.dict
-    
-    @value.setter
-    def value(self, val: Mapping[K, V]) -> None:
-        """Deprecated: Use .dict instead."""
-        self.dict = val
-
-    @property
-    def value_hook(self) -> Hook[MappingProxyType[K, V]]:
-        """Deprecated: Use .dict_hook instead."""
-        return self.dict_hook
-
-    def change_value(self, new_dict: Mapping[K, V]) -> None:
-        """Deprecated: Use .change_dict instead."""
-        self.change_dict(new_dict)
+    def set_values_from_serialization(self, values: Mapping[Literal["dict", "length", "keys", "values"], Any]) -> None:
+        success, msg = self._submit_values({"dict": values["dict"]})
+        if not success:
+            raise ValueError(msg)

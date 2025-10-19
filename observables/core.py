@@ -73,7 +73,7 @@ For normal usage of the library, import from the main package:
 
 from ._carries_hooks.carries_hooks_base import CarriesHooksBase
 from ._carries_hooks.complex_observable_base import ComplexObservableBase
-from ._nexus_system.hook_nexus import HookNexus
+from ...nexus_system.nexus import Nexus
 from ._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from ._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from ._auxiliary.listening_base import ListeningBase

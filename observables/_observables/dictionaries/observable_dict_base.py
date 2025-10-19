@@ -114,7 +114,7 @@ class ObservableDictBase(
         # Initialize ComplexObservableBase
         ComplexObservableBase.__init__(  # type: ignore
             self,
-            initial_component_values_or_hooks={
+            initial_hook_values={
                 "dict": dict_hook if isinstance(dict_hook, Hook) else _initial_dict_value,
                 "key": key_hook if not (key_hook is None or (isinstance(key_hook, type(None)))) else _initial_key_value,
                 "value": value_hook if value_hook is not None else _initial_value_value

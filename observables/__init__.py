@@ -121,33 +121,43 @@ Advanced Usage:
 """
 
 from ._observables.observable_single_value import ObservableSingleValue, ObservableSingleValueProtocol
+
 from ._observables.list_like.observable_list import ObservableList, ObservableListProtocol
+
 from ._observables.set_like.observable_set import ObservableSet, ObservableSetProtocol
-from ._observables.set_like.observable_selection_option import ObservableSelectionOption, ObservableSelectionOptionProtocol
-from ._observables.set_like.observable_selection_option import ObservableOptionalSelectionOption, ObservableOptionalSelectionOptionProtocol
-from ._observables.set_like.observable_selection_enum import ObservableSelectionEnum, ObservableOptionalSelectionEnum  
-from ._observables.complex.observable_multi_selection_option import ObservableMultiSelectionOption, ObservableMultiSelectionOptionProtocol
+from ._observables.set_like.observable_selection_set import ObservableSelectionSet
+from ._observables.set_like.observable_optional_selection_set import ObservableOptionalSelectionSet
+from ._observables.set_like.observable_multi_selection_set import ObservableMultiSelectionSet
+from ._observables.set_like.protocols import ObservableOptionalSelectionOptionProtocol, ObservableSelectionOptionsProtocol, ObservableMultiSelectionOptionsProtocol
+
+from ._observables.function_like.function_values import FunctionValues
 from ._observables.function_like.observable_transfer import ObservableTransfer
 from ._observables.function_like.observable_function import ObservableFunction as ObservableSync
 from ._observables.function_like.observable_one_way_function import ObservableOneWayFunction
+
 from ._observables.dict_like.observable_selection_dict import ObservableSelectionDict
 from ._observables.dict_like.observable_optional_selection_dict import ObservableOptionalSelectionDict
 from ._observables.dict_like.observable_default_selection_dict import ObservableDefaultSelectionDict
 from ._observables.dict_like.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
 from ._observables.dict_like.observable_dict import ObservableDict
-from ._observables.dict_like.protocols import ObservableDictProtocol
+from ._observables.dict_like.protocols import ObservableDictProtocol, ObservableSelectionDictProtocol, ObservableOptionalSelectionDictProtocol, ObservableDefaultSelectionDictProtocol, ObservableOptionalDefaultSelectionDictProtocol
+
 from ._observables.complex.observable_rooted_paths import ObservableRootedPaths
 from ._observables.complex.observable_raise_none import ObservableRaiseNone
+from ._observables.complex.observable_subscriber import ObservableSubscriber
+
 from ._hooks.floating_hook import FloatingHook
 from ._hooks.hook_aliases import Hook, ReadOnlyHook
-from ._nexus_system.system_analysis import write_report
-from ._observables.function_like.function_values import FunctionValues
-from ._nexus_system.update_function_values import UpdateFunctionValues
-from ._carries_hooks.observable_serializable import ObservableSerializable
-from ._observables.complex.observable_subscriber import ObservableSubscriber
+
 from ._publisher_subscriber.publisher_protocol import PublisherProtocol
 from ._publisher_subscriber.value_publisher import ValuePublisher
 from ._publisher_subscriber.publisher import Publisher
+
+from ._nexus_system.update_function_values import UpdateFunctionValues
+from ._nexus_system.system_analysis import write_report
+
+from ._carries_hooks.observable_serializable import ObservableSerializable
+
 
 # Modern, clean aliases (recommended for new code)
 
@@ -161,31 +171,36 @@ XOptionalSelectionDict = ObservableOptionalSelectionDict
 XDefaultSelectionDict = ObservableDefaultSelectionDict
 XOptionalDefaultSelectionDict = ObservableOptionalDefaultSelectionDict
 
-XSelectionOption = ObservableSelectionOption
-XOptionalSelectionOption = ObservableOptionalSelectionOption
-
-XSelectionEnum = ObservableSelectionEnum
-XOptionalSelectionEnum = ObservableOptionalSelectionEnum
+XSelectionSet = ObservableSelectionSet
+XOptionalSelectionSet = ObservableOptionalSelectionSet
+XMultiSelectionSet = ObservableMultiSelectionSet
 
 XFunction = ObservableSync
 XOneWayFunction = ObservableOneWayFunction
 
-XMultiSelectionOption = ObservableMultiSelectionOption
 XRootedPaths = ObservableRootedPaths
 XRaiseNone = ObservableRaiseNone
 XSubscriber = ObservableSubscriber
 
 # Deprecated aliases (kept for backwards compatibility)
+
 XTransfer = ObservableTransfer  # Use XOneWayFunction instead
 
 # Protocol aliases
+
 XValueProtocol = ObservableSingleValueProtocol
 XListProtocol = ObservableListProtocol
 XSetProtocol = ObservableSetProtocol
-XSelectionOptionProtocol = ObservableSelectionOptionProtocol
-XOptionalSelectionOptionProtocol = ObservableOptionalSelectionOptionProtocol
-XMultiSelectionOptionProtocol = ObservableMultiSelectionOptionProtocol
 XDictProtocol = ObservableDictProtocol
+
+XSelectionOptionsProtocol = ObservableSelectionOptionsProtocol
+XOptionalSelectionOptionProtocol = ObservableOptionalSelectionOptionProtocol
+XMultiSelectionOptionsProtocol = ObservableMultiSelectionOptionsProtocol
+
+XSelectionDictProtocol = ObservableSelectionDictProtocol
+XOptionalSelectionDictProtocol = ObservableOptionalSelectionDictProtocol
+XDefaultSelectionDictProtocol = ObservableDefaultSelectionDictProtocol
+XOptionalDefaultSelectionDictProtocol = ObservableOptionalDefaultSelectionDictProtocol
 
 __all__ = [
     # Modern clean aliases (RECOMMENDED - use these for new code!)
@@ -197,11 +212,9 @@ __all__ = [
     'XOptionalSelectionDict',
     'XDefaultSelectionDict',
     'XOptionalDefaultSelectionDict',
-    'XSelectionOption',
-    'XOptionalSelectionOption',
-    'XMultiSelectionOption',
-    'XSelectionEnum',
-    'XOptionalSelectionEnum',
+    'XSelectionSet',
+    'XOptionalSelectionSet',
+    'XMultiSelectionSet',
     'XFunction',
     'XOneWayFunction',
     'XRootedPaths',
@@ -216,18 +229,18 @@ __all__ = [
     'XDictProtocol',
     'XListProtocol',
     'XSetProtocol',
-    'XSelectionOptionProtocol',
+    'XSelectionOptionsProtocol',
     'XOptionalSelectionOptionProtocol',
-    'XMultiSelectionOptionProtocol',
+    'XMultiSelectionOptionsProtocol',
     
     # Legacy names (DEPRECATED - kept for backwards compatibility)
     'ObservableList',
     'ObservableSet',
     'ObservableDict',
     'ObservableSingleValue',
-    'ObservableSelectionOption',
-    'ObservableOptionalSelectionOption',
-    'ObservableMultiSelectionOption',
+    'ObservableSelectionSet',
+    'ObservableOptionalSelectionSet',
+    'ObservableMultiSelectionSet',
     'ObservableTransfer',
     'ObservableSync',
     'ObservableOneWayFunction',
@@ -236,8 +249,6 @@ __all__ = [
     'ObservableDefaultSelectionDict',
     'ObservableOptionalDefaultSelectionDict',
     'ObservableRootedPaths',
-    'ObservableSelectionEnum',
-    'ObservableOptionalSelectionEnum',
     'ObservableRaiseNone',
     'ObservableSubscriber',
     
@@ -246,9 +257,13 @@ __all__ = [
     'ObservableDictProtocol',
     'ObservableSetProtocol',
     'ObservableSingleValueProtocol',
-    'ObservableSelectionOptionProtocol',
+    'ObservableSelectionOptionsProtocol',
     'ObservableOptionalSelectionOptionProtocol',
-    'ObservableMultiSelectionOptionProtocol',
+    'ObservableMultiSelectionOptionsProtocol',
+    'ObservableSelectionDictProtocol',
+    'ObservableOptionalSelectionDictProtocol',
+    'ObservableDefaultSelectionDictProtocol',
+    'ObservableOptionalDefaultSelectionDictProtocol',
 
     # Hooks (user-facing)
     'FloatingHook',

@@ -26,7 +26,7 @@ class MockObservable(ComplexObservableBase[Any, Any, Any, Any, "MockObservable"]
         logger: Optional[Logger] = None,
         **kwargs: Any) -> None:
         """Construct a MockObservable instance."""
-        super().__init__(initial_component_values_or_hooks=initial_values)
+        super().__init__(initial_hook_values=initial_values)
     
     def _get_hook_key(self, hook_or_nexus: Any) -> Any:
         """Get the key for a hook - return a dummy key for any hook."""

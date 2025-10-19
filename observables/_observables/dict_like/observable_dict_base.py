@@ -1,7 +1,8 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 from abc import ABC, abstractmethod
-from types import MappingProxyType
+
+from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
@@ -84,15 +85,15 @@ class ObservableDictBase(
         if isinstance(dict_hook, (Hook, ReadOnlyHook)):
             _initial_dict_value: Mapping[K, V] = dict_hook.value
             # If hook contains non-MappingProxyType, wrap it
-            if not isinstance(_initial_dict_value, MappingProxyType):
-                _initial_dict_value = MappingProxyType(dict(_initial_dict_value))
+            if not isinstance(_initial_dict_value, Map):
+                _initial_dict_value = Map(_initial_dict_value)
         else:
             _initial_dict_value = dict_hook
             # Wrap in MappingProxyType for immutability
-            if not isinstance(_initial_dict_value, MappingProxyType):
+            if not isinstance(_initial_dict_value, Map):
                 # Convert to dict first to ensure it's a mutable copy, then wrap
                 _dict_copy = dict(_initial_dict_value)
-                _initial_dict_value = MappingProxyType(_dict_copy)
+                _initial_dict_value = Map(_dict_copy)
 
         if isinstance(key_hook, ManagedHookProtocol):
             _initial_key_value: KT = key_hook.value  # type: ignore
@@ -116,7 +117,7 @@ class ObservableDictBase(
         # Initialize ComplexObservableBase
         ComplexObservableBase.__init__(  # type: ignore
             self,
-            initial_component_values_or_hooks={
+            initial_hook_values={
                 "dict": dict_hook if isinstance(dict_hook, ManagedHookProtocol) else _initial_dict_value,
                 "key": key_hook if not (key_hook is None or (isinstance(key_hook, type(None)))) else _initial_key_value,
                 "value": value_hook if value_hook is not None else _initial_value_value
@@ -185,7 +186,7 @@ class ObservableDictBase(
     ########################################################
 
     @property
-    def dict_hook(self) -> Hook[MappingProxyType[K, V]]:
+    def dict_hook(self) -> Hook[Mapping[K, V]]:
         """
         Get the dictionary hook.
         
@@ -199,17 +200,30 @@ class ObservableDictBase(
         """
         return self._primary_hooks["dict"]  # type: ignore
 
-    def change_dict(self, value: Mapping[K, V]) -> None:
+    @property
+    def dict(self) -> Mapping[K, V]:
+        """
+        Get the dictionary value.
+        """
+        return self._primary_hooks["dict"].value # type: ignore
+
+    @dict.setter
+    def dict(self, value: Mapping[K, V]) -> None:
+        """
+        Set the dictionary value.
+        """
+        success, msg = self._submit_value("dict", value)
+        if not success:
+            raise ValueError(msg)
+
+    def change_dict(self, new_dict: Mapping[K, V]) -> None:
         """
         Change the dictionary behind this hook.
         
         Args:
-            value: The new mapping (will be wrapped in MappingProxyType)
+            new_dict: The new mapping
         """
-        # Wrap in MappingProxyType for immutability
-        if not isinstance(value, MappingProxyType):
-            value = MappingProxyType(dict(value))
-        success, msg = self.submit_value("dict", value)
+        success, msg = self._submit_value("dict", new_dict)
         if not success:
             raise ValueError(msg)
 
@@ -221,29 +235,29 @@ class ObservableDictBase(
         Returns:
             The hook managing the dictionary key.
         """
-        return self.get_hook("key")  # type: ignore
+        return self._primary_hooks["key"] # type: ignore
 
     @property
     def key(self) -> KT:
         """
         Get the key behind this hook.
         """
-        return self.get_value_of_hook("key")  # type: ignore
+        return self._primary_hooks["key"].value # type: ignore
     
     @key.setter
     def key(self, value: KT) -> None:
         """
         Set the key behind this hook.
         """
-        success, msg = self.submit_value("key", value)
+        success, msg = self._submit_value("key", value)
         if not success:
             raise ValueError(msg)
 
-    def change_key(self, value: KT) -> None:
+    def change_key(self, new_value: KT) -> None:
         """
         Change the key behind this hook.
         """
-        success, msg = self.submit_value("key", value)
+        success, msg = self._submit_value("key", new_value)
         if not success:
             raise ValueError(msg)
 
@@ -255,33 +269,49 @@ class ObservableDictBase(
         Returns:
             The hook managing the retrieved value.
         """
-        return self.get_hook("value")  # type: ignore
+        return self._primary_hooks["value"] # type: ignore
 
     @property
     def value(self) -> VT:
         """
         Get the value behind this hook.
         """
-        return self.get_value_of_hook("value")  # type: ignore
+        return self._primary_hooks["value"].value # type: ignore
 
     @value.setter
     def value(self, value: VT) -> None:
         """
         Set the value behind this hook.
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self._submit_value("value", value)
         if not success:
             raise ValueError(msg)
 
-    def change_value(self, value: VT) -> None:
+    def change_value(self, new_value: VT) -> None:
         """
         Change the value behind this hook.
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self._submit_value("value", new_value)
         if not success:
             raise ValueError(msg)
 
-    # ------------------------- Secondary hooks -------------------------
+    # ------------------------- length -------------------------
+
+    @property
+    def length_hook(self) -> ReadOnlyHook[int]:
+        """
+        Get the length hook (read-only).
+        """
+        return self._secondary_hooks["length"] # type: ignore
+
+    @property
+    def length(self) -> int:
+        """
+        Get the length behind this hook.
+        """
+        return self._secondary_hooks["length"].value # type: ignore
+
+    # ------------------------- keys -------------------------
 
     @property
     def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
@@ -291,7 +321,7 @@ class ObservableDictBase(
         Returns:
             A read-only hook containing a frozenset of dictionary keys.
         """
-        return self.get_hook("keys")  # type: ignore
+        return self._secondary_hooks["keys"] # type: ignore
 
     @property
     def keys(self) -> frozenset[K]:
@@ -301,46 +331,20 @@ class ObservableDictBase(
         Returns:
             A frozenset of all keys in the dictionary.
         """
-        return self.get_value_of_hook("keys")  # type: ignore
+        return self._secondary_hooks["keys"].value # type: ignore
+
+    # ------------------------- values -------------------------
 
     @property
     def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
         """
         Get the values hook (read-only).
         """
-        return self.get_hook("values")  # type: ignore
+        return self._secondary_hooks["values"] # type: ignore
 
     @property
     def values(self) -> tuple[V, ...]:
         """
         Get the values behind this hook.
         """
-        return self.get_value_of_hook("values")  # type: ignore
-
-    @property
-    def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the length hook (read-only).
-        """
-        return self.get_hook("length")  # type: ignore
-
-    @property
-    def length(self) -> int:
-        """
-        Get the length behind this hook.
-        """
-        return self.get_value_of_hook("length")  # type: ignore
-
-    ########################################################
-    # Utility method
-    ########################################################
-
-    def set_dict_and_key(self, dict_value: Mapping[K, V], key_value: KT) -> None:
-        """
-        Set the dictionary and key behind this hook.
-        
-        This method must be implemented by subclasses as the value computation
-        logic differs (e.g., handling None keys in optional variants).
-        """
-        raise NotImplementedError("Subclasses must implement set_dict_and_key")
-
+        return self._secondary_hooks["values"].value # type: ignore

@@ -1,67 +1,16 @@
-from typing import Any, Generic, TypeVar, overload, Protocol, runtime_checkable, Iterable, Callable, Literal, Optional, Iterator, Mapping
+from typing import Generic, TypeVar, Iterable, Sequence, Callable, Literal, Optional, Iterator, Mapping, overload, Any
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
-from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
-from ..._carries_hooks.observable_serializable import ObservableSerializable
 from ..._nexus_system.submission_error import SubmissionError
+from .protocols import ObservableListProtocol
 
 T = TypeVar("T")
+  
 
-@runtime_checkable
-class ObservableListProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
-    """
-    Protocol for observable list objects.
-    
-    Note:
-        Internally stores values as tuple for immutability.
-    """
-    
-    @property
-    def value(self) -> tuple[T, ...]:
-        """
-        Get the list value as immutable tuple.
-        """
-        ...
-    
-    @value.setter
-    def value(self, value: Iterable[T]) -> None:
-        """
-        Set the list value (accepts any iterable, stores as tuple).
-        """
-        ...
-
-    def change_value(self, new_value: Iterable[T]) -> None:
-        """
-        Change the list value (lambda-friendly method).
-        """
-        ...
-    
-    @property
-    def value_hook(self) -> Hook[tuple[T, ...]]:
-        """
-        Get the hook for the list (contains tuple).
-        """
-        ...
-
-    @property
-    def length(self) -> int:
-        """
-        Get the current length of the list.
-        """
-        ...
-
-    @property
-    def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the hook for the list length.
-        """
-        ...
-    
-
-class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableList"], ObservableListProtocol[T], ObservableSerializable[Literal["value"], tuple[T, ...]], Generic[T]):
+class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], tuple[T, ...], int, "ObservableList"], ObservableListProtocol[T], Generic[T]):
     """
     Observable wrapper for Python lists with full list interface and bidirectional binding.
     
@@ -143,20 +92,20 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """Initialize with an empty list."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: Iterable[T] | Hook[tuple[T, ...]] | ReadOnlyHook[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: Sequence[T] | Hook[tuple[T, ...]] | ReadOnlyHook[tuple[T, ...]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize an ObservableList.
         
         This constructor supports four initialization patterns:
         
-        1. **Direct iterable**: Pass any iterable (will be converted to tuple)
+        1. **Direct sequence**: Pass any sequence (list, tuple, etc.) - automatically converted to immutable tuple
         2. **From hook**: Pass a Hook[tuple[T, ...]] to bind to
         3. **From observable**: Pass another ObservableList to bind to
         4. **Empty list**: Pass None to create an empty list
         
         Args:
             observable_or_hook_or_value: Can be one of four types:
-                - Iterable[T]: Any iterable (will be converted to immutable tuple)
+                - Sequence[T]: Any sequence (list, tuple, etc.) - automatically converted to immutable tuple by nexus system
                 - Hook[tuple[T, ...]]: A hook to bind to (establishes bidirectional connection)
                 - ObservableListProtocol[T]: Another observable list to bind to
                 - None: Creates an empty tuple
@@ -165,17 +114,17 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
                 will be logged. Default is None.
         
         Raises:
-            ValueError: If the value is not iterable (validation failure).
+            ValueError: If the value is not a valid sequence (validation failure).
         
         Note:
-            When initialized with an iterable, it is **converted to tuple** for immutability.
+            Values are **automatically converted to immutable tuples** by the nexus system.
             This ensures that external code cannot modify the internal state. All
             changes go through the observable's methods and trigger proper notifications.
         
         Example:
             Four initialization patterns::
             
-                # 1. From any iterable (converted to tuple)
+                # 1. From any sequence (automatically converted to tuple)
                 todos = ObservableList(["Task 1", "Task 2"])
                 
                 # 2. Empty list
@@ -192,7 +141,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
 
         if observable_or_hook_or_value is None:
-            initial_value: tuple[T, ...] = ()
+            initial_value: Sequence[T] = ()
             hook: Optional[ManagedHookProtocol[tuple[T, ...]]] = None
         elif isinstance(observable_or_hook_or_value, ObservableListProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
@@ -201,13 +150,13 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value # type: ignore
         else:
-            # Convert any iterable to tuple
-            initial_value = tuple(observable_or_hook_or_value) # type: ignore
+            # Pass sequence directly - nexus system will convert to tuple
+            initial_value = observable_or_hook_or_value # type: ignore
             hook = None
 
         super().__init__(
-            initial_component_values_or_hooks={"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value is not a tuple"), # type: ignore
+            initial_hook_values={"value": initial_value}, # type: ignore
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], tuple) else (False, "Value has not been converted to immutable tuple!"), # type: ignore
             secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
@@ -215,74 +164,64 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         if hook is not None:
             self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
+    #########################################################
+    # ObservableListProtocol implementation
+    #########################################################
+
+    #-------------------------------- list value --------------------------------   
+
     @property
-    def value(self) -> tuple[T, ...]:
+    def list_hook(self) -> Hook[tuple[T, ...]]:
         """
-        Get the current list value as immutable tuple.
-        
-        Returns:
-            The current tuple value (immutable).
-            
-        Note:
-            Returns tuple for immutability. Use append(), extend(), etc.
-            for modifications, or create a new tuple and assign.
+        Get the hook for the list (contains tuple).
+        """
+        return self._primary_hooks["value"] # type: ignore
+
+    @property
+    def list_value(self) -> tuple[T, ...]:
+        """
+        Get the list value as immutable tuple.
         """
         return self._primary_hooks["value"].value # type: ignore
     
-    @value.setter
-    def value(self, value: Iterable[T]|tuple[T, ...]) -> None:
+    @list_value.setter
+    def list_value(self, new_list: Iterable[T]) -> None:
         """
-        Set the current value of the list from any iterable.
-        
-        Args:
-            value: Any iterable (will be converted to tuple)
+        Set the list value (accepts any iterable, stores as tuple).
         """
-        new_value = tuple(value) if not isinstance(value, tuple) else value
-        success, msg = self.submit_value("value", new_value)
+        new_list = tuple(new_list) if not isinstance(new_list, tuple) else new_list
+        success, msg = self._submit_values({"value": new_list})
         if not success:
-            raise SubmissionError(msg, value)
+            raise SubmissionError(msg, new_list, "value")
 
-    def change_value(self, new_value: Iterable[T]|tuple[T, ...]) -> None:
+    def change_list(self, new_list: Iterable[T]) -> None:
         """
         Change the list value (lambda-friendly method).
-        
-        This method is equivalent to setting the .value property but can be used
-        in lambda expressions and other contexts where property assignment isn't suitable.
-        
-        Args:
-            new_value: Any iterable (will be converted to tuple)
         """
-        converted_value = tuple(new_value) if not isinstance(new_value, tuple) else new_value
-        success, msg = self.submit_value("value", converted_value)
+        new_list = tuple(new_list) if not isinstance(new_list, tuple) else new_list
+        success, msg = self._submit_values({"value": new_list})
         if not success:
-            raise SubmissionError(msg, new_value, "value")
+            raise SubmissionError(msg, new_list, "value")
+
+    #-------------------------------- length --------------------------------
 
     @property
-    def value_hook(self) -> Hook[tuple[T, ...]]:
+    def length_hook(self) -> ReadOnlyHook[int]:
         """
-        Get the hook for the list value.
-        
-        This hook can be used for binding operations with other observables.
-        Returns tuple for immutability.
+        Get the hook for the list length.
         """
-        return self._primary_hooks["value"] # type: ignore
-    
+        return self._secondary_hooks["length"] # type: ignore
+
     @property
     def length(self) -> int:
         """
         Get the current length of the list.
         """
-        return len(self._primary_hooks["value"].value)
-    
-    @property
-    def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the hook for the list length.
-        
-        This hook can be used for binding operations that react to length changes.
-        """
-        return self._secondary_hooks["length"]
-    
+        return len(self._primary_hooks["value"].value) # type: ignore
+
+    #########################################################
+    # Standard list methods
+    #########################################################
     
     # Standard list methods
     def append(self, item: T) -> None:
@@ -295,7 +234,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
             item: The item to add to the list
         """
         new_list = self._primary_hooks["value"].value + (item,) # type: ignore
-        success, msg = self.submit_values({"value": new_list})
+        success, msg = self._submit_values({"value": new_list})
         if not success:
             raise SubmissionError(msg, new_list, "value")
     
@@ -399,7 +338,9 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         """
         new_list = tuple(sorted(self._primary_hooks["value"].value, key=key, reverse=reverse)) # type: ignore
         if new_list != self._primary_hooks["value"].value:
-            self.value = new_list
+            success, msg = self._submit_values({"value": new_list}) # type: ignore
+            if not success:
+                raise SubmissionError(msg, new_list, "value")
     
     def reverse(self) -> None:
         """

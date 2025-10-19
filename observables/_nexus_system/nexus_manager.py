@@ -10,9 +10,10 @@ if TYPE_CHECKING:
 
 from .._hooks.hook_aliases import Hook
 from .._auxiliary.listening_protocol import ListeningProtocol
-from .._nexus_system.hook_nexus import HookNexus
+from .._nexus_system.nexus import Nexus
 from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._publisher_subscriber.publisher_protocol import PublisherProtocol
+from .._nexus_system.immutable_values import check_and_convert_to_immutable
 
 class NexusManager:
     """
@@ -76,11 +77,13 @@ class NexusManager:
 
     def __init__(
         self,
-        value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
+        value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {},
+        registered_immutable_types: set[type[Any]] = set()
         ):
 
         self._value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
         self._value_equality_callbacks.update(value_equality_callbacks)
+        self._registered_immutable_types: set[type[Any]] = set(registered_immutable_types)
         self._lock = RLock()  # Thread-safe lock for submit_values operations
         self._thread_local = local()  # Thread-local storage for tracking active hook nexuses
 
@@ -146,12 +149,73 @@ class NexusManager:
         """
         return not self.is_equal(value1, value2)
 
+    def register_immutable_type(self, value_type: type[Any]) -> None:
+        """Register a custom type as immutable.
+        
+        This allows custom immutable types to be used in the nexus system without
+        conversion. The type must truly be immutable - the system will not enforce this.
+        
+        Args:
+            value_type: The type to register as immutable
+            
+        Example:
+            >>> from pathlib import Path
+            >>> manager.register_immutable_type(Path)
+            >>> # Now Path objects will be accepted as immutable
+        """
+        if value_type in self._registered_immutable_types:
+            raise ValueError(f"Type {value_type.__name__} is already registered as immutable")
+        self._registered_immutable_types.add(value_type)
+
+    def unregister_immutable_type(self, value_type: type[Any]) -> None:
+        """Unregister a custom immutable type.
+        
+        Args:
+            value_type: The type to unregister
+        """
+        if value_type not in self._registered_immutable_types:
+            raise ValueError(f"Type {value_type.__name__} is not registered as immutable")
+        self._registered_immutable_types.remove(value_type)
+
+    def is_registered_immutable_type(self, value_type: type[Any]) -> bool:
+        """Check if a type is registered as immutable.
+        
+        This checks if the exact type OR any of its base classes are registered.
+        This allows registering abstract types like Path that instantiate to
+        concrete types like PosixPath or WindowsPath.
+        
+        Args:
+            value_type: The type to check
+            
+        Returns:
+            True if the type or any of its bases is registered as immutable, False otherwise
+        """
+        # Check exact type first (fast path)
+        if value_type in self._registered_immutable_types:
+            return True
+        
+        # Check if any base class is registered
+        # Use Method Resolution Order (MRO) to check all parent classes
+        for base in value_type.__mro__:
+            if base in self._registered_immutable_types:
+                return True
+        
+        return False
+
+    def get_registered_immutable_types(self) -> set[type[Any]]:
+        """Get all registered immutable types.
+        
+        Returns:
+            Set of types registered as immutable
+        """
+        return set(self._registered_immutable_types)
+
     def reset(self) -> None:
         """Reset the nexus manager state for testing purposes."""
         pass
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["HookNexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["Nexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -189,14 +253,14 @@ class NexusManager:
             as_reference_values: If True, the values will be returned as reference values
         """
 
-        for hook_key in owner.get_hook_keys():
+        for hook_key in owner._get_hook_keys(): # type: ignore
             if hook_key not in value_dict:
                 if as_reference_values:
-                    value_dict[hook_key] = owner.get_value_reference_of_hook(hook_key)
+                    value_dict[hook_key] = owner._get_value_of_hook(hook_key) # type: ignore
                 else:
-                    value_dict[hook_key] = owner.get_value_of_hook(hook_key)
+                    value_dict[hook_key] = owner._get_value_of_hook(hook_key) # type: ignore
 
-    def _complete_nexus_and_values_dict(self, nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[bool, str]:
+    def _complete_nexus_and_values_dict(self, nexus_and_values: dict["Nexus[Any]", Any]) -> tuple[bool, str]:
         """
         Complete the nexus and values dictionary using add_values_to_be_updated_callback.
         
@@ -208,7 +272,7 @@ class NexusManager:
         related values are synchronized.
         """
 
-        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["HookNexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, Hook[Any]]) -> tuple[bool, str]:
+        def insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values: dict["Nexus[Any]", Any], value_dict: dict[Any, Any], hook_dict: dict[Any, Hook[Any]]) -> tuple[bool, str]:
             """
             This method inserts the value and hook dict into the nexus and values dictionary.
             It inserts the values from the value dict into the nexus and values dictionary. The hook dict helps to find the hook nexus for each value.
@@ -216,17 +280,17 @@ class NexusManager:
             if value_dict.keys() != hook_dict.keys():
                 return False, "Value and hook dict keys do not match"
             for hook_key, value in value_dict.items():
-                hook_nexus: HookNexus[Any] = hook_dict[hook_key].hook_nexus
-                if hook_nexus in nexus_and_values:
+                nexus: Nexus[Any] = hook_dict[hook_key]._get_nexus() # type: ignore
+                if nexus in nexus_and_values:
                     # The nexus is already in the nexus and values, this is not good. But maybe the associated value is the same?
-                    current_value: Any = nexus_and_values[hook_nexus]
+                    current_value: Any = nexus_and_values[nexus]
                     # Use proper equality comparison that handles NaN values correctly
                     if not self.is_equal(current_value, value):
                         return False, f"Hook nexus already in nexus and values and the associated value is not the same! ({current_value} != {value})"
-                nexus_and_values[hook_nexus] = value
+                nexus_and_values[nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 
-        def update_nexus_and_value_dict(owner: "CarriesHooksProtocol[Any, Any]", nexus_and_values: dict["HookNexus[Any]", Any]) -> tuple[Optional[int], str]:
+        def update_nexus_and_value_dict(owner: "CarriesHooksProtocol[Any, Any]", nexus_and_values: dict["Nexus[Any]", Any]) -> tuple[Optional[int], str]:
             """
             This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owner.
             """
@@ -235,23 +299,26 @@ class NexusManager:
             value_dict, hook_dict = NexusManager._filter_nexus_and_values_for_owner(nexus_and_values, owner)
 
             # Step 2: Get the additional values from the owner method
-            current_values_of_owner: Mapping[Any, Any] = owner.get_dict_of_value_references()
+            current_values_of_owner: Mapping[Any, Any] = owner._get_dict_of_values() # type: ignore
             update_values = UpdateFunctionValues(current=current_values_of_owner, submitted=value_dict)
             additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(update_values) # type: ignore
 
-            # Step 3: Add the additional values and hooks to the value and hook dict
+            # Step 3: Make the additional values immutable and add them to the value and hook dict
             for hook_key, value in additional_value_dict.items():
-                value_dict[hook_key] = value
-                hook_dict[hook_key] = owner.get_hook(hook_key)
+                error_msg, immutable_value = check_and_convert_to_immutable(value, self)
+                if error_msg is not None:
+                    return None, f"Value of type {type(value).__name__} cannot be made immutable: {error_msg}"
+                value_dict[hook_key] = immutable_value
+                hook_dict[hook_key] = owner._get_hook(hook_key) # type: ignore
 
-            # Step 4: Insert the value and hook dict into the nexus and values
+            # Step 5: Insert the value and hook dict into the nexus and values
             number_of_items_before: int = len(nexus_and_values)
             success, msg = insert_value_and_hook_dict_into_nexus_and_values(nexus_and_values, value_dict, hook_dict)
             if success == False:
                 return None, msg
             number_of_inserted_items: int = len(nexus_and_values) - number_of_items_before
 
-            # Step 5: Return the nexus and values
+            # Step 6: Return the nexus and values
             return number_of_inserted_items, "Successfully updated nexus and values"
 
         from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
@@ -286,7 +353,7 @@ class NexusManager:
 
         return True, "Successfully updated nexus and values"
 
-    def _internal_submit_values(self, nexus_and_values: Mapping["HookNexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def _internal_submit_values(self, nexus_and_values: Mapping["Nexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Internal implementation of submit_values.
 
@@ -313,26 +380,42 @@ class NexusManager:
         from .._hooks.mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
 
         #########################################################
+        # Check if the values are immutable
+        #########################################################
+
+        _nexus_and_values: dict["Nexus[Any]", Any] = {}
+        for nexus, value in nexus_and_values.items():
+            error_msg, immutable_value = check_and_convert_to_immutable(value, self)
+            if error_msg is not None:
+                return False, f"Value of type {type(value).__name__} is not immutable: {error_msg}"
+            _nexus_and_values[nexus] = immutable_value
+
+        #########################################################
         # Check if the values are even different from the current values
         #########################################################
 
         match mode:
             case "Normal submission":
-                _nexus_and_values: dict["HookNexus[Any]", Any] = {}
-                for nexus, value in nexus_and_values.items():
+                # Filter to only values that differ from current (using immutable versions)
+                filtered_nexus_and_values: dict["Nexus[Any]", Any] = {}
+                for nexus, value in _nexus_and_values.items():
                     if not self.is_equal(nexus._value, value): # type: ignore
-                        _nexus_and_values[nexus] = value
+                        filtered_nexus_and_values[nexus] = value
+                
+                _nexus_and_values = filtered_nexus_and_values
 
-                log(self, "NexusManager._internal_submit_values", logger, True, f"Initally {len(nexus_and_values)} nexus and values submitted, after checking for equality {len(_nexus_and_values)}")
+                log(self, "NexusManager._internal_submit_values", logger, True, f"Initially {len(nexus_and_values)} nexus and values submitted, after checking for equality {len(_nexus_and_values)}")
 
                 if len(_nexus_and_values) == 0:
                     return True, "Values are the same as the current values. No submission needed."
 
             case "Forced submission":
-                _nexus_and_values = dict(nexus_and_values)
+                # Use all immutable values
+                pass
 
             case "Check values":
-                _nexus_and_values = dict(nexus_and_values)
+                # Use all immutable values
+                pass
 
             case _: # type: ignore
                 raise ValueError(f"Invalid mode: {mode}")
@@ -342,7 +425,7 @@ class NexusManager:
         #########################################################
 
         # Step 1: Update the nexus and values
-        complete_nexus_and_values: dict["HookNexus[Any]", Any] = {}
+        complete_nexus_and_values: dict["Nexus[Any]", Any] = {}
         complete_nexus_and_values.update(_nexus_and_values)
         success, msg = self._complete_nexus_and_values_dict(complete_nexus_and_values)
         if success == False:
@@ -375,7 +458,7 @@ class NexusManager:
         for owner in owners_that_are_affected:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
             NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
-            success, msg = owner.validate_complete_values_in_isolation(value_dict)
+            success, msg = owner._validate_complete_values_in_isolation(value_dict) # type: ignore
             if success == False:    
                 return False, msg
         for floating_hook in hooks_with_validation:
@@ -402,7 +485,7 @@ class NexusManager:
 
         # Step 5a: Invalidate the affected owners and hooks
         for owner in owners_that_are_affected:
-            owner.invalidate()
+            owner._invalidate() # type: ignore
 
         # Step 5b: React to the value changes
         for hook in hooks_with_reaction:
@@ -440,7 +523,7 @@ class NexusManager:
             if isinstance(owner, ListeningProtocol):
                 notify_listeners(owner)
             # Only notify hooks that are actually affected
-            for hook in owner.get_dict_of_hooks().values():
+            for hook in owner._get_dict_of_hooks().values(): # type: ignore
                 if hook in hooks_to_be_notified:
                     hooks_to_be_notified.remove(hook)
                     notify_listeners(hook)
@@ -453,7 +536,7 @@ class NexusManager:
 
     def submit_values(
         self,
-        nexus_and_values: Mapping["HookNexus[Any]", Any]|Sequence[tuple["HookNexus[Any]", Any]],
+        nexus_and_values: Mapping["Nexus[Any]", Any]|Sequence[tuple["Nexus[Any]", Any]],
         mode: Literal["Normal submission", "Forced submission", "Check values"] = "Normal submission",
         logger: Optional[Logger] = None
         ) -> tuple[bool, str]:
@@ -539,7 +622,7 @@ class NexusManager:
         
         Parameters
         ----------
-        nexus_and_values : Mapping[HookNexus[Any], Any]|Sequence[tuple[HookNexus[Any], Any]]
+        nexus_and_values : Mapping[Nexus[Any], Any]|Sequence[tuple[Nexus[Any], Any]]
             Mapping of hook nexuses to their new values. The values are used by reference
             only - no copies are created. Each nexus will be updated with its corresponding
             value, and all hooks in that nexus will reflect the change.
@@ -709,27 +792,27 @@ class NexusManager:
         """
 
         if isinstance(nexus_and_values, Sequence):
-            # check if the sequence is a list of tuples of (HookNexus[Any], Any) and that the hook nexuses are unique
-            if not all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], HookNexus) for item in nexus_and_values): # type: ignore
-                raise ValueError("The sequence must be a list of tuples of (HookNexus[Any], Any)")
+            # check if the sequence is a list of tuples of (Nexus[Any], Any) and that the hook nexuses are unique
+            if not all(isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], Nexus) for item in nexus_and_values): # type: ignore
+                raise ValueError("The sequence must be a list of tuples of (Nexus[Any], Any)")
             if len(set(item[0] for item in nexus_and_values)) != len(nexus_and_values):
-                raise ValueError("The hook nexuses must be unique")
+                raise ValueError("The nexuses must be unique")
             nexus_and_values = dict(nexus_and_values)
         
-        # Get the set of hook nexuses being submitted
+        # Get the set of nexuses being submitted
         new_nexuses = set(nexus_and_values.keys())
         
         # Check for overlap with currently active nexuses (indicates incorrect implementation)
-        active_nexuses: set["HookNexus[Any]"] = getattr(self._thread_local, 'active_nexuses', set())
+        active_nexuses: set["Nexus[Any]"] = getattr(self._thread_local, 'active_nexuses', set())
         overlapping_nexuses = active_nexuses & new_nexuses
         
         if overlapping_nexuses:
             raise RuntimeError(
-                f"Recursive submit_values call detected with overlapping hook nexuses! "
+                f"Recursive submit_values call detected with overlapping nexuses! "
                 f"This indicates an incorrect implementation. "
                 f"User-implemented callbacks (validation, completion, invalidation, reaction, listeners) "
-                f"attempted to modify {len(overlapping_nexuses)} hook nexus(es) that are already being modified "
-                f"in the current submission. Each hook nexus can only be modified once per atomic submission. "
+                f"attempted to modify {len(overlapping_nexuses)} nexus(es) that are already being modified "
+                f"in the current submission. Each nexus can only be modified once per atomic submission. "
                 f"Independent submissions to different nexuses are allowed."
             )
         
@@ -746,11 +829,11 @@ class NexusManager:
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore
 
     @staticmethod
-    def get_nexus_and_values(hooks: set["Hook[Any]"]) -> dict[HookNexus[Any], Any]:
+    def get_nexus_and_values(hooks: set["Hook[Any]"]) -> dict[Nexus[Any], Any]:
         """
         Get the nexus and values dictionary for a set of hooks.
         """
-        nexus_and_values: dict[HookNexus[Any], Any] = {}
+        nexus_and_values: dict[Nexus[Any], Any] = {}
         for hook in hooks:
-            nexus_and_values[hook.hook_nexus] = hook.value
+            nexus_and_values[hook._get_nexus()] = hook.value # type: ignore
         return nexus_and_values

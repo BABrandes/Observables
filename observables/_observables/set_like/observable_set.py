@@ -1,66 +1,15 @@
-from typing import Any, Generic, Optional, TypeVar, overload, Protocol, runtime_checkable, Iterable, Literal, Iterator, Mapping
+from typing import Any, Generic, Optional, TypeVar, overload, Iterable, Literal, Iterator, Set
+from collections.abc import Set as AbstractSet
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
-from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
-from ..._carries_hooks.observable_serializable import ObservableSerializable
+from .protocols import ObservableSetProtocol
 
 T = TypeVar("T")
-
-@runtime_checkable
-class ObservableSetProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
-    """
-    Protocol for observable set objects.
-    
-    Note:
-        Internally stores values as frozenset for immutability.
-    """
-    
-    @property
-    def value(self) -> frozenset[T]:
-        """
-        Get the set value as immutable frozenset.
-        """
-        ...
-    
-    @value.setter
-    def value(self, value: Iterable[T]) -> None:
-        """
-        Set the set value (accepts any iterable, stores as frozenset).
-        """
-        ...
-
-    @property
-    def value_hook(self) -> Hook[frozenset[T]]:
-        """
-        Get the hook for the set (contains frozenset).
-        """
-        ...
-
-    def change_value(self, value: Iterable[T]) -> None:
-        """
-        Change the set value (lambda-friendly method).
-        """
-        ...
-    
-    @property
-    def length(self) -> int:
-        """
-        Get the current length of the set.
-        """
-        ...
-    
-    @property
-    def length_hook(self) -> ReadOnlyHook[int]:
-        """
-        Get the hook for the set length.
-        """
-        ...
-    
-
-class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], frozenset[T], int, "ObservableSet"], ObservableSetProtocol[T], ObservableSerializable[Literal["value"], frozenset[T]], Generic[T]):
+   
+class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], AbstractSet[T], int, "ObservableSet"], ObservableSetProtocol[T], Set[T], Generic[T]):
     """
     An observable wrapper around a set that supports bidirectional bindings and reactive updates.
     
@@ -93,12 +42,12 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
     """
 
     @overload
-    def __init__(self, set_value: Iterable[T], logger: Optional[Logger] = None) -> None:
-        """Initialize with any iterable (stored as frozenset)."""
+    def __init__(self, set_value: AbstractSet[T], logger: Optional[Logger] = None) -> None:
+        """Initialize with any set (automatically converted to frozenset)."""
         ...
 
     @overload
-    def __init__(self, observable_or_hook: Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]], logger: Optional[Logger] = None) -> None:
+    def __init__(self, observable_or_hook: Hook[AbstractSet[T]] | ReadOnlyHook[AbstractSet[T]], logger: Optional[Logger] = None) -> None:
         """Initialize with a hook, establishing a bidirectional binding."""
         ...
 
@@ -112,19 +61,20 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """Initialize with an empty set."""
         ...
 
-    def __init__(self, observable_or_hook_or_value: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: AbstractSet[T] | Hook[AbstractSet[T]] | ReadOnlyHook[AbstractSet[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableSet.
         
         Args:
-            value: Initial iterable, observable set to bind to, or None for empty set
+            value: Initial set, observable set to bind to, or None for empty set.
+                   Sets are automatically converted to frozenset by the nexus system.
 
         Raises:
-            ValueError: If the initial value is not iterable
+            ValueError: If the initial value is not a valid set type
         """
         if observable_or_hook_or_value is None:
-            initial_value: frozenset[T] = frozenset()
-            hook: Optional[ManagedHookProtocol[frozenset[T]]] = None 
+            initial_value: AbstractSet[T] = set()
+            hook: Optional[ManagedHookProtocol[AbstractSet[T]]] = None 
         elif isinstance(observable_or_hook_or_value, ObservableSetProtocol):
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value.value_hook # type: ignore
@@ -132,13 +82,13 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             initial_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value # type: ignore
         else:
-            # Convert any iterable to frozenset
-            initial_value = frozenset(observable_or_hook_or_value) # type: ignore
+            # Pass set directly - nexus system will convert to frozenset
+            initial_value = observable_or_hook_or_value # type: ignore
             hook = None
         
         super().__init__(
-            initial_component_values_or_hooks={"value": initial_value},
-            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], frozenset) else (False, "Value is not a frozenset"), # type: ignore
+            initial_hook_values={"value": initial_value}, # type: ignore
+            verification_method=lambda x: (True, "Verification method passed") if isinstance(x["value"], frozenset) else (False, "Value has not been converted to immutable frozenset!"), # type: ignore
             secondary_hook_callbacks={"length": lambda x: len(x["value"])}, # type: ignore
             logger=logger
         )
@@ -146,54 +96,14 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         if hook is not None:
             self.connect_hook(hook, "value", "use_target_value") # type: ignore
 
-    @property
-    def value(self) -> frozenset[T]:
-        """
-        Get the current set value as immutable frozenset.
-        
-        Returns:
-            The current frozenset value (immutable).
-            
-        Note:
-            Returns frozenset for immutability. Use add(), remove(), etc.
-            for modifications, or create a new frozenset and assign.
-        """
-        return self._primary_hooks["value"].value # type: ignore
-    
-    @value.setter
-    def value(self, value: Iterable[T]) -> None:
-        """
-        Set the current value of the set from any iterable.
-        
-        Args:
-            value: Any iterable (will be converted to frozenset)
-        """
-        new_value = frozenset(value) if not isinstance(value, frozenset) else value
-        if new_value == self._primary_hooks["value"].value:
-            return
-        success, msg = self.submit_values({"value": new_value})
-        if not success:
-            raise ValueError(msg)
+    #########################################################
+    # ObservableSetProtocol implementation
+    #########################################################
 
-    def change_value(self, value: Iterable[T]) -> None:
-        """
-        Change the set value (lambda-friendly method).
-        
-        This method is equivalent to setting the .value property but can be used
-        in lambda expressions and other contexts where property assignment isn't suitable.
-        
-        Args:
-            value: Any iterable (will be converted to frozenset)
-        """
-        new_value = frozenset(value) if not isinstance(value, frozenset) else value
-        if new_value == self._primary_hooks["value"].value:
-            return
-        success, msg = self.submit_values({"value": new_value})
-        if not success:
-            raise ValueError(msg)
+    #-------------------------------- set value --------------------------------
 
     @property
-    def value_hook(self) -> Hook[frozenset[T]]:
+    def set_hook(self) -> Hook[AbstractSet[T]]:
         """
         Get the hook for the set.
         
@@ -201,7 +111,50 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         Returns frozenset for immutability.
         """
         return self._primary_hooks["value"] # type: ignore
+
+    @property
+    def set(self) -> AbstractSet[T]:
+        """
+        Get the current set value as immutable AbstractSet.
+        
+        Returns:
+            The current AbstractSet value (immutable).
+            
+        Note:
+            Returns AbstractSet for immutability. Use add(), remove(), etc.
+            for modifications, or create a new AbstractSet and assign.
+        """
+        return self._primary_hooks["value"].value # type: ignore
     
+    @set.setter
+    def set(self, set: Iterable[T]) -> None:
+        """
+        Set the current value of the set.
+        
+        Args:
+            set: Any set (automatically converted to frozenset by nexus system)
+        """
+        # Let nexus system handle immutability conversion
+        success, msg = self._submit_values({"value": frozenset(set)})
+        if not success:
+            raise ValueError(msg)
+
+    def change_set(self, set: Iterable[T]) -> None:
+        """
+        Change the set value (lambda-friendly method).
+        
+        This method is equivalent to setting the .value property but can be used
+        in lambda expressions and other contexts where property assignment isn't suitable.
+        
+        Args:
+            set: Any iterable (will be converted to AbstractSet)
+        """
+        success, msg = self._submit_values({"value": frozenset(set)})
+        if not success:
+            raise ValueError(msg)
+
+    #-------------------------------- length --------------------------------
+
     @property
     def length(self) -> int:
         """
@@ -218,6 +171,9 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """
         return self._secondary_hooks["length"] # type: ignore
     
+    #########################################################
+    # Standard set methods
+    #########################################################
     
     # Standard set methods
     def add(self, item: T) -> None:
@@ -231,7 +187,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """
         if item not in self._primary_hooks["value"].value: # type: ignore
             new_set = self._primary_hooks["value"].value | {item} # type: ignore
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -251,7 +207,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             raise KeyError(item)
         
         new_set = self._primary_hooks["value"].value - {item} # type: ignore
-        success, msg = self.submit_values({"value": new_set})
+        success, msg = self._submit_values({"value": new_set})
         if not success:
             raise ValueError(msg)
     
@@ -267,7 +223,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """
         if item in self._primary_hooks["value"].value: # type: ignore
             new_set = self._primary_hooks["value"].value - {item} # type: ignore
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -288,7 +244,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         
         item: T = next(iter(self._primary_hooks["value"].value)) # type: ignore
         new_set = self._primary_hooks["value"].value - {item} # type: ignore
-        success, msg = self.submit_values({"value": new_set})
+        success, msg = self._submit_values({"value": new_set})
         if not success:
             raise ValueError(msg)
         return item 
@@ -301,7 +257,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """
         if self._primary_hooks["value"].value:
             new_set: frozenset[T] = frozenset()
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -318,7 +274,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         for other in others:
             new_set = new_set | frozenset(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -335,7 +291,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         for other in others:
             new_set = new_set & frozenset(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -352,7 +308,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         for other in others:
             new_set = new_set - frozenset(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -370,7 +326,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         
         # Only update if there's an actual change
         if new_set != current_set:
-            success, msg = self.submit_values({"value": new_set})
+            success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
     
@@ -389,7 +345,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         """
         return len(self._primary_hooks["value"].value) # type: ignore
     
-    def __contains__(self, item: T) -> bool:
+    def __contains__(self, item: object) -> bool:
         """
         Check if an element is contained in the set.
         
@@ -492,7 +448,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             return self._primary_hooks["value"].value > other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value > other
     
-    def __and__(self, other: Any) -> frozenset[T]:
+    def __and__(self, other: Any) -> Set[T]:
         """
         Compute the intersection with another set or observable set.
         
@@ -506,7 +462,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             return self._primary_hooks["value"].value & other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value & frozenset(other) # type: ignore
     
-    def __or__(self, other: Any) -> frozenset[T]:
+    def __or__(self, other: Any) -> Set[T]:
         """
         Compute the union with another set or observable set.
         
@@ -520,7 +476,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             return self._primary_hooks["value"].value | other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value | frozenset(other) # type: ignore
     
-    def __sub__(self, other: Any) -> frozenset[T]:
+    def __sub__(self, other: Any) -> Set[T]:
         """
         Compute the difference with another set or observable set.
         
@@ -534,7 +490,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
             return self._primary_hooks["value"].value - other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value - frozenset(other) # type: ignore
     
-    def __xor__(self, other: Any) -> frozenset[T]:
+    def __xor__(self, other: Any) -> Set[T]:
         """
         Compute the symmetric difference with another set or observable set.
         
@@ -547,20 +503,3 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], f
         if isinstance(other, ObservableSet):
             return self._primary_hooks["value"].value ^ other._primary_hooks["value"].value # type: ignore
         return self._primary_hooks["value"].value ^ frozenset(other) # type: ignore
-    
-    def __hash__(self) -> int:
-        """
-        Get the hash value based on the current set contents.
-        
-        Returns:
-            Hash value of the frozenset
-        """
-        return hash(self._primary_hooks["value"].value) # type: ignore
-
-    #### ObservableSerializable implementation ####
-
-    def get_value_references_for_serialization(self) -> Mapping[Literal["value"], frozenset[T]]:
-        return {"value": self._primary_hooks["value"].value}
-
-    def set_value_references_from_serialization(self, values: Mapping[Literal["value"], frozenset[T]]) -> None:
-        self.submit_values({"value": values["value"]})

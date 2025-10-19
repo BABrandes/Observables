@@ -1,5 +1,4 @@
 from typing import TypeVar, runtime_checkable, Protocol
-from threading import RLock
 
 from ..._auxiliary.listening_protocol import ListeningProtocol
 from ..._nexus_system.has_nexus_manager_protocol import HasNexusManagerProtocol
@@ -14,10 +13,3 @@ class FullHookProtocol(ManagedHookProtocol[T], HookWithSetterProtocol[T], Listen
     """
     Protocol for full hook objects (Getter and Setter).
     """
-
-    @property
-    def lock(self) -> RLock:
-        """
-        Get the lock for thread safety.
-        """
-        ...

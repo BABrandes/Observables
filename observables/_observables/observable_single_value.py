@@ -201,7 +201,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
 
         initial_component_values_or_hooks: dict[Literal["value"], T] = {"value": initial_value}
         super().__init__(
-            initial_component_values_or_hooks=initial_component_values_or_hooks,
+            initial_hook_values=initial_component_values_or_hooks,
             verification_method= lambda x: (True, "Verification method passed") if validator is None else validator(x["value"]),
             secondary_hook_callbacks={},
             logger=logger

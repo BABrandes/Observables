@@ -24,6 +24,17 @@ class ObservableSelectionDict(
     - values: Tuple of dictionary values
     - length: Dictionary length
     
+    Valid Key Combinations:
+    ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+    │                 │    if key in dict        │  if key not in dict      │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ not None        │           ✓              │         error            │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ None            │         error            │         error            │
+    └─────────────────┴──────────────────────────┴──────────────────────────┘
+    
     The observable ensures that these three components stay synchronized:
     - When dict or key changes, value is automatically updated
     - When value changes, the dictionary is updated at the current key

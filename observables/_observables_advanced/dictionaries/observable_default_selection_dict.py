@@ -26,6 +26,17 @@ class ObservableDefaultSelectionDict(
     - values: Tuple of dictionary values
     - length: Dictionary length
     
+    Valid Key Combinations:
+    ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+    │                 │    if key in dict        │  if key not in dict      │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ not None        │           ✓              │   default (auto-create)  │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ None            │         error            │         error            │
+    └─────────────────┴──────────────────────────┴──────────────────────────┘
+    
     **Default Value Behavior:**
     - The key must not be None
     - If the key is not in the dictionary, a default entry is automatically added to the dictionary for this key

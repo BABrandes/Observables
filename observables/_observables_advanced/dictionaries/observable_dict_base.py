@@ -36,6 +36,16 @@ class ObservableDictBase(
     - values: Tuple of dictionary values
     - length: Dictionary length
     
+    Four Variants (see their specific docs for behavior matrices):
+    ┌────────────────────────────────────┬───────────────┬────────────────────┐
+    │ Variant                            │ if key is None│ if key not in dict │
+    ├────────────────────────────────────┼───────────────┼────────────────────┤
+    │ ObservableSelectionDict            │     error     │       error        │
+    │ ObservableOptionalSelectionDict    │     None      │       error        │
+    │ ObservableDefaultSelectionDict     │     error     │      default       │
+    │ ObservableOptionalDefaultSelection │     None      │      default       │
+    └────────────────────────────────────┴───────────────┴────────────────────┘
+    
     Type Parameters:
         K: Dictionary key type
         V: Dictionary value type

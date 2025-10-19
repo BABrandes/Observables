@@ -24,6 +24,17 @@ class ObservableOptionalSelectionDict(
     - values: Tuple of dictionary values
     - length: Dictionary length
     
+    Valid Key Combinations:
+    ┌─────────────────┬──────────────────────────┬──────────────────────────┐
+    │                 │    if key in dict        │  if key not in dict      │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ not None        │           ✓              │         error            │
+    ├─────────────────┼──────────────────────────┼──────────────────────────┤
+    │ if key is       │                          │                          │
+    │ None            │      None (value)        │      None (value)        │
+    └─────────────────┴──────────────────────────┴──────────────────────────┘
+    
     **Optional Behavior:**
     - If key is None, then value must be None
     - If key is not None, then value must match the dictionary value at that key

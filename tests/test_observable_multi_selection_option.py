@@ -31,20 +31,20 @@ class TestObservableMultiSelectionOption:
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
-        self.observable.add_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
         self.observable.selected_options = {"Cherry"}
         assert self.notification_count == 1
     
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
-        self.observable.add_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
         self.observable.selected_options = {"Apple", "Banana"}  # Same value
         assert self.notification_count == 0
     
     def test_remove_listeners(self):
         """Test removing a listener"""
-        self.observable.add_listeners(self.notification_callback)
-        self.observable.remove_listeners(self.notification_callback)
+        self.observable.add_listener(self.notification_callback)
+        self.observable.remove_listener(self.notification_callback)
         self.observable.selected_options = {"Banana"}
         assert self.notification_count == 0
     
@@ -60,8 +60,8 @@ class TestObservableMultiSelectionOption:
             nonlocal count2
             count2 += 1
         
-        self.observable.add_listeners(callback1)
-        self.observable.add_listeners(callback2)
+        self.observable.add_listener(callback1)
+        self.observable.add_listener(callback2)
         self.observable.selected_options = {"Cherry"}
         
         assert count1 == 1
@@ -122,7 +122,7 @@ class TestObservableMultiSelectionOption:
         assert target.selected_options == {"Green"}
         
         # Unbind them
-        target.disconnect_hook()
+        target.unlink()
         
         # Change source, target should not update
         source.selected_options = {"Green"}
@@ -180,8 +180,8 @@ class TestObservableMultiSelectionOption:
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        assert target.selected_options_hook.is_connected_to(source.selected_options_hook)
-        assert source.selected_options_hook.is_connected_to(target.selected_options_hook)
+        assert target.selected_options_hook.is_linked_to(source.selected_options_hook)
+        assert source.selected_options_hook.is_linked_to(target.selected_options_hook)
     
     def test_initialization_with_carries_bindable_multi_selection_option_performance(self):
         """Test performance of initialization with CarriesBindableMultiSelectionOption"""
@@ -258,7 +258,7 @@ class TestObservableMultiSelectionOption:
         assert obs1.selected_options == {"Blue"}
         assert obs1.available_options == {"Red", "Green", "Blue"}
         
-        obs1.disconnect_hook()
+        obs1.unlink()
         
         # After disconnect_hooking, both keep their current values but changes no longer propagate
         assert obs1.selected_options == {"Blue"}
@@ -291,7 +291,7 @@ class TestObservableMultiSelectionOption:
         assert obs3.selected_options == {"Green"}
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect_hook()
+        obs2.unlink()
         
         # Change obs1, obs2 should NOT update (obs2 is now detached from everything)
         # But obs3 should still update because obs1 and obs3 are still bound (transitive binding)
@@ -316,10 +316,10 @@ class TestObservableMultiSelectionOption:
         # Test is_listening_to
         assert not obs.is_listening_to(self.notification_callback)
         
-        obs.add_listeners(self.notification_callback)
+        obs.add_listener(self.notification_callback)
         assert obs.is_listening_to(self.notification_callback)
         
-        obs.remove_listeners(self.notification_callback)
+        obs.remove_listener(self.notification_callback)
         assert not obs.is_listening_to(self.notification_callback)
     
     def test_multiple_bindings(self):

@@ -174,3 +174,47 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
     @property
     def number_of_available_options(self) -> int:
         return len(self._primary_hooks["available_options"].value) # type: ignore
+
+    #-------------------------------- convenience methods --------------------------------
+
+    def add_available_option(self, option: T) -> None:
+        """Add an option to the available options set."""
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset([option])}) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def add_selected_option(self, option: T) -> None:
+        """Add an option to the selected options set."""
+        success, msg = self._submit_values({"selected_option": option})
+        if not success:
+            raise ValueError(msg)
+
+    def remove_available_option(self, option: T) -> None:
+        """Remove an option from the available options set."""
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset([option])}) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def add_available_options(self, options: Iterable[T]) -> None:
+        """Add an option to the available options set."""
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset(options)}) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def remove_available_options(self, options: Iterable[T]) -> None:
+        """Remove an option from the available options set."""
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset(options)}) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def clear_available_options(self) -> None:
+        """Remove all items from the available options set."""
+        success, msg = self._submit_values({"available_options": frozenset()}) # type: ignore
+        if not success:
+            raise ValueError(msg)
+
+    def clear_selected_option(self) -> None:
+        """Remove all items from the selected options set."""
+        success, msg = self._submit_values({"selected_option": None})
+        if not success:
+            raise ValueError(msg)

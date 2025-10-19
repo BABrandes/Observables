@@ -1,7 +1,7 @@
 from typing import Protocol, runtime_checkable, TypeVar
 from threading import RLock
 
-from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
+from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 
 T = TypeVar("T")
 

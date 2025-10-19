@@ -1,6 +1,6 @@
 from typing import Protocol, TypeVar, runtime_checkable
 
-from .managed_hook import ManagedHookProtocol
+from .managed_hook_protocol import ManagedHookProtocol
 from ..mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 from ..mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
 from ..mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol

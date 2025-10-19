@@ -8,6 +8,9 @@ from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProto
 from .._carries_hooks.complex_observable_base import ComplexObservableBase
 from .._carries_hooks.observable_serializable import ObservableSerializable
 from .._nexus_system.submission_error import SubmissionError
+from .._nexus_system.nexus import Nexus
+from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
+from .._hooks.owned_hook import OwnedHook
 
 T = TypeVar("T")
 
@@ -206,16 +209,32 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
             secondary_hook_callbacks={},
             logger=logger
         )
-        
+
+        self._single_value_hook: OwnedHook[T] = self._get_single_value_hook() # type: ignore
+        self._nexus: Nexus[T] = self._single_value_hook._get_nexus() # type: ignore
+
         if hook is not None:
-            self.connect_hook(hook, "value", "use_target_value") # type: ignore
+            self._link(hook, "value", "use_target_value") # type: ignore
+
+    #########################################################
+    # CarriesSingleHookProtocol implementation
+    #########################################################
+
+    @property
+    def hook(self) -> Hook[T]:
+        """
+        Get the hook for the value.
+        
+        This hook can be used for binding operations with other observables.
+        """
+        return self._single_value_hook
 
     @property
     def value(self) -> T:
         """
         Get the current value.
         """
-        return self._primary_hooks["value"].value
+        return self._single_value_hook.value
     
     @value.setter
     def value(self, value: T) -> None:
@@ -228,7 +247,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         Raises:
             ValueError: If the new value fails validation
         """
-        success, msg = self.submit_value("value", value)
+        success, msg = self._submit_value("value", value)
         if not success:
             raise SubmissionError(msg, value, "value")
 
@@ -242,19 +261,44 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         Args:
             new_value: The new value to set
         """
-        if value == self._primary_hooks["value"].value:
-            return
-        self.value = value
-    
-    @property
-    def hook(self) -> Hook[T]:
-        """
-        Get the hook for the value.
-        
-        This hook can be used for binding operations with other observables.
-        """
-        return self._primary_hooks["value"]
-    
+        success, msg = self._submit_value("value", value)
+        if not success:
+            raise SubmissionError(msg, value, "value")
+
+    def _get_nexus(self) -> Nexus[T]:
+        return self._nexus
+
+    def _get_hook_keys(self) -> set[Literal["value"]]:
+        return {"value"}
+
+    def _get_hook_key(self, hook_or_nexus: HookWithOwnerProtocol[T]|Nexus[T]) -> Literal["value"]:
+        if isinstance(hook_or_nexus, HookWithOwnerProtocol):
+            return "value"
+        return "value"
+
+    def _get_single_value_hook(self) -> OwnedHook[T]:
+        return self._single_value_hook
+
+    def _get_value_of_hook_impl(self, key: Literal["value"]) -> T:
+        return self._single_value_hook.value
+
+    def _get_hook_keys_impl(self) -> set[Literal["value"]]:
+        return {"value"}
+
+    def _get_hook_key_impl(self, hook_or_nexus: HookWithOwnerProtocol[T]|Nexus[T]) -> Literal["value"]:
+        if isinstance(hook_or_nexus, HookWithOwnerProtocol):
+            return "value"
+        return "value"
+
+    def _get_hook_impl(self, key: Literal["value"]) -> OwnedHook[T]:
+        return self._single_value_hook
+
+    def _change_value_of_hook_impl(self, key: Literal["value"], value: T) -> None:
+        self._single_value_hook.change_value(value)
+
+    #########################################################
+    # Standard object methods
+    #########################################################
     
     def __str__(self) -> str:
         return f"OSV(value={self._primary_hooks['value'].value})"

@@ -195,7 +195,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
     #########################################################
 
     @final
-    def invalidate(self) -> tuple[bool, str]:
+    def _invalidate(self) -> tuple[bool, str]:
         """
         Invalidate all hooks.
 
@@ -222,7 +222,7 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
             return True, "No invalidate callback provided"
 
     @final
-    def validate_complete_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
+    def _validate_complete_values_in_isolation(self, values: dict[HK, HV]) -> tuple[bool, str]:
         """
         Check if the values are valid as part of the owner.
         
@@ -507,6 +507,9 @@ class CarriesHooksBase(HasNexusManager, CarriesHooksProtocol[HK, HV], Generic[HK
         for key, value in values.items():
             nexus_and_values[self._get_hook_impl(key)._get_nexus()] = value # type: ignore
         return nexus_and_values
+
+    def _get_nexus_manager(self) -> "NexusManager":
+        return self._nexus_manager
 
     # ------------------ To be implemented by subclasses ------------------
 

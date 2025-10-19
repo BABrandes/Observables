@@ -44,7 +44,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
 
     @overload
     def __init__(self, observable_or_hook: Hook[Mapping[K, V]] | ReadOnlyHook[Mapping[K, V]], validator: Optional[Callable[[Mapping[K, V]], bool]] = None, logger: Optional[Logger] = None) -> None:
-        """Initialize with a hook to a MappingProxyType."""
+        """Initialize with a hook to a Mapping."""
         ...
     
     @overload
@@ -62,7 +62,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """Initialize with an empty dictionary."""
         ...
     
-    def __init__(self, observable_or_hook_or_value: Mapping[K, V] | Hook[MappingProxyType[K, V]] | ReadOnlyHook[MappingProxyType[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, observable_or_hook_or_value: Mapping[K, V] | Hook[Mapping[K, V]] | ReadOnlyHook[Mapping[K, V]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
         """
         Initialize the ObservableDict.
         
@@ -175,7 +175,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Set a single key-value pair.
         
-        Creates a new MappingProxyType with the updated key-value pair.
+        Creates a new Mapping with the updated key-value pair.
         
         Args:
             key: The key to set or update
@@ -220,7 +220,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Remove a key-value pair from the dictionary.
         
-        Creates a new MappingProxyType without the specified key.
+        Creates a new Mapping without the specified key.
         
         Args:
             key: The key to remove
@@ -237,7 +237,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Clear all items from the dictionary.
         
-        Creates a new empty MappingProxyType.
+        Creates a new empty Mapping.
         """
         if not self._primary_hooks["dict"].value:
             return  # No change
@@ -249,7 +249,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Update the dictionary with items from another mapping.
         
-        Creates a new MappingProxyType with the updated items.
+        Creates a new Mapping with the updated items.
         
         Args:
             other_dict: Mapping containing items to add or update
@@ -325,7 +325,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Set a key-value pair in the dictionary.
         
-        Creates a new MappingProxyType with the updated key-value pair.
+        Creates a new Mapping with the updated key-value pair.
         
         Args:
             key: The key to set or update
@@ -341,7 +341,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         """
         Remove a key-value pair from the dictionary.
         
-        Creates a new MappingProxyType without the specified key.
+        Creates a new Mapping without the specified key.
         
         Args:
             key: The key to remove

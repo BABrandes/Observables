@@ -13,7 +13,6 @@ class CarriesSingleHookProtocol(CarriesHooksProtocol[HK, HV], Protocol[HV]):
     Protocol for objects that carry a single hook.
     """
 
-    @property
     def _get_single_value_hook(self) -> OwnedHookProtocol[HV]:
         """
         Get the hook for the single value.

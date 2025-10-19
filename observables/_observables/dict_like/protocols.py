@@ -91,18 +91,18 @@ class ObservableDictProtocol(Protocol[K, V]):
     #------------------------------------------------------------------------
 
 @runtime_checkable
-class ObservableSelectionDictProtocol(ObservableDictProtocol[K, V]):
+class ObservableSelectionDictProtocol(ObservableDictProtocol[K, V], Protocol[K, V]):
     """
     Protocol for observable selection dictionary functionality.
     
     This protocol defines the interface for observables that manage a selection
     from a dictionary, maintaining synchronization between:
-    - dict: The dictionary to select from (immutable MappingProxyType)
+    - dict: The dictionary to select from (immutable Mapping)
     - key: The selected key in the dictionary
     - value: The value at the selected key
     
     Note:
-        The dict_hook returns MappingProxyType for immutability. Do not attempt
+        The dict_hook returns Mapping for immutability. Do not attempt
         to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
     
@@ -157,17 +157,17 @@ class ObservableSelectionDictProtocol(ObservableDictProtocol[K, V]):
     #------------------------------------------------------------------------
 
 @runtime_checkable
-class ObservableOptionalSelectionDictProtocol(ObservableDictProtocol[K, V]):
+class ObservableOptionalSelectionDictProtocol(ObservableDictProtocol[K, V], Protocol[K, V]):
     """
     Protocol for observable optional selection dictionary functionality.
     
     This protocol extends ObservableSelectionDictProtocol to allow None values:
-    - dict: The dictionary to select from (immutable MappingProxyType)
+    - dict: The dictionary to select from (immutable Mapping)
     - key: The selected key in the dictionary (can be None)
     - value: The value at the selected key (can be None)
     
     Note:
-        The dict_hook returns MappingProxyType for immutability. Do not attempt
+        The dict_hook returns Mapping for immutability. Do not attempt
         to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
 
@@ -223,7 +223,7 @@ class ObservableOptionalSelectionDictProtocol(ObservableDictProtocol[K, V]):
     #------------------------------------------------------------------------
 
 @runtime_checkable
-class ObservableDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
+class ObservableDefaultSelectionDictProtocol(ObservableDictProtocol[K, V], Protocol[K, V]):
     """
     Protocol for observable default selection dictionary functionality.
     
@@ -231,7 +231,7 @@ class ObservableDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
     create default entries when keys are not present in the dictionary.
     
     Note:
-        The dict_hook returns MappingProxyType for immutability. Do not attempt
+        The dict_hook returns Mapping for immutability. Do not attempt
         to mutate it. Use change_dict() or change_dict_and_key() for modifications.
     """
     
@@ -286,14 +286,14 @@ class ObservableDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
     #------------------------------------------------------------------------
 
 @runtime_checkable
-class ObservableOptionalDefaultSelectionDictProtocol(ObservableDictProtocol[K, V]):
+class ObservableOptionalDefaultSelectionDictProtocol(ObservableDictProtocol[K, V], Protocol[K, V]):
     """
     Protocol for observable optional default selection dictionary functionality.
     
     This protocol combines optional selection with automatic default entry creation.
     
     Note:
-        The dict_hook returns MappingProxyType for immutability. Do not attempt
+        The dict_hook returns Mapping for immutability. Do not attempt
         to mutate it. Use change_dict() or set_dict_and_key() for modifications.
     """
     

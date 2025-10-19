@@ -1,6 +1,6 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
-from types import MappingProxyType
+from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook import ManagedHookProtocol
@@ -74,7 +74,7 @@ class ObservableOptionalDefaultSelectionDict(
         # Store default_value for use in callbacks
         self._default_value: V | Callable[[K], V] = default_value
         
-        # Pre-process dict to add default entry if needed (before wrapping in MappingProxyType)
+        # Pre-process dict to add default entry if needed (before wrapping in Map)
         if not isinstance(dict_hook, ManagedHookProtocol):
             # Extract initial key
             initial_key = key_hook.value if isinstance(key_hook, ManagedHookProtocol) else key_hook # type: ignore
@@ -122,7 +122,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.submitted["dict"])
                             _default_val = self_ref._get_default_value(update_values.submitted["key"])
                             _dict[update_values.submitted["key"]] = _default_val
-                            return {"dict": MappingProxyType(_dict), "value": _default_val}
+                            return {"dict": Map(_dict), "value": _default_val}
                         return {"value": update_values.submitted["dict"][update_values.submitted["key"]]}
                 
                 case (True, False, True):
@@ -148,7 +148,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.submitted["dict"])
                             _default_val = self_ref._get_default_value(update_values.current["key"])
                             _dict[update_values.current["key"]] = _default_val
-                            return {"dict": MappingProxyType(_dict), "value": _default_val}
+                            return {"dict": Map(_dict), "value": _default_val}
                         return {"value": update_values.submitted["dict"][update_values.current["key"]]}
                 
                 case (False, True, True):
@@ -158,7 +158,7 @@ class ObservableOptionalDefaultSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                        return {"dict": MappingProxyType(_dict)}
+                        return {"dict": Map(_dict)}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict (or create default)
@@ -170,7 +170,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.current["dict"])
                             _default_val = self_ref._get_default_value(update_values.submitted["key"])
                             _dict[update_values.submitted["key"]] = _default_val
-                            return {"dict": MappingProxyType(_dict), "value": _default_val}
+                            return {"dict": Map(_dict), "value": _default_val}
                         return {"value": update_values.current["dict"][update_values.submitted["key"]]}
                 
                 case (False, False, True):
@@ -182,7 +182,7 @@ class ObservableOptionalDefaultSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.current["key"]] = update_values.submitted["value"]
-                        return {"dict": MappingProxyType(_dict)}
+                        return {"dict": Map(_dict)}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed

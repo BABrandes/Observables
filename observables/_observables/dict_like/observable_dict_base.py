@@ -81,15 +81,15 @@ class ObservableDictBase(
             invalidate_callback: Optional callback called after value changes
         """
         
-        # Extract initial values and wrap in MappingProxyType
+        # Extract initial values and wrap in Map
         if isinstance(dict_hook, (Hook, ReadOnlyHook)):
             _initial_dict_value: Mapping[K, V] = dict_hook.value
-            # If hook contains non-MappingProxyType, wrap it
+            # If hook contains non-Map, wrap it
             if not isinstance(_initial_dict_value, Map):
                 _initial_dict_value = Map(_initial_dict_value)
         else:
             _initial_dict_value = dict_hook
-            # Wrap in MappingProxyType for immutability
+            # Wrap in Map for immutability
             if not isinstance(_initial_dict_value, Map):
                 # Convert to dict first to ensure it's a mutable copy, then wrap
                 _dict_copy = dict(_initial_dict_value)
@@ -191,10 +191,10 @@ class ObservableDictBase(
         Get the dictionary hook.
         
         Returns:
-            The hook managing the dictionary value as MappingProxyType (immutable).
+            The hook managing the dictionary value as Map (immutable).
             
         Note:
-            Returns MappingProxyType to enforce immutability. Attempting to mutate
+            Returns Map to enforce immutability. Attempting to mutate
             the returned dict will raise TypeError. All modifications should go
             through change_dict() or submit_values().
         """

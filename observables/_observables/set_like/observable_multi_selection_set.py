@@ -157,12 +157,12 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
 
         # Establish bindings if hooks were provided
         if observable is not None:
-            self.connect_hook(observable.selected_options_hook, "selected_options", "use_target_value") # type: ignore
-            self.connect_hook(observable.available_options_hook, "available_options", "use_target_value") # type: ignore
+            self._link(observable.selected_options_hook, "selected_options", "use_target_value") # type: ignore
+            self._link(observable.available_options_hook, "available_options", "use_target_value") # type: ignore
         if available_options_hook is not None:
-            self.connect_hook(available_options_hook, "available_options", "use_target_value") # type: ignore
+            self._link(available_options_hook, "available_options", "use_target_value") # type: ignore
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self.connect_hook(selected_options_hook, "selected_options", "use_target_value") # type: ignore
+            self._link(selected_options_hook, "selected_options", "use_target_value") # type: ignore
 
     #############################################################
     # ObservableMultiSelectionOptionsProtocol implementation

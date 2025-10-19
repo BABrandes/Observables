@@ -1,5 +1,6 @@
-from typing import Protocol, TypeVar, runtime_checkable, Any
+from typing import Protocol, TypeVar, runtime_checkable, Any, Literal
 
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.has_nexus_protocol import HasNexusProtocol
 from .carries_hooks_protocol import CarriesHooksProtocol
@@ -42,5 +43,15 @@ class CarriesSingleHookProtocol(CarriesHooksProtocol[Any, T], HasNexusProtocol[T
 
         Args:
             value: The new value to set
+        """
+        ...
+
+    def link(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
+        """
+        Link the single hook to the target hook.
+
+        Args:
+            hook: The hook to link to
+            sync_mode: The sync mode to use
         """
         ...

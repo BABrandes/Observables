@@ -162,7 +162,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", "use_target_value") # type: ignore
+            self._link(hook, "value", "use_target_value") # type: ignore
 
     #########################################################
     # ObservableListProtocol implementation
@@ -171,37 +171,38 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
     #-------------------------------- list value --------------------------------   
 
     @property
-    def list_hook(self) -> Hook[tuple[T, ...]]:
+    def value_hook(self) -> Hook[Sequence[T]]:
         """
-        Get the hook for the list (contains tuple).
+        Get the hook for the list (contains Sequence).
         """
         return self._primary_hooks["value"] # type: ignore
 
     @property
-    def list_value(self) -> tuple[T, ...]:
+    def value(self) -> list[T]:
         """
-        Get the list value as immutable tuple.
+        Get the list value as mutable list (copied from the hook).
         """
-        return self._primary_hooks["value"].value # type: ignore
+        value = self._primary_hooks["value"].value # type: ignore
+        return list(value)
     
-    @list_value.setter
-    def list_value(self, new_list: Iterable[T]) -> None:
+    @value.setter
+    def value(self, value: Iterable[T]) -> None:
         """
-        Set the list value (accepts any iterable, stores as tuple).
+        Set the list value (accepts any iterable, stores as Sequence).
         """
-        new_list = tuple(new_list) if not isinstance(new_list, tuple) else new_list
-        success, msg = self._submit_values({"value": new_list})
+        value = tuple(value) if not isinstance(value, tuple) else value
+        success, msg = self._submit_values({"value": value})
         if not success:
-            raise SubmissionError(msg, new_list, "value")
+            raise SubmissionError(msg, value, "value")
 
-    def change_list(self, new_list: Iterable[T]) -> None:
+    def change_value(self, new_value: Iterable[T]) -> None:
         """
         Change the list value (lambda-friendly method).
         """
-        new_list = tuple(new_list) if not isinstance(new_list, tuple) else new_list
+        new_list = tuple(new_value) if not isinstance(new_value, tuple) else new_value
         success, msg = self._submit_values({"value": new_list})
         if not success:
-            raise SubmissionError(msg, new_list, "value")
+            raise SubmissionError(msg, new_value, "value")
 
     #-------------------------------- length --------------------------------
 

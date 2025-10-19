@@ -9,7 +9,10 @@ import gc
 import weakref
 from typing import Any
 import pytest
-from observables import ObservableSingleValue, ObservableList, ObservableSet
+from observables import (
+    ObservableSingleValue, ObservableList, ObservableSet, ObservableDict,
+    XSelectionDict, XOptionalSelectionDict, ReadOnlyHook
+)
 from observables.core import ComplexObservableBase
 
 
@@ -143,6 +146,231 @@ class TestEssentialMemoryManagement:
         assert obs1_ref() is None, "Detached observable 1 was not cleaned up"
         assert obs2_ref() is None, "Detached observable 2 was not cleaned up"
 
+    def test_observable_dict_operations(self):
+        """Test ObservableDict operations and cleanup."""
+        obs_dict = ObservableDict({"a": 1, "b": 2, "c": 3})
+        
+        # Test basic operations
+        assert obs_dict.dict["a"] == 1
+        assert obs_dict.length == 3
+        assert "b" in obs_dict.keys
+        
+        # Test modifications
+        obs_dict["d"] = 4
+        assert obs_dict.length == 4
+        
+        del obs_dict["a"]
+        assert obs_dict.length == 3
+        assert "a" not in obs_dict.keys
+        
+        # Test cleanup
+        obs_ref = weakref.ref(obs_dict)
+        del obs_dict
+        gc.collect()
+        
+        assert obs_ref() is None, "ObservableDict was not cleaned up"
+
+    def test_observable_list_comprehensive_operations(self):
+        """Test various ObservableList operations."""
+        obs_list = ObservableList([1, 2, 3])
+        
+        # Test extend
+        obs_list.extend([4, 5])
+        assert len(obs_list.value) == 5
+        assert obs_list.length == 5
+        
+        # Test insert
+        obs_list.insert(0, 0)
+        assert obs_list.value[0] == 0
+        assert obs_list.length == 6
+        
+        # Test pop
+        popped = obs_list.pop()
+        assert popped == 5
+        assert obs_list.length == 5
+        
+        # Test remove
+        obs_list.remove(0)
+        assert obs_list.length == 4
+        
+        # Test clear
+        obs_list.clear()
+        assert obs_list.length == 0
+        
+        obs_ref = weakref.ref(obs_list)
+        del obs_list
+        gc.collect()
+        
+        assert obs_ref() is None, "ObservableList was not cleaned up"
+
+    def test_observable_set_comprehensive_operations(self):
+        """Test various ObservableSet operations."""
+        obs_set = ObservableSet({1, 2, 3})
+        
+        # Test add
+        obs_set.add(4)
+        assert 4 in obs_set.set
+        assert obs_set.length == 4
+        
+        # Test discard
+        obs_set.discard(2)
+        assert 2 not in obs_set.set
+        assert obs_set.length == 3
+        
+        # Test remove
+        obs_set.remove(3)
+        assert obs_set.length == 2
+        
+        # Test clear
+        obs_set.clear()
+        assert obs_set.length == 0
+        
+        obs_ref = weakref.ref(obs_set)
+        del obs_set
+        gc.collect()
+        
+        assert obs_ref() is None, "ObservableSet was not cleaned up"
+
+    def test_binding_with_target_value_mode(self):
+        """Test binding with use_target_value mode."""
+        obs1 = ObservableSingleValue("value1")
+        obs2 = ObservableSingleValue("value2")
+        
+        # Bind with use_target_value - obs2's value wins
+        obs1._link(obs2.hook, "value", "use_target_value")  # type: ignore
+        assert obs1.value == "value2"
+        
+        # Change obs1, both should update
+        obs1.value = "new_value"
+        assert obs2.value == "new_value"
+        
+        obs1_ref = weakref.ref(obs1)
+        obs2_ref = weakref.ref(obs2)
+        
+        del obs1, obs2
+        gc.collect()
+        
+        assert obs1_ref() is None
+        assert obs2_ref() is None
+
+    def test_multiple_listeners_cleanup(self):
+        """Test cleanup with multiple listeners."""
+        obs = ObservableSingleValue("test")
+        
+        call_counts = [0, 0, 0]
+        
+        def listener1():
+            call_counts[0] += 1
+        
+        def listener2():
+            call_counts[1] += 1
+        
+        def listener3():
+            call_counts[2] += 1
+        
+        obs.add_listener(listener1)
+        obs.add_listener(listener2)
+        obs.add_listener(listener3)
+        
+        obs.value = "changed"
+        assert call_counts == [1, 1, 1]
+        
+        obs_ref = weakref.ref(obs)
+        listener_refs = [weakref.ref(listener1), weakref.ref(listener2), weakref.ref(listener3)]
+        
+        del obs, listener1, listener2, listener3
+        gc.collect()
+        
+        assert obs_ref() is None
+        for ref in listener_refs:
+            assert ref() is None
+
+    def test_secondary_hooks_with_dict(self):
+        """Test secondary hooks with ObservableDict."""
+        obs_dict = ObservableDict({"x": 1, "y": 2})
+        
+        # Access secondary hooks
+        length_hook = obs_dict._get_hook_by_key("length")  # type: ignore
+        keys_hook: ReadOnlyHook[frozenset[str]] = obs_dict._get_hook_by_key("keys")  # type: ignore
+        
+        assert length_hook.value == 2
+        assert "x" in keys_hook.value
+        
+        # Modify dict
+        obs_dict["z"] = 3
+        assert length_hook.value == 3
+        assert "z" in keys_hook.value
+        
+        obs_ref = weakref.ref(obs_dict)
+        del obs_dict, length_hook, keys_hook
+        gc.collect()
+        
+        assert obs_ref() is None
+
+    def test_selection_dict_cleanup(self):
+        """Test cleanup of selection dict observables."""
+        sel_dict = XSelectionDict({"a": 1, "b": 2}, "a")
+        
+        assert sel_dict.key == "a"
+        assert sel_dict.value == 1
+        
+        sel_dict.key = "b"
+        assert sel_dict.value == 2
+        
+        sel_dict_ref = weakref.ref(sel_dict)
+        del sel_dict
+        gc.collect()
+        
+        assert sel_dict_ref() is None
+
+    def test_optional_selection_dict_cleanup(self):
+        """Test cleanup of optional selection dict."""
+        opt_sel = XOptionalSelectionDict({"x": 10, "y": 20}, None)
+        
+        assert opt_sel.key is None
+        assert opt_sel.value is None
+        
+        opt_sel.key = "x"
+        assert opt_sel.value == 10
+        
+        opt_sel_ref = weakref.ref(opt_sel)
+        del opt_sel
+        gc.collect()
+        
+        assert opt_sel_ref() is None
+
+    def test_cross_type_secondary_hooks(self):
+        """Test that secondary hooks from different types work correctly."""
+        obs_list = ObservableList([1, 2])
+        obs_set = ObservableSet({1, 2})
+        obs_dict = ObservableDict({"a": 1})
+        
+        # Get all length hooks
+        list_length = obs_list._get_hook_by_key("length")  # type: ignore
+        set_length = obs_set._get_hook_by_key("length")  # type: ignore
+        dict_length = obs_dict._get_hook_by_key("length")  # type: ignore
+        
+        assert list_length.value == 2
+        assert set_length.value == 2
+        assert dict_length.value == 1
+        
+        # Modify all
+        obs_list.append(3)
+        obs_set.add(3)
+        obs_dict["b"] = 2
+        
+        assert list_length.value == 3
+        assert set_length.value == 3
+        assert dict_length.value == 2
+        
+        # Cleanup
+        refs = [weakref.ref(obs_list), weakref.ref(obs_set), weakref.ref(obs_dict)]
+        del obs_list, obs_set, obs_dict, list_length, set_length, dict_length
+        gc.collect()
+        
+        for ref in refs:
+            assert ref() is None
+
 
 class TestMemoryStressScenarios:
     """Test memory management under stress."""
@@ -225,6 +453,141 @@ class TestMemoryStressScenarios:
         
         # Allow some tolerance for complex scenarios
         assert alive_count <= total_count * 0.2, f"Too many objects alive: {alive_count}/{total_count}"
+
+    def test_dict_operations_stress(self):
+        """Stress test with many dict operations."""
+        weak_refs: list[weakref.ref[ObservableDict[str, int]]] = []
+        
+        for cycle in range(15):
+            dicts: list[ObservableDict[str, int]] = []
+            for i in range(10):
+                obs_dict = ObservableDict({"x": i, "y": i * 2})
+                dicts.append(obs_dict)
+                weak_refs.append(weakref.ref(obs_dict))
+                
+                # Perform various operations
+                obs_dict["z"] = i * 3
+                del obs_dict["x"]
+                obs_dict.update({"a": i, "b": i + 1})
+            
+            dicts.clear()
+            
+            if cycle % 5 == 0:
+                gc.collect()
+        
+        # Cleanup
+        for _ in range(3):
+            gc.collect()
+        
+        alive_count = sum(1 for ref in weak_refs if ref() is not None)
+        total_count = len(weak_refs)
+        cleanup_rate = (total_count - alive_count) / total_count
+        
+        assert cleanup_rate >= 0.8, f"Poor cleanup rate: {cleanup_rate:.1%}"
+
+    def test_selection_dict_stress(self):
+        """Stress test with selection dicts."""
+        weak_refs: list[weakref.ref[XSelectionDict[str, int]]] = []
+        
+        for _ in range(10):
+            sel_dicts: list[XSelectionDict[str, int]] = []
+            
+            for i in range(15):
+                sel_dict = XSelectionDict({"a": i, "b": i * 2, "c": i * 3}, "a")
+                sel_dicts.append(sel_dict)
+                weak_refs.append(weakref.ref(sel_dict))
+                
+                # Change selections
+                sel_dict.key = "b"
+                sel_dict.key = "c"
+                sel_dict.key = "a"
+            
+            sel_dicts.clear()
+            gc.collect()
+        
+        # Final cleanup
+        for _ in range(3):
+            gc.collect()
+        
+        alive_count = sum(1 for ref in weak_refs if ref() is not None)
+        total_count = len(weak_refs)
+        
+        assert alive_count <= total_count * 0.2, f"Too many objects alive: {alive_count}/{total_count}"
+
+    def test_listener_notification_stress(self):
+        """Stress test listener notifications."""
+        notification_count = [0]
+        
+        def counter_listener():
+            notification_count[0] += 1
+        
+        observables: list[ObservableSingleValue[int]] = []
+        
+        for i in range(50):
+            obs = ObservableSingleValue(i)
+            obs.add_listener(counter_listener)
+            observables.append(obs)
+            
+            # Trigger notifications (skip j=0 since it's the same as initial value)
+            for j in range(1, 6):
+                obs.value = i + j
+        
+        # Should have 50 observables * 5 changes = 250 notifications
+        assert notification_count[0] == 250
+        
+        # Cleanup
+        weak_refs = [weakref.ref(obs) for obs in observables]
+        observables.clear()
+        del counter_listener
+        
+        for _ in range(3):
+            gc.collect()
+        
+        alive_count = sum(1 for ref in weak_refs if ref() is not None)
+        assert alive_count <= len(weak_refs) * 0.1
+
+    def test_complex_binding_chains(self):
+        """Test complex binding chains cleanup."""
+        weak_refs: list[weakref.ref[ObservableSingleValue[str]]] = []
+        
+        for cycle in range(10):
+            # Create a star topology of bindings
+            center = ObservableSingleValue(f"center_{cycle}")
+            satellites: list[ObservableSingleValue[str]] = []
+            
+            weak_refs.append(weakref.ref(center))
+            
+            for i in range(10):
+                sat = ObservableSingleValue(f"sat_{cycle}_{i}")
+                satellites.append(sat)
+                weak_refs.append(weakref.ref(sat))
+                
+                # Bind satellite to center
+                sat._link(center.hook, "value", "use_caller_value")  # type: ignore
+            
+            # Change center, all satellites should update
+            center.value = f"broadcast_{cycle}"
+            
+            # Verify all updated
+            for sat in satellites:
+                assert sat.value == f"broadcast_{cycle}"
+            
+            # Clear
+            satellites.clear()
+            del center
+            
+            if cycle % 3 == 0:
+                gc.collect()
+        
+        # Final cleanup
+        for _ in range(3):
+            gc.collect()
+        
+        alive_count = sum(1 for ref in weak_refs if ref() is not None)
+        total_count = len(weak_refs)
+        cleanup_rate = (total_count - alive_count) / total_count
+        
+        assert cleanup_rate >= 0.85, f"Poor cleanup rate: {cleanup_rate:.1%}"
 
 
 if __name__ == "__main__":

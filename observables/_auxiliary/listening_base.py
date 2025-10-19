@@ -107,7 +107,7 @@ class ListeningBase(ListeningProtocol):
             callback()
         self._log("add_listener_and_call_once", True, f"Successfully added {len(callbacks)} listeners and called them once")
 
-    def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
+    def remove_listener(self, *callbacks: Callable[[], None]) -> None:
         """
         Remove one or more listeners from the observable.
         
@@ -133,6 +133,13 @@ class ListeningBase(ListeningProtocol):
                 # Ignore if callback doesn't exist
                 pass
         self._log("remove_listeners", True, f"Successfully removed {len(callbacks)} listeners")
+
+    @deprecated("Will be removed in the future. Use remove_listener instead.")
+    def remove_listeners(self, *callbacks: Callable[[], None]) -> None:
+        """
+        Remove one or more listeners from the observable.
+        """
+        self.remove_listener(*callbacks)
 
     def remove_all_listeners(self) -> set[Callable[[], None]]:
         """

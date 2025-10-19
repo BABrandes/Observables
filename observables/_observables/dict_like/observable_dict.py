@@ -77,10 +77,13 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         if observable_or_hook_or_value is None:
             initial_dict_value: Mapping[K, V] = {}
             hook: Optional[ManagedHookProtocol[Mapping[K, V]]] = None
+        elif isinstance(observable_or_hook_or_value, Mapping):
+            initial_dict_value = observable_or_hook_or_value
+            hook = None
         elif isinstance(observable_or_hook_or_value, ObservableDictProtocol):
             initial_dict_value = observable_or_hook_or_value.dict # type: ignore
             hook = observable_or_hook_or_value.dict_hook # type: ignore
-        elif isinstance(observable_or_hook_or_value, ManagedHookProtocol):
+        elif isinstance(observable_or_hook_or_value, ManagedHookProtocol): # type: ignore
             initial_dict_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value # type: ignore
         else:
@@ -101,7 +104,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         )
 
         if hook is not None:
-            self.connect_hook(hook, "dict", "use_target_value") # type: ignore
+            self._link(hook, "dict", "use_target_value") # type: ignore
 
     #########################################################
     # ObservableDictProtocol implementation

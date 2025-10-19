@@ -8,6 +8,7 @@ from .._nexus_system.submission_error import SubmissionError
 from .._nexus_system.nexus import Nexus
 from .._hooks.owned_hook import OwnedHook
 from .observable_single_value_protocol import ObservableSingleValueProtocol
+from .._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 
 T = TypeVar("T")
 
@@ -229,6 +230,16 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
             The nexus for the single value
         """
         return self._nexus
+
+    def link(self, hook: Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T], sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None: # type: ignore
+        """
+        Link the single hook to the target hook.
+
+        Args:
+            hook: The hook to link to
+            sync_mode: The sync mode to use
+        """
+        super().link(hook, "value", sync_mode)
 
     #########################################################
     # ObservableSingleValueProtocol implementation

@@ -94,7 +94,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], A
         )
 
         if hook is not None:
-            self.connect_hook(hook, "value", "use_target_value") # type: ignore
+            self._link(hook, "value", "use_target_value") # type: ignore
 
     #########################################################
     # ObservableSetProtocol implementation

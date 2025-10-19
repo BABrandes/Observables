@@ -96,9 +96,9 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
         )
 
         if hook_selected_option is not None:
-            self.connect_hook(hook_selected_option, "selected_option", "use_target_value") # type: ignore
+            self._link(hook_selected_option, "selected_option", "use_target_value") # type: ignore
         if hook_available_options is not None:
-            self.connect_hook(hook_available_options, "available_options", "use_target_value") # type: ignore
+            self._link(hook_available_options, "available_options", "use_target_value") # type: ignore
 
     #########################################################
     # ObservableSelectionOptionsProtocol implementation

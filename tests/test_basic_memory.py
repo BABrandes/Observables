@@ -13,7 +13,7 @@ from observables import (
     ObservableSingleValue, ObservableList, ObservableSet, ObservableDict,
     XSelectionDict, XOptionalSelectionDict, ReadOnlyHook
 )
-from observables.core import ComplexObservableBase
+from observables._carries_hooks.carries_some_hooks_base import CarriesSomeHooksBase
 
 
 class TestEssentialMemoryManagement:
@@ -56,7 +56,7 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind them
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
         
         # Test binding works
         obs1.value = "new_value"
@@ -129,11 +129,11 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind, test, detach
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
-        obs1._unlink("value")  # type: ignore
+        obs1._isolate("value")  # type: ignore
         obs1.value = "detached_value"
         assert obs2.value == "bound_value"  # Should not change
         
@@ -237,7 +237,7 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind with use_target_value - obs2's value wins
-        obs1._link(obs2.hook, "value", "use_target_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_target_value")  # type: ignore
         assert obs1.value == "value2"
         
         # Change obs1, both should update
@@ -390,7 +390,7 @@ class TestMemoryStressScenarios:
             
             # Create some bindings
             for i in range(len(cycle_observables) - 1):
-                cycle_observables[i]._link(  # type: ignore
+                cycle_observables[i]._join(  # type: ignore
                     cycle_observables[i + 1].hook,
                     "value",
                     "use_caller_value"
@@ -420,8 +420,8 @@ class TestMemoryStressScenarios:
 
     def test_mixed_observable_types_memory(self):
         """Test memory management with mixed observable types."""
-        observables: list[ComplexObservableBase[Any, Any, Any, Any, Any]] = []
-        weak_refs: list[weakref.ref[ComplexObservableBase[Any, Any, Any, Any, Any]]] = []
+        observables: list[CarriesSomeHooksBase[Any, Any, Any]] = []
+        weak_refs: list[weakref.ref[CarriesSomeHooksBase[Any, Any, Any]]] = []
         
         # Create mixed observable types
         for i in range(20):
@@ -563,7 +563,7 @@ class TestMemoryStressScenarios:
                 weak_refs.append(weakref.ref(sat))
                 
                 # Bind satellite to center
-                sat._link(center.hook, "value", "use_caller_value")  # type: ignore
+                sat._join(center.hook, "value", "use_caller_value")  # type: ignore
             
             # Change center, all satellites should update
             center.value = f"broadcast_{cycle}"

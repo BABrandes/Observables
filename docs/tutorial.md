@@ -36,9 +36,9 @@ print("Before linking:")
 print(f"Celsius: {temperature_celsius.value}")       # 25.0
 print(f"Fahrenheit: {temperature_fahrenheit.value}") # 77.0
 
-# Link them together - celsius pushes its value to fahrenheit
+# Join them together - celsius pushes its value to fahrenheit
 # Using "use_caller_value" means the caller's value (celsius) takes precedence
-temperature_celsius.link(
+temperature_celsius.join(
     temperature_fahrenheit.hook, 
     "value", 
     "use_caller_value"
@@ -72,21 +72,21 @@ The initial sync mode determines which value takes precedence when observables a
 
 ```python
 # Create observables with different values
-obs1 = ObservableSingleValue("Hello")
-obs2 = ObservableSingleValue("World")
+obs1 = XValue("Hello")
+obs2 = XValue("World")
 
 # Using "use_caller_value": obs1's value overwrites obs2's value
-obs1.link(obs2.hook, "value", "use_caller_value")
+obs1.join(obs2.hook, "value", "use_caller_value")
 print(f"After use_caller_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='Hello', obs2='Hello'
 
 # Reset for next example
-obs1.detach()
+obs1.isolate()
 obs1.value = "Hello"
 obs2.value = "World"
 
 # Using "use_target_value": obs1 takes obs2's value
-obs1.link(obs2.hook, "value", "use_target_value")
+obs1.join(obs2.hook, "value", "use_target_value")
 print(f"After use_target_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='World', obs2='World'
 ```
@@ -105,11 +105,11 @@ Try creating a simple linking between two observables:
 # 4. Change the username and observe both values
 
 # Your code here:
-username = ObservableSingleValue("Your Name")
-display_name = ObservableSingleValue("Placeholder")
+username = XValue("Your Name")
+display_name = XValue("Placeholder")
 
-# Link username to display_name
-username.link(display_name.hook, "value", "use_caller_value")
+# Join username to display_name
+username.join(display_name.hook, "value", "use_caller_value")
 
 # Test bidirectional linking
 print(f"Username: {username.value}")
@@ -126,7 +126,7 @@ print(f"After display change - Username: {username.value}, Display: {display_nam
 
 ### **Understanding Shared Storage**
 
-The secret to bidirectional binding is the **Nexus** - a central storage system where values live:
+The secret to bidirectional joining is the **Nexus** - a central storage system where values live:
 
 ```python
 # Create observables - each starts with its own Nexus
@@ -139,12 +139,12 @@ print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Different IDs = separate storage
 
 # Bind them together
-obs1.link(obs2.hook, "value", "use_caller_value")
+obs1.join(obs2.hook, "value", "use_caller_value")
 
 print("\nAfter linking - shared storage:")
 print(f"obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
 print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
-# Same ID = shared storage! This is why binding is bidirectional.
+# Same ID = shared storage! This is why joining is bidirectional.
 
 # Verify they share the same value
 print(f"obs1 value: {obs1.value}")  # 10
@@ -155,16 +155,16 @@ obs1.value = 100
 print(f"After obs1 change: obs1={obs1.value}, obs2={obs2.value}")
 ```
 
-### **Transitive Binding Networks**
+### **Transitive Joining Networks**
 
-When you bind A→B and B→C, A automatically connects to C:
+When you join A→B and B→C, A automatically connects to C:
 
 ```python
 # Create a chain of observables
-user_name = ObservableSingleValue("John")
-header_display = ObservableSingleValue("Header")
-sidebar_display = ObservableSingleValue("Sidebar")
-footer_display = ObservableSingleValue("Footer")
+user_name = XValue("John")
+header_display = XValue("Header")
+sidebar_display = XValue("Sidebar")
+footer_display = XValue("Footer")
 
 print("Before linking - all separate:")
 for name, obs in [("user", user_name), ("header", header_display), 
@@ -172,10 +172,10 @@ for name, obs in [("user", user_name), ("header", header_display),
     hook_id = id(obs._component_hooks['single_value'].nexus)
     print(f"{name}: {obs.value} (Nexus: {hook_id})")
 
-# Create binding chain: user → header → sidebar → footer
-user_name.link(header_display.hook, "value", "use_caller_value")
-header_display.link(sidebar_display.hook, "value", "use_caller_value")
-sidebar_display.link(footer_display.hook, "value", "use_caller_value")
+# Create joining chain: user → header → sidebar → footer
+user_name.join(header_display.hook, "value", "use_caller_value")
+header_display.join(sidebar_display.hook, "value", "use_caller_value")
+sidebar_display.join(footer_display.hook, "value", "use_caller_value")
 
 print("\nAfter chaining - all connected:")
 for name, obs in [("user", user_name), ("header", header_display), 
@@ -200,25 +200,25 @@ print(f"  sidebar_display: {sidebar_display.value}")
 print(f"  footer_display: {footer_display.value}")
 ```
 
-### **Exercise 2: Build a Binding Network**
+### **Exercise 2: Build a Joining Network**
 
 ```python
 # 🎯 Exercise: Create a 4-observable network
 # 1. Create observables for: input_field, validation_display, save_button_text, status_message
-# 2. Bind them in a chain
+# 2. Join them in a chain
 # 3. Change the input_field and verify all others update
 # 4. Change status_message and verify all others update
 
 # Your code here:
-input_field = ObservableSingleValue("")
-validation_display = ObservableSingleValue("")
-save_button_text = ObservableSingleValue("")
-status_message = ObservableSingleValue("")
+input_field = XValue("")
+validation_display = XValue("")
+save_button_text = XValue("")
+status_message = XValue("")
 
-# Build the chain
-input_field.link(validation_display.hook, "value", "use_caller_value")
-validation_display.link(save_button_text.hook, "value", "use_caller_value")
-save_button_text.link(status_message.hook, "value", "use_caller_value")
+# Build the joining chain
+input_field.join(validation_display.hook, "value", "use_caller_value")
+validation_display.join(save_button_text.hook, "value", "use_caller_value")
+save_button_text.join(status_message.hook, "value", "use_caller_value")
 
 # Test the network
 input_field.value = "user@example.com"
@@ -302,9 +302,9 @@ print(f"  Selected: {product_selector.selected_option}")  # Still "smartwatch"
 print(f"  Available: {product_selector.available_options}")  # Still includes smartwatch
 ```
 
-### **Validation During Binding**
+### **Validation During Joining**
 
-Validation is enforced even when binding observables:
+Validation is enforced even when joining observables:
 
 ```python
 # Create compatible observables
@@ -315,25 +315,25 @@ print("Before linking:")
 print(f"  theme1: {theme1.selected_option} from {theme1.available_options}")
 print(f"  theme2: {theme2.selected_option} from {theme2.available_options}")
 
-# ✅ Binding succeeds - both have "dark" as an option
-theme1.link(theme2.selected_option_hook, "selected_option", "use_caller_value")
+# ✅ Joining succeeds - both have "dark" as an option
+theme1.join(theme2.selected_option_hook, "selected_option", "use_caller_value")
 
-print("\nAfter successful binding:")
+print("\nAfter successful joining:")
 print(f"  theme1: {theme1.selected_option}")
 print(f"  theme2: {theme2.selected_option}")  # Now "dark" (from theme1)
 
 # Create incompatible observable
 incompatible_theme = ObservableSelectionOption("high_contrast", {"high_contrast", "colorblind"})
 
-# ❌ Binding fails - "high_contrast" is not available in theme1's options
+# ❌ Joining fails - "high_contrast" is not available in theme1's options
 try:
-    theme1.link(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
+    theme1.join(incompatible_theme.selected_option_hook, "selected_option", "use_target_value")
     print("ERROR: This should not print!")
 except ValueError as e:
-    print(f"\n❌ Binding validation failed: {e}")
+    print(f"\n❌ Joining validation failed: {e}")
 
-# Original binding remains intact
-print(f"Original binding still works:")
+# Original joining remains intact
+print(f"Original joining still works:")
 print(f"  theme1: {theme1.selected_option}")
 print(f"  theme2: {theme2.selected_option}")
 ```
@@ -345,7 +345,7 @@ print(f"  theme2: {theme2.selected_option}")
 # 1. Create a payment method selector with ["credit_card", "debit_card", "paypal"]
 # 2. Try valid and invalid selections
 # 3. Use atomic updates to change both selection and options
-# 4. Create a second selector and test binding validation
+# 4. Create a second selector and test joining validation
 
 # Your code here:
 payment_method = ObservableSelectionOption("credit_card", {"credit_card", "debit_card", "paypal"})
@@ -365,12 +365,12 @@ except ValueError as e:
 payment_method.set_selected_option_and_available_options("bank_transfer", {"bank_transfer", "credit_card"})
 print(f"After atomic update: {payment_method.selected_option}")
 
-# Test binding validation
+# Test joining validation
 another_payment = ObservableSelectionOption("cash", {"cash", "check"})
 try:
-    payment_method.link(another_payment.selected_option_hook, "selected_option", "use_target_value")
+    payment_method.join(another_payment.selected_option_hook, "selected_option", "use_target_value")
 except ValueError as e:
-    print(f"Binding validation failed: {e}")
+    print(f"Joining validation failed: {e}")
 ```
 
 ## 📚 **Chapter 4: Network Management and Disconnection**
@@ -386,10 +386,10 @@ obs_b = ObservableSingleValue("B")
 obs_c = ObservableSingleValue("C")
 obs_d = ObservableSingleValue("D")
 
-# Build chain: A ↔ B ↔ C ↔ D
-obs_a.link(obs_b.hook, "value", "use_caller_value")
-obs_b.link(obs_c.hook, "value", "use_caller_value")
-obs_c.link(obs_d.hook, "value", "use_caller_value")
+# Build joining chain: A ↔ B ↔ C ↔ D
+obs_a.join(obs_b.hook, "value", "use_caller_value")
+obs_b.join(obs_c.hook, "value", "use_caller_value")
+obs_c.join(obs_d.hook, "value", "use_caller_value")
 
 print("Network after creation (all share same value):")
 for name, obs in [("A", obs_a), ("B", obs_b), ("C", obs_c), ("D", obs_d)]:
@@ -437,12 +437,12 @@ header_name = ObservableSingleValue("John Doe")
 profile_name = ObservableSingleValue("John Doe")
 settings_name = ObservableSingleValue("John Doe")
 
-# Connect everything initially
-user_info.link(header_name.hook, "value", "use_caller_value")
-header_name.link(profile_name.hook, "value", "use_caller_value")
-profile_name.link(settings_name.hook, "value", "use_caller_value")
+# Join everything initially
+user_info.join(header_name.hook, "value", "use_caller_value")
+header_name.join(profile_name.hook, "value", "use_caller_value")
+profile_name.join(settings_name.hook, "value", "use_caller_value")
 
-print("All connected initially:")
+print("All joined initially:")
 user_info.value = "Alice Smith"
 print(f"  User Info: {user_info.value}")
 print(f"  Header: {header_name.value}")
@@ -485,15 +485,15 @@ breadcrumb = ObservableSingleValue("Home")
 sidebar_title = ObservableSingleValue("Home")
 footer_link = ObservableSingleValue("Home")
 
-# Connect all in chain
-nav_title.link(page_header.hook, "value", "use_caller_value")
-page_header.link(breadcrumb.hook, "value", "use_caller_value")
-breadcrumb.link(sidebar_title.hook, "value", "use_caller_value")
-sidebar_title.link(footer_link.hook, "value", "use_caller_value")
+# Join all in chain
+nav_title.join(page_header.hook, "value", "use_caller_value")
+page_header.join(breadcrumb.hook, "value", "use_caller_value")
+breadcrumb.join(sidebar_title.hook, "value", "use_caller_value")
+sidebar_title.join(footer_link.hook, "value", "use_caller_value")
 
 # Test network
 nav_title.value = "Dashboard"
-print("All connected:")
+print("All joined:")
 print(f"  Nav: {nav_title.value}")
 print(f"  Header: {page_header.value}")
 print(f"  Breadcrumb: {breadcrumb.value}")
@@ -823,20 +823,20 @@ cart.print_cart_status()
 
 Congratulations! You've learned the core concepts of the Observables library:
 
-### **1. True Bidirectional Binding**
+### **1. True Bidirectional Joining**
 - Changes propagate in both directions automatically
-- Observables share the same Nexus storage when bound
+- Observables share the same Nexus storage when joined
 - No need for manual synchronization
 
-### **2. Transitive Binding Networks**
-- Binding A→B and B→C automatically connects A to C
+### **2. Transitive Joining Networks**
+- Joining A→B and B→C automatically connects A to C
 - Networks survive partial disconnections
 - Strategic detachment allows flexible network management
 
 ### **3. Rigorous State Validation**
 - Invalid states are never allowed, even temporarily
 - Multi-component updates are validated atomically
-- Binding operations respect validation rules
+- Joining operations respect validation rules
 
 ### **4. Practical Applications**
 - Form validation with cross-field dependencies
@@ -847,7 +847,7 @@ Congratulations! You've learned the core concepts of the Observables library:
 
 - Explore the [API Reference](api_reference.md) for detailed method documentation
 - Check out [Examples and Use Cases](examples_and_use_cases.md) for more complex scenarios
-- Read [Bidirectional Binding and State Validation](bidirectional_binding_and_validation.md) for deeper technical insights
+- Read [Bidirectional Joining and State Validation](bidirectional_binding_and_validation.md) for deeper technical insights
 - Review the [Hook System Technical Documentation](hook_system.md) for advanced usage
 
 The Observables library provides a solid foundation for building reactive applications with guaranteed consistency and automatic synchronization. Happy coding! 🚀

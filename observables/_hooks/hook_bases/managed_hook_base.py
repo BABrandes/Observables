@@ -19,10 +19,18 @@ T = TypeVar("T")
 
 class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[T]):
     """
-    A base class for managed hooks that can get and set values.
+    A base class for managed hooks that participate in transitive synchronization.
     
-    ManagedHook represents a single value that can participate in the synchronization system
-    without being owned by a specific observable, but unlike regular hooks, it can get and set values.
+    ManagedHook references a Nexus and can be joined with other hooks to form fusion domains.
+    When joined, the respective Nexuses undergo fusion: original Nexuses are destroyed and 
+    a new unified Nexus is created, enabling transitive synchronization.
+    
+    Example:
+        hook_a.join(hook_b)  # Creates fusion domain AB
+        hook_c.join(hook_d)  # Creates fusion domain CD
+        hook_b.join(hook_c)  # Fuses both domains → ABCD
+        # Now all four hooks share one Nexus and are transitively synchronized
+    
     It provides a lightweight way to create reactive values with full hook system capabilities.
     
     Type Parameters:
@@ -171,9 +179,9 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         with self._lock:
             return self._get_previous_value()
 
-    def link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def join(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
-        Link this hook to another hook.
+        Join this hook to another hook.
 
         ** Thread-safe **
 
@@ -188,19 +196,19 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         """
 
         with self._lock:
-            return self._link(target_hook, initial_sync_mode)
+            return self._join(target_hook, initial_sync_mode)
 
-    def unlink(self) -> None:
+    def isolate(self) -> None:
         """
-        Unlink this hook from the hook nexus.
+        Isolate this hook from the hook nexus.
 
         ** Thread-safe **
         """
         with self._lock:
-            self._unlink()
+            self._isolate()
 
     
-    def is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+    def is_joined_with(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
 
@@ -213,7 +221,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
             True if the hook is connected to the other hook or CarriesSingleHookProtocol, False otherwise
         """
         with self._lock:
-            return self._is_linked_to(hook_or_carries_single_hook)
+            return self._is_joined_with(hook_or_carries_single_hook)
 
     def is_linked(self) -> bool:
         """
@@ -263,11 +271,11 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
         """
         return self._nexus_manager
 
-    def _link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def _join(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
-        Link this hook to another hook.
+        Join this hook to another hook.
 
-        ** This method is not thread-safe and should only be called by the link method.
+        ** This method is not thread-safe and should only be called by the join method.
 
         This method implements the core hook connection process:
         
@@ -299,9 +307,9 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
                 target_hook = target_hook._get_single_hook() # type: ignore
             
             if initial_sync_mode == "use_caller_value":
-                success, msg = Nexus[T].link_hook_pairs((self, target_hook))  # type: ignore
+                success, msg = Nexus[T].join_hook_pairs((self, target_hook))  # type: ignore
             elif initial_sync_mode == "use_target_value":                
-                success, msg = Nexus[T].link_hook_pairs((target_hook, self))  # type: ignore
+                success, msg = Nexus[T].join_hook_pairs((target_hook, self))  # type: ignore
             else:
                 raise ValueError(f"Invalid sync mode: {initial_sync_mode}")
 
@@ -309,11 +317,11 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
             return success, msg
     
-    def _unlink(self) -> None:
+    def _isolate(self) -> None:
         """
-        Unlink this hook from the hook nexus.
-        
-        ** This method is not thread-safe and should only be called by the unlink method.
+        Isolate this hook from the hook nexus.
+
+        ** This method is not thread-safe and should only be called by the isolate method.
 
         If this is the corresponding nexus has only this one hook, nothing will happen.
         """
@@ -357,11 +365,11 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
             # This effectively breaks the connection between this hook and all others
 
 
-    def _is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+    def _is_joined_with(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
 
-        ** This method is not thread-safe and should only be called by the is_linked_to method.
+        ** This method is not thread-safe and should only be called by the is_joined_with method.
 
         Args:
             hook_or_carries_single_hook: The hook or CarriesSingleHookProtocol to check if it is connected to

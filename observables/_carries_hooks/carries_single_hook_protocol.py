@@ -1,14 +1,15 @@
-from typing import Protocol, TypeVar, runtime_checkable, Any, Literal
+from typing import Optional, Protocol, TypeVar, runtime_checkable, Any, Literal
+from logging import Logger
 
 from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._hooks.hook_protocols.owned_hook_protocol import OwnedHookProtocol
 from .._nexus_system.has_nexus_protocol import HasNexusProtocol
-from .carries_hooks_protocol import CarriesHooksProtocol
+from .carries_some_hooks_protocol import CarriesSomeHooksProtocol
 
 T = TypeVar("T")
 
 @runtime_checkable
-class CarriesSingleHookProtocol(CarriesHooksProtocol[Any, T], HasNexusProtocol[T], Protocol[T]):
+class CarriesSingleHookProtocol(CarriesSomeHooksProtocol[Any, T], HasNexusProtocol[T], Protocol[T]):
     """
     Protocol for objects that carry a single hook.
     """
@@ -35,23 +36,59 @@ class CarriesSingleHookProtocol(CarriesHooksProtocol[Any, T], HasNexusProtocol[T
         """
         ...
 
-    def _change_single_value(self, value: T) -> None:
+    def join(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
         """
-        Change the value of the single hook.
-
-        ** This method is not thread-safe and should only be called by the change_single_value method.
+        Join the single hook to the target hook.
 
         Args:
-            value: The new value to set
+            hook: The hook to join to
+            sync_mode: The sync mode to use
         """
         ...
 
-    def link(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
+    def isolate(self) -> None:
         """
-        Link the single hook to the target hook.
+        Isolate the single hook.
+
+        ** Thread-safe **
+        """
+        ...
+
+    def is_joined_with(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]") -> bool:
+        """
+        Check if the single hook is joined with the target hook.
+
+        ** Thread-safe **
+        """
+        ...
+
+    def validate_value(self, value: T, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+        """
+        This method checks if the provided value would be valid for submission. 
+
+        ** Thread-safe **
 
         Args:
-            hook: The hook to link to
-            sync_mode: The sync mode to use
+            value: The value to submit
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
+
+        Returns:
+            A tuple of (success: bool, message: str)
+        """
+        ...
+
+    def submit_value(self, value: T, *, logger: Optional[Logger] = None, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+        """
+        This method submits a value.
+
+        ** Thread-safe **
+
+        Args:
+            key: The key of the hook to submit the value to
+            value: The value to submit
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
+
+        Returns:
+            A tuple of (success: bool, message: str)
         """
         ...

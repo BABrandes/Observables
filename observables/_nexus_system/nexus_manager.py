@@ -18,14 +18,20 @@ from .._publisher_subscriber.publisher_protocol import PublisherProtocol
 
 class NexusManager:
     """
-    Central coordinator for the observable sync system (thread-safe).
+    Central coordinator for transitive synchronization and Nexus fusion (thread-safe).
     
-    The NexusManager handles the complete value submission flow in the new architecture:
+    The NexusManager orchestrates the complete synchronization flow:
     1. Receives value submissions from observables
     2. Completes missing values using add_values_to_be_updated_callback
     3. Validates all values using validation callbacks
-    4. Updates hook nexuses with new values
+    4. Updates Nexuses with new values (propagating to all hooks in the fusion domain)
     5. Triggers invalidation, reactions, publishing, and listener notifications
+    
+    Nexus Fusion Process:
+    When hooks are joined, the NexusManager performs Nexus fusion:
+    - Destroys the original Nexuses
+    - Creates a new unified Nexus for the fusion domain
+    - Ensures transitive synchronization across all joined hooks
     
     Hook Connection Process:
     The NexusManager plays a crucial role in the hook connection process:

@@ -32,7 +32,7 @@ setup(
     version=read_version(),
     author="Benedikt Axel Brandes",
     author_email="benedikt.brandes@gmail.com",
-    description="Centralized Reactive Programming - A Python library for creating observable objects with centralized value storage and automatic transitive binding",
+    description="Transitive Synchronization and Shared-State Fusion for Python - A reactive synchronization framework enabling coherent shared state through Nexus fusion",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/benediktbrandes/observables",
@@ -81,5 +81,5 @@ setup(
     },
     include_package_data=True,
     zip_safe=False,
-    keywords="observable, binding, reactive, event-driven, observer-pattern",
+    keywords="observable, synchronization, nexus-fusion, transitive-sync, reactive, event-driven, observer-pattern, state-management",
 )

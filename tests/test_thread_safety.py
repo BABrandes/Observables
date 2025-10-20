@@ -70,7 +70,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.link(obs2.hook, "use_caller_value")  # type: ignore
+                    obs1.join(obs2.hook, "use_caller_value")  # type: ignore
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -79,7 +79,7 @@ class TestThreadSafety:
                     _ = obs2.value
                     
                     # Detach
-                    obs1.unlink("value")
+                    obs1.isolate("value")
                     
                     time.sleep(0.001)  # Small delay
                     
@@ -267,15 +267,15 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.link(obs2.hook, "use_caller_value")  # type: ignore
-                    obs2.link(obs3.hook, "use_caller_value")  # type: ignore
+                    obs1.join(obs2.hook, "use_caller_value")  # type: ignore
+                    obs2.join(obs3.hook, "use_caller_value")  # type: ignore
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
                     
                     # Break the chain
-                    obs1.unlink("value")
-                    obs2.unlink("value")
+                    obs1.isolate("value")
+                    obs2.isolate("value")
                     
             except Exception as e:
                 errors.append(f"Rapid binder error: {e}")
@@ -368,9 +368,9 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.link(obs2.hook, "use_caller_value")  # type: ignore
+                        obs1.join(obs2.hook, "use_caller_value")  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
-                        obs1.unlink("value")
+                        obs1.isolate("value")
                     elif i % 4 == 1:
                         # Listener operations
                         listener = Mock()

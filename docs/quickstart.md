@@ -66,11 +66,11 @@ from observables import XValue
 primary_name = XValue("Initial")
 display_name = XValue("Display")
 
-# Link them bidirectionally
+# Join them bidirectionally
 # The third parameter specifies initial sync mode:
 # - "use_caller_value": Use the caller's current value
 # - "use_target_value": Use the target's current value
-primary_name.link(
+primary_name.join(
     display_name.hook, 
     "value", 
     "use_caller_value"
@@ -133,8 +133,8 @@ page_title = XValue("Page")
 navigation_title = XValue("Nav")
 
 # Connect them in a chain
-header_title.link(page_title.hook, "value", "use_caller_value")
-page_title.link(navigation_title.hook, "value", "use_caller_value")
+header_title.join(page_title.hook, "value", "use_caller_value")
+page_title.join(navigation_title.hook, "value", "use_caller_value")
 
 # 🎯 Change the header - all others update automatically
 header_title.value = "Dashboard"
@@ -193,9 +193,9 @@ class UserProfileForm:
         # Validation state
         self.is_valid = XValue(False)
         
-        # Link form fields to display fields
-        self.name.link(self.display_name.hook, "value", "use_caller_value")
-        self.email.link(self.header_email.hook, "value", "use_caller_value")
+        # Join form fields to display fields
+        self.name.join(self.display_name.hook, "value", "use_caller_value")
+        self.email.join(self.header_email.hook, "value", "use_caller_value")
         
         # Add validation listeners
         self.name.add_listener(self._validate)
@@ -262,8 +262,8 @@ display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
 # user_preferences.link(display_settings.selected_option_hook, "selected_option", "use_target_value")
 # user_preferences.link(display_settings.available_options_hook, "available_options", "use_target_value")
 
-# ✅ Atomic linking prevents validation conflicts
-user_preferences.connect_hooks({
+# ✅ Atomic joining prevents validation conflicts
+user_preferences.join_many({
     "selected_option": display_settings.selected_option_hook,
     "available_options": display_settings.available_options_hook
 }, "use_target_value")
@@ -296,9 +296,9 @@ display = ObservableSingleValue("Current")
 use_advanced = True
 
 if use_advanced:
-    advanced_mode.link(display.hook, "value", "use_caller_value")
+    advanced_mode.join(display.hook, "value", "use_caller_value")
 else:
-    simple_mode.link(display.hook, "value", "use_caller_value")
+    simple_mode.join(display.hook, "value", "use_caller_value")
 
 print(f"Display shows: {display.value}")  # "Advanced"
 ```
@@ -328,11 +328,10 @@ obs2 = ObservableSingleValue("Connected")
 obs3 = ObservableSingleValue("Connected")
 
 # Connect them
-obs1.link(obs2.hook, "value", "use_caller_value")
-obs2.link(obs3.hook, "value", "use_caller_value")
+obs1.join(obs2.hook, "value", "use_caller_value")
+obs2.join(obs3.hook, "value", "use_caller_value")
 
-# Disconnect the middle one
-obs2.detach()
+# The middle one is still connected - no disconnect method needed
 
 # obs1 and obs3 remain connected!
 obs1.value = "Updated"
@@ -351,10 +350,10 @@ print(f"obs3: {obs3.value}")  # "Updated" (still connected to obs1)
 - `ObservableSet[T]` - Sets
 
 ### **Linking Methods**
-- `link(hook, to_key, initial_sync_mode)` - Link to another observable
-- `link_many(hooks_dict, initial_sync_mode)` - Atomically link multiple components
-- No disconnect method needed - linking is permanent
-- No check method needed - linking relationships are explicit
+- `join(hook, to_key, initial_sync_mode)` - Join to another observable
+- `join_many(hooks_dict, initial_sync_mode)` - Atomically join multiple components
+- No disconnect method needed - joining is permanent
+- No check method needed - joining relationships are explicit
 
 ### **Initial Sync Modes**
 
@@ -369,10 +368,10 @@ source = ObservableSingleValue(10)
 target = ObservableSingleValue(20)
 
 # Using "use_caller_value": target becomes 10
-source.link(target.hook, "value", "use_caller_value")
+source.join(target.hook, "value", "use_caller_value")
 
 # Using "use_target_value": source would become 20
-# source.link(target.hook, "value", "use_target_value")
+# source.join(target.hook, "value", "use_target_value")
 ```
 
 ### **Common Hooks**

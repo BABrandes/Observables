@@ -25,11 +25,11 @@ def test_disconnect_connect_race_condition():
     hook3 = FloatingHook(3)
     
     # Connect hook1 and hook2
-    hook1.link(hook2, "use_caller_value")
+    hook1.join(hook2, "use_caller_value")
     
     # Verify they're connected
-    assert hook1.is_linked_to(hook2)
-    assert hook2.is_linked_to(hook1)
+    assert hook1.is_joined_with(hook2)
+    assert hook2.is_joined_with(hook1)
     assert hook1.value == 1
     assert hook2.value == 1
     
@@ -39,7 +39,7 @@ def test_disconnect_connect_race_condition():
         """Thread 1: Disconnect hook1"""
         try:
             time.sleep(0.001)  # Small delay to increase chance of race
-            hook1.unlink()
+            hook1.isolate()
         except Exception as e:
             errors.append(("disconnect", e))
     
@@ -47,7 +47,7 @@ def test_disconnect_connect_race_condition():
         """Thread 2: Connect hook1 to hook3"""
         try:
             # This will call _replace_nexus on hook1 and hook3
-            hook1.link(hook3, "use_caller_value")
+            hook1.join(hook3, "use_caller_value")
         except Exception as e:
             errors.append(("connect", e))
     
@@ -57,7 +57,7 @@ def test_disconnect_connect_race_condition():
         hook1 = FloatingHook(1)
         hook2 = FloatingHook(2)
         hook3 = FloatingHook(3)
-        hook1.link(hook2, "use_caller_value")
+        hook1.join(hook2, "use_caller_value")
         
         errors.clear()
         
@@ -98,11 +98,11 @@ def test_disconnect_replace_nexus_concurrent():
         hook2 = FloatingHook(2)
         
         # Connect them
-        hook1.link(hook2, "use_caller_value")
+        hook1.join(hook2, "use_caller_value")
         
         def thread_disconnect():
             try:
-                hook1.unlink()
+                hook1.isolate()
             except Exception as e:
                 errors.append(e)
         

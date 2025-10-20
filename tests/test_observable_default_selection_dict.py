@@ -317,12 +317,12 @@ class TestObservableDefaultSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.link(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.join(external_hook, "key", "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
         # Disconnect
-        selection_dict.disconnect_hook("key")
+        selection_dict.isolate("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_invalidation(self):

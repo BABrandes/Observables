@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "observables"
 dynamic = ["version"]
-description = "Centralized Reactive Programming - A Python library for creating observable objects with centralized value storage and automatic transitive binding"
+description = "Transitive Synchronization and Shared-State Fusion for Python - A reactive synchronization framework enabling coherent shared state through Nexus fusion"
 readme = "README.md"
 license = "Apache-2.0"
 authors = [
@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Benedikt Axel Brandes", email = "benedikt.brandes@gmail.com"}
 ]
-keywords = ["observable", "binding", "reactive", "event-driven", "observer-pattern"]
+keywords = ["observable", "synchronization", "nexus-fusion", "transitive-sync", "reactive", "event-driven", "observer-pattern", "state-management"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

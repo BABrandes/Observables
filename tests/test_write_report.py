@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script for the write_report function with a complex hook system.
-This creates a sophisticated binding scenario and uses write_report to analyze it.
+This creates a sophisticated joining scenario and uses write_report to analyze it.
 """
 
 from typing import Any
@@ -46,7 +46,7 @@ class TestWriteReport:
         print("="*80)
     
     def _create_complex_system(self) -> dict[str, CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"]]:
-        """Create a complex system with multiple observables and bindings"""
+        """Create a complex system with multiple observables and joinings"""
         
         print("🔧 Creating complex observable system...")
         
@@ -74,15 +74,15 @@ class TestWriteReport:
         
         print("✅ Basic observables created")
         
-        # Create complex binding relationships
-        print("🔗 Creating bindings...")
+        # Create complex joining relationships
+        print("🔗 Creating joinings...")
         
         # Bind task count to list length
-        task_count.link(task_list.length_hook, "use_target_value")  # type: ignore
+        task_count.join(task_list.length_hook, "use_target_value")  # type: ignore
         
         # Bind some observables to demonstrate shared hook nexuses
         task_backup: ObservableList[Any] = ObservableList([])  # Will share nexus with task_list
-        task_backup.link(task_list.value_hook, "value", "use_target_value") # type: ignore
+        task_backup.join(task_list.value_hook, "value", "use_target_value") # type: ignore
         
         # Create another observable that shares the user's age
         min_age_requirement = ObservableSingleValue(18)
@@ -90,21 +90,21 @@ class TestWriteReport:
         
         # Connect age-related observables
         backup_age: ObservableSingleValue[Any] = ObservableSingleValue(0)
-        backup_age.link(user_age.hook, "use_target_value")  # type: ignore
+        backup_age.join(user_age.hook, "use_target_value")  # type: ignore
         
         # Create observables that share nexus with the sets
         completed_backup: ObservableSet[Any] = ObservableSet(set())
-        completed_backup.link(completed_tasks.value_hook, "value", "use_target_value") # type: ignore
+        completed_backup.join(completed_tasks.value_hook, "value", "use_target_value") # type: ignore
         
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[TaskStatus] = ObservableMultiSelectionOption(set(), available_statuses)
-        status_backup.link_many(
+        status_backup.join_many(
             {
                 "selected_options": current_task_statuses.selected_options_hook,
                 "available_options": current_task_statuses.available_options_hook
             }, "use_target_value") # type: ignore
         
-        print("✅ Bindings created")
+        print("✅ Joinings created")
         
         # Return dictionary of all observables for analysis
         return {
@@ -206,7 +206,7 @@ class TestWriteReport:
         print(f"Task backup: {task_backup.value}") # type: ignore
         print(f"Task count: {task_count.value}") # type: ignore
         
-        # Demonstrate user data binding
+        # Demonstrate user data joining
         user_name: CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"] = observables_dict["user_name"] # type: ignore
         backup_age: CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"] = observables_dict["backup_age"]
         user_age: CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"] = observables_dict["user_age"]
@@ -229,7 +229,7 @@ class TestWriteReport:
         
         # Create a backup that shares the name
         name_backup: ObservableSingleValue[Any] = ObservableSingleValue[Any]("")
-        name_backup.link(name.hook, "use_target_value")  # type: ignore
+        name_backup.join(name.hook, "use_target_value")  # type: ignore
         
         observables: dict[str, CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"]] = {
             "name": name,

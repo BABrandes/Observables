@@ -154,12 +154,12 @@ class TestObservableSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.link(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.join(external_hook, "key", "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
         # Disconnect
-        selection_dict._unlink("key")
+        selection_dict.isolate("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_verification_method(self):
@@ -474,7 +474,7 @@ class TestObservableOptionalSelectionDict:
         
         # Test that the interface is properly implemented
         # The connect_hooks functionality is tested elsewhere
-        assert hasattr(selection_dict, 'connect_hooks')
+        assert hasattr(selection_dict, 'join_many')
 
     def test_edge_case_empty_dict(self):
         """Test behavior with empty dictionary."""

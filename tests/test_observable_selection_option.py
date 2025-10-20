@@ -121,7 +121,7 @@ class TestObservableSelectionOption:
         assert target.selected_option == "Green"
         
         # Unbind them
-        target.disconnect_hook()
+        target.isolate()
         
         # Change source, target should not update
         # Note: source can only use its own available options {"Red", "Green"}
@@ -180,8 +180,8 @@ class TestObservableSelectionOption:
         # Binding system consistency is now handled automatically by the hook system
         
         # Check that they are properly bound
-        assert target.selected_option_hook.is_connected_to(source.selected_option_hook)
-        assert source.selected_option_hook.is_connected_to(target.selected_option_hook)
+        assert target.selected_option_hook.is_joined_with(source.selected_option_hook)
+        assert source.selected_option_hook.is_joined_with(target.selected_option_hook)
     
     def test_initialization_with_carries_bindable_selection_option_performance(self):
         """Test performance of initialization with CarriesBindableSelectionOption"""
@@ -210,7 +210,7 @@ class TestObservableSelectionOption:
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
         # Bind obs1 to obs2
-        obs1.connect_hooks({"available_options": obs2.available_options_hook, "selected_option": obs2.selected_option_hook}, "use_target_value") #type: ignore
+        obs1.join_many({"available_options": obs2.available_options_hook, "selected_option": obs2.selected_option_hook}, "use_target_value") #type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
         assert obs1.selected_option == "Blue"
@@ -234,16 +234,16 @@ class TestObservableSelectionOption:
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
         # Test update_value_from_observable mode
-        obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs1.selected_option == "Blue"
         
         # Test update_observable_from_self mode
         obs3 = ObservableSelectionOption("Small", {"Small", "Medium", "Large"})
         obs4 = ObservableSelectionOption("Large", {"Small", "Medium", "Large"})
-        obs3.connect_hook(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs3.connect_hook(obs4.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs3.join(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs3.join(obs4.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs3.selected_option == "Large"
     
@@ -252,14 +252,14 @@ class TestObservableSelectionOption:
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
-        obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
         assert obs1.selected_option == "Blue"
         assert obs1.available_options == {"Red", "Green", "Blue"}
         
-        obs1.disconnect_hook()
+        obs1.isolate()
         
         # After disconnecting, obs2 keeps its current values but changes no longer propagate
         assert obs2.selected_option == "Blue"
@@ -273,7 +273,7 @@ class TestObservableSelectionOption:
         """Test that binding to self raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with pytest.raises(ValueError):
-            obs.connect_hook(obs.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+            obs.join(obs.selected_option_hook, "selected_option", "use_target_value") # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -282,8 +282,8 @@ class TestObservableSelectionOption:
         obs3 = ObservableSelectionOption("Green", {"Red", "Green", "Blue"})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs2.connect_hook(obs3.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs2.join(obs3.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         
         # Verify chain works
         obs1.selected_option = "Green"
@@ -291,7 +291,7 @@ class TestObservableSelectionOption:
         assert obs3.selected_option == "Green"
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.disconnect_hook()
+        obs2.isolate()
         
         # Change obs1, obs2 should update since they remain bound after obs2.disconnect()
         # Note: obs1 can only use its own available options {"Red", "Green", "Blue"}
@@ -329,8 +329,8 @@ class TestObservableSelectionOption:
         obs3 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
         
         # Bind obs2 and obs3 to obs1
-        obs2.connect_hook(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs3.connect_hook(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs2.join(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs3.join(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         
         # After binding, all observables should be synchronized due to transitive binding
         # When multiple observables are bound to the same target, they all become part of the same binding group
@@ -407,8 +407,8 @@ class TestObservableSelectionOption:
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         obs2 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         
-        obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # Use target value for sync → target gets caller's values
         assert obs2.selected_option == "Red"
         assert obs2.available_options == {"Red", "Green", "Yellow"}
@@ -416,7 +416,7 @@ class TestObservableSelectionOption:
         # Test binding selection options with different options
         obs3 = ObservableSelectionOption("Red", {"Red", "Blue", "Green"})
         obs4 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
-        obs3.connect_hook(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs3.join(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
         
         obs3.selected_option = "Blue"
         assert obs4.selected_option == "Blue"
@@ -469,22 +469,22 @@ class TestObservableSelectionOption:
         # Check binding consistency
         
         # Check that they are properly bound
-        assert target.selected_option_hook.is_connected_to(source.selected_option_hook)
-        assert source.selected_option_hook.is_connected_to(target.selected_option_hook)
+        assert target.selected_option_hook.is_joined_with(source.selected_option_hook)
+        assert source.selected_option_hook.is_joined_with(target.selected_option_hook)
     
     def test_selection_option_binding_none_observable(self):
         """Test that binding to None raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with pytest.raises(ValueError):
-            obs.connect_hook(None, "selected_option", "use_target_value")  # type: ignore
+            obs.join(None, "selected_option", "use_target_value")  # type: ignore
     
     def test_selection_option_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
-        obs1.connect_hook(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.connect_hook(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs1.selected_option == "Blue"
         assert obs1.available_options == {"Red", "Green", "Blue"}

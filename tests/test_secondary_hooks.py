@@ -233,7 +233,7 @@ class TestEmitterHooksListeners:
         
         # Bind the length hook to the single value (reverse direction)
         length_hook = obs_list.length_hook
-        length_hook.link(length_tracker.hook, "use_caller_value")  # type: ignore
+        length_hook.join(length_tracker.hook, "use_caller_value")  # type: ignore
         
         # Initial binding should work
         assert length_tracker.value == 3
@@ -279,7 +279,7 @@ class TestSecondaryHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to secondary hook
-        obs_list.link(target.hook, "length", "use_caller_value")  # type: ignore
+        obs_list.join(target.hook, "length", "use_caller_value")  # type: ignore
         
         # Should sync immediately
         assert target.value == 3

@@ -61,11 +61,11 @@ source = XValue(100)
 target = XValue(200)
 
 # Use caller's value (100) for initial synchronization
-source.link(target.hook, "value", "use_caller_value")
+source.join(target.hook, "value", "use_caller_value")
 print(target.value)  # 100
 
 # Use target's value (200) for initial synchronization
-source.link(target.hook, "value", "use_target_value")
+source.join(target.hook, "value", "use_target_value")
 print(source.value)  # 200
 ```
 
@@ -77,7 +77,7 @@ All observable types inherit from base classes that provide core linking and val
 
 ### **Core Methods**
 
-#### **`link(hook, component_key, initial_sync_mode)`**
+#### **`join(hook, component_key, initial_sync_mode)`**
 
 Links this observable to another observable's hook, creating bidirectional synchronization.
 
@@ -97,8 +97,8 @@ Links this observable to another observable's hook, creating bidirectional synch
 obs1 = XValue(10)
 obs2 = XValue(20)
 
-# Link obs1 to obs2 with bidirectional sync
-obs1.link(obs2.hook, "value", "use_caller_value")
+# Join obs1 to obs2 with bidirectional sync
+obs1.join(obs2.hook, "value", "use_caller_value")
 
 # Now changes propagate in both directions
 obs1.value = 100
@@ -108,7 +108,7 @@ obs2.value = 200
 print(obs1.value)  # 200
 ```
 
-#### **`link_many(hooks, initial_sync_mode)`**
+#### **`join_many(hooks, initial_sync_mode)`**
 
 Atomically links multiple components to hooks from other observables. This method prevents validation errors that can occur when linking components with dependencies.
 
@@ -135,8 +135,8 @@ from observables import XSelectionDict
 obs1 = XSelectionDict({"color": "red", "size": "large"})
 obs2 = XSelectionDict({"color": "blue", "size": "small"})
 
-# Link both components atomically
-obs1.link_many({
+# Join both components atomically
+obs1.join_many({
     "color": obs2.hook,
     "size": obs2.hook  # Note: both map to same hook for this example
 }, "use_target_value")
@@ -321,8 +321,8 @@ Removes all items from the list.
 obs1 = XList([1, 2, 3])
 obs2 = XList([])
 
-# Link lists bidirectionally
-obs1.link(obs2.hook, "value", "use_caller_value")
+# Join lists bidirectionally
+obs1.join(obs2.hook, "value", "use_caller_value")
 
 # Changes propagate in both directions
 obs1.append(4)
@@ -466,8 +466,8 @@ except ValueError as e:
 primary = ObservableSelectionOption("option1", {"option1", "option2", "option3"})
 secondary = ObservableSelectionOption("option1", {"option1", "option2"})
 
-# Link selected options bidirectionally
-primary.link(secondary.selected_option_hook, "selected_option", "use_caller_value")
+# Join selected options bidirectionally
+primary.join(secondary.selected_option_hook, "selected_option", "use_caller_value")
 
 # Changes propagate in both directions
 primary.selected_option = "option2"
@@ -652,9 +652,9 @@ The foundation protocol that all hooks must implement. Provides the core interfa
 - `lock: RLock` - Thread safety lock
 
 **Key Methods:**
-- `link(target_hook: HookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
-- `dislink() -> None`
-- `is_linked_to(hook: HookProtocol[T]) -> bool`
+- `join(target_hook: HookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]`
+- `isolate() -> None`
+- `is_joined_with(hook: HookProtocol[T]) -> bool`
 
 #### **`Hook[T]`** - Standalone Hook
 
@@ -790,8 +790,8 @@ class ObservableTemperature(BaseObservable):
 room_temp = ObservableTemperature(22.0, min_temp=10.0, max_temp=35.0)
 outdoor_temp = ObservableTemperature(15.0, min_temp=-20.0, max_temp=45.0)
 
-# Bind temperatures bidirectionally using the new connect_hook method
-room_temp.link(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
+# Join temperatures bidirectionally using the new connect_hook method
+room_temp.join(outdoor_temp.temperature_hook, "temperature", "use_caller_value")
 
 # Changes propagate with validation
 room_temp.temperature = 25.0
@@ -887,17 +887,17 @@ logger = logging.getLogger(__name__) if DEBUG else None
 obs = ObservableSingleValue(0, logger=logger)
 ```
 
-#### **Use connect_hooks for Atomic Multi-Component Binding**
+#### **Use join_many for Atomic Multi-Component Joining**
 
-When binding observables with multiple dependent components, use `connect_hooks` for better performance and reliability:
+When joining observables with multiple dependent components, use `join_many` for better performance and reliability:
 
 ```python
-# ❌ Slower: Sequential binding with potential validation conflicts
-obs1.link(obs2.selected_option_hook, "selected_option", "use_target_value")
-obs1.link(obs2.available_options_hook, "available_options", "use_target_value")
+# ❌ Slower: Sequential joining with potential validation conflicts
+obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value")
+obs1.join(obs2.available_options_hook, "available_options", "use_target_value")
 
-# ✅ Faster: Atomic multi-binding
-obs1.connect_hooks({
+# ✅ Faster: Atomic multi-joining
+obs1.join_many({
     "selected_option": obs2.selected_option_hook,
     "available_options": obs2.available_options_hook
 }, "use_target_value")
@@ -930,10 +930,10 @@ Select the sync mode that minimizes unnecessary value transfers:
 
 ```python
 # If you want to keep the caller's values
-obs1.link(obs2.hook, "component", "use_caller_value")
+obs1.join(obs2.hook, "component", "use_caller_value")
 
 # If you want to adopt the target's values
-obs1.link(obs2.hook, "component", "use_target_value")
+obs1.join(obs2.hook, "component", "use_target_value")
 ```
 
 #### **Performance Test Guidelines**

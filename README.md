@@ -1,6 +1,15 @@
-# Observables - Centralized Reactive Programming
+# Observables - Transitive Synchronization and Shared-State Fusion for Python
 
-A Python library for creating observable objects with centralized value storage, automatic transitive binding, and **full immutability**. The library stores each value in a single central location (Nexus) using immutable data structures for thread safety and data integrity.
+A reactive synchronization framework for Python that provides a universal mechanism for 
+maintaining coherent shared state across independent objects, enabling transitive, 
+non-directional synchronization through Nexus fusion.
+
+**Core Concept:**
+Each Hook references a Nexus — a shared synchronization core. When hooks are joined, 
+their Nexuses fuse into a unified domain, creating transitive synchronization networks. 
+Joining A→B and B→C automatically synchronizes A and C, even though they were never 
+directly joined. The library provides full immutability using frozen data structures 
+for thread safety and data integrity.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

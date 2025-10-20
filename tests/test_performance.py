@@ -37,7 +37,7 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
-            obs.link(main_obs.hook, "use_caller_value")  # type: ignore
+            obs.join(main_obs.hook, "use_caller_value")  # type: ignore
             bound_observables.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
@@ -68,7 +68,7 @@ class TestCachePerformance:
         
         # Clean up
         for obs in bound_observables: # type: ignore
-            obs.unlink()
+            obs.isolate()
 
     def test_secondary_hook_cache_performance(self):
         """Test that secondary hook lookups are cached."""
@@ -155,7 +155,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.link(main_obs.hook, "use_caller_value")  # type: ignore
+                obs.join(main_obs.hook, "use_caller_value")  # type: ignore
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -168,7 +168,7 @@ class TestScalabilityPerformance:
             
             # Clean up
             for obs in bound_observables:
-                obs.unlink()
+                obs.isolate()
         
         # Performance should not degrade dramatically with scale
         # (With O(1) cache, it should be roughly linear or better)
@@ -228,12 +228,12 @@ class TestScalabilityPerformance:
         
         # Create a simpler binding pattern that avoids nexus conflicts
         # Connect obs_single to obs_list.length_hook
-        obs_single.link(obs_list.length_hook, "use_target_value")  # type: ignore
+        obs_single.join(obs_list.length_hook, "use_target_value")  # type: ignore
         
         # Create a separate binding for obs_dict to avoid conflicts
         # Use a different approach: bind obs_dict.length_hook to a new observable
         obs_dict_tracker = ObservableSingleValue(1)
-        obs_dict_tracker.link(obs_dict.length_hook, "use_target_value")  # type: ignore
+        obs_dict_tracker.join(obs_dict.length_hook, "use_target_value")  # type: ignore
         
         # Time complex operations
         def complex_operation():

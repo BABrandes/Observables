@@ -82,7 +82,7 @@ class TestObservableSingleValue:
         obs2 = ObservableSingleValue(20, logger=logger)
         
         # Bind obs1 to obs2
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
         
         # Change obs1, obs2 should update
         obs1.value = 30
@@ -98,13 +98,13 @@ class TestObservableSingleValue:
         obs2 = ObservableSingleValue(200, logger=logger)
         
         # Test USE_CALLER_VALUE mode
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
         assert obs2.value == 100  # obs2 gets obs1's value
         
         # Test update_observable_from_self mode
         obs3 = ObservableSingleValue(300, logger=logger)
         obs4 = ObservableSingleValue(400, logger=logger)
-        obs3._link(obs4.hook, "value", "use_target_value")  # type: ignore
+        obs3._join(obs4.hook, "value", "use_target_value")  # type: ignore
         assert obs3.value == 400  # obs3 gets updated with obs4's value
     
     def test_unbinding(self):
@@ -112,8 +112,8 @@ class TestObservableSingleValue:
         obs1 = ObservableSingleValue(10, logger=logger)
         obs2 = ObservableSingleValue(20, logger=logger)
         
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
-        obs1.unlink()
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1.isolate()
         
         # Changes should no longer propagate
         obs1.value = 50
@@ -124,11 +124,11 @@ class TestObservableSingleValue:
         obs1 = ObservableSingleValue(10, logger=logger)
         obs2 = ObservableSingleValue(20, logger=logger)
         
-        obs1._link(obs2.hook, "value", "use_target_value")  # type: ignore
-        obs1.unlink()
+        obs1._join(obs2.hook, "value", "use_target_value")  # type: ignore
+        obs1.isolate()
         
         # Second unbind should not raise an error (current behavior)
-        obs1.unlink()  # This should not raise an error
+        obs1.isolate()  # This should not raise an error
         
         # Changes should still not propagate
         obs1.value = 50
@@ -141,7 +141,7 @@ class TestObservableSingleValue:
         obs = ObservableSingleValue(10, logger=logger)
         # The new implementation may not prevent self-binding, so we'll test the current behavior
         try:
-            obs._link(obs.hook, "value", "use_caller_value")  # type: ignore
+            obs._join(obs.hook, "value", "use_caller_value")  # type: ignore
             # If it doesn't raise an error, that's the current behavior
         except Exception as e:
             assert isinstance(e, ValueError)
@@ -153,8 +153,8 @@ class TestObservableSingleValue:
         obs3 = ObservableSingleValue(30, logger=logger)
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
-        obs2._link(obs3.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs2._join(obs3.hook, "value", "use_caller_value")  # type: ignore
         
         # Verify chain works
         obs1.value = 100
@@ -162,7 +162,7 @@ class TestObservableSingleValue:
         assert obs3.value == 100
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.unlink()
+        obs2.isolate()
         
         # After detach, obs2 should be isolated from both obs1 and obs3
         # However, obs1 and obs3 remain bound together in the same hook group
@@ -201,8 +201,8 @@ class TestObservableSingleValue:
         obs3 = ObservableSingleValue(30, logger=logger)
         
         # Bind obs2 and obs3 to obs1
-        obs2._link(obs1.hook, "value", "use_caller_value")  # type: ignore
-        obs3._link(obs1.hook, "value", "use_caller_value")  # type: ignore
+        obs2._join(obs1.hook, "value", "use_caller_value")  # type: ignore
+        obs3._join(obs1.hook, "value", "use_caller_value")  # type: ignore
         
         # Change obs1, both should update
         obs1.value = 100
@@ -312,7 +312,7 @@ class TestObservableSingleValue:
         assert target.value == 200
         
         # Unbind them
-        target.unlink()
+        target.isolate()
         
         # Change source, target should not update
         source.value = 300
@@ -427,7 +427,7 @@ class TestObservableSingleValue:
         """Test that binding to None raises an error"""
         obs = ObservableSingleValue(10, logger=logger)
         with pytest.raises(ValueError):
-            obs._link(None, "value", "use_caller_value")  # type: ignore
+            obs._join(None, "value", "use_caller_value")  # type: ignore
     
     def test_binding_with_invalid_sync_mode(self):
         """Test that invalid sync mode raises an error"""
@@ -435,14 +435,14 @@ class TestObservableSingleValue:
         obs2 = ObservableSingleValue(20, logger=logger)
         
         with pytest.raises(ValueError):
-            obs1._link(obs2.hook, "value", "invalid_mode")  # type: ignore
+            obs1._join(obs2.hook, "value", "invalid_mode")  # type: ignore
     
     def test_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSingleValue(42, logger=logger)
         obs2 = ObservableSingleValue(42, logger=logger)
         
-        obs1._link(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
         # Both should still have the same value
         assert obs1.value == 42
         assert obs2.value == 42

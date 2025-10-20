@@ -13,11 +13,14 @@ T = TypeVar("T")
 
 class Nexus(Generic[T]):
     """
-    Central storage for synchronized hook values in the hook-based architecture.
+    Shared synchronization core for transitive hook fusion.
 
-    A HookNexus represents a group of hooks that share the same value and are
-    synchronized together. This is the fundamental building block for bidirectional
-    binding and centralized state management.
+    A Nexus represents a fusion domain — a group of hooks that share the same value 
+    and are synchronized together. When hooks are joined, their Nexuses undergo fusion:
+    the original Nexuses are destroyed and a new unified Nexus is created.
+    
+    This creates transitive synchronization: joining A→B and B→C automatically 
+    synchronizes A and C, forming a dynamic equivalence network.
     
     Type Parameters:
         T: The type of value stored in this nexus. All hooks in this nexus must
@@ -250,9 +253,9 @@ class Nexus(Generic[T]):
         return merged_nexus
     
     @staticmethod
-    def link_hook_pairs(*hook_pairs: tuple["HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]"]) -> tuple[bool, str]:
+    def join_hook_pairs(*hook_pairs: tuple["HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]"]) -> tuple[bool, str]:
         """
-        Link a list of hook pairs together.
+        Join a list of hook pairs together.
 
         This method implements the core hook connection process:
         

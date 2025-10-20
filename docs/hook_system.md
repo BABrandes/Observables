@@ -1,10 +1,23 @@
 # Hook System Technical Documentation
 
-This document provides detailed technical information about the Observables library's hook system architecture, binding mechanics, and internal implementation details.
+This document provides detailed technical information about the Observables library's hook 
+system architecture, Nexus fusion mechanics, and transitive synchronization implementation.
 
 ## 🏗️ Architecture Overview
 
-The Observables library is built around a sophisticated protocol-based hook architecture that provides automatic synchronization, change propagation, and binding management. The system is designed to be efficient, thread-safe, maintainable, and highly extensible.
+**Transitive Synchronization and Shared-State Fusion**
+
+The Observables library implements a reactive synchronization framework where hooks 
+reference Nexuses — shared synchronization cores. When hooks are joined, their Nexuses 
+undergo fusion, creating transitive synchronization networks.
+
+**Core Principle:**
+- Each Hook references a Nexus (multiple hooks can share one Nexus)
+- Joining hooks triggers Nexus fusion (old Nexuses destroyed, new unified Nexus created)
+- This creates transitive synchronization: A→B + B→C automatically synchronizes A and C
+- Isolation removes a hook from its fusion domain, creating a new independent Nexus
+
+The system is designed to be efficient, thread-safe, maintainable, and highly extensible.
 
 ### Core Components
 
@@ -34,9 +47,10 @@ The Observables library is built around a sophisticated protocol-based hook arch
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Nexus & Binding System                 │
+│                  Nexus Fusion & Synchronization                │
 ├─────────────────────────────────────────────────────────────────┤
-│  Nexus[T]  ←→  NexusManager  ←→  Validation & Sync         │
+│  Nexus[T]  ←→  NexusManager  ←→  Fusion & Validation       │
+│  (Fusion domains with transitive synchronization)              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -70,10 +84,10 @@ class HookLike(BaseListeningProtocol, Protocol[T]):
     @property
     def lock(self) -> RLock: ...
     
-    def link(self, target_hook: "HookProtocol[T]", 
+    def join(self, target_hook: "HookProtocol[T]", 
                     initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]: ...
-    def dislink(self) -> None: ...
-    def is_linked_to(self, hook: "HookProtocol[T]") -> bool: ...
+    def isolate(self) -> None: ...
+    def is_joined_with(self, hook: "HookProtocol[T]") -> bool: ...
 ```
 
 ##### `HookWithOwnerProtocol[T]` - Owner Protocol
@@ -193,7 +207,7 @@ class Nexus[T]:
 
 #### Connection Process
 
-When two hooks are connected via `connect_hooks()`:
+When two hooks are connected via `join()`:
 
 1. **Validation**: Ensure hooks are compatible and not None
 2. **Value Synchronization**: If values differ, invalidate the target group
@@ -202,7 +216,7 @@ When two hooks are connected via `connect_hooks()`:
 
 ```python
 @staticmethod
-def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
+def join(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
     """Connect two hooks together."""
     # Validate that hooks are not None
     if from_hook is None or to_hook is None:
@@ -350,7 +364,7 @@ The hook system is designed to be thread-safe:
 - **Protected value access** during synchronization
 
 ```python
-def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
+def join(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
     """Thread-safe connection of hooks."""
     with from_hook._lock:
         with to_hook._lock:
@@ -394,7 +408,7 @@ def connect_hooks(from_hook: "HookProtocol[T]", to_hook: "HookProtocol[T]"):
 print(hook.hook_group._hooks)
 
 # Verify binding status
-print(hook.is_linked_to(other_hook))
+print(hook.is_joined_with(other_hook))
 
 # Check group consistency
 success, message = hook_group.check_all_hooks_synced()

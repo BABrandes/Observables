@@ -39,7 +39,7 @@ class HookWithConnectionProtocol(Hashable, Protocol[T]):
     def value(self, value: T) -> None:
         raise ValueError("Value cannot be set for connection hooks without implementation of HookWithSetterProtocol")
 
-    def link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def join(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
         Connect this hook to another hook.
 
@@ -54,9 +54,9 @@ class HookWithConnectionProtocol(Hashable, Protocol[T]):
         """
         ...
 
-    def unlink(self) -> None:
+    def isolate(self) -> None:
         """
-        Disconnect this hook from the hook nexus.
+        Isolate this hook from the hook nexus.
 
         ** Thread-safe **
 
@@ -67,7 +67,7 @@ class HookWithConnectionProtocol(Hashable, Protocol[T]):
         """
         ...
 
-    def is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+    def is_joined_with(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookLike.
 
@@ -109,27 +109,27 @@ class HookWithConnectionProtocol(Hashable, Protocol[T]):
         """
         ...
 
-    def _link(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
+    def _join(self, target_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> tuple[bool, str]:
         """
-        Link this hook to another hook.
+        Join this hook to another hook.
 
-        ** This method is not thread-safe and should only be called by the link method.
-        """
-        ...
-
-    def _unlink(self) -> None:
-        """
-        Unlink this hook from the nexus.
-
-        ** This method is not thread-safe and should only be called by the unlink method.
+        ** This method is not thread-safe and should only be called by the join method.
         """
         ...
 
-    def _is_linked_to(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
+    def _isolate(self) -> None:
+        """
+        Isolate this hook from the nexus.
+
+        ** This method is not thread-safe and should only be called by the isolate method.
+        """
+        ...
+
+    def _is_joined_with(self, hook_or_carries_single_hook: "HookWithConnectionProtocol[T]|CarriesSingleHookProtocol[T]") -> bool:
         """
         Check if this hook is connected to another hook or CarriesSingleHookProtocol[T].
 
-        ** This method is not thread-safe and should only be called by the is_linked_to method.
+        ** This method is not thread-safe and should only be called by the is_joined_with method.
 
         Args:
             hook_or_carries_single_hook: The hook or CarriesSingleHookProtocol[T] to check if it is connected to

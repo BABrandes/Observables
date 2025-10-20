@@ -83,14 +83,14 @@ class TestMemoryLeaks:
         hook2_ref = weakref.ref(hook2)
         
         # Connect them
-        success, _ = hook1.link(hook2, "use_caller_value")
+        success, _ = hook1.join(hook2, "use_caller_value")
         assert success
         
         # Verify they're connected (same nexus)
         assert hook1._get_nexus() == hook2._get_nexus()  # type: ignore
         
         # Disconnect hook1
-        hook1.unlink()
+        hook1.isolate()
         
         # Verify they're now disconnected (different nexuses)
         assert hook1._get_nexus() != hook2._get_nexus()  # type: ignore
@@ -164,7 +164,7 @@ class TestMemoryLeaks:
         hook2_ref = weakref.ref(hook2)
         
         # Connect them through NexusManager
-        success, _ = hook1.link(hook2, "use_caller_value")
+        success, _ = hook1.join(hook2, "use_caller_value")
         assert success
         
         # Delete the hooks
@@ -185,7 +185,7 @@ class TestMemoryLeaks:
         hook2 = FloatingHook("value2")
         
         # Connect them (creates circular references through nexus)
-        success, _ = hook1.link(hook2, "use_caller_value")
+        success, _ = hook1.join(hook2, "use_caller_value")
         assert success
         
         # Create weak references

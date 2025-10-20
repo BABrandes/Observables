@@ -1,15 +1,47 @@
 """
-Observables - Centralized Reactive Programming
+Observables - Transitive Synchronization and Shared-State Fusion for Python
 
 ⚠️ DEVELOPMENT STATUS: NOT PRODUCTION READY
 This library is under active development. API may change without notice.
 Use for experimental and development purposes only.
 
-A Python library for reactive programming and centralized value management.
-This library provides observable data structures that support bidirectional bindings 
-through a centralized value storage system. Unlike traditional reactive libraries that 
-duplicate data across observables, this system stores values in centralized HookNexus 
-objects that observables reference, ensuring efficient synchronization.
+A reactive synchronization framework for Python.
+This provides a universal mechanism for maintaining coherent shared state across 
+independent objects, enabling transitive, non-directional synchronization through 
+Nexus fusion.
+
+Each Hook references a Nexus — a shared synchronization core that holds and propagates 
+state. Hooks do not own their Nexus; instead, multiple hooks may share it, forming a 
+dynamic network of coherence.
+
+When two hooks are joined, their respective Nexuses undergo a fusion process:
+    • The original Nexuses are destroyed.
+    • A new, unified Nexus is created to hold the shared value and synchronization logic.
+    • Both hooks now belong to the same fusion domain.
+
+Joining is symmetric, transitive, and non-directional:
+    1. A.join(B) → creates Nexus_AB
+    2. C.join(D) → creates Nexus_CD
+    3. B.join(C) → fuses both domains → Nexus_ABCD
+
+All hooks A, B, C, and D now share the same Nexus — even though A and D were never 
+joined directly.
+
+A hook can later be isolated, which:
+    • Removes it from its current fusion domain,
+    • Creates a new, independent Nexus initialized with the hook's current value,
+    • Leaves the remaining hooks still joined and synchronized.
+
+After B.isolate(),
+    • A, C, and D remain synchronized through Nexus_ACD,
+    • B operates independently via its new Nexus.
+
+This forms a dynamic equivalence network: any hooks that are directly or indirectly 
+joined share one coherent Nexus, while isolated hooks maintain independent state.
+
+This framework underpins total synchronization in higher-level components such as 
+XValue, XDict, XList, XSet, and XFunction, which expose multiple hooks for 
+fine-grained reactivity — ready for integration into GUI or distributed systems.
 
 **Modern API (Recommended):**
 For new code, use the clean X-prefixed aliases:
@@ -33,16 +65,18 @@ Core Features:
 
 Architecture:
 The library uses a hook-based architecture where:
-- Nexus: Central storage for actual data values
-- Hooks: References/views to central values
-- Observables: User-facing interfaces that access values through hooks
-- Binding: Merging hook groups so multiple observables reference the same central value
+- Nexus: Shared synchronization core that holds and propagates state
+- Hooks: References to Nexuses (multiple hooks can share one Nexus)
+- Observables: User-facing interfaces that expose hooks for joining
+- Joining: Nexus fusion creating transitive synchronization domains
 
-Central Value Storage:
-The system stores each value in exactly one Nexus and creates hooks that reference 
-these central values. When observables are bound (via .link()), their hook groups are 
-merged, ensuring all bound observables view the same central data. This approach reduces 
-memory usage and provides atomic updates across all bound observables.
+Nexus Fusion Process:
+When observables are joined (via .join()), their Nexuses undergo fusion:
+    1. Original Nexuses are destroyed
+    2. A new, unified Nexus is created
+    3. Both hooks now share the same fusion domain
+This creates transitive synchronization: joining A→B and B→C automatically 
+synchronizes A and C, even though they were never directly joined.
 
 Protocols and Interfaces:
 The library provides several protocols that can be used for type hints and interface definitions:
@@ -120,30 +154,30 @@ Advanced Usage:
     >>> # Create custom observable types with low-level components
 """
 
-from ._observables.observable_single_value import ObservableSingleValue, ObservableSingleValueProtocol
+from ._xobjects.x_any_value import ObservableSingleValue
 
-from ._observables.list_like.observable_list import ObservableList, ObservableListProtocol
+from ._xobjects.list_like.x_list import ObservableList, ObservableListProtocol
 
-from ._observables.set_like.observable_set import ObservableSet, ObservableSetProtocol
-from ._observables.set_like.observable_selection_set import ObservableSelectionSet
-from ._observables.set_like.observable_optional_selection_set import ObservableOptionalSelectionSet
-from ._observables.set_like.observable_multi_selection_set import ObservableMultiSelectionSet
-from ._observables.set_like.protocols import ObservableOptionalSelectionOptionProtocol, ObservableSelectionOptionsProtocol, ObservableMultiSelectionOptionsProtocol
+from ._xobjects.set_like.x_set import ObservableSet, ObservableSetProtocol
+from ._xobjects.set_like.x_selection_set import ObservableSelectionSet
+from ._xobjects.set_like.x_optional_selection_set import ObservableOptionalSelectionSet
+from ._xobjects.set_like.x_multi_selection_set import ObservableMultiSelectionSet
+from ._xobjects.set_like.protocols import ObservableOptionalSelectionOptionProtocol, ObservableSelectionOptionsProtocol, ObservableMultiSelectionOptionsProtocol
 
-from ._observables.function_like.function_values import FunctionValues
-from ._observables.function_like.observable_function import ObservableFunction as ObservableSync
-from ._observables.function_like.observable_one_way_function import ObservableOneWayFunction
+from ._xobjects.function_like.function_values import FunctionValues
+from ._xobjects.function_like.x_function import ObservableFunction as ObservableSync
+from ._xobjects.function_like.x_one_way_function import ObservableOneWayFunction
 
-from ._observables.dict_like.observable_selection_dict import ObservableSelectionDict
-from ._observables.dict_like.observable_optional_selection_dict import ObservableOptionalSelectionDict
-from ._observables.dict_like.observable_default_selection_dict import ObservableDefaultSelectionDict
-from ._observables.dict_like.observable_optional_default_selection_dict import ObservableOptionalDefaultSelectionDict
-from ._observables.dict_like.observable_dict import ObservableDict
-from ._observables.dict_like.protocols import ObservableDictProtocol, ObservableSelectionDictProtocol, ObservableOptionalSelectionDictProtocol, ObservableDefaultSelectionDictProtocol, ObservableOptionalDefaultSelectionDictProtocol
+from ._xobjects.dict_like.x_selection_dict import ObservableSelectionDict
+from ._xobjects.dict_like.x_optional_selection_dict import ObservableOptionalSelectionDict
+from ._xobjects.dict_like.x_selection_dict_with_default import ObservableDefaultSelectionDict
+from ._xobjects.dict_like.x_optional_selection_dict_with_default import ObservableOptionalDefaultSelectionDict
+from ._xobjects.dict_like.x_dict import ObservableDict
+from ._xobjects.dict_like.protocols import ObservableDictProtocol, ObservableSelectionDictProtocol, ObservableOptionalSelectionDictProtocol, ObservableDefaultSelectionDictProtocol, ObservableOptionalDefaultSelectionDictProtocol
 
-from ._observables.complex.observable_rooted_paths import ObservableRootedPaths
-from ._observables.complex.observable_block_none import ObservableBlockNone
-from ._observables.complex.observable_subscriber import ObservableSubscriber
+from ._xobjects.complex.xobject_rooted_paths import ObservableRootedPaths
+from ._xobjects.complex.xobject_block_none import ObservableBlockNone
+from ._xobjects.complex.xobject_subscriber import ObservableSubscriber
 
 from ._hooks.floating_hook import FloatingHook
 from ._hooks.hook_aliases import Hook, ReadOnlyHook
@@ -155,7 +189,7 @@ from ._publisher_subscriber.publisher import Publisher
 from ._nexus_system.update_function_values import UpdateFunctionValues
 from ._nexus_system.system_analysis import write_report
 
-from ._carries_hooks.observable_serializable import ObservableSerializable
+from ._carries_hooks.x_object_serializable_mixin import XObjectSerializableMixin
 
 
 # Modern, clean aliases (recommended for new code)
@@ -182,8 +216,6 @@ XBlockNone = ObservableBlockNone
 XSubscriber = ObservableSubscriber
 
 # Protocol aliases
-
-XValueProtocol = ObservableSingleValueProtocol
 XListProtocol = ObservableListProtocol
 XSetProtocol = ObservableSetProtocol
 XDictProtocol = ObservableDictProtocol
@@ -217,7 +249,6 @@ __all__ = [
     'XSubscriber',
     
     # Modern protocol aliases
-    'XValueProtocol',
     'XDictProtocol',
     'XListProtocol',
     'XSetProtocol',
@@ -247,7 +278,6 @@ __all__ = [
     'ObservableListProtocol',
     'ObservableDictProtocol',
     'ObservableSetProtocol',
-    'ObservableSingleValueProtocol',
     'ObservableSelectionOptionsProtocol',
     'ObservableOptionalSelectionOptionProtocol',
     'ObservableMultiSelectionOptionsProtocol',
@@ -271,7 +301,7 @@ __all__ = [
     'Publisher',
 
     # Utilities
-    'ObservableSerializable',
+    'XObjectSerializableMixin',
     'write_report',
 ]
 

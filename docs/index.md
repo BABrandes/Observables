@@ -1,6 +1,14 @@
 # Observables Library Documentation
 
-The Observables library provides a Python framework for reactive programming with centralized value storage and automatic transitive binding. The architecture stores each value in a single central location rather than duplicating data across observables.
+**Transitive Synchronization and Shared-State Fusion for Python**
+
+The Observables library is a reactive synchronization framework that provides a universal 
+mechanism for maintaining coherent shared state across independent objects, enabling 
+transitive, non-directional synchronization through Nexus fusion.
+
+Each Hook references a Nexus — a shared synchronization core that holds and propagates 
+state. When hooks are joined, their Nexuses undergo fusion, creating dynamic equivalence 
+networks where all directly or indirectly joined hooks share one coherent Nexus.
 
 > **⚠️ IMPORTANT: DEVELOPMENT STATUS**
 > 
@@ -17,22 +25,32 @@ The Observables library provides a Python framework for reactive programming wit
 
 ### **Core Components**
 
-**Observables** contain data and expose it through hooks. They do not bind directly to each other.
+**Observables** expose hooks for synchronization. They do not join directly to each other.
 
-**Hooks** are the connection points between observables. When you bind observables, you connect their hooks.
+**Hooks** are references to Nexuses. Multiple hooks can share one Nexus, forming a 
+synchronization domain.
 
-**Nexus** is the central storage that:
+**Nexus** is the shared synchronization core that:
 - Stores the actual value
-- Manages all hooks connected to that value
-- Maintains references to all hooks that should see the same value
-- Ensures all connected hooks stay synchronized
+- Propagates state changes to all hooks in its domain
+- Undergoes fusion when hooks are joined
+- Ensures all hooks in the same domain stay synchronized
 
-**NexusManager** (also called HookManager) facilitates:
-- Value updates across all connected hooks
+**Nexus Fusion Process:**
+When two hooks are joined:
+1. Their original Nexuses are destroyed
+2. A new, unified Nexus is created
+3. Both hooks now share the same fusion domain
+
+This creates **transitive synchronization**: joining A→B and B→C automatically 
+synchronizes A and C, even though they were never directly joined.
+
+**NexusManager** orchestrates:
+- Value updates across all hooks in a domain
 - Validation when values change
-- Synchronization of hook connections
+- Nexus fusion during hook joining
 - Thread-safe operations across the system
-- Orchestrates all three notification mechanisms
+- All three notification mechanisms
 
 ### **Three Notification Philosophies**
 
@@ -116,13 +134,17 @@ When you change a value, the NexusManager orchestrates a comprehensive 6-phase s
 
 This multi-phase approach ensures consistency, validation, and proper notification of all affected components while supporting both synchronous and asynchronous notification patterns.
 
-### **Transitive Binding**
+### **Transitive Synchronization through Nexus Fusion**
 
-When you bind A→B→C:
-1. A's hook and B's hook merge to reference Nexus #1
-2. B's hook and C's hook merge to reference Nexus #2
-3. Since B's hook is involved in both, all three hooks end up referencing the same Nexus
-4. Result: A, B, and C all share one central storage point
+When you join A→B→C:
+1. A.join(B): Their Nexuses undergo fusion → creates Nexus_AB
+2. B.join(C): Nexus_AB and C's Nexus undergo fusion → creates Nexus_ABC
+3. Result: A, B, and C all share one coherent Nexus and are transitively synchronized
+
+This is the key innovation: joining any hook from one group to any hook from another 
+group merges entire fusion domains, creating transitive synchronization networks.
+
+**See the [Transitive Synchronization Guide](transitive_synchronization.md) for a detailed explanation.**
 
 ## Examples
 
@@ -467,6 +489,7 @@ scores.append(95)           # Triggers listener notification
 - **[API Reference](api_reference.md)** - Complete API documentation with examples
 
 ### **Core Concepts**
+- **[Transitive Synchronization and Nexus Fusion](transitive_synchronization.md)** - Understanding the core architectural principle of shared-state fusion
 - **[Bidirectional Binding and State Validation](bidirectional_binding_and_validation.md)** - Deep dive into true bidirectional binding and rigorous state validation
 - **[Hook System Technical Documentation](hook_system.md)** - Technical details about the hook architecture and binding mechanics
 - **[Examples and Use Cases](examples_and_use_cases.md)** - Comprehensive examples and real-world scenarios

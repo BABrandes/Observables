@@ -17,32 +17,31 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
     """
     Manages a root directory with associated elements (files or directories) and provides
     observable hooks for path management.
-    
+
     This class maintains a root directory path and a set of elements that are relative
     to this root. It automatically computes absolute paths for each element based on the
     root directory and the element's relative path. All paths are exposed through
-    observable hooks that can be connected to UI components or other systems.
-    
+    observable hooks that can be linked to UI components or other systems.
+
     The class provides three types of hooks:
     1. Root directory hook: Exposes the root directory path (Path or None)
     2. Relative path hooks: Expose the relative path of each element (str or None)
     3. Absolute path hooks: Expose the computed absolute path of each element (Path or None)
-    
+
     When the root directory changes, all absolute path hooks are automatically updated
     to reflect the new absolute paths. When a relative path changes, the corresponding
     absolute path is recalculated.
-    
+
     Args:
-        rooted_elements_keys: Set of string keys identifying the elements to manage.
-                              Each key will have corresponding relative and absolute path hooks.
+        root_path_initial_value: Initial root directory path (Path or None)
+        rooted_elements_initial_relative_path_values: Dictionary mapping element keys to their initial relative paths
         logger: Optional logger for debugging and error reporting.
-    
+
     Example:
-        >>> manager = RootedPathsManager({"data", "config", "logs"})
-        >>> manager.get_hook("root_path").submit_single_value(Path("/project"))
+        >>> manager = ObservableRootedPaths(Path("/project"), {"data": "data/", "config": "config/"})
         >>> manager.get_relative_path_hook("data").submit_single_value("data/")
         >>> # Absolute path for "data" will automatically be "/project/data/"
-        
+
     Attributes:
         root_path: The root directory path (Path or None)
     """
@@ -191,10 +190,10 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             raise ValueError(msg)
 
     def get_relative_path_hook(self, key: EK) -> OwnedFullHookProtocol[Optional[str]]:
-        return self._get_hook(self.element_key_to_relative_path_key(key)) # type: ignore
+        return self._get_hook_by_key(self.element_key_to_relative_path_key(key)) # type: ignore
 
     def get_absolute_path_hook(self, key: EK) -> OwnedFullHookProtocol[Optional[Path]]:
-        return self._get_hook(self.element_key_to_absolute_path_key(key)) # type: ignore
+        return self._get_hook_by_key(self.element_key_to_absolute_path_key(key)) # type: ignore
 
     def set_root_path(self, path: Optional[Path]) -> tuple[bool, str]:
         """Set the root path value."""
@@ -292,8 +291,7 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
 
     #### ObservableSerializable implementation ####
     
-    def get_value_for_serialization(self) -> Mapping[str, Path|str|None]:
-
+    def get_values_for_serialization(self) -> Mapping[str, Path|str|None]:
         root_path: Optional[Path] = self._root_path_hook.value
         if root_path is not None and not isinstance(root_path, Path): # type: ignore
             raise ValueError("Root path must be a path")
@@ -325,6 +323,6 @@ class ObservableRootedPaths(CarriesHooksBase[str, str|Path|None, "ObservableRoot
             values_to_submit[relative_path_key] = relative_path
 
         # Submit all values at once using BaseCarriesHooks.submit_values
-        success, msg = self.submit_values(values_to_submit) # type: ignore
+        success, msg = self._submit_values(values_to_submit) # type: ignore
         if not success:
             raise ValueError(f"Failed to set values from serialization: {msg}")

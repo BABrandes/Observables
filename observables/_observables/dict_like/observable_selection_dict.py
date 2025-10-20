@@ -1,5 +1,4 @@
 from typing import Literal, TypeVar, Generic, Mapping, Any, Callable
-from immutables import Map
 
 from .observable_dict_base import ObservableDictBase, Hook
 from .protocols import ObservableSelectionDictProtocol
@@ -91,7 +90,7 @@ class ObservableSelectionDict(ObservableDictBase[K, V, K, V], ObservableSelectio
                         raise KeyError(f"Key {update_values.submitted['key']} not in current dictionary")
                     _dict = dict(update_values.current["dict"])
                     _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                    return {"dict": Map(_dict)}
+                    return {"dict": _dict}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict
@@ -101,7 +100,8 @@ class ObservableSelectionDict(ObservableDictBase[K, V, K, V], ObservableSelectio
                 
                 case (False, False, True):
                     # Value provided - update dict at current key
-                    _dict = update_values.current["dict"].copy()
+                    current_dict = update_values.current["dict"]
+                    _dict = dict(current_dict)
                     _dict[update_values.current["key"]] = update_values.submitted["value"]
                     return {"dict": _dict}
                 

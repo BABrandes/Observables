@@ -33,7 +33,7 @@ class TestObservableList(ObservableTestCase):
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
         self.observable.add_listener(self.notification_callback)
-        self.observable.value = [1, 2, 3]  # Same value
+        self.observable.list_value = [1, 2, 3]  # Same value
         assert self.notification_count == 0
     
     def test_remove_listeners(self):

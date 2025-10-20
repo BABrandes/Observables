@@ -353,7 +353,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             if verification_method is None:
                 return True, "No verification method provided. Default is True"
             else:
-                primary_values_dict: dict[PHK, PHV] = self_ref.primary_values.copy()
+                primary_values_dict: dict[PHK, PHV] = dict(self_ref.primary_values)
                 for key, value in values.items():
                     if key in self_ref._primary_hooks:
                         primary_values_dict[key] = value # type: ignore
@@ -428,7 +428,7 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             self._primary_hooks[key] = hook
             
             if isinstance(value, HookWithGetterProtocol):
-                value.connect_hook(hook, "use_target_value") # type: ignore
+                value.link(hook, "use_target_value") # type: ignore
 
         self._secondary_hook_callbacks: dict[SHK, Callable[[Mapping[PHK, PHV]], SHV]] = {}
         for key, _callback in secondary_hook_callbacks.items():
@@ -553,6 +553,98 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
         if not success:
             raise ValueError(msg)
 
+    #########################################################################
+    # Other methods (maybe for a future protocol)
+    #########################################################################
+
+    def link_by_hookkey(self, key: PHK|SHK) -> None:
+        """
+        Link a hook by its key.
+
+        ** Thread-safe **
+
+        Args:
+            key: The key of the hook to link
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+            ValueError: If the hook is not a primary or secondary hook
+        """
+        with self._lock:
+            return self._link(self._get_hook_by_key(key), key, "use_target_value")
+
+    def unlink_by_hookkey(self, key: PHK|SHK) -> None:
+        """
+        Unlink a hook by its key.
+
+        ** Thread-safe **
+
+        Args:
+            key: The key of the hook to unlink
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+        with self._lock:
+            self._unlink(key)
+
+    def value_by_hookkey(self, key: PHK|SHK) -> PHV|SHV:
+        """
+        Get the value of a hook by its key.
+
+        ** Thread-safe **
+
+        Args:
+            key: The key of the hook to get the value of
+
+        Returns:
+            PHV|SHV: The value of the hook
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+        with self._lock:
+            return self._get_value_by_key(key)
+
+    def hook_by_hookkey(self, key: PHK|SHK) -> OwnedFullHookProtocol[PHV|SHV]:
+        """
+        Get a hook by its key.
+
+        ** Thread-safe **
+
+        Args:
+            key: The key of the hook to get
+
+        Returns:
+            OwnedFullHookProtocol[PHV|SHV]: The hook
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+        """
+        with self._lock:
+            return self._get_hook_by_key(key)
+
+    def hookeys(self) -> set[PHK|SHK]:
+        """
+        Get all hook keys.
+
+        ** Thread-safe **
+
+        Returns:
+            set[PHK|SHK]: The set of all hook keys
+
+        Raises:
+            ValueError: If the key is not found in component_hooks or secondary_hooks
+            ValueError: If the hook is not a primary or secondary hook
+        """
+        with self._lock:
+            return self._get_hook_keys()
 
     #########################################################################
     # Other private methods
@@ -615,12 +707,6 @@ class ComplexObservableBase(ListeningBase, CarriesHooksBase[PHK|SHK, PHV|SHV, O]
             if hook == hook_or_nexus or hook._get_nexus() == hook_or_nexus: # type: ignore
                 return key
         raise ValueError(f"Hook {hook_or_nexus} is not a secondary hook!")
-
-        primary_values: dict[PHK, PHV] = {}
-        for key, hook in self._primary_hooks.items():
-            primary_values[key] = hook.value # type: ignore
-
-        return primary_values
 
     #########################################################################
     # Other public methods

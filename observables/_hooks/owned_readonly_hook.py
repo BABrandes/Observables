@@ -58,13 +58,13 @@ class OwnedReadOnlyHook(ManagedHookBase[T], OwnedReadOnlyHookProtocol[T], Listen
 
     def invalidate_owner(self) -> None:
         """Invalidate the owner of this hook."""
-        self.owner.invalidate()
+        self.owner._invalidate() # type: ignore
 
     def is_valid(self, value: T) -> bool:
         """Check if the hook is valid."""
 
         hook_key = self.owner.get_hook_key(self)  # type: ignore
-        success, _ = self.owner.validate_value(hook_key, value)
+        success, _ = self.owner._validate_value(hook_key, value) # type: ignore
         return success
 
     #########################################################

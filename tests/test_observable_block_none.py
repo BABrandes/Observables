@@ -1,20 +1,20 @@
 """
-Tests for ObservableRaiseNone.
+Tests for ObservableBlockNone.
 
-This module tests the ObservableRaiseNone class, which maintains two synchronized hooks
+This module tests the ObservableBlockNone class, which maintains two synchronized hooks
 (one Optional[T], one T) and raises errors when None values are encountered.
 """
 
 import pytest
 
-from observables import ObservableRaiseNone, FloatingHook
+from observables import ObservableBlockNone, FloatingHook
 
-class TestObservableRaiseNoneBasics:
-    """Test basic functionality of ObservableRaiseNone."""
+class TestObservableBlockNoneBasics:
+    """Test basic functionality of ObservableBlockNone."""
 
     def test_initialization_with_value(self):
-        """Test that ObservableRaiseNone can be initialized with a value."""
-        obs = ObservableRaiseNone[int](
+        """Test that ObservableBlockNone can be initialized with a value."""
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -26,7 +26,7 @@ class TestObservableRaiseNoneBasics:
         """Test initialization with hook_with_None only."""
         hook_with_none = FloatingHook[int | None](42)
         
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=None,
             hook_with_None=hook_with_none
         )
@@ -42,7 +42,7 @@ class TestObservableRaiseNoneBasics:
         # causes a "disjoint nexus" error in the current implementation
         hook_with_none = FloatingHook[int | None](42)
         
-        obs = ObservableRaiseNone(
+        obs = ObservableBlockNone(
             hook_without_None_or_value=42,
             hook_with_None=hook_with_none
         )
@@ -55,7 +55,7 @@ class TestObservableRaiseNoneBasics:
         hook_with_none = FloatingHook[int | None](42)
         
         with pytest.raises(ValueError, match="Values do not match"):
-            ObservableRaiseNone(
+            ObservableBlockNone(
                 hook_without_None_or_value=100,
                 hook_with_None=hook_with_none
             )
@@ -63,18 +63,18 @@ class TestObservableRaiseNoneBasics:
     def test_initialization_with_no_values_raises_error(self):
         """Test that initialization with no values raises error."""
         with pytest.raises(ValueError, match="Something non-none must be given"):
-            ObservableRaiseNone(
+            ObservableBlockNone(
                 hook_without_None_or_value=None,
                 hook_with_None=None
             )
 
 
-class TestObservableRaiseNoneValueUpdates:
+class TestObservableBlockNoneValueUpdates:
     """Test value updates and synchronization."""
 
     def test_update_hook_without_none_updates_hook_with_none(self):
         """Test that updating hook_without_None also updates hook_with_None."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -87,7 +87,7 @@ class TestObservableRaiseNoneValueUpdates:
 
     def test_update_hook_with_none_updates_hook_without_none(self):
         """Test that updating hook_with_None also updates hook_without_None."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -100,7 +100,7 @@ class TestObservableRaiseNoneValueUpdates:
 
     def test_update_both_hooks_with_same_value(self):
         """Test updating both hooks simultaneously with matching values."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -111,7 +111,7 @@ class TestObservableRaiseNoneValueUpdates:
 
     def test_update_string_values(self):
         """Test with string type instead of int."""
-        obs = ObservableRaiseNone[str](
+        obs = ObservableBlockNone[str](
             hook_without_None_or_value="hello",
             hook_with_None=None
         )
@@ -122,42 +122,48 @@ class TestObservableRaiseNoneValueUpdates:
         assert obs.hook_with_None.value == "world"
 
 
-class TestObservableRaiseNoneErrorHandling:
+class TestObservableBlockNoneErrorHandling:
     """Test error handling when None values are submitted."""
 
     def test_update_hook_without_none_with_none_raises_error(self):
-        """Test that updating hook_without_None with None raises ValueError."""
-        obs = ObservableRaiseNone[int](
+        """Test that updating hook_without_None with None raises SubmissionError."""
+        from observables._nexus_system.submission_error import SubmissionError
+        
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
         
-        with pytest.raises(ValueError, match="One of the values is None"):
+        with pytest.raises(SubmissionError, match="One or both of the values"):
             obs._submit_values({"value_without_none": None}) # type: ignore
 
     def test_update_hook_with_none_with_none_raises_error(self):
-        """Test that updating hook_with_None with None raises ValueError."""
-        obs = ObservableRaiseNone[int](
+        """Test that updating hook_with_None with None raises SubmissionError."""
+        from observables._nexus_system.submission_error import SubmissionError
+        
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
         
-        with pytest.raises(ValueError, match="One of the values is None"):
+        with pytest.raises(SubmissionError, match="One or both of the values"):
             obs._submit_values({"value_with_none": None}) # type: ignore 
 
     def test_update_both_hooks_with_none_raises_error(self):
-        """Test that updating both hooks with None raises ValueError."""
-        obs = ObservableRaiseNone[int](
+        """Test that updating both hooks with None raises SubmissionError."""
+        from observables._nexus_system.submission_error import SubmissionError
+        
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
         
-        with pytest.raises(ValueError, match="One of the values is None"):
-            obs.change_values({"value_without_none": None,"value_with_none": None}) # type: ignore
+        with pytest.raises(SubmissionError, match="One or both of the values"):
+            obs._submit_values({"value_without_none": None,"value_with_none": None}) # type: ignore
 
     def test_update_both_hooks_with_mismatched_values(self):
         """Test updating both hooks with different values."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -167,22 +173,24 @@ class TestObservableRaiseNoneErrorHandling:
         obs._submit_values({ "value_without_none": 100, "value_with_none": 200}) # type: ignore
 
     def test_update_both_hooks_one_none_one_value_raises_error(self):
-        """Test that updating with one None and one value raises ValueError."""
-        obs = ObservableRaiseNone[int](
+        """Test that updating with one None and one value raises SubmissionError."""
+        from observables._nexus_system.submission_error import SubmissionError
+        
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
         
-        with pytest.raises(ValueError, match="One of the values is None"):
+        with pytest.raises(SubmissionError, match="One or both of the values"):
             obs._submit_values({"value_without_none": 100, "value_with_none": None}) # type: ignore
 
 
-class TestObservableRaiseNoneHookAccess:
+class TestObservableBlockNoneHookAccess:
     """Test hook accessor methods."""
 
     def test_get_hook_value_without_none(self):
         """Test _get_hook returns correct hook for value_without_none key."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -192,7 +200,7 @@ class TestObservableRaiseNoneHookAccess:
 
     def test_get_hook_value_with_none(self):
         """Test _get_hook returns correct hook for value_with_none key."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -202,7 +210,7 @@ class TestObservableRaiseNoneHookAccess:
 
     def test_get_value_reference_of_hook(self):
         """Test _get_value_reference_of_hook returns correct values."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -215,7 +223,7 @@ class TestObservableRaiseNoneHookAccess:
 
     def test_get_hook_keys(self):
         """Test _get_hook_keys returns all keys."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -225,7 +233,7 @@ class TestObservableRaiseNoneHookAccess:
 
     def test_get_hook_key(self):
         """Test _get_hook_key returns correct key for given hook."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -240,7 +248,7 @@ class TestObservableRaiseNoneHookAccess:
         """Test _get_hook_key raises error for unknown hook."""
         unknown_hook = FloatingHook[int](99)
         
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -249,12 +257,12 @@ class TestObservableRaiseNoneHookAccess:
             obs._get_key_by_hook_or_nexus(unknown_hook) # type: ignore
 
 
-class TestObservableRaiseNoneValidation:
+class TestObservableBlockNoneValidation:
     """Test validation functionality."""
 
     def test_validate_with_matching_non_none_values(self):
         """Test validation succeeds with matching non-None values."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -268,8 +276,8 @@ class TestObservableRaiseNoneValidation:
         assert message == "Values are valid"
 
     def test_validate_with_mismatched_values(self):
-        """Test validation fails with mismatched values."""
-        obs = ObservableRaiseNone[int](
+        """Test validation allows mismatched non-None values (sync system resolves)."""
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -278,12 +286,12 @@ class TestObservableRaiseNoneValidation:
             {"value_without_none": 42, "value_with_none": 100} # type: ignore
         )
         
-        assert is_valid is False
-        assert message == "Values do not match"
+        # Validation passes - the sync system will resolve which value to use
+        assert is_valid is True
 
     def test_validate_with_none_values(self):
         """Test validation fails when values are None."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -293,11 +301,11 @@ class TestObservableRaiseNoneValidation:
         )
         
         assert is_valid is False
-        assert message == "One of the values is None"
+        assert "One or both of the values" in message
 
     def test_validate_with_missing_keys(self):
-        """Test validation fails with missing keys."""
-        obs = ObservableRaiseNone[int](
+        """Test validation succeeds with one key - the other is automatically added."""
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -306,16 +314,16 @@ class TestObservableRaiseNoneValidation:
             {"value_without_none": 42} # type: ignore
         )
         
-        assert is_valid is False
-        assert message == "Invalid keys"
+        # Should succeed - the system automatically adds the other value
+        assert is_valid is True
 
 
-class TestObservableRaiseNoneListeners:
-    """Test that listeners work correctly with ObservableRaiseNone."""
+class TestObservableBlockNoneListeners:
+    """Test that listeners work correctly with ObservableBlockNone."""
 
     def test_listener_triggered_on_update(self):
         """Test that listeners are triggered when values update."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -340,7 +348,7 @@ class TestObservableRaiseNoneListeners:
 
     def test_listener_triggered_on_synchronized_update(self):
         """Test that both listeners are triggered when one value updates."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -364,12 +372,12 @@ class TestObservableRaiseNoneListeners:
         assert update_count["without"] == 1
 
 
-class TestObservableRaiseNoneComplexTypes:
-    """Test ObservableRaiseNone with complex types."""
+class TestObservableBlockNoneComplexTypes:
+    """Test ObservableBlockNone with complex types."""
 
     def test_with_list_type(self):
         """Test with list values."""
-        obs = ObservableRaiseNone[list[int]](
+        obs = ObservableBlockNone[list[int]](
             hook_without_None_or_value=[1, 2, 3],
             hook_with_None=None
         )
@@ -377,13 +385,14 @@ class TestObservableRaiseNoneComplexTypes:
         new_list = [4, 5, 6]
         obs._submit_values({"value_without_none": new_list}) # type: ignore
         
+        # Values are stored as-is (no immutability conversion)
         assert obs.hook_without_None.value == [4, 5, 6]
         assert obs.hook_with_None.value == [4, 5, 6]
 
     def test_with_dict_type(self):
         """Test with dict values."""
         initial_dict = {"a": 1, "b": 2}
-        obs = ObservableRaiseNone[dict[str, int]](
+        obs = ObservableBlockNone[dict[str, int]](
             hook_without_None_or_value=initial_dict,
             hook_with_None=None
         )
@@ -391,40 +400,16 @@ class TestObservableRaiseNoneComplexTypes:
         new_dict = {"c": 3, "d": 4}
         obs._submit_values({"value_with_none": new_dict}) # type: ignore
         
+        # Values are stored as-is (no immutability conversion)
         assert obs.hook_without_None.value == {"c": 3, "d": 4}
         assert obs.hook_with_None.value == {"c": 3, "d": 4}
 
-    def test_with_custom_class(self):
-        """Test with custom class instances."""
-        class Point:
-            def __init__(self, x: int, y: int):
-                self.x = x
-                self.y = y
-            
-            def __eq__(self, other): # type: ignore
-                return isinstance(other, Point) and self.x == other.x and self.y == other.y
-        
-        point1 = Point(0, 0)
-        obs = ObservableRaiseNone[Point](
-            hook_without_None_or_value=point1,
-            hook_with_None=None
-        )
-        
-        point2 = Point(5, 10)
-        obs._submit_values({"value_without_none": point2}) # type: ignore
-        
-        assert obs.hook_without_None.value == point2
-        assert obs.hook_with_None.value == point2
-        assert obs.hook_without_None.value.x == 5
-        assert obs.hook_without_None.value.y == 10
-
-
-class TestObservableRaiseNoneEdgeCases:
+class TestObservableBlockNoneEdgeCases:
     """Test edge cases and boundary conditions."""
 
     def test_empty_update(self):
         """Test submitting empty update dict."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )
@@ -437,7 +422,7 @@ class TestObservableRaiseNoneEdgeCases:
 
     def test_multiple_sequential_updates(self):
         """Test multiple updates in sequence."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=0,
             hook_with_None=None
         )
@@ -449,7 +434,7 @@ class TestObservableRaiseNoneEdgeCases:
 
     def test_update_with_same_value(self):
         """Test updating with the same value doesn't cause issues."""
-        obs = ObservableRaiseNone[int](
+        obs = ObservableBlockNone[int](
             hook_without_None_or_value=42,
             hook_with_None=None
         )

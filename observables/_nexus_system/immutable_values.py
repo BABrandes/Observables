@@ -99,7 +99,7 @@ def convert_item_from_immutable(value: Any) -> Any:
 
 
 ########################################################
-# Sequences (Lists → Tuples)
+# Sequences (List → Tuples → List)
 ########################################################
 
 def check_and_convert_sequence_to_immutable(value: Sequence[Any], nexus_manager: "NexusManager | None" = None) -> tuple[Optional[str], tuple[Any, ...]]:
@@ -139,7 +139,6 @@ def check_and_convert_sequence_to_immutable(value: Sequence[Any], nexus_manager:
 def convert_sequence_from_immutable(value: tuple[Any, ...]) -> list[Any]:
     """Convert from immutable tuple to list."""
     return list(value)
-
 
 ########################################################
 # Dictionaries (Dict → immutables.Map)

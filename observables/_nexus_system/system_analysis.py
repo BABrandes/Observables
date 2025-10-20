@@ -19,53 +19,53 @@ def collect_all_hook_nexuses(dict_of_carries_hooks: dict[str, CarriesHooksProtoc
 
 def write_report(dict_of_carries_hooks: dict[str, CarriesHooksProtocol[Any, Any]]) -> str:
     """
-    Generate a comprehensive report of hook nexuses and their usage across observables.
+    Generate a comprehensive report of nexuses and their usage across observables.
     
     Args:
         dict_of_carries_hooks: Dictionary mapping observable names to CarriesHooks objects
         
     Returns:
-        Formatted string report showing hook nexus usage and relationships
+        Formatted string report showing nexus usage and relationships
     """
 
     if not dict_of_carries_hooks:
         return "No observables provided.\n"
 
-    hook_nexuses = collect_all_hook_nexuses(dict_of_carries_hooks)
+    nexuses = collect_all_hook_nexuses(dict_of_carries_hooks)
     
-    if not hook_nexuses:
-        return "No hook nexuses found in the provided observables.\n"
+    if not nexuses:
+        return "No nexuses found in the provided observables.\n"
     
-    # Sort hook nexuses by number of connections (most connected first)
-    sorted_nexuses = sorted(hook_nexuses.items(), key=lambda x: len(x[1]), reverse=True)
+    # Sort nexuses by number of connections (most connected first)
+    sorted_nexuses = sorted(nexuses.items(), key=lambda x: len(x[1]), reverse=True)
     
     report = "=" * 80 + "\n"
-    report += "📊 HOOK NEXUS ANALYSIS REPORT\n"
+    report += "📊 NEXUS ANALYSIS REPORT\n"
     report += "=" * 80 + "\n\n"
     
     # Summary statistics
-    total_nexuses = len(hook_nexuses)
-    shared_nexuses = sum(1 for _, hooks_info in hook_nexuses.items() if len(hooks_info) > 1)
+    total_nexuses = len(nexuses)
+    shared_nexuses = sum(1 for _, hooks_info in nexuses.items() if len(hooks_info) > 1)
     unshared_nexuses = total_nexuses - shared_nexuses
-    total_hooks = sum(len(hooks_info) for _, hooks_info in hook_nexuses.items())
+    total_hooks = sum(len(hooks_info) for _, hooks_info in nexuses.items())
     
     report += f"📈 SUMMARY:\n"
-    report += f"   • Total Hook Nexuses: {total_nexuses}\n"
+    report += f"   • Total Nexuses: {total_nexuses}\n"
     report += f"   • Shared Nexuses: {shared_nexuses}\n"
     report += f"   • Unshared Nexuses: {unshared_nexuses}\n"
     report += f"   • Total Hooks: {total_hooks}\n"
     report += f"   • Total Observables: {len(dict_of_carries_hooks)}\n\n"
     
     # Detailed nexus analysis
-    report += "🔗 HOOK NEXUS DETAILS:\n"
+    report += "🔗 NEXUS DETAILS:\n"
     report += "-" * 80 + "\n\n"
     
     for i, (hook_nexus, owner_name_and_hooks) in enumerate(sorted_nexuses, 1):
         is_shared = len(owner_name_and_hooks) > 1
         nexus_type = "🔗 SHARED" if is_shared else "🔸 INDIVIDUAL"
         
-        report += f"{i:2d}. {nexus_type} Hook Nexus\n"
-        report += f"    Value: {repr(hook_nexus.value)}\n"
+        report += f"{i:2d}. {nexus_type} Nexus\n"
+        report += f"    Value: {repr(hook_nexus.stored_value)}\n"
         report += f"    Connections: {len(owner_name_and_hooks)}\n"
         report += f"    Used by:\n"
         
@@ -91,7 +91,7 @@ def write_report(dict_of_carries_hooks: dict[str, CarriesHooksProtocol[Any, Any]
         
         # Find most connected observables
         observable_connections: dict[str, int] = {}
-        for hook_nexus, hooks_info in hook_nexuses.items():
+        for hook_nexus, hooks_info in nexuses.items():
             if len(hooks_info) > 1:  # Only count shared connections
                 for owner_name, carries_hook, hook in hooks_info:
                     observable_connections[owner_name] = observable_connections.get(owner_name, 0) + 1
@@ -120,12 +120,12 @@ def _get_hook_info(carries_hook: CarriesHooksProtocol[Any, Any], hook: Hook[Any]
     """
     try:
         # Try to get the key for this hook
-        hook_key = carries_hook.get_hook_key(hook)  # type: ignore
+        hook_key = carries_hook._get_key_by_hook_or_nexus(hook)  # type: ignore
         hook_type = "primary"
     except ValueError:
         try:
             # Try secondary hooks if primary fails
-            hook_key = carries_hook.get_hook_key(hook)  # type: ignore
+            hook_key = carries_hook._get_key_by_hook_or_nexus(hook)  # type: ignore
             hook_type = "secondary"
         except ValueError:
             # Fallback if neither works

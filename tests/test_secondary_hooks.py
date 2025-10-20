@@ -233,7 +233,7 @@ class TestEmitterHooksListeners:
         
         # Bind the length hook to the single value (reverse direction)
         length_hook = obs_list.length_hook
-        length_hook.connect_hook(length_tracker.hook, "use_caller_value")  # type: ignore
+        length_hook.link(length_tracker.hook, "use_caller_value")  # type: ignore
         
         # Initial binding should work
         assert length_tracker.value == 3
@@ -262,14 +262,14 @@ class TestSecondaryHooksEdgeCases:
         obs_list = ObservableList([1, 2, 3])
         
         with pytest.raises(ValueError, match="Key nonexistent not found"):
-            obs_list.get_value_of_hook("nonexistent") # type: ignore
+            obs_list._get_value_by_key("nonexistent") # type: ignore
     
     def test_get_hook_with_invalid_key(self):
         """Test get_hook with invalid secondary hook key."""
         obs_list = ObservableList([1, 2, 3])
         
         with pytest.raises(ValueError, match="Key nonexistent not found"):
-            obs_list.get_hook("nonexistent") # type: ignore
+            obs_list._get_hook_by_key("nonexistent") # type: ignore
     
     def test_attach_to_secondary_hook(self):
         """Test attaching to secondary hooks."""
@@ -279,7 +279,7 @@ class TestSecondaryHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to secondary hook
-        obs_list.connect_hook(target.hook, "length", "use_caller_value")  # type: ignore
+        obs_list.link(target.hook, "length", "use_caller_value")  # type: ignore
         
         # Should sync immediately
         assert target.value == 3

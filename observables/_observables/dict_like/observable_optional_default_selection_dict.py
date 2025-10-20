@@ -1,6 +1,5 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
-from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
@@ -122,7 +121,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.submitted["dict"])
                             _default_val = self_ref._get_default_value(update_values.submitted["key"])
                             _dict[update_values.submitted["key"]] = _default_val
-                            return {"dict": Map(_dict), "value": _default_val}
+                            return {"dict": _dict, "value": _default_val}
                         return {"value": update_values.submitted["dict"][update_values.submitted["key"]]}
                 
                 case (True, False, True):
@@ -148,7 +147,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.submitted["dict"])
                             _default_val = self_ref._get_default_value(update_values.current["key"])
                             _dict[update_values.current["key"]] = _default_val
-                            return {"dict": Map(_dict), "value": _default_val}
+                            return {"dict": _dict, "value": _default_val}
                         return {"value": update_values.submitted["dict"][update_values.current["key"]]}
                 
                 case (False, True, True):
@@ -158,7 +157,7 @@ class ObservableOptionalDefaultSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                        return {"dict": Map(_dict)}
+                        return {"dict": _dict}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict (or create default)
@@ -170,7 +169,7 @@ class ObservableOptionalDefaultSelectionDict(
                             _dict = dict(update_values.current["dict"])
                             _default_val = self_ref._get_default_value(update_values.submitted["key"])
                             _dict[update_values.submitted["key"]] = _default_val
-                            return {"dict": Map(_dict), "value": _default_val}
+                            return {"dict": _dict, "value": _default_val}
                         return {"value": update_values.current["dict"][update_values.submitted["key"]]}
                 
                 case (False, False, True):
@@ -182,7 +181,7 @@ class ObservableOptionalDefaultSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.current["key"]] = update_values.submitted["value"]
-                        return {"dict": Map(_dict)}
+                        return {"dict": _dict}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed

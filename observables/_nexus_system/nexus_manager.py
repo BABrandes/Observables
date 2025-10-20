@@ -1,9 +1,11 @@
 from typing import Mapping, Any, Optional, TYPE_CHECKING, Callable, Literal, Sequence
+
+from immutables import Map
+
 from threading import RLock, local
 from logging import Logger
 
 from .._utils import log
-
 
 if TYPE_CHECKING:
     from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
@@ -13,7 +15,6 @@ from .._auxiliary.listening_protocol import ListeningProtocol
 from .._nexus_system.nexus import Nexus
 from .._nexus_system.update_function_values import UpdateFunctionValues
 from .._publisher_subscriber.publisher_protocol import PublisherProtocol
-from .._nexus_system.immutable_values import check_and_convert_to_immutable
 
 class NexusManager:
     """
@@ -81,11 +82,21 @@ class NexusManager:
         registered_immutable_types: set[type[Any]] = set()
         ):
 
-        self._value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
-        self._value_equality_callbacks.update(value_equality_callbacks)
-        self._registered_immutable_types: set[type[Any]] = set(registered_immutable_types)
+        # ----------- Thread Safety -----------
+
         self._lock = RLock()  # Thread-safe lock for submit_values operations
         self._thread_local = local()  # Thread-local storage for tracking active hook nexuses
+
+        # ----------- Equality Callbacks -----------
+
+        self._value_equality_callbacks: dict[tuple[type[Any], type[Any]], Callable[[Any, Any], bool]] = {}
+        self._value_equality_callbacks.update(value_equality_callbacks)
+
+        # ----------------------------------------
+
+    ##################################################################################################################
+    # Equality Callbacks
+    ##################################################################################################################
 
     def add_value_equality_callback(self, value_type_pair: tuple[type[Any], type[Any]], value_equality_callback: Callable[[Any, Any], bool]) -> None:
         """Add a value equality callback for a specific pair of value types.
@@ -149,70 +160,13 @@ class NexusManager:
         """
         return not self.is_equal(value1, value2)
 
-    def register_immutable_type(self, value_type: type[Any]) -> None:
-        """Register a custom type as immutable.
-        
-        This allows custom immutable types to be used in the nexus system without
-        conversion. The type must truly be immutable - the system will not enforce this.
-        
-        Args:
-            value_type: The type to register as immutable
-            
-        Example:
-            >>> from pathlib import Path
-            >>> manager.register_immutable_type(Path)
-            >>> # Now Path objects will be accepted as immutable
-        """
-        if value_type in self._registered_immutable_types:
-            raise ValueError(f"Type {value_type.__name__} is already registered as immutable")
-        self._registered_immutable_types.add(value_type)
-
-    def unregister_immutable_type(self, value_type: type[Any]) -> None:
-        """Unregister a custom immutable type.
-        
-        Args:
-            value_type: The type to unregister
-        """
-        if value_type not in self._registered_immutable_types:
-            raise ValueError(f"Type {value_type.__name__} is not registered as immutable")
-        self._registered_immutable_types.remove(value_type)
-
-    def is_registered_immutable_type(self, value_type: type[Any]) -> bool:
-        """Check if a type is registered as immutable.
-        
-        This checks if the exact type OR any of its base classes are registered.
-        This allows registering abstract types like Path that instantiate to
-        concrete types like PosixPath or WindowsPath.
-        
-        Args:
-            value_type: The type to check
-            
-        Returns:
-            True if the type or any of its bases is registered as immutable, False otherwise
-        """
-        # Check exact type first (fast path)
-        if value_type in self._registered_immutable_types:
-            return True
-        
-        # Check if any base class is registered
-        # Use Method Resolution Order (MRO) to check all parent classes
-        for base in value_type.__mro__:
-            if base in self._registered_immutable_types:
-                return True
-        
-        return False
-
-    def get_registered_immutable_types(self) -> set[type[Any]]:
-        """Get all registered immutable types.
-        
-        Returns:
-            Set of types registered as immutable
-        """
-        return set(self._registered_immutable_types)
-
     def reset(self) -> None:
         """Reset the nexus manager state for testing purposes."""
         pass
+
+    ##################################################################################################################
+    # Synchronization of Nexus and Values
+    ##################################################################################################################
 
     @staticmethod
     def _filter_nexus_and_values_for_owner(nexus_and_values: dict["Nexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
@@ -300,15 +254,15 @@ class NexusManager:
 
             # Step 2: Get the additional values from the owner method
             current_values_of_owner: Mapping[Any, Any] = owner._get_dict_of_values() # type: ignore
-            update_values = UpdateFunctionValues(current=current_values_of_owner, submitted=value_dict)
+            update_values = UpdateFunctionValues(current=current_values_of_owner, submitted=Map(value_dict)) # Wrap the value_dict in Map to prevent mutation by the owner function!
             additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(update_values) # type: ignore
 
-            # Step 3: Make the additional values immutable and add them to the value and hook dict
+            # Step 4: Make the new values ready for the sync system add them to the value and hook dict
             for hook_key, value in additional_value_dict.items():
-                error_msg, immutable_value = check_and_convert_to_immutable(value, self)
+                error_msg, value_for_storage = self._convert_value_for_storage(value)
                 if error_msg is not None:
-                    return None, f"Value of type {type(value).__name__} cannot be made immutable: {error_msg}"
-                value_dict[hook_key] = immutable_value
+                    return None, f"Value of type {type(value).__name__} cannot be converted for storage: {error_msg}"
+                value_dict[hook_key] = value_for_storage
                 hook_dict[hook_key] = owner._get_hook_by_key(hook_key) # type: ignore
 
             # Step 5: Insert the value and hook dict into the nexus and values
@@ -349,6 +303,15 @@ class NexusManager:
 
         return True, "Successfully updated nexus and values"
 
+    def _convert_value_for_storage(self, value: Any) -> tuple[Optional[str], Any]:
+        """
+        Convert a value for storage in a Nexus.
+        
+        Currently disabled - values are stored as-is without conversion.
+        """
+        # Immutability system disabled - pass through values as-is
+        return None, value
+
     def _internal_submit_values(self, nexus_and_values: Mapping["Nexus[Any]", Any], mode: Literal["Normal submission", "Forced submission", "Check values"], logger: Optional[Logger] = None) -> tuple[bool, str]:
         """
         Internal implementation of submit_values.
@@ -381,10 +344,10 @@ class NexusManager:
 
         _nexus_and_values: dict["Nexus[Any]", Any] = {}
         for nexus, value in nexus_and_values.items():
-            error_msg, immutable_value = check_and_convert_to_immutable(value, self)
+            error_msg, value_for_storage = self._convert_value_for_storage(value)
             if error_msg is not None:
-                return False, f"Value of type {type(value).__name__} is not immutable: {error_msg}"
-            _nexus_and_values[nexus] = immutable_value
+                return False, f"Value of type {type(value).__name__} cannot be converted for storage: {error_msg}"
+            _nexus_and_values[nexus] = value_for_storage
 
         #########################################################
         # Check if the values are even different from the current values
@@ -395,7 +358,7 @@ class NexusManager:
                 # Filter to only values that differ from current (using immutable versions)
                 filtered_nexus_and_values: dict["Nexus[Any]", Any] = {}
                 for nexus, value in _nexus_and_values.items():
-                    if not self.is_equal(nexus._value, value): # type: ignore
+                    if not self.is_equal(nexus._stored_value, value): # type: ignore
                         filtered_nexus_and_values[nexus] = value
                 
                 _nexus_and_values = filtered_nexus_and_values
@@ -460,7 +423,7 @@ class NexusManager:
                 return False, msg
         for floating_hook in hooks_with_validation:
             assert isinstance(floating_hook, HookWithConnectionProtocol)
-            success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook.hook_nexus]) # type: ignore
+            success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook._get_nexus()]) # type: ignore
             if success == False:
                 return False, msg
 
@@ -473,8 +436,8 @@ class NexusManager:
 
         # Step 4: Update each nexus with the new value
         for nexus, value in complete_nexus_and_values.items():
-            nexus._previous_value = nexus._value # type: ignore
-            nexus._value = value # type: ignore
+            nexus._previous_stored_value = nexus._stored_value # type: ignore
+            nexus._stored_value = value # type: ignore
 
         #########################################################
         # Invalidation, Reaction, and Notification
@@ -824,6 +787,10 @@ class NexusManager:
             finally:
                 # Always remove the nexuses we added, even if an error occurs
                 self._thread_local.active_nexuses -= new_nexuses # type: ignore
+
+    ########################################################################################################################
+    # Helper Methods
+    ########################################################################################################################
 
     @staticmethod
     def get_nexus_and_values(hooks: set["Hook[Any]"]) -> dict[Nexus[Any], Any]:

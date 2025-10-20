@@ -1,327 +1,300 @@
 # API Reference
 
-This document provides comprehensive API documentation for the Observables library, with emphasis on bidirectional binding and state validation features.
+This document provides comprehensive API documentation for the Observables library, with emphasis on bidirectional linking and state validation features.
 
 ## 📦 **Core Modules**
 
 ### **Import Statements**
 
 ```python
-# Main observable types
+# Main observable types (Modern X-prefixed aliases - RECOMMENDED)
+from observables import (
+    XValue,           # Single values
+    XList,            # Lists (immutable tuple internally)
+    XDict,            # Dicts (immutable Map internally)
+    XSet,             # Sets (immutable frozenset internally)
+    XSelectionDict,   # Selection dictionaries
+    XSelectionSet,    # Selection sets
+    XFunction,        # Custom synchronization functions
+    XOneWayFunction,  # One-way transformations
+)
+
+# Legacy names (DEPRECATED - use X-prefixed aliases instead)
 from observables import (
     ObservableSingleValue,
     ObservableList,
     ObservableDict,
     ObservableSet,
-    ObservableTuple,
-    ObservableEnum,
-    ObservableOptionalEnum,
-    ObservableSelectionOption,
-    ObservableOptionalSelectionOption,
-    ObservableMultiSelectionOption
+    ObservableSelectionDict,
+    ObservableSelectionSet,
+    ObservableFunction,
+    ObservableOneWayFunction,
 )
 
 # Hook types (for advanced usage)
-from observables import Hook, HookProtocol, OwnedHook, FloatingHook, Nexus
-from observables import HookWithOwnerProtocol, HookWithIsolatedValidationProtocol, HookWithReactionLike
+from observables import Hook, ReadOnlyHook, FloatingHook, Nexus
 
-# Utility types
-from observables import BaseObservable
+# Protocol types (for type hints)
+from observables import (
+    XValueProtocol,
+    XListProtocol,
+    XDictProtocol,
+    XSetProtocol,
+    XSelectionDictProtocol,
+    XSelectionOptionsProtocol,
+)
 ```
 
 ## 🔄 **Initial Sync Modes**
 
-Controls how values are synchronized when observables are first bound together. Initial sync mode is specified using string literals in the binding methods.
+Controls how values are synchronized when observables are first linked together. Initial sync mode is specified using string literals in the linking methods.
 
 **Available Modes:**
 
-- `"use_caller_value"` - Use the caller's current value for initial synchronization. After binding, the target observable will adopt the caller's value.
-- `"use_target_value"` - Use the target's current value for initial synchronization. After binding, the caller observable will adopt the target's value.
+- `"use_caller_value"` - Use the caller's current value for initial synchronization. After linking, the target observable will adopt the caller's value.
+- `"use_target_value"` - Use the target's current value for initial synchronization. After linking, the caller observable will adopt the target's value.
 
 ### **Usage Examples**
 
 ```python
-source = ObservableSingleValue(100)
-target = ObservableSingleValue(200)
+source = XValue(100)
+target = XValue(200)
 
 # Use caller's value (100) for initial synchronization
 source.link(target.hook, "value", "use_caller_value")
 print(target.value)  # 100
 
-# Use target's value (200) for initial synchronization  
+# Use target's value (200) for initial synchronization
 source.link(target.hook, "value", "use_target_value")
 print(source.value)  # 200
 ```
 
-After the initial binding completes, both observables share the same underlying storage and all subsequent changes propagate bidirectionally regardless of which mode was used initially.
+After the initial linking completes, both observables share the same underlying storage and all subsequent changes propagate bidirectionally regardless of which mode was used initially.
 
-## 🏗️ **BaseObservable Class**
+## 🏗️ **Observable Base Classes**
 
-Base class for all observable types, providing core binding and validation functionality.
+All observable types inherit from base classes that provide core linking and validation functionality.
 
 ### **Core Methods**
 
-#### **`attach(hook, component_name, initial_sync_mode, logger=None)`**
+#### **`link(hook, component_key, initial_sync_mode)`**
 
-Binds this observable to another observable's hook, creating bidirectional synchronization.
+Links this observable to another observable's hook, creating bidirectional synchronization.
 
 **Parameters:**
-- `hook: HookProtocol[T]` - The hook to bind to
-- `component_name: str` - Name of the component being bound
+- `hook: Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]` - The hook to link to
+- `component_key: str` - Name of the component being linked (e.g., "value", "selected_option")
 - `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - How to synchronize initial values
-- `logger: Optional[Logger]` - Logger for debugging (optional)
 
 **Returns:** `None`
 
-**Raises:** 
-- `ValueError` - If binding would create invalid state
+**Raises:**
+- `ValueError` - If linking would create invalid state
 - `TypeError` - If hook types are incompatible
 
 **Example:**
 ```python
-obs1 = ObservableSingleValue(10)
-obs2 = ObservableSingleValue(20)
+obs1 = XValue(10)
+obs2 = XValue(20)
 
-# Bind obs1 to obs2 with bidirectional sync
+# Link obs1 to obs2 with bidirectional sync
 obs1.link(obs2.hook, "value", "use_caller_value")
 
 # Now changes propagate in both directions
 obs1.value = 100
 print(obs2.value)  # 100
 
-obs2.value = 200  
+obs2.value = 200
 print(obs1.value)  # 200
 ```
 
-#### **`connect_hooks(hook_dict, initial_sync_mode, logger=None)`**
+#### **`link_many(hooks, initial_sync_mode)`**
 
-Atomically binds multiple components to hooks from another observable. This method prevents validation errors that can occur when binding components with dependencies.
+Atomically links multiple components to hooks from other observables. This method prevents validation errors that can occur when linking components with dependencies.
 
 **Parameters:**
-- `hook_dict: Dict[str, HookLike]` - Dictionary mapping component names to hooks
+- `hooks: Mapping[str, Hook[T] | ReadOnlyHook[T]]` - Dictionary mapping component names to hooks
 - `initial_sync_mode: Literal["use_caller_value", "use_target_value"]` - How to synchronize initial values
-- `logger: Optional[Logger]` - Logger for debugging (optional)
 
 **Returns:** `None`
 
-**Raises:** 
-- `ValueError` - If binding would create invalid state
+**Raises:**
+- `ValueError` - If linking would create invalid state
 - `TypeError` - If hook types are incompatible
 
 **Use Cases:**
-- Binding observables with multiple dependent components (e.g., selected_option + available_options)
-- Preventing temporary invalid states during multi-component binding
+- Linking observables with multiple dependent components
+- Preventing temporary invalid states during multi-component linking
 - Atomic updates that require consistency across multiple properties
 
 **Example:**
 ```python
-from observables import ObservableSelectionOption
+from observables import XSelectionDict
 
-# Create two selection observables with different available options
-obs1 = ObservableSelectionOption("red", {"red", "green", "blue"})
-obs2 = ObservableSelectionOption("yellow", {"yellow", "orange", "purple"})
+# Create two selection observables
+obs1 = XSelectionDict({"color": "red", "size": "large"})
+obs2 = XSelectionDict({"color": "blue", "size": "small"})
 
-# Bind both selected_option AND available_options atomically
-obs1.connect_hooks({
-    "selected_option": obs2.selected_option_hook,
-    "available_options": obs2.available_options_hook
+# Link both components atomically
+obs1.link_many({
+    "color": obs2.hook,
+    "size": obs2.hook  # Note: both map to same hook for this example
 }, "use_target_value")
 
-# obs1 now has obs2's values: selected="yellow", options={"yellow", "orange", "purple"}
-print(f"Selected: {obs1.selected_option}")        # "yellow"
-print(f"Available: {obs1.available_options}")     # {"yellow", "orange", "purple"}
+# obs1 now has obs2's values
+print(f"obs1 color: {obs1.value['color']}")    # "blue"
+print(f"obs1 size: {obs1.value['size']}")      # "small"
 
 # Changes propagate bidirectionally
-obs1.selected_option = "orange"
-print(f"obs2 selected: {obs2.selected_option}")   # "orange"
+obs1.value = {"color": "green", "size": "medium"}
+print(f"obs2 color: {obs2.value['color']}")     # "green"
+print(f"obs2 size: {obs2.value['size']}")       # "medium"
 ```
 
-**Why Use connect_hooks:**
-- **Prevents validation errors**: Binding available_options before selected_option could temporarily create invalid states
-- **Atomic operation**: All bindings succeed or fail together
+**Why Use link_many:**
+- **Prevents validation errors**: Linking multiple components atomically avoids temporary invalid states
+- **Atomic operation**: All linkings succeed or fail together
 - **Better performance**: Single validation pass for all components
 
-#### **`detach()`**
+### **Listener System**
 
-Disconnects this observable from all bindings, creating an isolated Nexus.
+All observables support listener notifications for value changes.
 
-**Returns:** `None`
+#### **`add_listener(*callbacks)`**
 
-**Raises:** `ValueError` - If observable is not currently bound
-
-**Example:**
-```python
-obs1 = ObservableSingleValue(10)
-obs2 = ObservableSingleValue(20)
-obs3 = ObservableSingleValue(30)
-
-# Create binding chain
-obs1.link(obs2.hook, "value", "use_caller_value")
-obs2.link(obs3.hook, "value", "use_caller_value")
-
-# Detach obs2 - obs1 and obs3 remain connected
-obs2.detach()
-
-obs1.value = 100
-print(obs2.value)  # 20 (isolated)
-print(obs3.value)  # 100 (still connected to obs1)
-```
-
-#### **`is_attached_to(other_observable)`**
-
-Checks if this observable is bound to another observable.
+Add one or more listener callbacks that are called when the observable's value changes.
 
 **Parameters:**
-- `other_observable: BaseObservable` - Observable to check binding with
-
-**Returns:** `bool` - True if bound, False otherwise
-
-**Example:**
-```python
-obs1 = ObservableSingleValue(10)
-obs2 = ObservableSingleValue(20)
-
-print(obs1.is_attached_to(obs2))  # False
-
-obs1.link(obs2.hook, "value", "use_caller_value")
-print(obs1.is_attached_to(obs2))  # True
-```
-
-### **Listener Management**
-
-#### **`add_listener(callback)`**
-
-Adds a listener function that will be called when the observable changes.
-
-**Parameters:**
-- `callback: Callable[[], None]` - Function to call on changes
+- `callbacks: Callable[[], None]` - Functions to call when value changes
 
 **Returns:** `None`
 
 **Example:**
 ```python
-obs = ObservableSingleValue(10)
-
-def on_change():
+def on_value_change():
     print(f"Value changed to: {obs.value}")
 
-obs.add_listener(on_change)
+obs = XValue(10)
+obs.add_listener(on_value_change)
+
 obs.value = 20  # Prints: "Value changed to: 20"
 ```
 
-#### **`remove_listener(callback)`**
+#### **`remove_listener(*callbacks)`**
 
-Removes a previously added listener.
+Remove one or more listener callbacks.
 
 **Parameters:**
-- `callback: Callable[[], None]` - Function to remove
+- `callbacks: Callable[[], None]` - Functions to remove
 
 **Returns:** `None`
 
 #### **`remove_all_listeners()`**
 
-Removes all listeners from this observable.
+Remove all listener callbacks.
 
-**Returns:** `None`
+**Returns:** `set[Callable[[], None]]` - Set of removed callbacks
 
-## 🔢 **ObservableSingleValue[T]**
+### **Property Access**
 
-Observable wrapper for single values with bidirectional binding and validation.
+#### **`value` (property)**
+
+Get or set the observable's current value.
+
+#### **`hook` (property)**
+
+Get the observable's hook for linking operations.
+
+# Create linking chain
+obs1.link(obs2.hook, "value", "use_caller_value")
+obs2.link(obs3.hook, "value", "use_caller_value")
+
+# All three observables are now connected in a chain
+obs1.value = 100
+print(obs2.value)  # 100 (connected to obs1)
+print(obs3.value)  # 100 (connected through obs2)
+```
+
+## 🔢 **ObservableSingleValue[T]** (XValue[T])
+
+Observable wrapper for single values with bidirectional linking and validation.
 
 ### **Constructor**
 
 ```python
-def __init__(self, single_value: Union[T, HookProtocol[T]], logger: Optional[Logger] = None)
+# Create with direct value
+obs1 = XValue(42)
+
+# Create with validation
+def validate_age(age: int) -> tuple[bool, str]:
+    return (0 <= age <= 150, "Age must be between 0 and 150")
+
+obs2 = XValue(25, validator=validate_age)
+
+# Create linked to another observable (bidirectional linking)
+obs3 = XValue(obs1)  # Shares storage with obs1
 ```
 
 **Parameters:**
-- `single_value: Union[T, HookProtocol[T]]` - Initial value or hook to bind to
+- `value_or_hook_or_observable`: Initial value, hook to link to, or another observable to link to
+- `validator: Optional[Callable[[T], tuple[bool, str]]]` - Validation function (returns (is_valid, message))
 - `logger: Optional[Logger]` - Logger for debugging
-
-**Example:**
-```python
-# Create with direct value
-obs1 = ObservableSingleValue(42)
-
-# Create bound to another observable
-obs2 = ObservableSingleValue(obs1.value_hook)  # Shares storage with obs1
-```
 
 ### **Properties**
 
-#### **`single_value: T`**
+#### **`value: T`**
 
 The current value. Reading and writing this property maintains bidirectional sync.
 
-**Validation:** Custom validation can be added by overriding `_validate_single_value()`
+**Validation:** Custom validation can be added through the validator function in the constructor.
 
-**Example:**
-```python
-obs = ObservableSingleValue("hello")
-print(obs.value)  # "hello"
 
-obs.value = "world"
-print(obs.value)  # "world"
-```
+## 📋 **ObservableList[T]** (XList[T])
 
-#### **`single_value_hook: HookProtocol[T]`**
-
-Hook providing access to the single value for binding operations.
-
-**Example:**
-```python
-obs1 = ObservableSingleValue(10)
-obs2 = ObservableSingleValue(20)
-
-# Bind using hooks
-obs1.link(obs2.hook, "value", "use_caller_value")
-```
-
-### **Methods**
-
-#### **`set_single_value(value: T)`**
-
-Sets the single value with validation.
-
-**Parameters:**
-- `value: T` - New value to set
-
-**Raises:** `ValueError` - If value fails validation
-
-## 📋 **ObservableList[T]**
-
-Observable wrapper for lists with bidirectional binding and item-level validation.
+Observable wrapper for lists with bidirectional linking and item-level validation.
 
 ### **Constructor**
 
 ```python
-def __init__(self, list_value: Union[List[T], HookProtocol[List[T]]], logger: Optional[Logger] = None)
+# Create with direct value
+obs1 = XList([1, 2, 3])
+
+# Create with validation
+def validate_list(items: list[int]) -> tuple[bool, str]:
+    return (all(x > 0 for x in items), "All items must be positive")
+
+obs2 = XList([1, 2, 3], validator=validate_list)
+
+# Create linked to another observable
+obs3 = XList(obs1)  # Shares storage with obs1
 ```
 
 ### **Properties**
 
-#### **`list_value: List[T]`**
+#### **`value: tuple[T, ...]`**
 
-The current list. Returns a copy to prevent external mutation.
+The current list as an immutable tuple. Returns a tuple to prevent external mutation.
+
+**Note:** Lists are internally stored as immutable tuples for consistency with the hook system.
 
 **Example:**
 ```python
-obs = ObservableList([1, 2, 3])
-print(obs.value)  # [1, 2, 3]
+obs = XList([1, 2, 3])
+print(obs.value)  # (1, 2, 3)
 
-obs.value = [4, 5, 6]
-print(obs.value)  # [4, 5, 6]
+obs.value = (4, 5, 6)  # Note: assign tuple, not list
+print(obs.value)  # (4, 5, 6)
 ```
 
-#### **`list_value_hook: HookProtocol[List[T]]`**
+#### **`hook: Hook[tuple[T, ...]]`**
 
-Hook providing access to the list for binding operations.
+Hook providing access to the list for linking operations.
 
 ### **Methods**
 
 #### **`append(item: T)`**
 
-Appends an item to the list with validation.
+Appends an item to the list (creates new tuple).
 
 #### **`extend(items: Iterable[T])`**
 
@@ -345,39 +318,49 @@ Removes all items from the list.
 
 **Example:**
 ```python
-obs1 = ObservableList([1, 2, 3])
-obs2 = ObservableList([])
+obs1 = XList([1, 2, 3])
+obs2 = XList([])
 
-# Bind lists bidirectionally
-obs1.link(obs2.value_hook, "list_value", "use_caller_value")
+# Link lists bidirectionally
+obs1.link(obs2.hook, "value", "use_caller_value")
 
 # Changes propagate in both directions
 obs1.append(4)
-print(obs2.value)  # [1, 2, 3, 4]
+print(obs2.value)  # (1, 2, 3, 4)
 
 obs2.remove(2)
-print(obs1.value)  # [1, 3, 4]
+print(obs1.value)  # (1, 3, 4)
 ```
 
-## 🗂️ **ObservableDict[K, V]**
+## 🗂️ **ObservableDict[K, V]** (XDict[K, V])
 
-Observable wrapper for dictionaries with bidirectional binding and key-value validation.
+Observable wrapper for dictionaries with bidirectional linking and key-value validation.
 
 ### **Constructor**
 
 ```python
-def __init__(self, dict_value: Union[Dict[K, V], HookProtocol[Dict[K, V]]], logger: Optional[Logger] = None)
+# Create with direct value
+obs1 = XDict({"a": 1, "b": 2})
+
+# Create with validation
+def validate_dict(data: dict[str, int]) -> tuple[bool, str]:
+    return (all(v > 0 for v in data.values()), "All values must be positive")
+
+obs2 = XDict({"x": 1, "y": 2}, validator=validate_dict)
+
+# Create linked to another observable
+obs3 = XDict(obs1)  # Shares storage with obs1
 ```
 
 ### **Properties**
 
-#### **`dict_value: Dict[K, V]`**
+#### **`value: Mapping[K, V]`**
 
-The current dictionary. Returns a copy to prevent external mutation.
+The current dictionary as an immutable mapping.
 
-#### **`dict_value_hook: HookProtocol[Dict[K, V]]`**
+#### **`hook: Hook[Mapping[K, V]]`**
 
-Hook providing access to the dictionary for binding operations.
+Hook providing access to the dictionary for linking operations.
 
 ### **Dictionary Operations**
 
@@ -403,50 +386,52 @@ values = obs.values()
 items = obs.items()
 ```
 
-## 🎯 **ObservableSelectionOption[T]**
+## 🎯 **ObservableSelectionOption[T]** (XSelectionSet[T])
 
 Observable for selecting one option from a set of available options, with rigorous validation.
 
 ### **Constructor**
 
 ```python
-def __init__(
-    self, 
-    selected_option: Union[T, ObservableSelectionOptionProtocol[T]], 
-    available_options: Optional[Union[Set[T], HookProtocol[Set[T]]]] = None,
-    logger: Optional[Logger] = None
-)
+# Create with direct values
+selector1 = XSelectionSet("red", {"red", "green", "blue"})
+
+# Create with validation
+def validate_selection(choice: str, options: frozenset[str]) -> tuple[bool, str]:
+    return (choice in options, f"Must select from: {options}")
+
+selector2 = XSelectionSet("red", {"red", "green", "blue"}, validator=validate_selection)
+
+# Create linked to another observable
+selector3 = XSelectionSet(selector1)  # Shares storage with selector1
 ```
 
 **Parameters:**
-- `selected_option: Union[T, ObservableSelectionOptionProtocol[T]]` - Initial selection or source observable
-- `available_options: Optional[Union[Set[T], HookProtocol[Set[T]]]]` - Available options (optional if binding)
-- `logger: Optional[Logger]` - Logger for debugging
+- `selected_option`: Initial selection or source observable
+- `available_options`: Available options (optional if linking)
+- `validator`: Optional validation function
+- `logger`: Optional logger for debugging
 
 **Validation Rules:**
 - Selected option must always be in available options
 - Available options cannot be empty
-- Selected option cannot be None (use `ObservableOptionalSelectionOption` for None support)
+- Selected option cannot be None (use `XOptionalSelectionSet` for None support)
 
 ### **Properties**
 
-#### **`selected_option: T`**
+#### **`value: T`**
 
 The currently selected option. Must be present in `available_options`.
 
 **Validation:** Automatically enforced - setting invalid option raises `ValueError`
 
-#### **`available_options: Set[T]`**
+#### **`available_options: frozenset[T]`**
 
-The set of available options. Returns a copy to prevent external mutation.
+The set of available options as an immutable frozenset.
 
-#### **`selected_option_hook: HookProtocol[T]`**
+#### **`hook: Hook[T]`**
 
-Hook for the selected option, used for binding operations.
-
-#### **`available_options_hook: HookProtocol[Set[T]]`**
-
-Hook for the available options, used for binding operations.
+Hook for the selected option, used for linking operations.
 
 ### **Methods**
 
@@ -474,14 +459,14 @@ except ValueError as e:
     print(f"Validation error: {e}")
 ```
 
-### **Bidirectional Binding Example**
+### **Bidirectional Linking Example**
 
 ```python
 # Create two selection observables
 primary = ObservableSelectionOption("option1", {"option1", "option2", "option3"})
 secondary = ObservableSelectionOption("option1", {"option1", "option2"})
 
-# Bind selected options bidirectionally
+# Link selected options bidirectionally
 primary.link(secondary.selected_option_hook, "selected_option", "use_caller_value")
 
 # Changes propagate in both directions
@@ -656,7 +641,7 @@ Like `ObservableEnum`, but allows `None` as a valid enum value.
 
 #### **`HookProtocol[T]`** - Base Protocol
 
-The foundation protocol that all hooks must implement. Provides the core interface for value management, binding, and synchronization.
+The foundation protocol that all hooks must implement. Provides the core interface for value management, linking, and synchronization.
 
 **Key Properties:**
 - `nexus_manager: NexusManager` - The nexus manager this hook belongs to
@@ -1020,4 +1005,4 @@ def safe_update_selection(selector, new_option, fallback_option):
 
 ---
 
-This API reference provides comprehensive documentation for all public interfaces, with emphasis on the bidirectional binding capabilities and rigorous validation features that make the Observables library unique and robust.
+This API reference provides comprehensive documentation for all public interfaces, with emphasis on the bidirectional linking capabilities and rigorous validation features that make the Observables library unique and robust.

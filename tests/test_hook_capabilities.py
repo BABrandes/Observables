@@ -28,7 +28,7 @@ class MockObservable(ComplexObservableBase[Any, Any, Any, Any, "MockObservable"]
         """Act on invalidation - required by BaseObservable."""
         pass
     
-    def _get_hook_key(self, hook_or_nexus: Any) -> Any:
+    def _get_key_by_hook_or_nexus(self, hook_or_nexus: Any) -> Any:
         """Get the key for a hook - return a dummy key for any hook."""
         # For testing purposes, return a dummy key
         return "dummy_key"
@@ -86,7 +86,7 @@ class TestHookCapabilities:
         assert hook.value == "test_value"
         
         # The value comes from the hook nexus, so it should be consistent
-        assert hook._get_nexus().value == "test_value"  # type: ignore
+        assert hook._get_nexus().stored_value == "test_value"  # type: ignore
 
     def test_hook_owner_property(self):
         """Test the owner property of hooks."""
@@ -292,7 +292,7 @@ class TestHookCapabilities:
         assert success, f"Submit failed: {message}"
         
         # The value should be updated in the hook nexus
-        assert hook._get_nexus().value  # type: ignore == "new_value"
+        assert hook._get_nexus().stored_value  # type: ignore == "new_value"
 
     def test_hook_submit_value_without_callback(self):
         """Test submit_value on a hook without invalidate callback."""
@@ -894,6 +894,7 @@ class TestHookCapabilities:
             initial_value=["a", "b", "c"],
             logger=logger
         )
+        # Lists are stored as-is (no immutability conversion)
         assert list_hook.value == ["a", "b", "c"]
 
     def test_hook_equality_and_hash(self):

@@ -1,5 +1,4 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
-from immutables import Map
 
 from .observable_dict_base import ObservableDictBase, Hook
 from .protocols import ObservableOptionalSelectionDictProtocol
@@ -123,7 +122,7 @@ class ObservableOptionalSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                        return {"dict": Map(_dict)}
+                        return {"dict": _dict}
                 
                 case (False, True, False):
                     # Key provided - get value from current dict
@@ -144,7 +143,7 @@ class ObservableOptionalSelectionDict(
                     else:
                         _dict = dict(update_values.current["dict"])
                         _dict[update_values.current["key"]] = update_values.submitted["value"]
-                        return {"dict": Map(_dict)}
+                        return {"dict": _dict}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed
@@ -176,8 +175,8 @@ class ObservableOptionalSelectionDict(
                 return False, "Value not in values"
             
             # Check that the dictionary is not None
-            if values["dict"] is None:
-                return False, "Dictionary is None"
+            if values["dict"] is None or not isinstance(values["dict"], Mapping):
+                return False, "Dictionary is None or not a mapping"
 
             if values["key"] is None:
                 # Check that the value is None when the key is None

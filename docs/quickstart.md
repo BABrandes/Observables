@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get up and running with the Observables library in just 5 minutes! This guide covers the essential concepts and patterns you need to build reactive applications with guaranteed bidirectional binding and rigorous state validation.
+Get up and running with the Observables library in just 5 minutes! This guide covers the essential concepts and patterns you need to build reactive applications with guaranteed bidirectional linking and rigorous state validation.
 
 > **⚠️ DEVELOPMENT STATUS WARNING**
 > 
@@ -55,7 +55,7 @@ username.add_listener(on_username_change)
 username.value = "Bob"  # Prints: "Username changed to: Bob"
 ```
 
-## 🔄 **2. Bidirectional Binding**
+## 🔄 **2. Bidirectional Linking**
 
 Connect two observables so changes propagate in both directions:
 
@@ -66,7 +66,7 @@ from observables import XValue
 primary_name = XValue("Initial")
 display_name = XValue("Display")
 
-# Bind them bidirectionally
+# Link them bidirectionally
 # The third parameter specifies initial sync mode:
 # - "use_caller_value": Use the caller's current value
 # - "use_target_value": Use the target's current value
@@ -193,7 +193,7 @@ class UserProfileForm:
         # Validation state
         self.is_valid = XValue(False)
         
-        # Bind form fields to display fields
+        # Link form fields to display fields
         self.name.link(self.display_name.hook, "value", "use_caller_value")
         self.email.link(self.header_email.hook, "value", "use_caller_value")
         
@@ -247,9 +247,9 @@ except ValueError as e:
 form.print_status()
 ```
 
-## 🔧 **6. Atomic Multi-Component Binding**
+## 🔧 **6. Atomic Multi-Component Linking**
 
-When working with observables that have multiple dependent components (like selection options), use `connect_multiple` for atomic binding:
+When working with observables that have multiple dependent components (like selection options), use `link_many` for atomic linking:
 
 ```python
 from observables import ObservableSelectionOption
@@ -258,11 +258,11 @@ from observables import ObservableSelectionOption
 user_preferences = ObservableSelectionOption("dark", {"dark", "light", "auto"})
 display_settings = ObservableSelectionOption("blue", {"blue", "red", "green"})
 
-# ❌ Individual binding might cause validation conflicts
+# ❌ Individual linking might cause validation conflicts
 # user_preferences.link(display_settings.selected_option_hook, "selected_option", "use_target_value")
 # user_preferences.link(display_settings.available_options_hook, "available_options", "use_target_value")
 
-# ✅ Atomic binding prevents validation conflicts
+# ✅ Atomic linking prevents validation conflicts
 user_preferences.connect_hooks({
     "selected_option": display_settings.selected_option_hook,
     "available_options": display_settings.available_options_hook
@@ -278,13 +278,13 @@ print(f"Display settings updated: {display_settings.selected_option}")  # "red"
 ```
 
 **Why Use connect_multiple:**
-- **Prevents validation errors** during binding
+- **Prevents validation errors** during linking
 - **Atomic operation** - all components update together
-- **Better performance** than sequential binding
+- **Better performance** than sequential linking
 
 ## 🔧 **7. Essential Patterns**
 
-### **Pattern 1: Conditional Binding**
+### **Pattern 1: Conditional Linking**
 
 ```python
 # Create observables for different modes
@@ -350,18 +350,18 @@ print(f"obs3: {obs3.value}")  # "Updated" (still connected to obs1)
 - `ObservableDict[K, V]` - Dictionaries
 - `ObservableSet[T]` - Sets
 
-### **Binding Methods**
-- `link(hook, to_key, initial_sync_mode)` - Bind to another observable
-- `connect_hooks(hooks_dict, initial_sync_mode)` - Atomically bind multiple components
-- `detach()` - Disconnect from all bindings
-- `is_linked_to(hook)` - Check if bound to another hook
+### **Linking Methods**
+- `link(hook, to_key, initial_sync_mode)` - Link to another observable
+- `link_many(hooks_dict, initial_sync_mode)` - Atomically link multiple components
+- No disconnect method needed - linking is permanent
+- No check method needed - linking relationships are explicit
 
 ### **Initial Sync Modes**
 
-When binding observables, you specify which value to use for the initial synchronization using string literals:
+When linking observables, you specify which value to use for the initial synchronization using string literals:
 
-- `"use_caller_value"` - Use the caller's current value for initial synchronization. After binding, the target observable will adopt the caller's value.
-- `"use_target_value"` - Use the target's current value for initial synchronization. After binding, the caller observable will adopt the target's value.
+- `"use_caller_value"` - Use the caller's current value for initial synchronization. After linking, the target observable will adopt the caller's value.
+- `"use_target_value"` - Use the target's current value for initial synchronization. After linking, the caller observable will adopt the target's value.
 
 Example:
 ```python
@@ -391,10 +391,10 @@ You now know the fundamentals! Ready to dive deeper?
 
 ## 💡 **Key Takeaways**
 
-- **Bidirectional Binding**: Changes propagate in both directions automatically
+- **Bidirectional Linking**: Changes propagate in both directions automatically
 - **State Validation**: Invalid states are rejected immediately
-- **Network Formation**: Complex networks form automatically through transitive binding
-- **Shared Storage**: Bound observables share the same underlying storage (Nexus)
+- **Network Formation**: Complex networks form automatically through transitive linking
+- **Shared Storage**: Linked observables share the same underlying storage (Nexus)
 - **Memory Efficient**: Values are stored once, referenced multiple times
 
 Start building reactive applications with guaranteed consistency and automatic synchronization! 🚀

@@ -14,32 +14,32 @@ T = TypeVar("T")
 
 class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any, "ObservableSingleValue"], ObservableSingleValueProtocol[T], Generic[T]):
     """
-    Observable wrapper for a single value with validation and bidirectional binding.
-    
+    Observable wrapper for a single value with validation and bidirectional linking.
+
     ObservableSingleValue wraps any value type in a reactive container that supports
     listeners, validation, and bidirectional synchronization. It's the simplest and
     most commonly used observable type.
-    
+
     Type Parameters:
         T: The type of value being stored. Can be any Python type - int, str, float,
-           list, dict, custom objects, etc. The type is preserved through binding and
+           list, dict, custom objects, etc. The type is preserved through linking and
            validated through the validator function if provided.
-    
+
     Multiple Inheritance:
         - BaseObservable: Core observable functionality with hook management
         - ObservableSingleValueProtocol[T]: Protocol for single value interface
         - ObservableSerializable: Support for serialization callbacks
         - Generic[T]: Type-safe value storage and operations
-    
+
     Three Notification Mechanisms:
         1. **Listeners**: Synchronous callbacks via `add_listeners()`
         2. **Subscribers**: Async notifications via `add_subscriber()` (if Publisher mixin)
-        3. **Connected Hooks**: Bidirectional sync via `connect_hook()`
-    
+        3. **Connected Hooks**: Bidirectional sync via `link()`
+
     Key Features:
         - **Type Safety**: Full generic type support with type checking
         - **Validation**: Optional validator function called before value changes
-        - **Bidirectional Binding**: Changes propagate in both directions
+        - **Bidirectional Linking**: Changes propagate in both directions
         - **Listener Notifications**: Callbacks triggered on value changes
         - **Thread Safety**: All operations protected by NexusManager's lock
         - **Memory Efficient**: Shares centralized storage via HookNexus
@@ -67,19 +67,19 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
             except ValueError as e:
                 print(f"Validation failed: {e}")
         
-        Bidirectional binding::
-        
+        Bidirectional linking::
+
             # Create two observables
             celsius = ObservableSingleValue(25.0)
             display = ObservableSingleValue(0.0)
-            
-            # Bind them - display adopts celsius value
-            celsius.connect_hook(display.hook, "value", "use_caller_value")
-            
+
+            # Link them - display adopts celsius value
+            celsius.link(display.hook, "value", "use_caller_value")
+
             # Changes propagate bidirectionally
             celsius.value = 30.0
             print(display.value)  # 30.0
-            
+
             display.value = 20.0
             print(celsius.value)  # 20.0
         
@@ -99,12 +99,12 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
     
     @overload
     def __init__(self, hook: Hook[T]|ReadOnlyHook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
-        """Initialize with another observable, establishing a bidirectional binding."""
+        """Initialize with another observable, establishing a bidirectional linking."""
         ...
 
     @overload
     def __init__(self, observable: ObservableSingleValueProtocol[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None:
-        """Initialize with another observable, establishing a bidirectional binding."""
+        """Initialize with another observable, establishing a bidirectional linking."""
         ...
 
     def __init__(self, observable_or_hook_or_value: T | Hook[T]|ReadOnlyHook[T], validator: Optional[Callable[[T], tuple[bool, str]]] = None, logger: Optional[Logger] = None) -> None: # type: ignore
@@ -114,14 +114,14 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
         This constructor supports three initialization patterns:
         
         1. **Direct value**: Pass a value directly
-        2. **From hook**: Pass a Hook to bind to
-        3. **From observable**: Pass another ObservableSingleValue to bind to
+        2. **From hook**: Pass a Hook to link to
+        3. **From observable**: Pass another ObservableSingleValue to link to
         
         Args:
             observable_or_hook_or_value: Can be one of three types:
                 - T: A direct value (int, str, list, custom object, etc.)
-                - Hook[T]: A hook to bind to (establishes bidirectional connection)
-                - ObservableSingleValueProtocol[T]: Another observable to bind to
+                - Hook[T]: A hook to link to (establishes bidirectional connection)
+                - ObservableSingleValueProtocol[T]: Another observable to link to
             validator: Optional validation function that takes a value and returns
                 (success: bool, message: str). Called before any value change.
                 If validation fails (success=False), the change is rejected with
@@ -139,7 +139,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
                 # 1. Direct value
                 age = ObservableSingleValue(25)
                 
-                # 2. From another observable (creates binding)
+                # 2. From another observable (creates linking)
                 age_copy = ObservableSingleValue(age)
                 age_copy.value = 30  # Both update to 30
                 
@@ -249,8 +249,8 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
     def hook(self) -> Hook[T]:
         """
         Get the hook for the value.
-        
-        This hook can be used for binding operations with other observables.
+
+        This hook can be used for linking operations with other observables.
         """
         return self._single_value_hook
 
@@ -264,7 +264,7 @@ class ObservableSingleValue(ComplexObservableBase[Literal["value"], Any, T, Any,
     @value.setter
     def value(self, value: T) -> None:
         """
-        Set a new value, triggering validation, binding updates, and listener notifications.
+        Set a new value, triggering validation, linking updates, and listener notifications.
         
         Args:
             value: The new value to set

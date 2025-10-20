@@ -36,7 +36,7 @@ class ObservableFunction(ListeningBase, CarriesHooksBase[SHK, SHV, "ObservableFu
     1. **Complete State Access**: The function receives both submitted_values (what changed) 
        and current_values (complete current state) to compute synchronized values.
     
-    2. **Bidirectional Sync**: Can connect to external hooks for bidirectional data flow, 
+    2. **Bidirectional Sync**: Can connect to external hooks for bidirectional data flow,
        ensuring all connected observables stay synchronized.
     
     3. **Type Safety**: Full generic type support for hook keys and values.

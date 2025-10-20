@@ -195,5 +195,6 @@ except ImportError:
 # =============================================================================
 
 DEFAULT_NEXUS_MANAGER: "NexusManager" = NexusManager(
-    value_equality_callbacks=_value_equality_callbacks
+    value_equality_callbacks=_value_equality_callbacks,
+    registered_immutable_types=set()
 )

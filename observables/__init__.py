@@ -142,7 +142,7 @@ from ._observables.dict_like.observable_dict import ObservableDict
 from ._observables.dict_like.protocols import ObservableDictProtocol, ObservableSelectionDictProtocol, ObservableOptionalSelectionDictProtocol, ObservableDefaultSelectionDictProtocol, ObservableOptionalDefaultSelectionDictProtocol
 
 from ._observables.complex.observable_rooted_paths import ObservableRootedPaths
-from ._observables.complex.observable_raise_none import ObservableRaiseNone
+from ._observables.complex.observable_block_none import ObservableBlockNone
 from ._observables.complex.observable_subscriber import ObservableSubscriber
 
 from ._hooks.floating_hook import FloatingHook
@@ -178,7 +178,7 @@ XFunction = ObservableSync
 XOneWayFunction = ObservableOneWayFunction
 
 XRootedPaths = ObservableRootedPaths
-XRaiseNone = ObservableRaiseNone
+XBlockNone = ObservableBlockNone
 XSubscriber = ObservableSubscriber
 
 # Protocol aliases
@@ -213,7 +213,7 @@ __all__ = [
     'XFunction',
     'XOneWayFunction',
     'XRootedPaths',
-    'XRaiseNone',
+    'XBlockNone',
     'XSubscriber',
     
     # Modern protocol aliases
@@ -240,7 +240,7 @@ __all__ = [
     'ObservableDefaultSelectionDict',
     'ObservableOptionalDefaultSelectionDict',
     'ObservableRootedPaths',
-    'ObservableRaiseNone',
+    'ObservableBlockNone',
     'ObservableSubscriber',
     
     # Legacy protocols (DEPRECATED)

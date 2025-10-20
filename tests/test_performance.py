@@ -37,7 +37,7 @@ class TestCachePerformance:
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
-            obs.link(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
+            obs.link(main_obs.hook, "use_caller_value")  # type: ignore
             bound_observables.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
@@ -45,7 +45,7 @@ class TestCachePerformance:
         
         # Time the first call (should do linear search + populate cache)
         def first_call() -> str:
-            return main_obs.get_hook_key(hook) # type: ignore
+            return main_obs._get_key_by_hook_or_nexus(hook) # type: ignore
         
         result1, time1 = time_operation(first_call)
         assert result1 == "value"
@@ -54,7 +54,7 @@ class TestCachePerformance:
         times: list[float] = []
         for _ in range(10):
             def cached_call() -> str:
-                return main_obs.get_hook_key(hook) # type: ignore
+                return main_obs._get_key_by_hook_or_nexus(hook) # type: ignore
             
             result, elapsed = time_operation(cached_call)
             assert result == "value"
@@ -79,7 +79,7 @@ class TestCachePerformance:
         
         # Time first access to secondary hook key lookup
         def first_secondary_lookup() -> str:
-            return obs_list.get_hook_key(length_hook) # type: ignore
+            return obs_list._get_key_by_hook_or_nexus(length_hook) # type: ignore
         
         result1, time1 = time_operation(first_secondary_lookup)
         assert result1 == "length"
@@ -88,7 +88,7 @@ class TestCachePerformance:
         times: list[float] = []
         for _ in range(10):
             def cached_secondary_lookup() -> str:
-                return obs_list.get_hook_key(length_hook) # type: ignore
+                return obs_list._get_key_by_hook_or_nexus(length_hook) # type: ignore
             
             result, elapsed = time_operation(cached_secondary_lookup)
             assert result == "length"
@@ -155,7 +155,7 @@ class TestScalabilityPerformance:
             
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
-                obs.link(main_obs.get_hook("value"), "value", "use_caller_value")  # type: ignore
+                obs.link(main_obs.hook, "use_caller_value")  # type: ignore
                 bound_observables.append(obs)
             
             binding_time = time.perf_counter() - start_time
@@ -228,12 +228,12 @@ class TestScalabilityPerformance:
         
         # Create a simpler binding pattern that avoids nexus conflicts
         # Connect obs_single to obs_list.length_hook
-        obs_single.link(obs_list.length_hook, "value", "use_target_value")  # type: ignore
+        obs_single.link(obs_list.length_hook, "use_target_value")  # type: ignore
         
         # Create a separate binding for obs_dict to avoid conflicts
         # Use a different approach: bind obs_dict.length_hook to a new observable
         obs_dict_tracker = ObservableSingleValue(1)
-        obs_dict.length_hook.link(obs_dict_tracker.hook, "use_caller_value")  # type: ignore
+        obs_dict_tracker.link(obs_dict.length_hook, "use_target_value")  # type: ignore
         
         # Time complex operations
         def complex_operation():

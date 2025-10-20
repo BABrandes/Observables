@@ -3,7 +3,6 @@ import logging
 import weakref
 
 from .._utils import log
-from .._nexus_system.immutable_values import check_and_convert_to_immutable
 
 if TYPE_CHECKING:
     from .._hooks.mixin_protocols.hook_with_connection_protocol import HookWithConnectionProtocol
@@ -112,11 +111,8 @@ class Nexus(Generic[T]):
 
         self._nexus_manager: "NexusManager" = nexus_manager
         self._hooks: set[weakref.ref["HookWithConnectionProtocol[T]"]] = {weakref.ref(hook) for hook in hooks}
-        error_msg, immutable_value = check_and_convert_to_immutable(value, nexus_manager)
-        if error_msg is not None:
-            raise ValueError(f"Value of type {type(value).__name__} cannot be made immutable: {error_msg}")
-        self._value: T = immutable_value
-        self._previous_value: T = immutable_value
+        self._stored_value: T = value
+        self._previous_stored_value: T = value
         self._logger: Optional[logging.Logger] = logger
         self._submit_depth_counter: int = 0
         self._submit_touched_hooks: set["HookWithConnectionProtocol[T]"] = set()
@@ -169,27 +165,25 @@ class Nexus(Generic[T]):
         return tuple(self._get_hooks())
     
     @property
-    def value(self) -> T:
+    def stored_value(self) -> Any:
         """
-        Get the value of the hook nexus.
+        Get the value of the Nexus.
 
         Returns:
-            The immutable value stored in this nexus.
+            The value stored in this Nexus.
             
-        Note:
-            All values are automatically converted to immutable forms by the nexus system:
-            - dict → immutables.Map
-            - list → tuple  
-            - set → frozenset
-            - Primitives and frozen dataclasses remain unchanged
-            
-            Since values are immutable, it's safe to use them directly without copying.
         """
-        return self._value
+        return self._stored_value
 
     @property
-    def previous_value(self) -> T:
-        return self._previous_value
+    def previous_stored_value(self) -> Any:
+        """
+        Get the previous stored value of the Nexus.
+
+        Returns:
+            The previous value stored in this Nexus.
+        """
+        return self._previous_stored_value
 
     @staticmethod
     def _merge_nexuses(*nexuses: "Nexus[T]") -> "Nexus[T]":
@@ -214,7 +208,7 @@ class Nexus(Generic[T]):
             raise ValueError("No hook nexuses provided")
         
         # Get the first hook nexus's value as the reference
-        reference_value = nexuses[0]._value
+        reference_value = nexuses[0]._stored_value
 
         # Check that all nexus managers are the same
         for nexus in nexuses:
@@ -243,7 +237,10 @@ class Nexus(Generic[T]):
             list_of_hook_nexus.append(hook_nexus)  # Store for later use
         
         # Create new merged nexus with the reference value
-        merged_nexus: Nexus[T] = Nexus[T](reference_value, nexus_manager=nexus_manager)
+        merged_nexus: Nexus[T] = Nexus[T](
+            value=reference_value,
+            nexus_manager=nexus_manager,
+        )
         
         # Add all hooks to the merged nexus (reuse the already computed hook sets)
         for hook_nexus in list_of_hook_nexus:
@@ -290,7 +287,7 @@ class Nexus(Generic[T]):
         for hook_pair in hook_pairs:
             nexus_to_take_value_from: Nexus[Any] = hook_pair[0]._get_nexus() # type: ignore
             nexus_to_be_updated: Nexus[Any] = hook_pair[1]._get_nexus() # type: ignore
-            nexus_and_values[nexus_to_be_updated] = nexus_to_take_value_from.value # type: ignore
+            nexus_and_values[nexus_to_be_updated] = nexus_to_take_value_from.stored_value # type: ignore
         success, msg = nexus_manager.submit_values(nexus_and_values)  # type: ignore
         if not success:
             raise ValueError(msg)  # type: ignore
@@ -357,8 +354,8 @@ class Nexus(Generic[T]):
 
     def __repr__(self) -> str:
         """Get the string representation of this hook nexus."""
-        return f"HookNexus(v={self.value}, id={id(self)}, {len(self._get_hooks())} hooks)"
+        return f"HookNexus(v={self.stored_value}, id={id(self)}, {len(self._get_hooks())} hooks)"
     
     def __str__(self) -> str:
         """Get the string representation of this hook nexus."""
-        return f"HookNexus(v={self.value}, id={id(self)})"
+        return f"HookNexus(v={self.stored_value}, id={id(self)})"

@@ -88,34 +88,34 @@ class TestObservableSelectionDict:
         )
         
         # Test get_hook_keys - now includes secondary hooks
-        keys = selection_dict.get_hook_keys()
+        keys = selection_dict._get_hook_keys() # type: ignore
         assert keys == {"dict", "key", "value", "keys", "values", "length"}
         
         # Test get_hook
-        dict_hook = selection_dict.get_hook("dict")
-        key_hook = selection_dict.get_hook("key")
-        value_hook = selection_dict.get_hook("value")
+        dict_hook = selection_dict._get_hook_by_key("dict") # type: ignore
+        key_hook = selection_dict._get_hook_by_key("key") # type: ignore
+        value_hook = selection_dict._get_hook_by_key("value") # type: ignore
         
         assert dict_hook is not None
         assert key_hook is not None
         assert value_hook is not None
         
         # Test secondary hooks
-        assert selection_dict.keys == frozenset({"a", "b"})
-        assert selection_dict.values == (1, 2)
+        assert selection_dict.keys == {"a", "b"}
+        assert selection_dict.values == [1, 2]
         assert selection_dict.length == 2
         
         # Test get_hook_value_as_reference
         # Dict is now stored as MappingProxyType, so compare contents
-        dict_value = selection_dict.get_value_reference_of_hook("dict")
+        dict_value = selection_dict._get_value_by_key("dict") # type: ignore
         assert dict(dict_value) == test_dict  # type: ignore[arg-type]
-        assert selection_dict.get_value_reference_of_hook("key") == "a"
-        assert selection_dict.get_value_reference_of_hook("value") == 1
+        assert selection_dict._get_value_by_key("key") == "a" # type: ignore
+        assert selection_dict._get_value_by_key("value") == 1 # type: ignore
         
         # Test get_hook_key
-        assert selection_dict.get_hook_key(dict_hook) == "dict"
-        assert selection_dict.get_hook_key(key_hook) == "key"
-        assert selection_dict.get_hook_key(value_hook) == "value"
+        assert selection_dict._get_hook_by_key(dict_hook) == "dict" # type: ignore
+        assert selection_dict._get_hook_by_key(key_hook) == "key" # type: ignore
+        assert selection_dict._get_hook_by_key(value_hook) == "value" # type: ignore
 
     def test_value_properties(self):
         """Test value and key properties."""
@@ -132,11 +132,11 @@ class TestObservableSelectionDict:
         assert selection_dict.key == "a"
         
         # Test setting values
-        selection_dict.value = 999
+        selection_dict.change_value(999)
         assert selection_dict.value == 999
         assert selection_dict.dict_hook.value["a"] == 999
         
-        selection_dict.key = "b"
+        selection_dict.change_key("b")
         assert selection_dict.key == "b"
         assert selection_dict.value == 2  # Should update to new key's value
 
@@ -159,7 +159,7 @@ class TestObservableSelectionDict:
         assert selection_dict.value == 2
         
         # Disconnect
-        selection_dict.disconnect_hook("key")
+        selection_dict._unlink("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_verification_method(self):
@@ -216,14 +216,14 @@ class TestObservableSelectionDict:
         )
         
         # Change key
-        selection_dict.key = "b"
+        selection_dict.change_key("b")
         assert selection_dict.value == 2
         
         # Change dict to include the current key
         from types import MappingProxyType
         selection_dict.dict_hook.submit_value(MappingProxyType({"b": 200, "x": 100, "y": 300}))
         # Now we can set the key to "x" since "b" is still valid
-        selection_dict.key = "x"
+        selection_dict.change_key("x")
         assert selection_dict.value == 100
 
     def test_value_change_propagation(self):
@@ -237,7 +237,7 @@ class TestObservableSelectionDict:
         )
         
         # Change value
-        selection_dict.value = 999
+        selection_dict.change_value(999)
         assert selection_dict.dict_hook.value["a"] == 999
         assert selection_dict.value == 999
 
@@ -342,16 +342,16 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value is None
         
         # Set key to a valid value - should get value from dict
-        selection_dict.key = "a"
+        selection_dict.change_key("a")
         assert selection_dict.value == 1
         
         # Set value to None for a non-None key - should work
-        selection_dict.value = None
+        selection_dict.change_value(None)
         assert selection_dict.key == "a"
         assert selection_dict.value is None
         
         # Set key back to None - value should automatically be None
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.key is None
         assert selection_dict.value is None
 
@@ -366,7 +366,7 @@ class TestObservableOptionalSelectionDict:
         )
         
         # Test get_hook_keys - now includes secondary hooks
-        keys = selection_dict.get_hook_keys()
+        keys = selection_dict._get_hook_keys() # type: ignore
         assert keys == {"dict", "key", "value", "keys", "values", "length"}
         
         # Test secondary hooks provide read-only access
@@ -375,7 +375,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.length == 2
         
         # Test get_hook_value_as_reference - setting key to None sets value to None
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.value is None
 
     def test_verification_method_optional(self):
@@ -396,7 +396,7 @@ class TestObservableOptionalSelectionDict:
         assert success
         
         # Test None key - should be valid and set value to None
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.value is None
         # Dictionary should remain unchanged
         assert selection_dict.dict_hook.value == test_dict
@@ -421,12 +421,12 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.key == "a"
         
         # Test setting value to None for a non-None key - should work
-        selection_dict.value = None
+        selection_dict.change_value(None)
         assert selection_dict.key == "a"
         assert selection_dict.value is None
         
         # Test setting key to None - should work and value should be None
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.key is None
         assert selection_dict.value is None
 
@@ -441,11 +441,11 @@ class TestObservableOptionalSelectionDict:
         )
         
         # Test setting key to None - should set value to None
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.value is None
         # Setting key back to "a" and value to 999 should work
-        selection_dict.key = "a"
-        selection_dict.value = 999
+        selection_dict.change_key("a")
+        selection_dict.change_value(999)
         assert selection_dict.value == 999
 
     def test_collective_hooks_optional(self):
@@ -511,7 +511,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value == 42
         
         # Test switching to None (must do key first, then value)
-        selection_dict.key = None
+        selection_dict.change_key(None)
         assert selection_dict.key is None
         assert selection_dict.value is None
 
@@ -531,7 +531,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value == 50000
         
         # Test switching to another key
-        selection_dict.key = "key_999"
+        selection_dict.change_key("key_999")
         assert selection_dict.value == 99900
 
     def test_complex_value_types(self):
@@ -553,10 +553,10 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value == [1, 2, 3]
         
         # Test switching to different complex types
-        selection_dict.key = "dict"
+        selection_dict.change_key("dict")
         assert selection_dict.value == {"nested": "value"}
         
-        selection_dict.key = "tuple"
+        selection_dict.change_key("tuple")
         assert selection_dict.value == (1, 2, 3)
 
     def test_concurrent_modifications(self):
@@ -575,7 +575,7 @@ class TestObservableOptionalSelectionDict:
         # Observable should be isolated from external mutation
         # Key "d" should NOT be available
         with pytest.raises(KeyError):
-            selection_dict.key = "d"
+            selection_dict.change_key("d")
         
         # Update dict properly through the API
         new_dict = {"b": 2, "c": 3, "d": 4}  # Remove key "a", add "d"
@@ -584,7 +584,7 @@ class TestObservableOptionalSelectionDict:
         
         # Should not be able to switch back to removed key
         with pytest.raises(KeyError):
-            selection_dict.key = "a"
+            selection_dict.change_key("a")
 
     def test_set_dict_and_key_method(self):
         """Test the set_dict_and_key method for both classes."""
@@ -682,7 +682,7 @@ class TestObservableOptionalSelectionDict:
         
         # Test rapid successive changes
         for key in ["b", "c", "a"]:
-            selection_dict.key = key
+            selection_dict.change_key(key)
             assert selection_dict.key == key
             assert selection_dict.value == test_dict[key]
 
@@ -698,13 +698,13 @@ class TestObservableOptionalSelectionDict:
         
         # Test clear error message for invalid key
         try:
-            selection_dict.key = None  # Should fail because value is not None
+            selection_dict.change_key(None)# Should fail because value is not None
         except ValueError as e:
             assert "Cannot set key to None when current value is" in str(e)
         
         # Test clear error message for invalid value
         try:
-            selection_dict.value = None  # Should fail because key is not None
+            selection_dict.change_value(None)# Should fail because key is not None
         except ValueError as e:
             assert "Cannot set value to None when current key is" in str(e)
 
@@ -721,14 +721,14 @@ class TestObservableOptionalSelectionDict:
         # Rapidly change keys
         for i in range(0, 100, 10):
             key = f"key_{i}"
-            selection_dict.key = key
+            selection_dict.change_key(key)
             assert selection_dict.key == key
             assert selection_dict.value == i
         
         # Rapidly change values
         for i in range(0, 100, 5):
             new_value = i * 1000
-            selection_dict.value = new_value
+            selection_dict.change_value(new_value)
             # Verify dict was updated
             current_key = selection_dict.key
             assert current_key is not None
@@ -749,7 +749,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.value == 1
         
         # Test switching between string keys
-        selection_dict.key = "2"
+        selection_dict.change_key("2")
         assert selection_dict.value == 2
 
     def test_destroy_cleanup(self):

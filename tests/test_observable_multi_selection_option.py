@@ -18,34 +18,34 @@ class TestObservableMultiSelectionOption:
     
     def test_set_selected_options(self):
         """Test setting new selected options"""
-        self.observable.selected_options = {"Banana", "Cherry"}
+        self.observable.change_selected_options({"Banana", "Cherry"})
         assert self.observable.selected_options == {"Banana", "Cherry"}
     
     def test_set_available_options(self):
         """Test setting new available options"""
         # First clear selected options to avoid validation error
-        self.observable.selected_options = set()
+        self.observable.change_selected_options(set())
         new_options = {"Apple", "Orange", "Grape"}
-        self.observable.available_options = new_options
+        self.observable.change_available_options(new_options)
         assert self.observable.available_options == new_options
     
     def test_listener_notification(self):
         """Test that listeners are notified when value changes"""
         self.observable.add_listener(self.notification_callback)
-        self.observable.selected_options = {"Cherry"}
+        self.observable.change_selected_options({"Cherry"})
         assert self.notification_count == 1
     
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
         self.observable.add_listener(self.notification_callback)
-        self.observable.selected_options = {"Apple", "Banana"}  # Same value
+        self.observable.change_selected_options({"Apple", "Banana"})# Same value
         assert self.notification_count == 0
     
     def test_remove_listeners(self):
         """Test removing a listener"""
         self.observable.add_listener(self.notification_callback)
         self.observable.remove_listener(self.notification_callback)
-        self.observable.selected_options = {"Banana"}
+        self.observable.change_selected_options({"Banana"})
         assert self.notification_count == 0
     
     def test_multiple_listeners(self):
@@ -62,7 +62,7 @@ class TestObservableMultiSelectionOption:
         
         self.observable.add_listener(callback1)
         self.observable.add_listener(callback2)
-        self.observable.selected_options = {"Cherry"}
+        self.observable.change_selected_options({"Cherry"})
         
         assert count1 == 1
         assert count2 == 1
@@ -80,11 +80,11 @@ class TestObservableMultiSelectionOption:
         assert target.available_options == {"Red", "Green", "Blue"}
         
         # Check that they are bound together
-        source.selected_options = {"Green", "Blue"}
+        source.change_selected_options({"Green", "Blue"})
         assert target.selected_options == {"Green", "Blue"}
         
         # Check bidirectional binding
-        target.selected_options = {"Red", "Blue"}
+        target.change_selected_options({"Red", "Blue"})
         assert source.selected_options == {"Red", "Blue"}
     
     def test_initialization_with_carries_bindable_multi_selection_option_chain(self):
@@ -100,13 +100,13 @@ class TestObservableMultiSelectionOption:
         assert obs3.selected_options == {"Small"}
         
         # Change the first observable
-        obs1.selected_options = {"Medium"}
+        obs1.change_selected_options({"Medium"})
         assert obs1.selected_options == {"Medium"}
         assert obs2.selected_options == {"Medium"}
         assert obs3.selected_options == {"Medium"}
         
         # Change the middle observable
-        obs2.selected_options = {"Small", "Medium"}
+        obs2.change_selected_options({"Small", "Medium"})
         assert obs1.selected_options == {"Small", "Medium"}
         assert obs2.selected_options == {"Small", "Medium"}
         assert obs3.selected_options == {"Small", "Medium"}
@@ -118,18 +118,18 @@ class TestObservableMultiSelectionOption:
         
         # Verify they are bound
         assert target.selected_options == {"Red"}
-        source.selected_options = {"Green"}
+        source.change_selected_options({"Green"})
         assert target.selected_options == {"Green"}
         
         # Unbind them
         target.unlink()
         
         # Change source, target should not update
-        source.selected_options = {"Green"}
+        source.change_selected_options({"Green"})
         assert target.selected_options == {"Green"}  # Should remain unchanged
         
         # Change target, source should not update
-        target.selected_options = {"Red"}
+        target.change_selected_options({"Red"})
         assert source.selected_options == {"Green"}  # Should remain unchanged
     
     def test_initialization_with_carries_bindable_multi_selection_option_multiple_targets(self):
@@ -145,13 +145,13 @@ class TestObservableMultiSelectionOption:
         assert target3.selected_options == {"Red"}
         
         # Change source, all targets should update
-        source.selected_options = {"Green"}
+        source.change_selected_options({"Green"})
         assert target1.selected_options == {"Green"}
         assert target2.selected_options == {"Green"}
         assert target3.selected_options == {"Green"}
         
         # Change one target, source and other targets should update
-        target1.selected_options = {"Red"}
+        target1.change_selected_options({"Red"})
         assert source.selected_options == {"Red"}
         assert target2.selected_options == {"Red"}
         assert target3.selected_options == {"Red"}
@@ -201,7 +201,7 @@ class TestObservableMultiSelectionOption:
         
         # Verify the last target is properly bound
         target = ObservableMultiSelectionOption[str](source)
-        source.selected_options = {"Green"}
+        source.change_selected_options({"Green"})
         assert target.selected_options == {"Green"}
     
     def test_binding_bidirectional(self):
@@ -217,16 +217,16 @@ class TestObservableMultiSelectionOption:
         assert obs1.available_options == {"Red", "Green", "Blue"}
         
         # Change obs1, obs2 should update
-        obs1.selected_options = {"Green"}
+        obs1.change_selected_options({"Green"})
         assert obs2.selected_options == {"Green"}
         
         # Change obs2 to a valid option, obs1 should also update (bidirectional)
-        obs2.selected_options = {"Red"}  # Red is valid in both sets
+        obs2.change_selected_options({"Red"})# Red is valid in both sets
         assert obs1.selected_options == {"Red"}
         
         # Try to set obs2 to an invalid option, should raise ValueError
         with pytest.raises(ValueError):
-            obs2.selected_options = {"Yellow"}  # "Yellow" not in {"Red", "Green", "Blue"}
+            obs2.change_selected_options({"Yellow"})# "Yellow" not in {"Red", "Green", "Blue"}
     
     def test_binding_initial_sync_modes(self):
         """Test different initial sync modes"""
@@ -265,7 +265,7 @@ class TestObservableMultiSelectionOption:
         assert obs1.available_options == {"Red", "Green", "Blue"}
         
         # Changes should no longer propagate
-        obs1.selected_options = {"Green"}
+        obs1.change_selected_options({"Green"})
         assert obs1.selected_options == {"Green"}  # obs1 can change itself
         assert obs2.selected_options == {"Blue"}  # obs2 should remain unchanged
     
@@ -286,7 +286,7 @@ class TestObservableMultiSelectionOption:
         obs2.connect_hook(obs3.selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
         # Verify chain works
-        obs1.selected_options = {"Green"}
+        obs1.change_selected_options({"Green"})
         assert obs2.selected_options == {"Green"}
         assert obs3.selected_options == {"Green"}
         
@@ -295,12 +295,12 @@ class TestObservableMultiSelectionOption:
         
         # Change obs1, obs2 should NOT update (obs2 is now detached from everything)
         # But obs3 should still update because obs1 and obs3 are still bound (transitive binding)
-        obs1.selected_options = {"Red"}
+        obs1.change_selected_options({"Red"})
         assert obs2.selected_options == {"Green"}  # Should remain unchanged
         assert obs3.selected_options == {"Red"}  # Should update due to transitive binding
         
         # Change obs3, obs1 should update (transitive binding), obs2 should not
-        obs3.selected_options = {"Blue"}
+        obs3.change_selected_options({"Blue"})
         assert obs1.selected_options == {"Blue"}  # Should update due to transitive binding
         assert obs2.selected_options == {"Green"}  # Should remain unchanged
     
@@ -333,12 +333,12 @@ class TestObservableMultiSelectionOption:
         obs3.connect_hook(obs1.selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
         # Change obs1, both should update
-        obs1.selected_options = {"Green"}
+        obs1.change_selected_options({"Green"})
         assert obs2.selected_options == {"Green"}
         assert obs3.selected_options == {"Green"}
         
         # Change obs2, obs1 should also update (bidirectional), obs3 should also update
-        obs2.selected_options = {"Red"}
+        obs2.change_selected_options({"Red"})
         assert obs1.selected_options == {"Red"}
         assert obs3.selected_options == {"Red"}
     
@@ -395,7 +395,7 @@ class TestObservableMultiSelectionOption:
         obs2 = ObservableMultiSelectionOption({"Red"}, {"Red", "Green"})
         obs1.connect_hook(obs2.selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
-        obs1.selected_options = {"Green"}
+        obs1.change_selected_options({"Green"})
         assert obs2.selected_options == {"Green"}
         
         # Test binding multi-selection options with different options
@@ -403,7 +403,7 @@ class TestObservableMultiSelectionOption:
         obs4 = ObservableMultiSelectionOption({"Green"}, {"Red", "Blue", "Green"})
         obs3.connect_hook(obs4.selected_options_hook, "selected_options", "use_target_value") # type: ignore
         
-        obs3.selected_options = {"Blue"}
+        obs3.change_selected_options({"Blue"})
         assert obs4.selected_options == {"Blue"}
     
     def test_multi_selection_option_performance(self):
@@ -440,11 +440,11 @@ class TestObservableMultiSelectionOption:
         
         # Test setting invalid selected options
         with pytest.raises(ValueError):
-            obs.selected_options = {"Blue"}  # Not in available options
+            obs.change_selected_options({"Blue"})# Not in available options
         
         # Test setting empty available options
         with pytest.raises(ValueError):
-            obs.available_options = set()
+            obs.change_available_options(set())
     
     def test_multi_selection_option_binding_consistency(self):
         """Test binding system consistency"""

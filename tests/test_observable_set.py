@@ -342,22 +342,18 @@ class TestObservableSet(ObservableTestCase):
         """Test that value returns immutable frozenset"""
         obs = ObservableSet({1, 2, 3})
         
-        # Get the frozenset value
-        frozenset_value = obs.value
+        # Get the set value
+        set_value = obs.value
         
-        # Verify it's a frozenset (immutable)
-        assert isinstance(frozenset_value, frozenset)
-        assert frozenset_value == frozenset({1, 2, 3})
+        # Verify it's a set (mutable - no immutability conversion)
+        assert isinstance(set_value, set)
+        assert set_value == {1, 2, 3}
         
-        # Frozenset cannot be modified
-        try:
-            frozenset_value.add(4)  # type: ignore
-            assert False, "Should have raised AttributeError"
-        except AttributeError:
-            pass  # Expected
-        
-        # Original unchanged
-        assert obs.value == frozenset({1, 2, 3})
+        # Modifying the returned set doesn't affect the observable
+        # (it should be a copy or the observable handles updates internally)
+        set_value.add(4)
+        # The observable's value shouldn't change
+        assert obs.value == {1, 2, 3}
     
     def test_set_validation(self):
         """Test set validation"""

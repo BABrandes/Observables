@@ -119,13 +119,13 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.key == "a"
         
         # Set key to "z" (not in dict) - should create default entry
-        selection_dict.key = "z"
+        selection_dict.change_key("z")
         assert selection_dict.value == default_value
         assert selection_dict.key == "z"
         assert selection_dict.dict_hook.value["z"] == default_value
         
         # Set key back to "b" - should use dict value
-        selection_dict.key = "b"
+        selection_dict.change_key("b")
         assert selection_dict.value == 2
         assert selection_dict.key == "b"
 
@@ -147,7 +147,7 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.dict_hook.value["z"] == default_value
         
         # Should be able to set value when key exists
-        selection_dict.value = 123
+        selection_dict.change_value(123)
         assert selection_dict.value == 123
         assert selection_dict.dict_hook.value["z"] == 123
 
@@ -165,7 +165,7 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Should be able to set value when key is valid
-        selection_dict.value = 777
+        selection_dict.change_value(777)
         assert selection_dict.value == 777
         assert selection_dict.dict_hook.value["a"] == 777
 
@@ -255,11 +255,11 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Change key
-        selection_dict.key = "b"
+        selection_dict.change_key("b")
         assert selection_dict.value == 2
         
         # Change key to one not in dict - should create default entry
-        selection_dict.key = "z"
+        selection_dict.change_key("z")
         assert selection_dict.value == default_value
         assert selection_dict.dict_hook.value["z"] == default_value
         
@@ -273,7 +273,7 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.dict_hook.value["z"] == default_value
         
         # First change key back to one that exists in both old and new dict
-        selection_dict.key = "b"
+        selection_dict.change_key("b")
         assert selection_dict.value == 2  # Still old value
         
         # Now change dict to new dict - should succeed since "b" is in it
@@ -297,7 +297,7 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Change value when key is set
-        selection_dict.value = 777
+        selection_dict.change_value(777)
         assert selection_dict.dict_hook.value["a"] == 777
         assert selection_dict.value == 777
 
@@ -414,7 +414,7 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict2.key == "a"
         
         # Set key to "c" (not in dict) - should create default entry with value 999
-        selection_dict2.key = "c"
+        selection_dict2.change_key("c")
         assert selection_dict2.value == 999
         assert selection_dict2.key == "c"
         assert selection_dict2.dict_hook.value["c"] == 999
@@ -500,12 +500,12 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.value == 1
         
         # Set key to "xyz" (not in dict) - should use callable to create default
-        selection_dict.key = "xyz"
+        selection_dict.change_key("xyz")
         assert selection_dict.value == 300  # len("xyz") * 100 = 300
         assert selection_dict.dict_hook.value["xyz"] == 300
         
         # Set key to "hello" (not in dict) - should use callable with different result
-        selection_dict.key = "hello"
+        selection_dict.change_key("hello")
         assert selection_dict.value == 500  # len("hello") * 100 = 500
         assert selection_dict.dict_hook.value["hello"] == 500
 

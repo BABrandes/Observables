@@ -237,7 +237,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
         ** This method is not thread-safe and should only be called by the get_value method.
         """
-        return self._hook_nexus.value
+        return self._hook_nexus.stored_value
 
     def _get_previous_value(self) -> T:
         """
@@ -245,7 +245,7 @@ class ManagedHookBase(ManagedHookProtocol[T], Publisher, ListeningBase, Generic[
 
         ** This method is not thread-safe and should only be called by the get_previous_value method.
         """
-        return self._hook_nexus.previous_value
+        return self._hook_nexus.previous_stored_value
 
     def _get_nexus(self) -> "Nexus[T]":
         """

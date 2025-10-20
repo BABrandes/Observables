@@ -357,7 +357,7 @@ class CarriesHooksBase(CarriesHooksProtocol[HK, HV], HasNexusManagerProtocol, Ge
                     hook_pairs.append((hook, hook_of_observable))
                 case _: # type: ignore
                     raise ValueError(f"Invalid initial sync mode: {initial_sync_mode}")
-        Nexus[HV].connect_hook_pairs(*hook_pairs) # type: ignore
+        Nexus[HV].link_hook_pairs(*hook_pairs) # type: ignore
 
     def _unlink(self, key: Optional[HK] = None) -> None:
         """

@@ -1,6 +1,6 @@
-# Observables Tutorial: Mastering Bidirectional Binding and State Validation
+# Observables Tutorial: Mastering Bidirectional Linking and State Validation
 
-This tutorial will guide you through the core concepts of the Observables library, with hands-on examples demonstrating bidirectional binding and rigorous state validation.
+This tutorial will guide you through the core concepts of the Observables library, with hands-on examples demonstrating bidirectional linking and rigorous state validation.
 
 ## 🚀 **Getting Started**
 
@@ -19,24 +19,24 @@ from observables import (
 )
 ```
 
-## 📚 **Chapter 1: Understanding Bidirectional Binding**
+## 📚 **Chapter 1: Understanding Bidirectional Linking**
 
-### **What is Bidirectional Binding?**
+### **What is Bidirectional Linking?**
 
-Unlike traditional reactive libraries where data flows in one direction, Observables provides **true bidirectional binding**. When two observables are bound together, they share the same underlying storage, ensuring changes propagate in both directions automatically.
+Unlike traditional reactive libraries where data flows in one direction, Observables provides **true bidirectional linking**. When two observables are linked together, they share the same underlying storage, ensuring changes propagate in both directions automatically.
 
-### **Your First Bidirectional Binding**
+### **Your First Bidirectional Linking**
 
 ```python
 # Create two observables with different values
 temperature_celsius = ObservableSingleValue(25.0)
 temperature_fahrenheit = ObservableSingleValue(77.0)
 
-print("Before binding:")
+print("Before linking:")
 print(f"Celsius: {temperature_celsius.value}")       # 25.0
 print(f"Fahrenheit: {temperature_fahrenheit.value}") # 77.0
 
-# Bind them together - celsius pushes its value to fahrenheit
+# Link them together - celsius pushes its value to fahrenheit
 # Using "use_caller_value" means the caller's value (celsius) takes precedence
 temperature_celsius.link(
     temperature_fahrenheit.hook, 
@@ -44,7 +44,7 @@ temperature_celsius.link(
     "use_caller_value"
 )
 
-print("\nAfter binding:")
+print("\nAfter linking:")
 print(f"Celsius: {temperature_celsius.value}")       # 25.0
 print(f"Fahrenheit: {temperature_fahrenheit.value}") # 25.0 (now shares same value)
 
@@ -91,27 +91,27 @@ print(f"After use_target_value: obs1='{obs1.value}', obs2='{obs2.value}'")
 # Output: obs1='World', obs2='World'
 ```
 
-After the initial binding, both modes result in true bidirectional synchronization. The mode only determines which value is used at the moment of binding.
+After the initial linking, both modes result in true bidirectional synchronization. The mode only determines which value is used at the moment of linking.
 
-### **Exercise 1: Create Your First Binding**
+### **Exercise 1: Create Your First Linking**
 
-Try creating a simple binding between two observables:
+Try creating a simple linking between two observables:
 
 ```python
-# 🎯 Exercise: Create two observables and bind them
+# 🎯 Exercise: Create two observables and link them
 # 1. Create a username observable with your name
 # 2. Create a display_name observable with a placeholder
-# 3. Bind them so username pushes to display_name
+# 3. Link them so username pushes to display_name
 # 4. Change the username and observe both values
 
 # Your code here:
 username = ObservableSingleValue("Your Name")
 display_name = ObservableSingleValue("Placeholder")
 
-# Bind username to display_name
+# Link username to display_name
 username.link(display_name.hook, "value", "use_caller_value")
 
-# Test bidirectional binding
+# Test bidirectional linking
 print(f"Username: {username.value}")
 print(f"Display: {display_name.value}")
 
@@ -133,7 +133,7 @@ The secret to bidirectional binding is the **Nexus** - a central storage system 
 obs1 = ObservableSingleValue(10)
 obs2 = ObservableSingleValue(20)
 
-print("Before binding - separate storage:")
+print("Before linking - separate storage:")
 print(f"obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
 print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Different IDs = separate storage
@@ -141,7 +141,7 @@ print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Bind them together
 obs1.link(obs2.hook, "value", "use_caller_value")
 
-print("\nAfter binding - shared storage:")
+print("\nAfter linking - shared storage:")
 print(f"obs1 Nexus ID: {id(obs1._component_hooks['single_value'].nexus)}")
 print(f"obs2 Nexus ID: {id(obs2._component_hooks['single_value'].nexus)}")
 # Same ID = shared storage! This is why binding is bidirectional.
@@ -166,7 +166,7 @@ header_display = ObservableSingleValue("Header")
 sidebar_display = ObservableSingleValue("Sidebar")
 footer_display = ObservableSingleValue("Footer")
 
-print("Before binding - all separate:")
+print("Before linking - all separate:")
 for name, obs in [("user", user_name), ("header", header_display), 
                   ("sidebar", sidebar_display), ("footer", footer_display)]:
     hook_id = id(obs._component_hooks['single_value'].nexus)
@@ -311,7 +311,7 @@ Validation is enforced even when binding observables:
 theme1 = ObservableSelectionOption("dark", {"dark", "light", "auto"})
 theme2 = ObservableSelectionOption("light", {"light", "dark"})
 
-print("Before binding:")
+print("Before linking:")
 print(f"  theme1: {theme1.selected_option} from {theme1.available_options}")
 print(f"  theme2: {theme2.selected_option} from {theme2.available_options}")
 

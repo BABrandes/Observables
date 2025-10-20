@@ -1,8 +1,6 @@
-from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
+from typing import Iterable, Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
 from abc import ABC, abstractmethod
-
-from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
@@ -20,7 +18,7 @@ class ObservableDictBase(
         Literal["dict", "key", "value"], 
         Literal["keys", "values", "length"], 
         Any, 
-        frozenset[K]|tuple[V, ...]|int, 
+        set[K]|list[V]|int, 
         "ObservableDictBase[K, V, KT, VT]"
     ], 
     ListeningBase, 
@@ -36,8 +34,8 @@ class ObservableDictBase(
     - value: The value at the selected key
     
     Plus three read-only secondary hooks:
-    - keys: Immutable frozenset of dictionary keys
-    - values: Immutable tuple of dictionary values
+    - keys: Immutable set of dictionary keys
+    - values: Immutable list of dictionary values
     - length: Dictionary length (int)
     
     Four Variants (see their specific docs for behavior matrices):
@@ -81,19 +79,12 @@ class ObservableDictBase(
             invalidate_callback: Optional callback called after value changes
         """
         
-        # Extract initial values and wrap in Map
         if isinstance(dict_hook, (Hook, ReadOnlyHook)):
             _initial_dict_value: Mapping[K, V] = dict_hook.value # type: ignore
-            # If hook contains non-Map, wrap it
-            if not isinstance(_initial_dict_value, Map):
-                _initial_dict_value = Map(_initial_dict_value) # type: ignore
-        else:
+        elif isinstance(dict_hook, Mapping): # type: ignore
             _initial_dict_value = dict_hook
-            # Wrap in Map for immutability
-            if not isinstance(_initial_dict_value, Map):
-                # Convert to dict first to ensure it's a mutable copy, then wrap
-                _dict_copy = dict(_initial_dict_value)
-                _initial_dict_value = Map(_dict_copy)
+        else:
+            raise ValueError("dict_hook must be a Hook, ReadOnlyHook, or Mapping")
 
         if isinstance(key_hook, ManagedHookProtocol):
             _initial_key_value: KT = key_hook.value  # type: ignore
@@ -123,8 +114,8 @@ class ObservableDictBase(
                 "value": value_hook if value_hook is not None else _initial_value_value
             },
             secondary_hook_callbacks={
-                "keys": lambda values: frozenset(values["dict"].keys()) if values["dict"] is not None else frozenset(),  # type: ignore
-                "values": lambda values: tuple(values["dict"].values()) if values["dict"] is not None else (),  # type: ignore
+                "keys": lambda values: set(values["dict"].keys()) if values["dict"] is not None else set(),  # type: ignore
+                "values": lambda values: list(values["dict"].values()) if values["dict"] is not None else list(),  # type: ignore
                 "length": lambda values: len(values["dict"]) if values["dict"] is not None else 0  # type: ignore
             },
             verification_method=self._create_validation_callback(),
@@ -201,7 +192,7 @@ class ObservableDictBase(
         return self._primary_hooks["dict"]  # type: ignore
 
     @property
-    def dict(self) -> Mapping[K, V]:
+    def dict(self) -> dict[K, V]:
         """
         Get the dictionary value.
         """
@@ -314,36 +305,36 @@ class ObservableDictBase(
     # ------------------------- keys -------------------------
 
     @property
-    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
+    def keys_hook(self) -> ReadOnlyHook[Iterable[K]]:
         """
         Get the keys hook (read-only).
         
         Returns:
-            A read-only hook containing a frozenset of dictionary keys.
+            A read-only hook containing an iterable of dictionary keys.
         """
         return self._secondary_hooks["keys"] # type: ignore
 
     @property
-    def keys(self) -> frozenset[K]:
+    def keys(self) -> set[K]:
         """
-        Get the keys behind this hook as an immutable frozenset.
+        Get the keys behind this hook as an immutable set.
         
         Returns:
-            A frozenset of all keys in the dictionary.
+            A set of all keys in the dictionary.
         """
-        return self._secondary_hooks["keys"].value # type: ignore
+        return set(self._secondary_hooks["keys"].value) # type: ignore
 
     # ------------------------- values -------------------------
 
     @property
-    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
+    def values_hook(self) -> ReadOnlyHook[Iterable[V]]:
         """
         Get the values hook (read-only).
         """
         return self._secondary_hooks["values"] # type: ignore
 
     @property
-    def values(self) -> tuple[V, ...]:
+    def values(self) -> list[V]:
         """
         Get the values behind this hook.
         """

@@ -1,4 +1,4 @@
-from typing import TypeVar, Optional, Protocol, Mapping, runtime_checkable
+from typing import Iterable, TypeVar, Optional, Protocol, Mapping, runtime_checkable, final
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 
@@ -21,18 +21,16 @@ class ObservableDictProtocol(Protocol[K, V]):
         ...
 
     @property
-    def dict(self) -> Mapping[K, V]:
+    def dict(self) -> dict[K, V]:
         """
         Get the immutable dictionary value.
         """
         ...
     
+    @final
     @dict.setter
     def dict(self, value: Mapping[K, V]) -> None:
-        """
-        Set the dictionary value.
-        """
-        ...
+        self.change_dict(value)
 
     def change_dict(self, new_dict: Mapping[K, V]) -> None:
         """
@@ -59,14 +57,14 @@ class ObservableDictProtocol(Protocol[K, V]):
     #-------------------------------- Keys --------------------------------
 
     @property
-    def keys(self) -> frozenset[K]:
+    def keys(self) -> set[K]:
         """
-        Get all keys from the dictionary as a frozenset.
+        Get all keys from the dictionary as a set.
         """
         ...
     
     @property
-    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
+    def keys_hook(self) -> ReadOnlyHook[Iterable[K]]:
         """
         Get the hook for the dictionary keys.
         """
@@ -75,14 +73,14 @@ class ObservableDictProtocol(Protocol[K, V]):
     #-------------------------------- Values --------------------------------
 
     @property
-    def values(self) -> tuple[V, ...]:
+    def values(self) -> list[V]:
         """
-        Get all values from the dictionary as a tuple.
+        Get all values from the dictionary as a list.
         """
         ...
     
     @property
-    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
+    def values_hook(self) -> ReadOnlyHook[Iterable[V]]:
         """
         Get the hook for the dictionary values.
         """

@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, Protocol, runtime_checkable, Optional, AbstractSet
+from typing import Any, TypeVar, Protocol, runtime_checkable, Optional
 from collections.abc import Iterable
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
@@ -17,30 +17,26 @@ class ObservableSetProtocol(CarriesHooksProtocol[Any, Any], Protocol[T]):
     #-------------------------------- set value --------------------------------
     
     @property
-    def value_hook(self) -> Hook[AbstractSet[T]]:
+    def value_hook(self) -> Hook[Iterable[T]]:
         """
-        Get the hook for the set (contains AbstractSet).
+        Get the hook for the set - it can contain any iterable as long as it can be converted to a set.
         """
         ...
 
     @property
-    def value(self) -> AbstractSet[T]:
+    def value(self) -> set[T]:
         """
-        Get the set as immutable AbstractSet.
+        Get the set as a set.
         """
         ...
     
     @value.setter
     def value(self, value: Iterable[T]) -> None:
-        """
-        Set the set value (accepts any iterable, stores as frozenset).
-        """
-        ...
+        self.change_value(value)
+        
 
+    
     def change_value(self, value: Iterable[T]) -> None:
-        """
-        Change the set value (lambda-friendly method).
-        """
         ...
 
     #-------------------------------- length --------------------------------
@@ -65,19 +61,20 @@ class ObservableSelectionOptionsProtocol(Protocol[T]):
     #-------------------------------- available options --------------------------------
 
     @property
-    def available_options_hook(self) -> Hook[AbstractSet[T]]:
+    def available_options_hook(self) -> Hook[Iterable[T]]:
         ...
 
     @property
-    def available_options(self) -> AbstractSet[T]:
+    def available_options(self) -> set[T]:
         ...
     
     @available_options.setter
     def available_options(self, available_options: Iterable[T]) -> None:
-        ...
+        self.change_available_options(available_options)
 
+    
     def change_available_options(self, available_options: Iterable[T]) -> None:
-        ...
+        ... 
 
     #-------------------------------- selected options --------------------------------
 
@@ -91,7 +88,7 @@ class ObservableSelectionOptionsProtocol(Protocol[T]):
     
     @selected_option.setter
     def selected_option(self, selected_option: T) -> None:
-        ...
+        self.change_selected_option(selected_option)
 
     def change_selected_option(self, selected_option: T) -> None:
         ...
@@ -123,16 +120,16 @@ class ObservableOptionalSelectionOptionProtocol(Protocol[T]):
     #-------------------------------- available options --------------------------------
 
     @property
-    def available_options_hook(self) -> Hook[AbstractSet[T]]:
+    def available_options_hook(self) -> Hook[Iterable[T]]:
         ...
 
     @property
-    def available_options(self) -> AbstractSet[T]:
+    def available_options(self) -> set[T]:
         ...
     
     @available_options.setter
     def available_options(self, available_options: Iterable[T]) -> None:
-        ...
+        self.change_available_options(available_options)
 
     def change_available_options(self, available_options: Iterable[T]) -> None:
         ...
@@ -149,7 +146,7 @@ class ObservableOptionalSelectionOptionProtocol(Protocol[T]):
     
     @selected_option.setter
     def selected_option(self, selected_option: Optional[T]) -> None:
-        ...
+        self.change_selected_option(selected_option)
 
     def change_selected_option(self, selected_option: Optional[T]) -> None:
         ...
@@ -181,16 +178,16 @@ class ObservableMultiSelectionOptionsProtocol(Protocol[T]):
     #-------------------------------- available options --------------------------------
 
     @property
-    def available_options_hook(self) -> Hook[AbstractSet[T]]:
+    def available_options_hook(self) -> Hook[Iterable[T]]:
         ...
 
     @property
-    def available_options(self) -> AbstractSet[T]:
+    def available_options(self) -> set[T]:
         ...
     
     @available_options.setter
     def available_options(self, available_options: Iterable[T]) -> None:
-        ...
+        self.change_available_options(available_options)
 
     def change_available_options(self, available_options: Iterable[T]) -> None:
         ...
@@ -198,18 +195,18 @@ class ObservableMultiSelectionOptionsProtocol(Protocol[T]):
     #-------------------------------- selected options --------------------------------
 
     @property
-    def selected_options_hook(self) -> Hook[AbstractSet[T]]:
+    def selected_options_hook(self) -> Hook[Iterable[T]]:
         ...
 
     @property
-    def selected_options(self) -> AbstractSet[T]:
+    def selected_options(self) -> set[T]:
         ...
     
     @selected_options.setter
-    def selected_options(self, selected_options: AbstractSet[T]) -> None:
-        ...
+    def selected_options(self, selected_options: Iterable[T]) -> None:
+        self.change_selected_options(selected_options)
 
-    def change_selected_options(self, selected_options: AbstractSet[T]) -> None:
+    def change_selected_options(self, selected_options: Iterable[T]) -> None:
         ...
 
     #-------------------------------- length --------------------------------
@@ -244,7 +241,7 @@ class ObservableMultiSelectionOptionsProtocol(Protocol[T]):
 
     #-------------------------------- Convenience methods --------------------------------
 
-    def change_selected_options_and_available_options(self, selected_options: AbstractSet[T], available_options: Iterable[T]) -> None:
+    def change_selected_options_and_available_options(self, selected_options: Iterable[T], available_options: Iterable[T]) -> None:
         ...
 
     def clear_selected_options(self) -> None:

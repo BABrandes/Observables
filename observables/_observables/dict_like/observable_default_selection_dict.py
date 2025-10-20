@@ -1,6 +1,5 @@
 from typing import Literal, TypeVar, Generic, Optional, Mapping, Any, Callable
 from logging import Logger
-from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
@@ -139,7 +138,7 @@ class ObservableDefaultSelectionDict(
                     # Key and value provided - update dict with new value
                     _dict = dict(update_values.current["dict"])
                     _dict[update_values.submitted["key"]] = update_values.submitted["value"]
-                    return {"dict": Map(_dict)}
+                    return {"dict": _dict}
                 
                 case (False, True, False):
                     # Key provided alone - add key to dict with default if not present
@@ -147,14 +146,14 @@ class ObservableDefaultSelectionDict(
                         _dict = dict(update_values.current["dict"])
                         _default_val = self_ref._get_default_value(update_values.submitted["key"])
                         _dict[update_values.submitted["key"]] = _default_val
-                        return {"dict": Map(_dict), "value": _default_val}
+                        return {"dict": _dict, "value": _default_val}
                     return {"value": update_values.current["dict"][update_values.submitted["key"]]}
                 
                 case (False, False, True):
                     # Value provided alone - update dict at current key
                     _dict = dict(update_values.current["dict"])
                     _dict[update_values.current["key"]] = update_values.submitted["value"]
-                    return {"dict": Map(_dict)}
+                    return {"dict": _dict}
                 
                 case (False, False, False):
                     # Nothing provided - no updates needed

@@ -4,13 +4,12 @@ Test script for the write_report function with a complex hook system.
 This creates a sophisticated binding scenario and uses write_report to analyze it.
 """
 
-from typing import Any, cast
+from typing import Any
 from enum import Enum
 
 
 from observables import ObservableSingleValue, ObservableList, ObservableSelectionDict, ObservableSet, ObservableSelectionSet as ObservableSelectionOption, ObservableMultiSelectionSet as ObservableMultiSelectionOption, write_report
 from observables.core import CarriesHooksBase
-from observables._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 
 
 class UserRole(Enum):
@@ -79,11 +78,11 @@ class TestWriteReport:
         print("🔗 Creating bindings...")
         
         # Bind task count to list length
-        task_count.connect_hook(task_list.length_hook, "value", "use_target_value")  # type: ignore
+        task_count.link(task_list.length_hook, "use_target_value")  # type: ignore
         
         # Bind some observables to demonstrate shared hook nexuses
         task_backup: ObservableList[Any] = ObservableList([])  # Will share nexus with task_list
-        task_backup.connect_hook(task_list.value_hook, "value", "use_target_value") # type: ignore
+        task_backup.link(task_list.value_hook, "value", "use_target_value") # type: ignore
         
         # Create another observable that shares the user's age
         min_age_requirement = ObservableSingleValue(18)
@@ -91,18 +90,19 @@ class TestWriteReport:
         
         # Connect age-related observables
         backup_age: ObservableSingleValue[Any] = ObservableSingleValue(0)
-        backup_age.connect_hook(user_age.hook, "value", "use_target_value")  # type: ignore
+        backup_age.link(user_age.hook, "use_target_value")  # type: ignore
         
         # Create observables that share nexus with the sets
         completed_backup: ObservableSet[Any] = ObservableSet(set())
-        completed_backup.connect_hook(completed_tasks.value_hook, "value", "use_target_value") # type: ignore
+        completed_backup.link(completed_tasks.value_hook, "value", "use_target_value") # type: ignore
         
         # Multi-selection backup
         status_backup: ObservableMultiSelectionOption[TaskStatus] = ObservableMultiSelectionOption(set(), available_statuses)
-        status_backup.link_many({
-            "selected_options": cast(HookWithOwnerProtocol[set[TaskStatus] | int], current_task_statuses.selected_options_hook),
-            "available_options": cast(HookWithOwnerProtocol[set[TaskStatus] | int], current_task_statuses.available_options_hook)
-        }, "use_target_value")
+        status_backup.link_many(
+            {
+                "selected_options": current_task_statuses.selected_options_hook,
+                "available_options": current_task_statuses.available_options_hook
+            }, "use_target_value") # type: ignore
         
         print("✅ Bindings created")
         
@@ -229,7 +229,7 @@ class TestWriteReport:
         
         # Create a backup that shares the name
         name_backup: ObservableSingleValue[Any] = ObservableSingleValue[Any]("")
-        name_backup.connect_hook(name.hook, "value", "use_target_value")  # type: ignore
+        name_backup.link(name.hook, "use_target_value")  # type: ignore
         
         observables: dict[str, CarriesHooksBase[Any, Any, "CarriesHooksBase[Any, Any, Any]"]] = {
             "name": name,

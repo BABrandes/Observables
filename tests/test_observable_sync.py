@@ -66,7 +66,7 @@ class TestObservableSync:
         assert sync.hook("c").value == 0   # Original value
 
         # Check hook keys
-        assert sync.keys == {"a", "b", "c"}
+        assert sync.keys() == {"a", "b", "c"}
 
     def test_basic_creation_with_hooks(self):
         """Test basic ObservableSync creation with initial values (no longer supports hooks)."""
@@ -144,7 +144,7 @@ class TestObservableSync:
         )
 
         # Should have sync hooks
-        assert sync.keys == {"a", "b"}
+        assert sync.keys() == {"a", "b"}
         assert len(sync.hooks()) == 2
 
     @pytest.mark.skip(reason="Validation intentionally removed from ObservableSync.__init__")
@@ -210,7 +210,7 @@ class TestObservableSync:
         sync.add_listener(listener)
 
         # Change a value
-        sync.hook("a").submit_value(10)
+        sync.hook("a").change_value(10)
 
         # Check that listener was notified
         assert len(notifications) > 0

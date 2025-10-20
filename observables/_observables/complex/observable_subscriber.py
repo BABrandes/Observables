@@ -49,7 +49,7 @@ class ObservableSubscriber(ComplexObservableBase[HK, None, HV, None, "Observable
     ObservableSubscriber bridges the Publisher-Subscriber pattern with the Observable
     framework, creating reactive data flows where observable values automatically update
     in response to external events. It combines the async/unidirectional nature of
-    pub-sub with the validation and binding capabilities of observables.
+    pub-sub with the validation and linking capabilities of observables.
     
     Type Parameters:
         HK: The type of keys in the observable's hook mapping. Typically str for named
@@ -67,7 +67,7 @@ class ObservableSubscriber(ComplexObservableBase[HK, None, HV, None, "Observable
         2. **Publication**: When publisher publishes, `_react_to_publication` is called
         3. **Callback**: Callback function generates new values based on publication
         4. **Update**: Observable updates its values via `submit_values()`
-        5. **Propagation**: Bindings, listeners, and subscribers are notified
+        5. **Propagation**: Linking, listeners, and subscribers are notified
     
     Use Cases:
         - React to external data sources (sensors, APIs, databases)
@@ -258,7 +258,7 @@ class ObservableSubscriber(ComplexObservableBase[HK, None, HV, None, "Observable
                   ↓
                 submit_values(values)
                   ↓
-                Observable updates, hooks trigger, bindings propagate
+                Observable updates, hooks trigger, linking propagates
         
         Note:
             This is an internal method called automatically by the Subscriber

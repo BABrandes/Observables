@@ -1,19 +1,19 @@
 """
-ObservableSelectionOption Module
+ObservableSelectionSet Module
 
-This module provides the ObservableSelectionOption class, a sophisticated observable
+This module provides the ObservableSelectionSet class, a sophisticated observable
 that combines the functionality of an observable set (for available options) and an
 observable single value (for the selected option).
 
-The ObservableSelectionOption is designed for scenarios where you need to:
+The ObservableSelectionSet is designed for scenarios where you need to:
 - Maintain a dynamic set of valid options
 - Track a currently selected option from that set
 - Ensure data consistency and validation
-- Synchronize with other observables through bindings
+- Synchronize with other observables through linking
 - React to changes through listeners and notifications
 
 Key Features:
-- Bidirectional bindings for both options and selected values
+- Bidirectional linking for both options and selected values
 - Automatic validation ensuring selected option is always valid
 - Comprehensive listener notification system
 - Full set interface for options management
@@ -24,19 +24,19 @@ Key Features:
 Architecture:
 The class implements multiple interfaces:
 - Observable: Base observable pattern with listeners and component management
-- CarriesDistinctSingleValueHook: Interface for single value binding operations
-- CarriesDistinctSetHook: Interface for set binding operations
+- CarriesDistinctSingleValueHook: Interface for single value linking operations
+- CarriesDistinctSetHook: Interface for set linking operations
 
 The internal structure uses a component-based approach where:
 - selected_option: Manages the currently selected value
 - available_options: Manages the set of valid options
-- Each component has its own hook for binding management
+- Each component has its own hook for linking management
 
-Binding System:
-The binding system supports:
-- Binding between ObservableSelectionOption instances (comprehensive binding)
-- Binding to ObservableSingleValue instances (selected option only)
-- Binding to ObservableSet instances (options only)
+Linking System:
+The linking system supports:
+- Linking between ObservableSelectionSet instances (comprehensive linking)
+- Linking to ObservableSingleValue instances (selected option only)
+- Linking to ObservableSet instances (options only)
 - Different synchronization modes for initial value setup
 - Automatic validation and error handling
 
@@ -50,7 +50,7 @@ Performance Characteristics:
 - O(1) average case for most operations
 - O(n) worst case for set operations where n is the number of options
 - Memory usage scales linearly with the number of options
-- Binding operations are O(1) but may trigger cascading updates
+- Linking operations are O(1) but may trigger cascading updates
 
 Thread Safety:
 This module is not thread-safe. If used in multi-threaded environments,
@@ -58,46 +58,48 @@ external synchronization is required.
 
 Example Usage:
     >>> # Basic usage
-    >>> selector = ObservableSelectionOption("Apple", {"Apple", "Banana", "Cherry"})
+    >>> selector = ObservableSelectionSet("Apple", {"Apple", "Banana", "Cherry"})
     >>> print(selector.selected_option)  # "Apple"
-    
+
     >>> # Add listener
     >>> selector.add_listeners(lambda: print("Changed!"))
     >>> selector.selected_option = "Banana"  # Triggers listener
-    
-    >>> # Binding
+
+    >>> # Linking
     >>> source = ObservableSet({"Red", "Green", "Blue"})
-    >>> selector.bind_options_to_observable(source)
+    >>> selector.link_options_to_observable(source)
     >>> source.add("Yellow")  # Automatically updates selector
 
 Dependencies:
 - typing: For type hints and generic support
-- .._utils.hook: For binding mechanism
+- .._utils.hook: For linking mechanism
 - .._utils.sync_mode: For synchronization modes
-- .._utils.carries_distinct_single_value_hook: For single value binding interface
-- .._utils.carries_distinct_set_hook: For set binding interface
+- .._utils.carries_distinct_single_value_hook: For single value linking interface
+- .._utils.carries_distinct_set_hook: For set linking interface
 - .._utils.observable: For base observable functionality
 
 See Also:
 - Observable: Base observable class
 - ObservableSet: For managing observable sets
 - ObservableSingleValue: For managing observable single values
-- Hook: For custom binding mechanisms
-- SyncMode: For binding synchronization modes
+- Hook: For custom linking mechanisms
+- SyncMode: For linking synchronization modes
 """
 
-from typing import Generic, Optional, TypeVar, Any, Literal, Mapping, AbstractSet, overload
+from typing import Generic, Optional, TypeVar, Any, Literal, Mapping
 from collections.abc import Iterable
 from logging import Logger
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._carries_hooks.complex_observable_base import ComplexObservableBase
+from ..._nexus_system.submission_error import SubmissionError
 from .protocols import ObservableSelectionOptionsProtocol
+from .utils import likely_settable
 
 T = TypeVar("T")
 
-class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], T | AbstractSet[T], int, "ObservableSelectionSet"], ObservableSelectionOptionsProtocol[T], Generic[T]):
+class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], T | Iterable[T], int, "ObservableSelectionSet"], ObservableSelectionOptionsProtocol[T], Generic[T]):
     """
     Observable for selecting one option from a set of available options.
     
@@ -123,7 +125,7 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
     Key Features:
         - **Enforced Validity**: Selected option always exists in available options
         - **Atomic Updates**: Change both selection and options atomically
-        - **Bidirectional Binding**: Bind selection to other observables
+        - **Bidirectional Linking**: Link selection to other observables
         - **Secondary Hooks**: Automatically computed number of options
         - **Type Safety**: Generic type ensures type consistency
     
@@ -155,39 +157,19 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
                 {"blue", "red", "green"}
             )
         
-        With binding::
+        With linking::
         
             user_theme = ObservableSelectionOption("dark", {"dark", "light"})
             display_theme = ObservableSelectionOption("light", {"dark", "light"})
             
-            # Bind them - both must have same options for validation
+            # Link them - both must have same options for validation
             user_theme.connect_hooks({
                 "selected_option": display_theme.selected_option_hook,
                 "available_options": display_theme.available_options_hook
             }, "use_caller_value")
     """
 
-    @overload
-    def __init__(self, selected_option: Hook[T] | ReadOnlyHook[T], available_options: AbstractSet[T] | Hook[AbstractSet[T]] | ReadOnlyHook[AbstractSet[T]], *, logger: Optional[Logger] = None) -> None:
-        ...
-
-    @overload
-    def __init__(self, selected_option: T, available_options: AbstractSet[T] | Hook[AbstractSet[T]] | ReadOnlyHook[AbstractSet[T]], *, logger: Optional[Logger] = None) -> None:
-        ...
-
-    @overload
-    def __init__(self, selected_option: Hook[T] | ReadOnlyHook[T], available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
-        ...
-
-    @overload
-    def __init__(self, observable: ObservableSelectionOptionsProtocol[T], available_options: None=None, *, logger: Optional[Logger] = None) -> None:
-        ...
-    
-    @overload
-    def __init__(self, selected_option: T, available_options: Iterable[T], *, logger: Optional[Logger] = None) -> None:
-        ...
-
-    def __init__(self, selected_option: T | Hook[T] | ReadOnlyHook[T] | ObservableSelectionOptionsProtocol[T], available_options: Iterable[T] | Hook[AbstractSet[T]] | ReadOnlyHook[AbstractSet[T]] | None = None, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: T | Hook[T] | ReadOnlyHook[T] | ObservableSelectionOptionsProtocol[T], available_options: Iterable[T] | Hook[Iterable[T]] | ReadOnlyHook[Iterable[T]] | None = None, logger: Optional[Logger] = None) -> None:
         """
         Initialize an ObservableSelectionOption.
         
@@ -197,11 +179,11 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
         Args:
             selected_option: The initial selected option. Can be:
                 - T: A direct value (must be in available_options)
-                - Hook[T]: A hook to bind the selection to
-                - ObservableSelectionOptionProtocol[T]: Another observable to bind to (copies both hooks)
+                - Hook[T]: A hook to link the selection to
+                - ObservableSelectionOptionProtocol[T]: Another observable to link to (copies both hooks)
             available_options: The set of options to choose from. Can be:
                 - set[T]: A direct set of options (selected_option must be in this set)
-                - Hook[set[T]]: A hook to bind the available options to
+                - Hook[set[T]]: A hook to link the available options to
                 - None: If selected_option is an ObservableSelectionOptionProtocol, options are copied from it
             logger: Optional logger for debugging operations. Default is None.
         
@@ -209,7 +191,7 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
             ValueError: If selected_option is not in available_options during initialization.
         
         Note:
-            When binding to hooks or observables, both selected_option and available_options
+            When linking to hooks or observables, both selected_option and available_options
             are bound. This ensures validation consistency - the selected option will always
             be valid for the current set of available options.
         
@@ -219,7 +201,7 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
                 # 1. Direct values
                 color = ObservableSelectionOption("red", {"red", "green", "blue"})
                 
-                # 2. From another observable (binds both hooks)
+                # 2. From another observable (links both hooks)
                 color_copy = ObservableSelectionOption(color)
                 color.selected_option = "blue"  # Both update
                 
@@ -242,9 +224,9 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
         
         if isinstance(selected_option, ObservableSelectionOptionsProtocol):
             initial_selected_option: T = selected_option.selected_option # type: ignore
-            initial_available_options: AbstractSet[T] = selected_option.available_options # type: ignore
+            initial_available_options: Iterable[T] = selected_option.available_options # type: ignore
             hook_selected_option: Optional[Hook[T]] = selected_option.selected_option_hook # type: ignore
-            hook_available_options: Optional[Hook[AbstractSet[T]]] = selected_option.available_options_hook # type: ignore
+            hook_available_options: Optional[Hook[Iterable[T]]] = selected_option.available_options_hook # type: ignore
 
         else:
             if selected_option is None:
@@ -260,7 +242,7 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
                 hook_selected_option = None
 
             if available_options is None:
-                initial_available_options = frozenset()
+                initial_available_options = set()
                 hook_available_options = None
 
             elif isinstance(available_options, ManagedHookProtocol):
@@ -269,30 +251,20 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
 
             else:
                 # available_options is an Iterable[T]
-                initial_available_options: frozenset[T] = frozenset(available_options) # type: ignore
+                initial_available_options: Iterable[T] = set(available_options) # type: ignore
                 hook_available_options = None
                 
         def is_valid_value(x: Mapping[Literal["selected_option", "available_options"], Any]) -> tuple[bool, str]:
-            if "selected_option" in x:
-                selected_option: Optional[T] = x["selected_option"]
-            else:
-                selected_option = self._primary_hooks["selected_option"].value # type: ignore
-                
-            if "available_options" in x:
-                available_options = x["available_options"]
-            else:
-                _available_options = self._primary_hooks["available_options"].value
-                if isinstance(_available_options, frozenset):
-                    available_options: frozenset[T] = _available_options # type: ignore
-                else:
-                    raise ValueError("Available options is not a frozenset")
+            selected_option = x["selected_option"]
+            available_options = x["available_options"]
 
-            if selected_option is None:
-                return False, "Selected option is None"
-            elif selected_option in available_options:
-                return True, "Verification method passed"
-            else:
-                return False, f"Selected option {selected_option} not in options {available_options}"
+            if not likely_settable(available_options):
+                return False, f"Available options '{available_options}' cannot be used as a set!"
+
+            if selected_option not in available_options:
+                return False, f"Selected option '{selected_option}' not in available options '{available_options}'!"
+
+            return True, "Verification method passed"
 
         super().__init__(
             initial_hook_values={"selected_option": initial_selected_option, "available_options": initial_available_options}, # type: ignore
@@ -311,28 +283,20 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
     #########################################################
 
     #-------------------------------- available options --------------------------------
-
-    @property
-    def available_options(self) -> AbstractSet[T]:
-        return self._primary_hooks["available_options"].value # type: ignore
     
     @property
-    def available_options_hook(self) -> Hook[AbstractSet[T]]:
+    def available_options_hook(self) -> Hook[Iterable[T]]:
         return self._primary_hooks["available_options"] # type: ignore
 
-    @available_options.setter
-    def available_options(self, available_options: Iterable[T]) -> None:
-        success, msg = self._submit_values({"available_options": frozenset(available_options)})
-        if not success:
-            raise ValueError(msg)
+    @property
+    def available_options(self) -> set[T]: # type: ignore
+        return self._primary_hooks["available_options"].value # type: ignore
 
-    def change_available_options(self, available_options: Iterable[T]) -> None:
-        if available_options == self._primary_hooks["available_options"].value:
-            return
-        
-        success, msg = self._submit_values({"available_options": frozenset(available_options)})
+    def change_available_options(self, available_options: Iterable[T]) -> None:        
+        success, msg = self._submit_value("available_options", set(available_options))
         if not success:
-            raise ValueError(msg)
+            raise SubmissionError(msg, available_options, "available_options")
+
     #-------------------------------- selected option --------------------------------
 
     @property
@@ -351,10 +315,6 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
         success, msg = self._submit_values({"selected_option": selected_option})
         if not success:
             raise ValueError(msg)
-
-    def change_selected_option(self, selected_option: T) -> None:
-        if selected_option == self._primary_hooks["selected_option"].value:
-            return
         
         success, msg = self._submit_values({"selected_option": selected_option})
         if not success:

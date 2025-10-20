@@ -1,6 +1,5 @@
-from typing import Generic, TypeVar, Optional, overload, Callable, Literal, Any, Mapping
+from typing import Generic, TypeVar, Optional, overload, Callable, Literal, Any, Mapping, Iterable
 from logging import Logger
-from immutables import Map
 
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
@@ -10,36 +9,36 @@ from .protocols import ObservableDictProtocol
 K = TypeVar("K")
 V = TypeVar("V")
     
-class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "keys", "values"], Mapping[K, V], int|frozenset[K]|tuple[V, ...], "ObservableDict"], ObservableDictProtocol[K, V], Generic[K, V]):
+class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "keys", "values"], Mapping[K, V], int|set[K]|list[V], "ObservableDict"], ObservableDictProtocol[K, V], Generic[K, V]):
     """
-    An observable wrapper around a dictionary that supports bidirectional bindings and reactive updates.
-    
+    An observable wrapper around a dictionary that supports bidirectional linking and reactive updates.
+
     This class provides a reactive wrapper around Python dictionaries, allowing other objects to
-    observe changes and establish bidirectional bindings. It implements the full dict interface
-    while maintaining reactivity and binding capabilities.
-    
+    observe changes and establish bidirectional linking. It implements the full dict interface
+    while maintaining reactivity and linking capabilities.
+
     Features:
-    - Bidirectional bindings with other ObservableDict instances
+    - Bidirectional linking with other ObservableDict instances
     - Full dict interface compatibility (get, set, update, clear, etc.)
     - Listener notification system for change events
     - Automatic copying to prevent external modification
     - Type-safe generic implementation for keys and values
-    
+
     Example:
         >>> # Create an observable dictionary
         >>> config = ObservableDict({"theme": "dark", "language": "en"})
         >>> config.add_listeners(lambda: print("Config changed!"))
         >>> config["theme"] = "light"  # Triggers listener
         Config changed!
-        
-        >>> # Create bidirectional binding
+
+        >>> # Create bidirectional linking
         >>> config_copy = ObservableDict(config)
         >>> config_copy["timezone"] = "UTC"  # Updates both dicts
         >>> print(config.value, config_copy.value)
         {'theme': 'light', 'language': 'en', 'timezone': 'UTC'} {'theme': 'light', 'language': 'en', 'timezone': 'UTC'}
-    
+
     Args:
-        initial_dict: Initial dictionary, another ObservableDict to bind to, or None for empty dict
+        initial_dict: Initial dictionary, another ObservableDict to link to, or None for empty dict
     """
 
     @overload
@@ -54,7 +53,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
 
     @overload
     def __init__(self, observable: ObservableDictProtocol[K, V], logger: Optional[Logger] = None) -> None:
-        """Initialize from another ObservableDictProtocol object."""
+        """Initialize from another ObservableDictProtocol object for linking."""
         ...
     
     @overload
@@ -67,7 +66,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         Initialize the ObservableDict.
         
         Args:
-            observable_or_hook_or_value: Initial dictionary (as Mapping), hook, observable, or None for empty dict
+            observable_or_hook_or_value: Initial dictionary (as Mapping), hook for linking, observable for linking, or None for empty dict
             logger: Optional logger for debugging
 
         Raises:
@@ -82,7 +81,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
             hook = None
         elif isinstance(observable_or_hook_or_value, ObservableDictProtocol):
             initial_dict_value = observable_or_hook_or_value.dict # type: ignore
-            hook = observable_or_hook_or_value.dict_hook # type: ignore
+            hook = observable_or_hook_or_value.dict_hook # type: ignore  # For linking
         elif isinstance(observable_or_hook_or_value, ManagedHookProtocol): # type: ignore
             initial_dict_value = observable_or_hook_or_value.value # type: ignore
             hook = observable_or_hook_or_value # type: ignore
@@ -90,15 +89,15 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
             raise ValueError("Invalid initial value")
 
         def is_valid_value(x: Mapping[Literal["dict"], Any]) -> tuple[bool, str]:
-            return (True, "Verification method passed") if isinstance(x["dict"], Map) else (False, "Value is not a Map")
+            return (True, "Verification method passed") if isinstance(x["dict"], Mapping) else (False, "Value is not a Map")
 
         super().__init__(
             initial_hook_values={"dict": initial_dict_value}, # type: ignore
             verification_method=is_valid_value,
             secondary_hook_callbacks={
                 "length": lambda x: len(x["dict"]),
-                "keys": lambda x: frozenset(x["dict"].keys()),
-                "values": lambda x: tuple(x["dict"].values())
+                "keys": lambda x: set(x["dict"].keys()),
+                "values": lambda x: list(x["dict"].values())
             },
             logger=logger
         )
@@ -119,15 +118,10 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         return self._primary_hooks["dict"] # type: ignore
     
     @property
-    def dict(self) -> Mapping[K, V]:
+    def dict(self) -> dict[K, V]: # type: ignore
         """Get the current dictionary."""
         return self._primary_hooks["dict"].value # type: ignore
     
-    @dict.setter
-    def dict(self, value: Mapping[K, V]) -> None:
-        """Set the current dictionary."""
-        self._submit_value("dict", value)
-
     def change_dict(self, new_dict: Mapping[K, V]) -> None:
         """Change the current dictionary."""
         success, msg = self._submit_value("dict", new_dict)
@@ -149,24 +143,24 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
     #-------------------------------- Keys --------------------------------
 
     @property
-    def keys(self) -> frozenset[K]:
+    def keys(self) -> set[K]:
         """Get the current keys of the dictionary."""
         return frozenset(self._primary_hooks["dict"].value.keys()) # type: ignore
     
     @property
-    def keys_hook(self) -> ReadOnlyHook[frozenset[K]]:
+    def keys_hook(self) -> ReadOnlyHook[Iterable[K]]:
         """Get the hook for the dictionary keys."""
         return self._secondary_hooks["keys"] # type: ignore
 
     #-------------------------------- Values --------------------------------
 
     @property
-    def values(self) -> tuple[V, ...]:
+    def values(self) -> list[V]:
         """Get the current values of the dictionary."""
-        return tuple(self._primary_hooks["dict"].value.values()) # type: ignore
+        return list(self._primary_hooks["dict"].value.values()) # type: ignore
     
     @property
-    def values_hook(self) -> ReadOnlyHook[tuple[V, ...]]:
+    def values_hook(self) -> ReadOnlyHook[Iterable[V]]:
         """Get the hook for the dictionary values."""
         return self._secondary_hooks["values"] # type: ignore
 

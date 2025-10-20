@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable, TypeVar
 if TYPE_CHECKING:
-    from ..._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+    from ..._carries_hooks.carries_hooks_protocol import CarriesSomeHooksProtocol
 
 T = TypeVar("T")
 
@@ -11,7 +11,7 @@ class HookWithOwnerProtocol(Protocol[T]): # type: ignore
     """
     
     @property
-    def owner(self) -> "CarriesHooksProtocol[Any, Any]":
+    def owner(self) -> "CarriesSomeHooksProtocol[Any, Any]":
         """
         Get the owner of this hook.
         """

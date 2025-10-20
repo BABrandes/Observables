@@ -51,7 +51,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         )
 
         if hook is not None:
-            self._join(hook, "value", "use_target_value") # type: ignore
+            self._join("value", hook, "use_target_value") # type: ignore
 
     #########################################################
     # ObservableSetProtocol implementation
@@ -124,7 +124,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Add an element to the set.
         
-        Creates a new frozenset with the added element.
+        Creates a new set with the added element.
         
         Args:
             item: The element to add to the set
@@ -139,7 +139,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Remove an element from the set.
         
-        Creates a new frozenset without the element.
+        Creates a new set without the element.
         
         Args:
             item: The element to remove from the set
@@ -159,7 +159,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Remove an element from the set if it is present.
         
-        Creates a new frozenset without the element (if present).
+        Creates a new set without the element (if present).
         Unlike remove(), this method does not raise an error if the item is not found.
         
         Args:
@@ -175,7 +175,7 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Remove and return an arbitrary element from the set.
         
-        Creates a new frozenset without the popped element.
+        Creates a new set without the popped element.
         
         Returns:
             The removed element
@@ -197,10 +197,10 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Remove all elements from the set.
         
-        Creates an empty frozenset.
+        Creates an empty set.
         """
         if self._primary_hooks["value"].value:
-            new_set: frozenset[T] = frozenset()
+            new_set: set[T] = set()
             success, msg = self._submit_values({"value": new_set})
             if not success:
                 raise ValueError(msg)
@@ -209,14 +209,14 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Update the set with elements from all other iterables.
         
-        Creates a new frozenset with all elements from current set and provided iterables.
+        Creates a new set with all elements from current set and provided iterables.
         
         Args:
             *others: Variable number of iterables to add elements from
         """
-        new_set: frozenset[T] = self._primary_hooks["value"].value # type: ignore
+        new_set: set[T] = self._primary_hooks["value"].value # type: ignore
         for other in others:
-            new_set = new_set | frozenset(other) # type: ignore
+            new_set = new_set | set(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
             success, msg = self._submit_values({"value": new_set})
             if not success:
@@ -226,14 +226,14 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Update the set keeping only elements found in this set and all others.
         
-        Creates a new frozenset with only common elements.
+        Creates a new set with only common elements.
         
         Args:
             *others: Variable number of iterables to intersect with
         """
-        new_set: frozenset[T] = self._primary_hooks["value"].value # type: ignore
+        new_set: set[T] = self._primary_hooks["value"].value # type: ignore
         for other in others:
-            new_set = new_set & frozenset(other) # type: ignore
+            new_set = new_set & set(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
             success, msg = self._submit_values({"value": new_set})
             if not success:
@@ -243,14 +243,14 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Update the set removing elements found in any of the others.
         
-        Creates a new frozenset without elements from the provided iterables.
+        Creates a new set without elements from the provided iterables.
         
         Args:
             *others: Variable number of iterables to remove elements from
         """
-        new_set: frozenset[T] = self._primary_hooks["value"].value # type: ignore
+        new_set: set[T] = self._primary_hooks["value"].value # type: ignore
         for other in others:
-            new_set = new_set - frozenset(other) # type: ignore
+            new_set = new_set - set(other) # type: ignore
         if new_set != self._primary_hooks["value"].value:
             success, msg = self._submit_values({"value": new_set})
             if not success:
@@ -260,13 +260,13 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         """
         Update the set keeping only elements found in either set but not both.
         
-        Creates a new frozenset with symmetric difference.
+        Creates a new set with symmetric difference.
         
         Args:
             other: An iterable to compute symmetric difference with
         """
-        current_set: frozenset[T] = self._primary_hooks["value"].value # type: ignore
-        new_set = current_set ^ frozenset(other) # type: ignore
+        current_set: set[T] = self._primary_hooks["value"].value # type: ignore
+        new_set = current_set ^ set(other) # type: ignore
         
         # Only update if there's an actual change
         if new_set != current_set:
@@ -275,10 +275,10 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
                 raise ValueError(msg)
     
     def __str__(self) -> str:
-        return f"OS(options={self._primary_hooks['value'].value})"
+        return f"OS(options={self._primary_hooks['value'].value!r})"
     
     def __repr__(self) -> str:
-        return f"ObservableSet({self._primary_hooks['value'].value})"
+        return f"ObservableSet({self._primary_hooks['value'].value!r})"
     
     def __len__(self) -> int:
         """
@@ -400,11 +400,11 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
             other: Another iterable or ObservableSet to intersect with
             
         Returns:
-            A new frozenset containing elements common to both sets
+            A new set containing elements common to both sets
         """
         if isinstance(other, ObservableSet):
             return self._primary_hooks["value"].value & other._primary_hooks["value"].value # type: ignore
-        return self._primary_hooks["value"].value & frozenset(other) # type: ignore
+        return self._primary_hooks["value"].value & set(other) # type: ignore
     
     def __or__(self, other: Any) -> Set[T]:
         """
@@ -414,11 +414,11 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
             other: Another iterable or ObservableSet to union with
             
         Returns:
-            A new frozenset containing all elements from both sets
+            A new set containing all elements from both sets
         """
         if isinstance(other, ObservableSet):
             return self._primary_hooks["value"].value | other._primary_hooks["value"].value # type: ignore
-        return self._primary_hooks["value"].value | frozenset(other) # type: ignore
+        return self._primary_hooks["value"].value | set(other) # type: ignore
     
     def __sub__(self, other: Any) -> Set[T]:
         """
@@ -428,11 +428,11 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
             other: Another iterable or ObservableSet to subtract from this set
             
         Returns:
-            A new frozenset containing elements in this set but not in the other
+            A new set containing elements in this set but not in the other
         """
         if isinstance(other, ObservableSet):
             return self._primary_hooks["value"].value - other._primary_hooks["value"].value # type: ignore
-        return self._primary_hooks["value"].value - frozenset(other) # type: ignore
+        return self._primary_hooks["value"].value - set(other) # type: ignore
     
     def __xor__(self, other: Any) -> Set[T]:
         """
@@ -442,8 +442,8 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
             other: Another iterable or ObservableSet to compute symmetric difference with
             
         Returns:
-            A new frozenset containing elements in either set but not in both
+            A new set containing elements in either set but not in both
         """
         if isinstance(other, ObservableSet):
             return self._primary_hooks["value"].value ^ other._primary_hooks["value"].value # type: ignore
-        return self._primary_hooks["value"].value ^ frozenset(other) # type: ignore
+        return self._primary_hooks["value"].value ^ set(other) # type: ignore

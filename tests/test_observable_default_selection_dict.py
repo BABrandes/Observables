@@ -182,8 +182,8 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Test get_hook_keys - now includes secondary hooks
-        keys = selection_dict.get_hook_keys()
-        assert keys == {"dict", "key", "value", "keys", "values", "length"}
+        keys = selection_dict.hook_keys()
+        assert keys == {"dict", "key", "keys", "length", "value", "values"}
         
         # Test secondary hooks
         assert selection_dict.keys == frozenset({"a", "b"})
@@ -191,9 +191,9 @@ class TestObservableDefaultSelectionDict:
         assert selection_dict.length == 2
         
         # Test get_hook
-        dict_hook = selection_dict.get_hook("dict")
-        key_hook = selection_dict.get_hook("key")
-        value_hook = selection_dict.get_hook("value")
+        dict_hook = selection_dict.dict_hook
+        key_hook = selection_dict.key_hook
+        value_hook = selection_dict.value_hook
         
         assert dict_hook is not None
         assert key_hook is not None
@@ -201,15 +201,15 @@ class TestObservableDefaultSelectionDict:
         
         # Test get_hook_value_as_reference
         # Dict is now stored as MappingProxyType, so compare contents
-        dict_value = selection_dict.get_value_reference_of_hook("dict")
+        dict_value = selection_dict.dict_hook.value
         assert dict(dict_value) == test_dict  # type: ignore[arg-type]
-        assert selection_dict.get_value_reference_of_hook("key") == "a"
-        assert selection_dict.get_value_reference_of_hook("value") == 1
+        assert selection_dict.key_hook.value == "a"
+        assert selection_dict.value_hook.value == 1
         
         # Test get_hook_key
-        assert selection_dict.get_hook_key(dict_hook) == "dict"
-        assert selection_dict.get_hook_key(key_hook) == "key"
-        assert selection_dict.get_hook_key(value_hook) == "value"
+        assert selection_dict._get_key_by_hook_or_nexus(selection_dict.dict_hook) == "dict" # type: ignore
+        assert selection_dict._get_key_by_hook_or_nexus(selection_dict.key_hook) == "key" # type: ignore
+        assert selection_dict._get_key_by_hook_or_nexus(selection_dict.value_hook) == "value" # type: ignore
 
     def test_verification_method(self):
         """Test the verification method."""
@@ -224,21 +224,21 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Test valid values with key
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
+        success, msg = selection_dict.validate_values_by_keys({"dict": {"a": 1, "b": 2}, "key": "a", "value": 1})
         assert success
         
         # Test invalid - None key (key must not be None)
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": None, "value": default_value})
+        success, msg = selection_dict.validate_values_by_keys({"dict": {"a": 1, "b": 2}, "key": None, "value": default_value})
         assert not success
         assert "Key must not be None" in msg
         
         # Test invalid - key not in dict
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
+        success, msg = selection_dict.validate_values_by_keys({"dict": {"a": 1, "b": 2}, "key": "z", "value": 1})
         assert not success
         assert "not in dictionary" in msg
         
         # Test invalid - value doesn't match dictionary value
-        success, msg = selection_dict.validate_values({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
+        success, msg = selection_dict.validate_values_by_keys({"dict": {"a": 1, "b": 2}, "key": "a", "value": 999})
         assert not success  # Should be invalid - value doesn't match dictionary
         assert "not equal to value in dictionary" in msg
 
@@ -267,7 +267,7 @@ class TestObservableDefaultSelectionDict:
         from types import MappingProxyType
         new_dict_without_z = {"b": 200, "x": 100, "y": 300}
         with pytest.raises(KeyError, match="not in submitted dictionary"):
-            selection_dict.dict_hook.submit_value(MappingProxyType(new_dict_without_z))
+            selection_dict.submit_values_by_keys({"dict": MappingProxyType(new_dict_without_z)})
         
         # Dict should remain unchanged
         assert selection_dict.dict_hook.value["z"] == default_value
@@ -278,7 +278,7 @@ class TestObservableDefaultSelectionDict:
         
         # Now change dict to new dict - should succeed since "b" is in it
         new_dict = {"b": 200, "x": 100, "y": 300}
-        success, msg = selection_dict.dict_hook.submit_value(MappingProxyType(new_dict))
+        success, msg = selection_dict.submit_values_by_keys({"dict": MappingProxyType(new_dict)})
         assert success, f"Dict update should succeed when key is present: {msg}"
         assert selection_dict.dict_hook.value["b"] == 200
         assert selection_dict.dict_hook.value["x"] == 100
@@ -317,12 +317,12 @@ class TestObservableDefaultSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.join(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.join_by_key("key", external_hook, "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
         # Disconnect
-        selection_dict.isolate("key")
+        selection_dict.isolate_by_key("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_invalidation(self):
@@ -338,7 +338,7 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Test invalidation - no callback provided
-        success, msg = selection_dict.invalidate()
+        success, msg = selection_dict._invalidate() # type: ignore  
         assert success
         assert "Successfully invalidated" in msg
 
@@ -356,13 +356,13 @@ class TestObservableDefaultSelectionDict:
         
         # Set valid dict and key
         new_dict = {"x": 100, "y": 200}
-        selection_dict.set_dict_and_key(new_dict, "x")
+        selection_dict.submit_values_by_keys({"dict": new_dict, "key": "x"})
         assert selection_dict.dict_hook.value == new_dict
         assert selection_dict.key == "x"
         assert selection_dict.value == 100
         
         # Set dict and key not in dict - should create default entry
-        selection_dict.set_dict_and_key(new_dict, "z")
+        selection_dict.submit_values_by_keys({"dict": new_dict, "key": "z"})
         assert selection_dict.key == "z"
         assert selection_dict.value == default_value
         # Dict should now have the "z" key with default value
@@ -477,7 +477,7 @@ class TestObservableDefaultSelectionDict:
         selection_dict.remove_all_listeners()
         
         # Trigger invalidation - listener should not be called
-        selection_dict.invalidate()
+        selection_dict._invalidate() # type: ignore
         assert not listener_called
 
     def test_callable_default_value(self):

@@ -103,7 +103,7 @@ class ObservableDict(ComplexObservableBase[Literal["dict"], Literal["length", "k
         )
 
         if hook is not None:
-            self._join(hook, "dict", "use_target_value") # type: ignore
+            self._join("dict", hook, "use_target_value") # type: ignore
 
     #########################################################
     # ObservableDictProtocol implementation

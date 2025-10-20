@@ -36,12 +36,12 @@ class CarriesSingleHookProtocol(CarriesSomeHooksProtocol[Any, T], HasNexusProtoc
         """
         ...
 
-    def join(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
+    def join(self, target_hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
         """
         Join the single hook to the target hook.
 
         Args:
-            hook: The hook to join to
+            target_hook: The hook to join to
             sync_mode: The sync mode to use
         """
         ...

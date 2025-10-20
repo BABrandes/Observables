@@ -286,3 +286,24 @@ class ObservableBlockNone(CarriesSomeHooksBase[Literal["value_without_none", "va
         Get the hook without None.
         """
         return self._hook_without_None
+
+    def submit_values_by_keys(self, values: Mapping[Literal["value_without_none", "value_with_none"], T], *, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+        """
+        Submit values by keys, raising SubmissionError if validation fails.
+        
+        Args:
+            values: The values to submit
+            raise_submission_error_flag: Whether to raise a SubmissionError if the submission fails
+            
+        Returns:
+            A tuple of (success: bool, message: str)
+            
+        Raises:
+            SubmissionError: If the submission fails and raise_submission_error_flag is True
+        """
+        from observables._nexus_system.submission_error import SubmissionError
+        
+        success, msg = self._submit_values(values)
+        if not success and raise_submission_error_flag:
+            raise SubmissionError(msg, values)
+        return success, msg

@@ -2,7 +2,7 @@
 Test for the race condition in hook disconnect.
 
 This test verifies that the fix for the "Hook was not found in its own hook nexus!"
-error works correctly when disconnect() and connect_hook() are called concurrently.
+error works correctly when disconnect() and join_by_key() are called concurrently.
 """
 
 import threading

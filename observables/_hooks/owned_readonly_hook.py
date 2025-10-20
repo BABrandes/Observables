@@ -4,7 +4,7 @@ from logging import Logger
 from .._auxiliary.listening_base import ListeningBase
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
-from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from .._carries_hooks.carries_hooks_protocol import CarriesSomeHooksProtocol
 
 from .hook_bases.managed_hook_base import ManagedHookBase
 from .hook_protocols.owned_read_only_hook_protocol import OwnedReadOnlyHookProtocol
@@ -28,7 +28,7 @@ class OwnedReadOnlyHook(ManagedHookBase[T], OwnedReadOnlyHookProtocol[T], Listen
 
     def __init__(
             self,
-            owner: CarriesHooksProtocol[Any, Any],
+            owner: CarriesSomeHooksProtocol[Any, Any],
             initial_value: T,
             logger: Optional[Logger] = None,
             nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER
@@ -45,11 +45,11 @@ class OwnedReadOnlyHook(ManagedHookBase[T], OwnedReadOnlyHookProtocol[T], Listen
         self._owner = owner
 
     @property
-    def owner(self) -> CarriesHooksProtocol[Any, T]:
+    def owner(self) -> CarriesSomeHooksProtocol[Any, T]:
         """Get the owner of this hook."""
         return self._owner
 
-    def _get_owner(self) -> CarriesHooksProtocol[Any, T]:
+    def _get_owner(self) -> CarriesSomeHooksProtocol[Any, T]:
         """Get the owner of this hook."""
 
         with self._lock:

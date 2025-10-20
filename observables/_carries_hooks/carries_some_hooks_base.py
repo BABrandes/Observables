@@ -39,8 +39,8 @@ class CarriesSomeHooksBase(CarriesSomeHooksProtocol[HK, HV], HasNexusManagerProt
     values are synchronized and validated, making the system more extensible.
 
     Inheritance Structure:
-    - Inherits from: CarriesHooksProtocol[HK, HV] (Protocol), Generic[HK, HV], ABC
-    - Implements: Most CarriesHooksProtocol methods as @final methods with thread safety
+    - Inherits from: CarriesSomeHooksProtocol[HK, HV] (Protocol), Generic[HK, HV], ABC
+    - Implements: Most CarriesSomeHooksProtocol methods as @final methods with thread safety
     - Provides: Core sync system functionality, validation, and hook management
 
     Abstract Methods (Must Implement):
@@ -66,7 +66,7 @@ class CarriesSomeHooksBase(CarriesSomeHooksProtocol[HK, HV], HasNexusManagerProt
 
     Provided Functionality:
     - Thread-safe access to all methods via RLock
-    - Complete implementation of CarriesHooksProtocol protocol
+    - Complete implementation of CarriesSomeHooksProtocol protocol
     - Hook connection/disconnection management
     - Value submission and validation via NexusManager
     - Memory management and cleanup via destroy()
@@ -103,7 +103,7 @@ class CarriesSomeHooksBase(CarriesSomeHooksProtocol[HK, HV], HasNexusManagerProt
         nexus_manager: NexusManager = DEFAULT_NEXUS_MANAGER, 
         ) -> None:
         """
-        Initialize the CarriesHooksBase.
+        Initialize the CarriesSomeHooksBase.
         """
 
         # Store weak references to callbacks to avoid circular references
@@ -243,22 +243,32 @@ class CarriesSomeHooksBase(CarriesSomeHooksProtocol[HK, HV], HasNexusManagerProt
             else:
                 return {}
 
-    def _join(self, hook: Hook[HV]|ReadOnlyHook[HV]|CarriesSingleHookProtocol[HV], to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def _join(self, source_hook_key: HK, target_hook: Hook[HV]|ReadOnlyHook[HV]|CarriesSingleHookProtocol[HV], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
         ** This method is not thread-safe and should only be called by the join method.
+
+        Args:
+            source_hook_key: The key of the hook to connect
+            target_hook: The hook to connect
+            initial_sync_mode: The initial synchronization mode
+
+        Raises:
+            ValueError: If the source hook key is not found in component_hooks or secondary_hooks
+            ValueError: If the connection fails
+            ValueError: If the initial synchronization mode is invalid
         """
 
-        if to_key in self._get_hook_keys():
-            hook_of_observable: OwnedHookProtocol[HV] = self._get_hook_by_key(to_key)
-            if isinstance(hook, CarriesSingleHookProtocol):
-                hook = hook.hook # type: ignore
-            success, msg = hook_of_observable._join(hook, initial_sync_mode) # type: ignore
+        if source_hook_key in self._get_hook_keys():
+            source_hook: OwnedHookProtocol[HV] = self._get_hook_by_key(source_hook_key)
+            if isinstance(target_hook, CarriesSingleHookProtocol):
+                target_hook = target_hook._get_hook_by_key(source_hook_key)
+            success, msg = source_hook._join(target_hook, initial_sync_mode) # type: ignore
             if not success:
                 raise ValueError(msg)
         else:
-            raise ValueError(f"Key {to_key} not found in component_hooks or secondary_hooks")
+            raise ValueError(f"Key {source_hook_key} not found in component_hooks or secondary_hooks")
 
     def _join_many(self, hooks: Mapping[HK, Hook[HV]|ReadOnlyHook[HV]], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """

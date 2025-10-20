@@ -56,7 +56,7 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind them
-        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1.join(obs2.hook, "use_caller_value")  # type: ignore
         
         # Test binding works
         obs1.value = "new_value"
@@ -91,7 +91,7 @@ class TestEssentialMemoryManagement:
         
         assert obs_ref() is None, "Observable with secondary hook was not cleaned up"
 
-    def test_many_simple_observables(self):
+    def test_many_simple_xobjects(self):
         """Test that creating many observables doesn't leak memory."""
         # Get baseline
         gc.collect()
@@ -123,17 +123,17 @@ class TestEssentialMemoryManagement:
         growth = final_objects - initial_objects
         assert growth < 1000, f"Excessive memory growth: {growth} objects"
 
-    def test_detached_observables_cleanup(self):
+    def test_detached_xobjects_cleanup(self):
         """Test cleanup after detaching bindings."""
         obs1 = ObservableSingleValue("value1")
         obs2 = ObservableSingleValue("value2")
         
         # Bind, test, detach
-        obs1._join(obs2.hook, "value", "use_caller_value")  # type: ignore
+        obs1.join(obs2.hook, "use_caller_value")
         obs1.value = "bound_value"
         assert obs2.value == "bound_value"
         
-        obs1._isolate("value")  # type: ignore
+        obs1.isolate()
         obs1.value = "detached_value"
         assert obs2.value == "bound_value"  # Should not change
         
@@ -170,7 +170,7 @@ class TestEssentialMemoryManagement:
         
         assert obs_ref() is None, "ObservableDict was not cleaned up"
 
-    def test_observable_list_comprehensive_operations(self):
+    def test_x_list_comprehensive_operations(self):
         """Test various ObservableList operations."""
         obs_list = ObservableList([1, 2, 3])
         
@@ -237,7 +237,7 @@ class TestEssentialMemoryManagement:
         obs2 = ObservableSingleValue("value2")
         
         # Bind with use_target_value - obs2's value wins
-        obs1._join(obs2.hook, "value", "use_target_value")  # type: ignore
+        obs1.join(obs2.hook, "use_target_value")  # type: ignore
         assert obs1.value == "value2"
         
         # Change obs1, both should update
@@ -382,25 +382,24 @@ class TestMemoryStressScenarios:
         
         for cycle in range(20):
             # Create observables for this cycle
-            cycle_observables: list[ObservableSingleValue[Any]] = []
+            cycle_xobjects: list[ObservableSingleValue[Any]] = []
             for i in range(10):
                 obs = ObservableSingleValue(f"cycle_{cycle}_value_{i}")
-                cycle_observables.append(obs)
+                cycle_xobjects.append(obs)
                 weak_refs.append(weakref.ref(obs))
             
             # Create some bindings
-            for i in range(len(cycle_observables) - 1):
-                cycle_observables[i]._join(  # type: ignore
-                    cycle_observables[i + 1].hook,
-                    "value",
+            for i in range(len(cycle_xobjects) - 1):
+                cycle_xobjects[i].join(  # type: ignore
+                    cycle_xobjects[i + 1].hook,
                     "use_caller_value"
                 )
             
             # Use the chain
-            cycle_observables[0].value = f"chain_value_{cycle}"
+            cycle_xobjects[0].value = f"chain_value_{cycle}"
             
             # Clear cycle
-            cycle_observables.clear()
+            cycle_xobjects.clear()
             
             # Periodic cleanup
             if cycle % 5 == 0:
@@ -563,7 +562,7 @@ class TestMemoryStressScenarios:
                 weak_refs.append(weakref.ref(sat))
                 
                 # Bind satellite to center
-                sat._join(center.hook, "value", "use_caller_value")  # type: ignore
+                sat.join(center.hook, "use_caller_value")  # type: ignore
             
             # Change center, all satellites should update
             center.value = f"broadcast_{cycle}"

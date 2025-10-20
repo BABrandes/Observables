@@ -4,13 +4,13 @@ from logging import basicConfig, getLogger, DEBUG
 import pytest
 
 from observables import ObservableSync, ObservableSingleValue, FunctionValues
-from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
+from observables._carries_hooks.carries_some_hooks_base import CarriesSomeHooksBase
 from observables._hooks.owned_hook import OwnedHook
 
 basicConfig(level=DEBUG)
 logger = getLogger(__name__)
 
-class MockObservable(CarriesHooksBase[str, int, "MockObservable"]):
+class MockObservable(CarriesSomeHooksBase[str, int, "MockObservable"]):
     """Mock observable that implements the required interface."""
     
     def __init__(self, name: str):

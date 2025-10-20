@@ -88,7 +88,7 @@ class ObservableList(ComplexObservableBase[Literal["value"], Literal["length"], 
         )
 
         if hook is not None:
-            self._join(hook, "value", "use_target_value") # type: ignore
+            self._join("value", hook, "use_target_value") # type: ignore
 
     #########################################################
     # ObservableListProtocol implementation

@@ -1,4 +1,4 @@
-from typing import Callable, Generic, Mapping, Optional, TypeVar, Any
+from typing import Callable, Generic, Mapping, Optional, TypeVar, Any, Literal
 from logging import Logger
 
 from .._auxiliary.listening_base import ListeningBase
@@ -8,6 +8,7 @@ from .._hooks.hook_protocols.owned_full_hook_protocol import OwnedFullHookProtoc
 from .._hooks.owned_hook import OwnedHook
 from .._hooks.mixin_protocols.hook_with_owner_protocol import HookWithOwnerProtocol
 from .._hooks.mixin_protocols.hook_with_getter_protocol import HookWithGetterProtocol
+from .._hooks.hook_aliases import Hook, ReadOnlyHook
 from .._nexus_system.nexus import Nexus
 from .._nexus_system.nexus_manager import NexusManager
 from .._nexus_system.default_nexus_manager import DEFAULT_NEXUS_MANAGER
@@ -441,7 +442,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         #-------------------------------- Initialize finished --------------------------------
 
     #########################################################################
-    # CarriesHooksBase methods implementation
+    # CarriesSomeHooksBase methods implementation
     #########################################################################
 
     def _get_hook_by_key(self, key: PHK|SHK) -> OwnedHookProtocol[PHV|SHV]:
@@ -557,15 +558,23 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
     # Other methods (maybe for a future protocol)
     #########################################################################
 
-    def join_by_hookkey(self, key: PHK|SHK) -> None:
+    def join_many_by_keys(self, source_hooks: Mapping[PHK|SHK, Hook[PHV|SHV]|ReadOnlyHook[PHV|SHV]], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+        """
+        Join many hooks by their keys.
+        """
+        for key, hook in source_hooks.items():
+            self.join_by_key(key, hook, initial_sync_mode) # type: ignore
+
+    def join_by_key(self, source_hook_key: PHK|SHK, target_hook: Hook[PHV|SHV]|ReadOnlyHook[PHV|SHV], initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Join a hook by its key.
 
         ** Thread-safe **
 
         Args:
-            key: The key of the hook to join
-
+            source_hook_key: The key of the hook to join
+            target_hook: The hook to join
+            initial_sync_mode: The initial synchronization mode
         Returns:
             None
 
@@ -574,9 +583,9 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
             ValueError: If the hook is not a primary or secondary hook
         """
         with self._lock:
-            return self._join(self._get_hook_by_key(key), key, "use_target_value")
+            return self._join(source_hook_key, target_hook, initial_sync_mode)
 
-    def isolate_by_hookkey(self, key: PHK|SHK) -> None:
+    def isolate_by_key(self, key: PHK|SHK) -> None:
         """
         Isolate a hook by its key.
 
@@ -594,7 +603,19 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             self._isolate(key)
 
-    def value_by_hookkey(self, key: PHK|SHK) -> PHV|SHV:
+    def isolate_all(self) -> None:
+        """
+        Isolate all hooks.
+
+        ** Thread-safe **
+
+        Args:
+            None
+        """
+        with self._lock:
+            self._isolate(None)
+
+    def value_by_key(self, key: PHK|SHK) -> PHV|SHV:
         """
         Get the value of a hook by its key.
 
@@ -612,7 +633,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             return self._get_value_by_key(key)
 
-    def hook_by_hookkey(self, key: PHK|SHK) -> OwnedFullHookProtocol[PHV|SHV]:
+    def hook_by_key(self, key: PHK|SHK) -> OwnedFullHookProtocol[PHV|SHV]:
         """
         Get a hook by its key.
 
@@ -630,7 +651,8 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             return self._get_hook_by_key(key)
 
-    def hookeys(self) -> set[PHK|SHK]:
+    @property
+    def hook_keys(self) -> set[PHK|SHK]:
         """
         Get all hook keys.
 
@@ -646,7 +668,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             return self._get_hook_keys()
 
-    def validate_values(self, values: Mapping[PHK, PHV]) -> tuple[bool, str]:
+    def validate_values_by_keys(self, values: Mapping[PHK, PHV]) -> tuple[bool, str]:
         """
         This method checks if the provided values would be valid for submission. 
 
@@ -662,7 +684,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             return self._validate_values(values) # type: ignore
 
-    def validate_value(self, key: PHK, value: PHV) -> tuple[bool, str]: # type: ignore
+    def validate_value_by_key(self, key: PHK, value: PHV) -> tuple[bool, str]: # type: ignore
         """
         This method checks if the provided value would be valid for submission. 
 
@@ -680,7 +702,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
         with self._lock:
             return self._validate_value(key, value)
 
-    def submit_values(self, values: Mapping[PHK, PHV], *, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
+    def submit_values_by_keys(self, values: Mapping[PHK, PHV], *, raise_submission_error_flag: bool = True) -> tuple[bool, str]:
         """
         This method submits the provided values to the observable.
 
@@ -703,7 +725,7 @@ class ComplexObservableBase(ListeningBase, CarriesSomeHooksBase[PHK|SHK, PHV|SHV
                 raise SubmissionError(msg, values)
             return success, msg
 
-    def submit_value(self, key: PHK, value: PHV, *, raise_submission_error_flag: bool = True) -> tuple[bool, str]: # type: ignore
+    def submit_value_by_key(self, key: PHK, value: PHV, *, raise_submission_error_flag: bool = True) -> tuple[bool, str]: # type: ignore
         """
         This method submits the provided value to the observable.
 

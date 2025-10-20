@@ -113,9 +113,9 @@ class TestObservableSelectionDict:
         assert selection_dict._get_value_by_key("value") == 1 # type: ignore
         
         # Test get_hook_key
-        assert selection_dict._get_hook_by_key(dict_hook) == "dict" # type: ignore
-        assert selection_dict._get_hook_by_key(key_hook) == "key" # type: ignore
-        assert selection_dict._get_hook_by_key(value_hook) == "value" # type: ignore
+        assert selection_dict._get_key_by_hook_or_nexus(dict_hook) == "dict" # type: ignore
+        assert selection_dict._get_key_by_hook_or_nexus(key_hook) == "key" # type: ignore
+        assert selection_dict._get_key_by_hook_or_nexus(value_hook) == "value" # type: ignore
 
     def test_value_properties(self):
         """Test value and key properties."""
@@ -154,12 +154,12 @@ class TestObservableSelectionDict:
         external_hook = OwnedHook(owner=self.mock_owner, initial_value="b", logger=logger)
         
         # Connect to key hook
-        selection_dict.join(external_hook, "key", "use_target_value")  # type: ignore
+        selection_dict.join_by_key("key", external_hook, "use_target_value")  # type: ignore
         assert selection_dict.key == "b"
         assert selection_dict.value == 2
         
         # Disconnect
-        selection_dict.isolate("key")
+        selection_dict.isolate_by_key("key")
         # Key should remain "b" but no longer be connected to external hook
 
     def test_verification_method(self):
@@ -173,18 +173,18 @@ class TestObservableSelectionDict:
         )
         
         # Test valid values
-        success, _ = selection_dict.validate_values({"dict": {"a": 1, "b": 2}})
+        success, _ = selection_dict.validate_values_by_keys({"dict": {"a": 1, "b": 2}})
         assert success
         
-        success, _ = selection_dict.validate_values({"key": "a"})
+        success, _ = selection_dict.validate_values_by_keys({"key": "a"})
         assert success
         
-        success, _ = selection_dict.validate_values({"value": 1})
+        success, _ = selection_dict.validate_values_by_keys({"value": 1})
         assert success
         
         # Test invalid values - need to test with both key and dict context
         with pytest.raises(KeyError, match="not in dictionary"):
-            selection_dict.validate_values({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
+            selection_dict.validate_values_by_keys({"key": "nonexistent", "dict": {"a": 1, "b": 2}})
 
     def test_invalidation(self):
         """Test invalidation behavior."""
@@ -201,7 +201,7 @@ class TestObservableSelectionDict:
         )
         
         # Test invalidation
-        success, _ = selection_dict.invalidate()
+        success, _ = selection_dict._invalidate() # type: ignore
         assert success
         assert len(invalidation_called) == 1
 
@@ -221,7 +221,7 @@ class TestObservableSelectionDict:
         
         # Change dict to include the current key
         from types import MappingProxyType
-        selection_dict.dict_hook.submit_value(MappingProxyType({"b": 200, "x": 100, "y": 300}))
+        selection_dict.submit_values_by_keys({"dict": MappingProxyType({"b": 200, "x": 100, "y": 300}), "key": "x"})
         # Now we can set the key to "x" since "b" is still valid
         selection_dict.change_key("x")
         assert selection_dict.value == 100
@@ -389,10 +389,10 @@ class TestObservableOptionalSelectionDict:
         )
         
         # Test valid values
-        success, msg = selection_dict.validate_values({"key": "a"})
+        success, msg = selection_dict.validate_values_by_keys({"key": "a"})
         assert success
         
-        success, msg = selection_dict.validate_values({"value": 1})
+        success, msg = selection_dict.validate_values_by_keys({"value": 1})
         assert success
         
         # Test None key - should be valid and set value to None
@@ -402,7 +402,7 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.dict_hook.value == test_dict
         
         # Test None key with non-None value (should be invalid)
-        success, msg = selection_dict.validate_values({"key": None, "value": 999})
+        success, msg = selection_dict.validate_values_by_keys({"key": None, "value": 999})
         assert not success
         assert "Value is not None when key is None" in msg
 
@@ -459,8 +459,8 @@ class TestObservableOptionalSelectionDict:
         )
         
         # Test get_collective_hook_keys - now includes secondary hooks
-        collective_keys = selection_dict.get_hook_keys()
-        assert collective_keys == {"dict", "key", "value", "keys", "values", "length"}
+        collective_keys = selection_dict.hook_keys
+        assert collective_keys == {"dict", "key", "keys", "length", "value", "values"}
         
         # Test that secondary hooks are read-only (cannot submit values directly)
         keys_hook = selection_dict.keys_hook
@@ -579,7 +579,7 @@ class TestObservableOptionalSelectionDict:
         
         # Update dict properly through the API
         new_dict = {"b": 2, "c": 3, "d": 4}  # Remove key "a", add "d"
-        selection_dict.set_dict_and_key(new_dict, "d")  # Set to valid key
+        selection_dict.submit_values_by_keys({"dict": new_dict, "key": "d"})  # Set to valid key
         assert selection_dict.value == 4
         
         # Should not be able to switch back to removed key
@@ -600,8 +600,8 @@ class TestObservableOptionalSelectionDict:
         assert selection_dict.key == "a"
         assert selection_dict.value == 1
         
-        # Use set_dict_and_key to change both
-        selection_dict.set_dict_and_key({"x": 100, "y": 200}, "x")
+        # Use submit_values_by_keys to change both
+        selection_dict.submit_values_by_keys({"dict": {"x": 100, "y": 200}, "key": "x"})
         
         # Check the results
         assert selection_dict.key == "x"
@@ -616,13 +616,13 @@ class TestObservableOptionalSelectionDict:
             logger=logger
         )
         
-        # Use set_dict_and_key to change both
-        optional_dict.set_dict_and_key({"x": 100, "y": 200}, "y")
+        # Use submit_values_by_keys to change both
+        optional_dict.submit_values_by_keys({"dict": {"x": 100, "y": 200}, "key": "y"})
         assert optional_dict.key == "y"
         assert optional_dict.value == 200
         
         # Test with None key
-        optional_dict.set_dict_and_key({"a": 1, "b": 2}, None)
+        optional_dict.submit_values_by_keys({"dict": {"a": 1, "b": 2}, "key": None})
         assert optional_dict.key is None
         assert optional_dict.value is None
 
@@ -637,7 +637,7 @@ class TestObservableOptionalSelectionDict:
         )
         
         # Test validation with all three values
-        success, msg = selection_dict.validate_values({
+        success, msg = selection_dict.validate_values_by_keys({
             "dict": {"x": 10, "y": 20},
             "key": "x",
             "value": 10
@@ -645,7 +645,7 @@ class TestObservableOptionalSelectionDict:
         assert success
         
         # Test validation with mismatched dict and value
-        success, msg = selection_dict.validate_values({
+        success, msg = selection_dict.validate_values_by_keys({
             "dict": {"x": 10, "y": 20},
             "key": "x",
             "value": 999  # Wrong value
@@ -653,7 +653,7 @@ class TestObservableOptionalSelectionDict:
         assert not success
         
         # Test validation with None dict
-        success, msg = selection_dict.validate_values({
+        success, msg = selection_dict.validate_values_by_keys({
             "dict": None,
             "key": "x",
             "value": 10

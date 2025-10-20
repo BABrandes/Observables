@@ -87,8 +87,31 @@ class XValueBase(ListeningBase, CarriesSomeHooksBase[Literal["value"], T, "XValu
             nexus_manager
             )
 
+        # Create validation callback that uses the verification method
+        def validate_complete_values_in_isolation_callback(
+            self_ref: "XValueBase[T]", 
+            values: Mapping[Literal["value"], T]
+        ) -> tuple[bool, str]:
+            """Validate the complete values using the verification method."""
+            if "value" not in values:
+                return False, "Value key not found in values"
+            
+            value = values["value"]
+            
+            # Use custom verification method if provided
+            if self_ref._verification_method is not None:
+                try:
+                    success, msg = self_ref._verification_method(value)
+                    if not success:
+                        return False, msg
+                except Exception as e:
+                    return False, f"Validation error: {e}"
+            
+            return True, "Value is valid"
+
         CarriesSomeHooksBase.__init__( # type: ignore
             self,
+            validate_complete_values_in_isolation_callback=validate_complete_values_in_isolation_callback,
             logger=logger,
             nexus_manager=nexus_manager
         )
@@ -140,23 +163,23 @@ class XValueBase(ListeningBase, CarriesSomeHooksBase[Literal["value"], T, "XValu
     # Public API
     #########################################################
 
-    def join(self, hook: "Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T]", sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
+    def join(self, target_hook: Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T], sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
         """
         Join this observable to another hook (thread-safe).
         
         This triggers Nexus fusion, creating a transitive synchronization domain.
         
         Args:
-            hook: The hook or observable to join to
+            target_hook: The hook or observable to join to
             sync_mode: Which value to use initially:
                 - "use_caller_value": Use this observable's value
                 - "use_target_value": Use the target hook's value
         """
         with self._lock:
-            if isinstance(hook, CarriesSingleHookProtocol):
-                target_hook = hook._get_single_hook()
+            if isinstance(target_hook, CarriesSingleHookProtocol):
+                target_hook = target_hook._get_single_hook()
             else:
-                target_hook = hook
+                target_hook = target_hook
             
             if sync_mode == "use_caller_value":
                 self._value_hook.join(target_hook, "use_caller_value")
@@ -206,6 +229,16 @@ class XValueBase(ListeningBase, CarriesSomeHooksBase[Literal["value"], T, "XValu
         Returns:
             Tuple of (success, message)
         """
+        # First check custom verification method if provided
+        if self._verification_method is not None:
+            try:
+                success, msg = self._verification_method(value)
+                if not success:
+                    return False, msg
+            except Exception as e:
+                return False, f"Validation error: {e}"
+        
+        # Then check with NexusManager
         success, msg = self._nexus_manager.submit_values({self._value_hook._get_nexus(): value}, mode="Check values", logger=logger) # type: ignore
         if not success:
             return False, msg
@@ -321,13 +354,16 @@ class XValueBase(ListeningBase, CarriesSomeHooksBase[Literal["value"], T, "XValu
         """
         return "value"
 
-    def _join(self, hook: Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T], to_key: Literal["value"], initial_sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
+    def _join(self, source_hook_key: Literal["value"], target_hook: Hook[T] | ReadOnlyHook[T] | CarriesSingleHookProtocol[T], initial_sync_mode: Literal["use_caller_value", "use_target_value"] = "use_caller_value") -> None:
         """
         Join the single hook to the target hook.
 
         ** This method is not thread-safe and should only be called by the join method.
         """
-        self._value_hook.join(hook, initial_sync_mode)
+        if source_hook_key != "value":
+            raise ValueError(f"Invalid source hook key: {source_hook_key}")
+
+        self._value_hook.join(target_hook, initial_sync_mode)
 
     def _isolate(self, key: Optional[Literal["value"]] = None) -> None:
         """

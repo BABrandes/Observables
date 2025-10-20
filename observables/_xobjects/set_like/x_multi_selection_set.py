@@ -59,11 +59,11 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         Initialize the ObservableMultiSelectionOption.
         
         Args:
-            selected_options: Initially selected options (set/frozenset), hook to link to, or ObservableMultiSelectionOptionProtocol object
-            available_options: Set of available options (set/frozenset) or hook to link to (optional if selected_options is ObservableMultiSelectionOptionProtocol)
+            selected_options: Initially selected options (set), hook to link to, or ObservableMultiSelectionOptionProtocol object
+            available_options: Set of available options (set) or hook to link to (optional if selected_options is ObservableMultiSelectionOptionProtocol)
             
         Note:
-            Sets are automatically converted to immutable frozensets by the nexus system.
+            Sets are automatically converted to immutable sets by the nexus system.
             
         Raises:
             ValueError: If any selected option is not in available options set
@@ -72,10 +72,10 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         # Handle initialization from ObservableMultiSelectionOptionProtocol
         if isinstance(selected_options, ObservableMultiSelectionOptionsProtocol):            
             source_observable = selected_options # type: ignore
-            initial_selected_options: Iterable[T] | frozenset[T] = source_observable.selected_options # type: ignore
-            initial_available_options: Iterable[T] | frozenset[T] = source_observable.available_options # type: ignore
-            selected_options_hook: Optional[ManagedHookProtocol[frozenset[T]]] = None
-            available_options_hook: Optional[ManagedHookProtocol[frozenset[T]]] = None
+            initial_selected_options: Iterable[T] = source_observable.selected_options # type: ignore
+            initial_available_options: Iterable[T] = source_observable.available_options # type: ignore
+            selected_options_hook: Optional[ManagedHookProtocol[Iterable[T]]] = None
+            available_options_hook: Optional[ManagedHookProtocol[Iterable[T]]] = None
             observable: Optional[ObservableMultiSelectionOptionsProtocol[T]] = selected_options
         else:
             observable = None
@@ -87,16 +87,14 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
                 initial_available_options = available_options.value # type: ignore
                 available_options_hook = available_options # type: ignore
             else:
-                # Convert to frozenset for validation
-                initial_available_options = frozenset(available_options) # type: ignore
+                initial_available_options = set(available_options) # type: ignore
                 available_options_hook = None
 
             if isinstance(selected_options, ManagedHookProtocol):
                 initial_selected_options = selected_options.value # type: ignore
                 selected_options_hook = selected_options # type: ignore
             else:
-                # Convert to frozenset for validation
-                initial_selected_options = frozenset(selected_options) # type: ignore
+                initial_selected_options = set(selected_options) # type: ignore
                 selected_options_hook = None
 
         def is_valid_value(x: Mapping[Literal["selected_options", "available_options"], Iterable[T]]) -> tuple[bool, str]:
@@ -120,12 +118,12 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
 
         # Establish linking if hooks were provided
         if observable is not None:
-            self._join(observable.selected_options_hook, "selected_options", "use_target_value") # type: ignore
-            self._join(observable.available_options_hook, "available_options", "use_target_value") # type: ignore
+            self._join("selected_options", observable.selected_options_hook, "use_target_value") # type: ignore
+            self._join("available_options", observable.available_options_hook, "use_target_value") # type: ignore
         if available_options_hook is not None:
-            self._join(available_options_hook, "available_options", "use_target_value") # type: ignore
+            self._join("available_options", available_options_hook, "use_target_value") # type: ignore
         if selected_options_hook is not None and selected_options_hook is not available_options_hook:
-            self._join(selected_options_hook, "selected_options", "use_target_value") # type: ignore
+            self._join("selected_options", selected_options_hook, "use_target_value") # type: ignore
 
     #############################################################
     # ObservableMultiSelectionOptionsProtocol implementation
@@ -139,7 +137,7 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
 
     @property
     def available_options(self) -> Iterable[T]: # type: ignore
-        """Get the available options as an immutable frozenset."""
+        """Get the available options as an immutable set."""
         return self._primary_hooks["available_options"].value # type: ignore
     
     @available_options.setter
@@ -147,7 +145,7 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         self.change_available_options(available_options)
     
     def change_available_options(self, available_options: Iterable[T]) -> None:
-        """Set the available options (automatically converted to frozenset by nexus system)."""
+        """Set the available options (automatically converted to set by nexus system)."""
         success, msg = self._submit_value("available_options", available_options) # type: ignore
         if not success:
             raise SubmissionError(msg, available_options, "available_options")
@@ -167,7 +165,7 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         self.change_selected_options(selected_options)
     
     def change_selected_options(self, selected_options: Iterable[T]) -> None:
-        """Set the selected options (automatically converted to frozenset by nexus system)."""
+        """Set the selected options (automatically converted to set by nexus system)."""
         # Let nexus system handle immutability conversion
         success, msg = self._submit_value("selected_options", set(selected_options))
         if not success:
@@ -210,8 +208,8 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         Set both the selected options and available options atomically.
         
         Args:
-            selected_options: The new selected options (set/frozenset automatically converted)
-            available_options: The new set of available options (set/frozenset automatically converted)
+            selected_options: The new selected options (set automatically converted)
+            available_options: The new set of available options (set automatically converted)
         """
         # Let nexus system handle immutability conversion
         success, msg = self._submit_values({"selected_options": set(selected_options), "available_options": set(available_options)})
@@ -277,3 +275,13 @@ class ObservableMultiSelectionSet(ComplexObservableBase[Literal["selected_option
         success, msg = self._submit_value("selected_options", set())
         if not success:
             raise ValueError(msg)
+
+    def __str__(self) -> str:
+        sorted_selected = sorted(self.selected_options) # type: ignore
+        sorted_available = sorted(self.available_options) # type: ignore
+        return f"OMSO(selected_options={sorted_selected}, available_options={sorted_available})"
+    
+    def __repr__(self) -> str:
+        sorted_selected = sorted(self.selected_options) # type: ignore
+        sorted_available = sorted(self.available_options) # type: ignore
+        return f"OMSO(selected_options={sorted_selected}, available_options={sorted_available})"

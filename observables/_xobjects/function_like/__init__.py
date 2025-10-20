@@ -8,8 +8,8 @@ Available classes:
 - ObservableOneWayFunction: One-way transformation from inputs to outputs
 """
 
-from .observable_function import ObservableFunction
-from .observable_one_way_function import ObservableOneWayFunction
+from .x_function import ObservableFunction
+from .x_one_way_function import ObservableOneWayFunction
 
 __all__ = [
     'ObservableFunction',

@@ -11,7 +11,7 @@ from observables import ObservableList, ObservableSelectionDict, ObservableSet, 
 class TestEmitterHooksBasicFunctionality:
     """Test basic secondary hook functionality."""
     
-    def test_observable_list_length_secondary_hook(self):
+    def test_x_list_length_secondary_hook(self):
         """Test that ObservableList has a length secondary hook."""
         obs_list = ObservableList([1, 2, 3])
         
@@ -67,7 +67,7 @@ class TestEmitterHooksBasicFunctionality:
 class TestEmitterHooksRecomputation:
     """Test that secondary hooks are properly recomputed when component values change."""
     
-    def test_observable_list_length_updates_on_append(self):
+    def test_x_list_length_updates_on_append(self):
         """Test that length secondary hook updates when list is modified."""
         obs_list = ObservableList([1, 2])
         
@@ -81,7 +81,7 @@ class TestEmitterHooksRecomputation:
         # The secondary hook is not being recomputed
         assert obs_list.length == 3, "Length secondary hook should update when list changes"
     
-    def test_observable_list_length_updates_on_clear(self):
+    def test_x_list_length_updates_on_clear(self):
         """Test that length secondary hook updates when list is cleared."""
         obs_list = ObservableList([1, 2, 3, 4])
         
@@ -94,7 +94,7 @@ class TestEmitterHooksRecomputation:
         # Length should now be 0
         assert obs_list.length == 0, "Length secondary hook should update when list is cleared"
     
-    def test_observable_list_length_updates_on_direct_assignment(self):
+    def test_x_list_length_updates_on_direct_assignment(self):
         """Test that length secondary hook updates when list_value is directly assigned."""
         obs_list = ObservableList([1, 2])
         
@@ -261,9 +261,9 @@ class TestSecondaryHooksEdgeCases:
         """Test observables with no secondary hooks."""
         obs = ObservableSingleValue(42)
         
-        # Should have no secondary hooks
-        assert len(obs._secondary_hooks) == 0 # type: ignore
-        assert len(obs._secondary_hook_callbacks) == 0 # type: ignore
+        # ObservableSingleValue doesn't have secondary hooks
+        assert not hasattr(obs, '_secondary_hooks')
+        assert not hasattr(obs, '_secondary_hook_callbacks')
     
     def test_get_value_of_hook_with_invalid_key(self):
         """Test _get_value_by_key with invalid secondary hook key."""
@@ -287,7 +287,7 @@ class TestSecondaryHooksEdgeCases:
         target = ObservableSingleValue(0)
         
         # Should be able to attach to secondary hook
-        obs_list.join(target.hook, "length", "use_caller_value") # type: ignore
+        obs_list.join_by_key("length", target.hook, "use_caller_value") # type: ignore
         
         # Should sync immediately
         assert target.value == 3

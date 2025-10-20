@@ -2,13 +2,13 @@ from unittest.mock import Mock
 from typing import Any
 
 from observables import Hook
-from observables._carries_hooks.carries_hooks_base import CarriesHooksBase
+from observables._carries_hooks.carries_some_hooks_base import CarriesSomeHooksBase
 from observables._hooks.owned_hook import OwnedHook
 
 from observables._nexus_system.nexus import Nexus
 from observables._auxiliary.listening_base import ListeningBase
 
-class MockCarriesHooks(CarriesHooksBase[Any, Any, "MockCarriesHooks"]):
+class MockCarriesHooks(CarriesSomeHooksBase[Any, Any, "MockCarriesHooks"]):
     """Mock class that implements CarriesHooks interface for testing."""
     
     def __init__(self, name: str = "MockOwner"):
@@ -222,8 +222,8 @@ class TestHookListeners:
     
     def test_multiple_hooks_independent_listeners(self):
         """Test that different hooks have independent listener sets."""
-        owner1: CarriesHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner1") # type: ignore
-        owner2: CarriesHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner2") # type: ignore
+        owner1: CarriesSomeHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner1") # type: ignore
+        owner2: CarriesSomeHooksBase[str, Any, "MockCarriesHooks"] = MockCarriesHooks("Owner2") # type: ignore
         
         hook1 = OwnedHook(owner1, "value1")
         hook2 = OwnedHook(owner2, "value2")

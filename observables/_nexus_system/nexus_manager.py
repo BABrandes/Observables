@@ -8,7 +8,7 @@ from logging import Logger
 from .._utils import log
 
 if TYPE_CHECKING:
-    from .._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+    from .._carries_hooks.carries_hooks_protocol import CarriesSomeHooksProtocol
 
 from .._hooks.hook_aliases import Hook
 from .._auxiliary.listening_protocol import ListeningProtocol
@@ -175,7 +175,7 @@ class NexusManager:
     ##################################################################################################################
 
     @staticmethod
-    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["Nexus[Any]", Any], owner: "CarriesHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
+    def _filter_nexus_and_values_for_owner(nexus_and_values: dict["Nexus[Any]", Any], owner: "CarriesSomeHooksProtocol[Any, Any]") -> tuple[dict[Any, Any], dict[Any, Hook[Any]]]:
         """
         This method extracts the value and hook dict from the nexus and values dictionary for a specific owner.
         It essentially filters the nexus and values dictionary to only include values which the owner has a hook for. It then finds the hook keys for the owner and returns the value and hook dict for these keys.
@@ -203,7 +203,7 @@ class NexusManager:
         return key_and_value_dict, key_and_hook_dict
 
     @staticmethod
-    def _complete_nexus_and_values_for_owner(value_dict: dict[Any, Any], owner: "CarriesHooksProtocol[Any, Any]", as_reference_values: bool = False) -> None:
+    def _complete_nexus_and_values_for_owner(value_dict: dict[Any, Any], owner: "CarriesSomeHooksProtocol[Any, Any]", as_reference_values: bool = False) -> None:
         """
         Complete the value dict for an owner.
 
@@ -250,7 +250,7 @@ class NexusManager:
                 nexus_and_values[nexus] = value
             return True, "Successfully inserted value and hook dict into nexus and values"
 
-        def update_nexus_and_value_dict(owner: "CarriesHooksProtocol[Any, Any]", nexus_and_values: dict["Nexus[Any]", Any]) -> tuple[Optional[int], str]:
+        def update_nexus_and_value_dict(owner: "CarriesSomeHooksProtocol[Any, Any]", nexus_and_values: dict["Nexus[Any]", Any]) -> tuple[Optional[int], str]:
             """
             This method updates the nexus and values dictionary with the additional nexus and values, if requested by the owner.
             """
@@ -287,7 +287,7 @@ class NexusManager:
         while True:
 
             # Step 1: Collect the all the owners that need to be checked for additional nexus and values
-            owners_to_check_for_additional_nexus_and_values: list["CarriesHooksProtocol[Any, Any]"] = []
+            owners_to_check_for_additional_nexus_and_values: list["CarriesSomeHooksProtocol[Any, Any]"] = []
             for nexus in nexus_and_values:
                 for hook in nexus.hooks:
                     if isinstance(hook, HookWithOwnerProtocol):
@@ -397,7 +397,7 @@ class NexusManager:
             return False, msg
 
         # Step 2: Collect the owners and floating hooks to validate, react to, and notify
-        owners_that_are_affected: list["CarriesHooksProtocol[Any, Any]"] = []
+        owners_that_are_affected: list["CarriesSomeHooksProtocol[Any, Any]"] = []
         hooks_with_validation: set[HookWithIsolatedValidationProtocol[Any]] = set()
         hooks_with_reaction: set[HookWithReactionProtocol] = set()
         publishers: set[PublisherProtocol] = set()

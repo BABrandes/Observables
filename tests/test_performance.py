@@ -32,13 +32,13 @@ class TestCachePerformance:
         """Test that get_key operations use O(1) cache after first access."""
         # Create an observable with a moderate number of hooks via binding
         main_obs: ObservableSingleValue[Any] = ObservableSingleValue("main")
-        bound_observables: list[ComplexObservableBase[Any, Any, Any, Any, "ComplexObservableBase[Any, Any, Any, Any, Any]"]] = []
+        bound_xobjects: list[ComplexObservableBase[Any, Any, Any, Any, "ComplexObservableBase[Any, Any, Any, Any, Any]"]] = []
         
         # Create bound observables to populate the hook nexus
         for i in range(50):
             obs: ObservableSingleValue[Any] = ObservableSingleValue[Any](f"value_{i}")
             obs.join(main_obs.hook, "use_caller_value")  # type: ignore
-            bound_observables.append(obs) # type: ignore
+            bound_xobjects.append(obs) # type: ignore
         
         # Now main_obs's hook nexus has many hooks
         hook = main_obs.hook
@@ -67,7 +67,7 @@ class TestCachePerformance:
         assert all(t <= time1 * 2 for t in times), "Cached calls should not be slower than first call" # type: ignore
         
         # Clean up
-        for obs in bound_observables: # type: ignore
+        for obs in bound_xobjects: # type: ignore
             obs.isolate()
 
     def test_secondary_hook_cache_performance(self):
@@ -148,7 +148,7 @@ class TestScalabilityPerformance:
         for scale in scales:
             # Create observables
             main_obs = ObservableSingleValue(f"main_{scale}")
-            bound_observables: list[ObservableSingleValue[Any]] = []
+            bound_xobjects: list[ObservableSingleValue[Any]] = []
             
             # Time the binding operations
             start_time = time.perf_counter()
@@ -156,18 +156,18 @@ class TestScalabilityPerformance:
             for i in range(scale):
                 obs = ObservableSingleValue(f"value_{i}")
                 obs.join(main_obs.hook, "use_caller_value")  # type: ignore
-                bound_observables.append(obs)
+                bound_xobjects.append(obs)
             
             binding_time = time.perf_counter() - start_time
             binding_times.append((scale, binding_time))
             
             # Test that the binding network works
             main_obs.value = f"test_{scale}"
-            for obs in bound_observables[:5]:  # Check a few
+            for obs in bound_xobjects[:5]:  # Check a few
                 assert obs.value == f"test_{scale}"
             
             # Clean up
-            for obs in bound_observables:
+            for obs in bound_xobjects:
                 obs.isolate()
         
         # Performance should not degrade dramatically with scale

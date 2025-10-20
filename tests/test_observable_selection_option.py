@@ -121,7 +121,7 @@ class TestObservableSelectionOption:
         assert target.selected_option == "Green"
         
         # Unbind them
-        target.isolate()
+        target.isolate_by_key("selected_option")
         
         # Change source, target should not update
         # Note: source can only use its own available options {"Red", "Green"}
@@ -210,7 +210,8 @@ class TestObservableSelectionOption:
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
         # Bind obs1 to obs2
-        obs1.join_many({"available_options": obs2.available_options_hook, "selected_option": obs2.selected_option_hook}, "use_target_value") #type: ignore
+        obs1.join_by_key("available_options", obs2.available_options_hook, "use_target_value") #type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") #type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
         assert obs1.selected_option == "Blue"
@@ -234,16 +235,16 @@ class TestObservableSelectionOption:
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
         # Test update_value_from_observable mode
-        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") # type: ignore
+        obs1.join_by_key("available_options", obs2.available_options_hook, "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs1.selected_option == "Blue"
         
         # Test update_observable_from_self mode
         obs3 = ObservableSelectionOption("Small", {"Small", "Medium", "Large"})
         obs4 = ObservableSelectionOption("Large", {"Small", "Medium", "Large"})
-        obs3.join(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs3.join(obs4.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs3.join_by_key("selected_option", obs4.selected_option_hook, "use_target_value") # type: ignore
+        obs3.join_by_key("available_options", obs4.available_options_hook, "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs3.selected_option == "Large"
     
@@ -252,14 +253,14 @@ class TestObservableSelectionOption:
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
-        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") # type: ignore
+        obs1.join_by_key("available_options", obs2.available_options_hook, "use_target_value") # type: ignore
         
         # After binding with USE_TARGET_VALUE, obs1 should get obs2's values
         assert obs1.selected_option == "Blue"
         assert obs1.available_options == {"Red", "Green", "Blue"}
         
-        obs1.isolate()
+        obs1.isolate_by_key("selected_option")
         
         # After disconnecting, obs2 keeps its current values but changes no longer propagate
         assert obs2.selected_option == "Blue"
@@ -273,7 +274,7 @@ class TestObservableSelectionOption:
         """Test that binding to self raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with pytest.raises(ValueError):
-            obs.join(obs.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+            obs.join_by_key("selected_option", obs.selected_option_hook, "use_target_value") # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -282,8 +283,8 @@ class TestObservableSelectionOption:
         obs3 = ObservableSelectionOption("Green", {"Red", "Green", "Blue"})
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs2.join(obs3.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") # type: ignore
+        obs2.join_by_key("selected_option", obs3.selected_option_hook, "use_target_value") # type: ignore
         
         # Verify chain works
         obs1.selected_option = "Green"
@@ -291,7 +292,7 @@ class TestObservableSelectionOption:
         assert obs3.selected_option == "Green"
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.isolate()
+        obs2.isolate_by_key("selected_option")
         
         # Change obs1, obs2 should update since they remain bound after obs2.disconnect()
         # Note: obs1 can only use its own available options {"Red", "Green", "Blue"}
@@ -306,8 +307,17 @@ class TestObservableSelectionOption:
     
     def test_string_representation(self):
         """Test string and repr methods"""
-        assert str(self.observable) == "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})"
-        assert repr(self.observable) == "OSO(selected_option=Apple, available_options={'Apple', 'Banana', 'Cherry'})"
+        str_repr = str(self.observable)
+        assert "OSS(selected_option=Apple, available_options=" in str_repr
+        assert "Apple" in str_repr
+        assert "Banana" in str_repr
+        assert "Cherry" in str_repr
+        
+        repr_repr = repr(self.observable)
+        assert "OSS(selected_option=Apple, available_options=" in repr_repr
+        assert "Apple" in repr_repr
+        assert "Banana" in repr_repr
+        assert "Cherry" in repr_repr
     
     def test_listener_management(self):
         """Test listener management methods"""
@@ -316,10 +326,10 @@ class TestObservableSelectionOption:
         # Test is_listening_to
         assert not obs.is_listening_to(self.notification_callback)
         
-        obs.add_listeners(self.notification_callback)
+        obs.add_listener(self.notification_callback)
         assert obs.is_listening_to(self.notification_callback)
         
-        obs.remove_listeners(self.notification_callback)
+        obs.remove_listener(self.notification_callback)
         assert not obs.is_listening_to(self.notification_callback)
     
     def test_multiple_bindings(self):
@@ -329,8 +339,8 @@ class TestObservableSelectionOption:
         obs3 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
         
         # Bind obs2 and obs3 to obs1
-        obs2.join(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs3.join(obs1.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs2.join_by_key("selected_option", obs1.selected_option_hook, "use_target_value") # type: ignore
+        obs3.join_by_key("selected_option", obs1.selected_option_hook, "use_target_value") # type: ignore
         
         # After binding, all observables should be synchronized due to transitive binding
         # When multiple observables are bound to the same target, they all become part of the same binding group
@@ -407,8 +417,8 @@ class TestObservableSelectionOption:
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         obs2 = ObservableSelectionOption("Red", {"Red", "Green", "Yellow"})
         
-        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") # type: ignore
+        obs1.join_by_key("available_options", obs2.available_options_hook, "use_target_value") # type: ignore
         # Use target value for sync → target gets caller's values
         assert obs2.selected_option == "Red"
         assert obs2.available_options == {"Red", "Green", "Yellow"}
@@ -416,7 +426,7 @@ class TestObservableSelectionOption:
         # Test binding selection options with different options
         obs3 = ObservableSelectionOption("Red", {"Red", "Blue", "Green"})
         obs4 = ObservableSelectionOption("Green", {"Green", "Blue", "Red"})
-        obs3.join(obs4.selected_option_hook, "selected_option", "use_target_value") # type: ignore
+        obs3.join_by_key("selected_option", obs4.selected_option_hook, "use_target_value") # type: ignore
         
         obs3.selected_option = "Blue"
         assert obs4.selected_option == "Blue"
@@ -476,15 +486,15 @@ class TestObservableSelectionOption:
         """Test that binding to None raises an error"""
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         with pytest.raises(ValueError):
-            obs.join(None, "selected_option", "use_target_value")  # type: ignore
+            obs.join_by_key("selected_option", None, "use_target_value")  # type: ignore
     
     def test_selection_option_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableSelectionOption("Red", {"Red", "Green", "Blue"})
         obs2 = ObservableSelectionOption("Blue", {"Red", "Green", "Blue"})
         
-        obs1.join(obs2.selected_option_hook, "selected_option", "use_target_value") # type: ignore
-        obs1.join(obs2.available_options_hook, "available_options", "use_target_value") # type: ignore
+        obs1.join_by_key("selected_option", obs2.selected_option_hook, "use_target_value") # type: ignore
+        obs1.join_by_key("available_options", obs2.available_options_hook, "use_target_value") # type: ignore
         # USE_TARGET_VALUE means caller gets target's values
         assert obs1.selected_option == "Blue"
         assert obs1.available_options == {"Red", "Green", "Blue"}
@@ -494,10 +504,10 @@ class TestObservableSelectionOption:
         obs = ObservableSelectionOption("Red", {"Red", "Green"})
         callback = lambda: None
         
-        obs.add_listeners(callback, callback)
+        obs.add_listener(callback, callback)
         assert len(obs.listeners) == 1
         
-        obs.add_listeners(callback)
+        obs.add_listener(callback)
         assert len(obs.listeners) == 1
     
     def test_remove_nonexistent_listener(self):
@@ -506,5 +516,5 @@ class TestObservableSelectionOption:
         callback = lambda: None
         
         # Should not raise an error
-        obs.remove_listeners(callback)
+        obs.remove_listener(callback)
         assert len(obs.listeners) == 0

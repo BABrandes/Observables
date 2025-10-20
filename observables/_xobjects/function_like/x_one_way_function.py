@@ -67,7 +67,7 @@ from ..._hooks.owned_hook import OwnedHook
 from ..._hooks.hook_aliases import Hook, ReadOnlyHook
 from ..._hooks.hook_protocols.managed_hook_protocol import ManagedHookProtocol
 from ..._auxiliary.listening_base import ListeningBase
-from ..._carries_hooks.carries_hooks_base import CarriesHooksBase
+from ..._carries_hooks.carries_some_hooks_base import CarriesSomeHooksBase
 from ..._nexus_system.nexus import Nexus
 from ..._nexus_system.update_function_values import UpdateFunctionValues
 from ..._nexus_system.submission_error import SubmissionError
@@ -79,7 +79,7 @@ IHV = TypeVar("IHV")  # Input Hook Values
 OHV = TypeVar("OHV")  # Output Hook Values
 
 
-class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV, "ObservableOneWayFunction"], Generic[IHK, OHK, IHV, OHV]):
+class ObservableOneWayFunction(ListeningBase, CarriesSomeHooksBase[IHK|OHK, IHV|OHV, "ObservableOneWayFunction"], Generic[IHK, OHK, IHV, OHV]):
     """
     An observable that transforms values from input hooks to output hooks (one-way only).
     
@@ -223,7 +223,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
 
             return values_to_be_added
 
-        CarriesHooksBase.__init__( # type: ignore
+        CarriesSomeHooksBase.__init__( # type: ignore
             self,
             logger=logger,
             invalidate_callback=None,
@@ -238,7 +238,7 @@ class ObservableOneWayFunction(ListeningBase, CarriesHooksBase[IHK|OHK, IHV|OHV,
                 internal_hook_input.connect_hook(external_hook_or_value, "use_caller_value") # type: ignore
 
     #########################################################################
-    # CarriesHooksBase abstract methods
+    # CarriesSomeHooksBase abstract methods
     #########################################################################
 
     def _get_hook_by_key(self, key: IHK|OHK) -> OwnedHook[IHV|OHV]:

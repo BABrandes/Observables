@@ -1,6 +1,6 @@
 from typing import Any
 
-from _carries_hooks.carries_some_hooks_protocol import CarriesSomeHooksProtocol
+from .._carries_hooks.carries_some_hooks_protocol import CarriesSomeHooksProtocol
 
 from .._hooks.hook_aliases import Hook
 

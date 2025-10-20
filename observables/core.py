@@ -15,7 +15,7 @@ Core Components:
 - OwnedHook/HookWithOwnerProtocol: Owned hook implementations and protocols
 - FloatingHook: Advanced hook with validation and reaction capabilities
 - Nexus: Central storage for actual data values
-- BaseCarriesHooks/CarriesHooksProtocol: Base classes for hook carriers
+- BaseCarriesHooks/CarriesSomeHooksProtocol: Base classes for hook carriers
 - HookWithIsolatedValidationProtocol: Protocol for hooks with custom validation
 - HookWithReactionProtocol: Protocol for hooks that react to changes
 - BaseListening/BaseListeningProtocol: Base classes for listener management
@@ -71,10 +71,10 @@ For normal usage of the library, import from the main package:
     >>> from observables import ObservableSingleValue, ObservableList
 """
 
-from ._carries_hooks.carries_hooks_base import CarriesHooksBase
-from ._carries_hooks.complex_observable_base import ComplexObservableBase
+from ._carries_hooks.carries_some_hooks_base import CarriesSomeHooksBase
+from ._carries_hooks.x_complex_base import ComplexObservableBase
 from ._nexus_system.nexus import Nexus
-from ._carries_hooks.carries_hooks_protocol import CarriesHooksProtocol
+from ._carries_hooks.carries_some_hooks_protocol import CarriesSomeHooksProtocol
 from ._carries_hooks.carries_single_hook_protocol import CarriesSingleHookProtocol
 from ._auxiliary.listening_base import ListeningBase
 from ._auxiliary.listening_protocol import ListeningProtocol
@@ -93,8 +93,8 @@ DEFAULT_NEXUS_MANAGER = default_nexus_manager.DEFAULT_NEXUS_MANAGER
 __all__ = [
     'ComplexObservableBase',
     'Nexus',
-    'CarriesHooksBase',
-    'CarriesHooksProtocol',
+    'CarriesSomeHooksBase',
+    'CarriesSomeHooksProtocol',
     'CarriesSingleHookProtocol',
     'ListeningBase',
     'ListeningProtocol',

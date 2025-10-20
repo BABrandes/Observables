@@ -13,7 +13,7 @@ T = TypeVar("T")
 
 class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], Optional[T] | Iterable[T], int, "ObservableOptionalSelectionSet"], ObservableOptionalSelectionOptionProtocol[T], Generic[T]):
 
-    def __init__(self, selected_option: Optional[T] | Hook[Optional[T]] | ReadOnlyHook[Optional[T]] | ObservableOptionalSelectionOptionProtocol[T], available_options: Iterable[T] | Hook[frozenset[T]] | ReadOnlyHook[frozenset[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
+    def __init__(self, selected_option: Optional[T] | Hook[Optional[T]] | ReadOnlyHook[Optional[T]] | ObservableOptionalSelectionOptionProtocol[T], available_options: Iterable[T] | Hook[Iterable[T]] | ReadOnlyHook[Iterable[T]] | None = None, *, logger: Optional[Logger] = None) -> None: # type: ignore
         
         if isinstance(selected_option, ObservableOptionalSelectionOptionProtocol):
             initial_selected_option: Optional[T] = selected_option.selected_option # type: ignore
@@ -68,9 +68,9 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
         )
 
         if hook_selected_option is not None:
-            self._join(hook_selected_option, "selected_option", "use_target_value") # type: ignore
+            self._join("selected_option", hook_selected_option, "use_target_value") # type: ignore
         if hook_available_options is not None:
-            self._join(hook_available_options, "available_options", "use_target_value") # type: ignore
+            self._join("available_options", hook_available_options, "use_target_value") # type: ignore
 
     #########################################################
     # ObservableSelectionOptionsProtocol implementation
@@ -123,7 +123,7 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
         if selected_option == self._primary_hooks["selected_option"].value and available_options == self._primary_hooks["available_options"].value:
             return
         
-        success, msg = self._submit_values({"selected_option": selected_option, "available_options": frozenset(available_options)})
+        success, msg = self._submit_values({"selected_option": selected_option, "available_options": set(available_options)})
         if not success:
             raise ValueError(msg)
 
@@ -141,7 +141,7 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
 
     def add_available_option(self, option: T) -> None:
         """Add an option to the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset([option])}) # type: ignore
+        success, msg = self._submit_values({"available_options": set(self._primary_hooks["available_options"].value) | {option}}) # type: ignore
         if not success:
             raise ValueError(msg)
 
@@ -153,25 +153,25 @@ class ObservableOptionalSelectionSet(ComplexObservableBase[Literal["selected_opt
 
     def remove_available_option(self, option: T) -> None:
         """Remove an option from the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset([option])}) # type: ignore
+        success, msg = self._submit_values({"available_options": set(self._primary_hooks["available_options"].value) - {option}}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def add_available_options(self, options: Iterable[T]) -> None:
         """Add an option to the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset(options)}) # type: ignore
+        success, msg = self._submit_values({"available_options": set(self._primary_hooks["available_options"].value) | {option for option in options}}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def remove_available_options(self, options: Iterable[T]) -> None:
         """Remove an option from the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset(options)}) # type: ignore
+        success, msg = self._submit_values({"available_options": set(self._primary_hooks["available_options"].value) - {option for option in options}}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def clear_available_options(self) -> None:
         """Remove all items from the available options set."""
-        success, msg = self._submit_values({"available_options": frozenset()}) # type: ignore
+        success, msg = self._submit_values({"available_options": set()})
         if not success:
             raise ValueError(msg)
 

@@ -33,6 +33,15 @@ class MockObservable(ComplexObservableBase[Any, Any, Any, Any, "MockObservable"]
         # For testing purposes, return a dummy key
         return "dummy_key"
     
+    def _get_hook_key(self, hook_or_nexus: Any) -> Any:
+        """Get the key for a hook - return a dummy key for any hook."""
+        # For testing purposes, return a dummy key
+        return "dummy_key"
+    
+    def _validate_value(self, key: Any, value: Any, *, logger: Optional[Logger] = None) -> tuple[bool, str]:
+        """Validate a value - always return True for testing."""
+        return True, "Valid"
+    
 class TestHookCapabilities:
     """Test hooks with different capabilities in the new hook-based system."""
 
@@ -275,7 +284,7 @@ class TestHookCapabilities:
         assert hook in hook._get_nexus().hooks  # type: ignore
         assert len(hook._get_nexus().hooks) == 1  # type: ignore
 
-    def test_hook_submit_value(self):
+    def test_hooksubmit_value(self):
         """Test the submit_value method of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
@@ -310,7 +319,7 @@ class TestHookCapabilities:
         success, message = hook.change_value("new_value")
         assert success, f"Submit failed: {message}"
 
-    def test_hook_is_joined_with(self):
+    def test_hook_is_joined_with_by_key(self):
         """Test the is_joined_with method of hooks."""
         # Create mock observable for owner
         mock_owner = MockObservable("test_owner")
@@ -352,10 +361,9 @@ class TestHookCapabilities:
         )
         
         # Test validation - should delegate to owner
-        success, message = hook._validate_value("new_value") # type: ignore
+        success = hook.is_valid("new_value") # type: ignore
         # The actual result depends on the owner's validation logic
         assert isinstance(success, bool)
-        assert isinstance(message, str)
 
     def test_hook_replace_nexus(self):
         """Test the _replace_nexus method."""

@@ -99,7 +99,7 @@ from .utils import likely_settable
 
 T = TypeVar("T")
 
-class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], T | Iterable[T], int, "ObservableSelectionSet"], ObservableSelectionOptionsProtocol[T], Generic[T]):
+class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "available_options"], Literal["number_of_available_options"], T | Iterable[T], int, "ObservableSelectionSet[T]"], ObservableSelectionOptionsProtocol[T], Generic[T]):
     """
     Observable for selecting one option from a set of available options.
     
@@ -274,9 +274,9 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
         )
 
         if hook_selected_option is not None:
-            self._join(hook_selected_option, "selected_option", "use_target_value") # type: ignore
+            self._join("selected_option", hook_selected_option, "use_target_value") # type: ignore
         if hook_available_options is not None:
-            self._join(hook_available_options, "available_options", "use_target_value") # type: ignore
+            self._join("available_options", hook_available_options, "use_target_value") # type: ignore
 
     #########################################################
     # ObservableSelectionOptionsProtocol implementation
@@ -331,7 +331,7 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
         if selected_option == self._primary_hooks["selected_option"].value and available_options == self._primary_hooks["available_options"].value:
             return
         
-        success, msg = self._submit_values({"selected_option": selected_option, "available_options": frozenset(available_options)})
+        success, msg = self._submit_values({"selected_option": selected_option, "available_options": set(available_options)})
         if not success:
             raise ValueError(msg)
 
@@ -349,24 +349,32 @@ class ObservableSelectionSet(ComplexObservableBase[Literal["selected_option", "a
 
     def add_available_option(self, option: T) -> None:
         """Add an option to the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset([option])}) # type: ignore
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | set([option])}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def add_available_options(self, options: Iterable[T]) -> None:
         """Add an option to the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | frozenset(options)}) # type: ignore
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value | set(options)}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def remove_available_option(self, option: T) -> None:
         """Remove an option from the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset([option])}) # type: ignore
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - set([option])}) # type: ignore
         if not success:
             raise ValueError(msg)
 
     def remove_available_options(self, options: Iterable[T]) -> None:
         """Remove an option from the available options set."""
-        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - frozenset(options)}) # type: ignore
+        success, msg = self._submit_values({"available_options": self._primary_hooks["available_options"].value - set(options)}) # type: ignore
         if not success:
             raise ValueError(msg)
+
+    def __str__(self) -> str:
+        sorted_options = sorted(self.available_options) # type: ignore
+        return f"OSS(selected_option={self.selected_option}, available_options={sorted_options})"
+    
+    def __repr__(self) -> str:
+        sorted_options = sorted(self.available_options) # type: ignore
+        return f"OSS(selected_option={self.selected_option}, available_options={sorted_options})"

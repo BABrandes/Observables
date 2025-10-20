@@ -110,17 +110,17 @@ class CarriesSomeHooksProtocol(HasNexusManagerProtocol, Protocol[HK, HV]):
     # Methods to connect and disconnect hooks
     #########################################################################
 
-    def _join(self, hook: Hook[HV]|ReadOnlyHook[HV]|"CarriesSingleHookProtocol[HV]", to_key: HK, initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
+    def _join(self, source_hook_key: HK, target_hook: Hook[HV]|ReadOnlyHook[HV]|"CarriesSingleHookProtocol[HV]", initial_sync_mode: Literal["use_caller_value", "use_target_value"]) -> None:
         """
         Connect a hook to the observable.
 
         Args:
-            hook: The hook to connect
-            to_key: The key to connect the hook to
+            source_hook_key: The key of the hook to connect
+            target_hook: The hook to connect
             initial_sync_mode: The initial synchronization mode
 
         Raises:
-            ValueError: If the key is not found in component_hooks or secondary_hooks
+            ValueError: If the source hook key is not found in component_hooks or secondary_hooks
         """
         ...
 

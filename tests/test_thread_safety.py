@@ -70,7 +70,7 @@ class TestThreadSafety:
                     obs2 = ObservableSingleValue(f"worker_{worker_id}_obs2_{i}")
                     
                     # Bind them
-                    obs1.join(obs2.hook, "use_caller_value")  # type: ignore
+                    obs1.join_by_key(obs2.hook, "use_caller_value")  # type: ignore
                     
                     # Modify values
                     obs1.value = f"modified_{i}"
@@ -79,7 +79,7 @@ class TestThreadSafety:
                     _ = obs2.value
                     
                     # Detach
-                    obs1.isolate("value")
+                    obs1.isolate()
                     
                     time.sleep(0.001)  # Small delay
                     
@@ -154,7 +154,7 @@ class TestThreadSafety:
         # Listener calls count is non-deterministic but should be > 0
         assert len(listener_calls) > 0, "Listeners should have been called"
 
-    def test_observable_list_thread_safety(self):
+    def test_x_list_thread_safety(self):
         """Test thread safety specific to ObservableList operations."""
         obs_list = ObservableList([1, 2, 3])
         errors: list[str] = []
@@ -213,7 +213,7 @@ class TestThreadSafety:
                     key = f"thread_{thread_id}_key_{i}"
                     value = f"thread_{thread_id}_value_{i}"
                     
-                    obs_dict[key] = value
+                    obs_dict.submit_values_by_keys({"dict": {key: value}, "key": key})
                     
                     # Read operations
                     _ = len(obs_dict.value)
@@ -222,9 +222,9 @@ class TestThreadSafety:
                     # Remove some keys if dict is large enough
                     if len(obs_dict.value) > 10:
                         try:
-                            keys = list(obs_dict.value.keys())
+                            keys = list(obs_dict.dict.keys())
                             if keys:
-                                del obs_dict[keys[0]]
+                                obs_dict.submit_values_by_keys({"dict": {k: v for k, v in obs_dict.dict.items() if k != keys[0]}, "key": keys[0]})
                         except KeyError:
                             pass  # Key might have been removed by another thread
                     
@@ -267,15 +267,15 @@ class TestThreadSafetyEdgeCases:
                     obs3 = ObservableSingleValue(f"value3_{i}")
                     
                     # Create a chain: obs1 -> obs2 -> obs3
-                    obs1.join(obs2.hook, "use_caller_value")  # type: ignore
-                    obs2.join(obs3.hook, "use_caller_value")  # type: ignore
+                    obs1.join_by_key(obs2.hook, "use_caller_value")  # type: ignore
+                    obs2.join_by_key(obs3.hook, "use_caller_value")  # type: ignore
                     
                     # Modify the chain
                     obs1.value = f"new_value_{i}"
                     
                     # Break the chain
-                    obs1.isolate("value")
-                    obs2.isolate("value")
+                    obs1.isolate()
+                    obs2.isolate()
                     
             except Exception as e:
                 errors.append(f"Rapid binder error: {e}")
@@ -368,9 +368,9 @@ class TestThreadSafetyEdgeCases:
                     # Perform various operations
                     if i % 4 == 0:
                         # Binding operations
-                        obs1.join(obs2.hook, "use_caller_value")  # type: ignore
+                        obs1.join_by_key(obs2.hook, "use_caller_value")  # type: ignore
                         obs1.value = f"worker_{worker_id}_value_{i}"
-                        obs1.isolate("value")
+                        obs1.isolate()
                     elif i % 4 == 1:
                         # Listener operations
                         listener = Mock()

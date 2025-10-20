@@ -287,7 +287,7 @@ class TestObservableSubscriberIntegration(ObservableTestCase):
     def teardown_method(self):
         self.loop.close()
     
-    def test_multiple_observables_same_publisher(self):
+    def test_multiple_xobjects_same_publisher(self):
         """Test multiple ObservableSubscribers on same Publisher"""
         publisher = Publisher(logger=logger)
         
@@ -322,7 +322,7 @@ class TestObservableSubscriberIntegration(ObservableTestCase):
         assert count1[0] == 2
         assert count2[0] == 2
     
-    def test_chained_observables(self):
+    def test_chained_xobjects(self):
         """Test chaining Publishers and ObservableSubscribers"""
         publisher1 = Publisher(logger=logger)
         publisher2 = Publisher(logger=logger)

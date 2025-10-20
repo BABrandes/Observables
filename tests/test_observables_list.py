@@ -2,7 +2,7 @@
 from tests.test_base import ObservableTestCase
 import pytest
 
-from observables._observables.list_like.observable_list import ObservableList
+from observables._xobjects.list_like.x_list import ObservableList
 
 class TestObservableList(ObservableTestCase):
     """Test cases for ObservableList (concrete implementation)"""
@@ -33,7 +33,7 @@ class TestObservableList(ObservableTestCase):
     def test_no_notification_on_same_value(self):
         """Test that listeners are not notified when value doesn't change"""
         self.observable.add_listener(self.notification_callback)
-        self.observable.list_value = [1, 2, 3]  # Same value
+        self.observable.value = [1, 2, 3]  # Same value
         assert self.notification_count == 0
     
     def test_remove_listeners(self):
@@ -116,7 +116,7 @@ class TestObservableList(ObservableTestCase):
         assert target.value == [100, 200]
         
         # Unbind them
-        target.isolate()
+        target.isolate_by_key("value")
         
         # Change source, target should not update
         source.append(300)
@@ -206,7 +206,7 @@ class TestObservableList(ObservableTestCase):
         obs2 = ObservableList([20])
         
         # Bind obs1 to obs2
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
         
         # Change obs1, obs2 should update with obs1's value appended
         obs1.append(30)
@@ -222,13 +222,13 @@ class TestObservableList(ObservableTestCase):
         obs2 = ObservableList([200])
         
         # Test USE_CALLER_VALUE: use caller's value → target (obs2) gets caller's value
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
         assert obs2.value == [100]
         
         # Test update_observable_from_self mode
         obs3 = ObservableList([300])
         obs4 = ObservableList([400])
-        obs3.join(obs4.value_hook, "value", "use_target_value")  # type: ignore
+        obs3.join_by_key("value", obs4.value_hook, "use_target_value")  # type: ignore
         # USE_TARGET_VALUE means caller gets target's value
         assert obs3.value == [400]
     
@@ -237,8 +237,8 @@ class TestObservableList(ObservableTestCase):
         obs1 = ObservableList([10])
         obs2 = ObservableList([20])
         
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs1.isolate()
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
+        obs1.isolate_by_key("value")
         
         # Changes should no longer propagate
         obs1.append(50)
@@ -249,7 +249,7 @@ class TestObservableList(ObservableTestCase):
         """Test that binding to self raises an error"""
         obs = ObservableList([10])
         with pytest.raises(ValueError):
-            obs.join(obs.value_hook, "value", "use_caller_value")  # type: ignore
+            obs.join_by_key("value", obs.value_hook, "use_caller_value")  # type: ignore
     
     def test_binding_chain_unbinding(self):
         """Test unbinding in a chain of bindings"""
@@ -258,8 +258,8 @@ class TestObservableList(ObservableTestCase):
         obs3 = ObservableList([30])
         
         # Create chain: obs1 -> obs2 -> obs3
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
-        obs2.join(obs3.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
+        obs2.join_by_key("value", obs3.value_hook, "use_caller_value")  # type: ignore
         
         # Verify chain works: values converge to caller on each bind
         obs1.append(100)
@@ -267,7 +267,7 @@ class TestObservableList(ObservableTestCase):
         assert obs3.value == [10, 100]
         
         # Break the chain by unbinding obs2 from obs3
-        obs2.isolate()
+        obs2.isolate_by_key("value")
         
         # Change obs1, obs2 should NOT update but obs3 should (obs1 and obs3 remain bound)
         obs1.append(200)
@@ -281,8 +281,8 @@ class TestObservableList(ObservableTestCase):
     
     def test_string_representation(self):
         """Test string and repr methods"""
-        assert str(self.observable) == "OL(value=(1, 2, 3))"
-        assert repr(self.observable) == "ObservableList((1, 2, 3))"
+        assert str(self.observable) == "OL(value=[1, 2, 3])"
+        assert repr(self.observable) == "ObservableList([1, 2, 3])"
     
     def test_listener_management(self):
         """Test listener management methods"""
@@ -304,8 +304,8 @@ class TestObservableList(ObservableTestCase):
         obs3 = ObservableList([30])
         
         # Bind obs2 and obs3 to obs1
-        obs2.join(obs1.value_hook, "value", "use_caller_value")  # type: ignore
-        obs3.join(obs1.value_hook, "value", "use_caller_value")  # type: ignore
+        obs2.join_by_key("value", obs1.value_hook, "use_caller_value")  # type: ignore
+        obs3.join_by_key("value", obs1.value_hook, "use_caller_value")  # type: ignore
         
         # Change obs1, both should update to obs1's value
         obs1.append(100)
@@ -431,7 +431,7 @@ class TestObservableList(ObservableTestCase):
         # Test binding empty lists
         obs1: ObservableList[int] = ObservableList([])
         obs2: ObservableList[int] = ObservableList([])
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
         
         obs1.append(1)
         assert obs2.value == [1]
@@ -439,7 +439,7 @@ class TestObservableList(ObservableTestCase):
         # Test binding lists with same initial values
         obs3 = ObservableList([42])
         obs4 = ObservableList([42])
-        obs3.join(obs4.value_hook, "value", "use_caller_value")  # type: ignore
+        obs3.join_by_key("value", obs4.value_hook, "use_caller_value")  # type: ignore
         
         obs3.append(100)
         assert obs4.value == [42, 100]
@@ -506,14 +506,14 @@ class TestObservableList(ObservableTestCase):
         """Test that binding to None raises an error"""
         obs = ObservableList([10])
         with pytest.raises(ValueError):
-            obs.join(None, "value", "use_caller_value")  # type: ignore
+            obs.join_by_key(None, "value", "use_caller_value")  # type: ignore
     
     def test_list_binding_with_same_values(self):
         """Test binding when observables already have the same value"""
         obs1 = ObservableList([42])
         obs2 = ObservableList([42])
         
-        obs1.join(obs2.value_hook, "value", "use_caller_value")  # type: ignore
+        obs1.join_by_key("value", obs2.value_hook, "use_caller_value")  # type: ignore
         # Both should still have the same value
         assert obs1.value == [42]
         assert obs2.value == [42]

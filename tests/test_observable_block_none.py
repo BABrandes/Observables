@@ -135,7 +135,7 @@ class TestObservableBlockNoneErrorHandling:
         )
         
         with pytest.raises(SubmissionError, match="One or both of the values"):
-            obs._submit_values({"value_without_none": None}) # type: ignore
+            obs.submit_values_by_keys({"value_without_none": None}) # type: ignore
 
     def test_update_hook_with_none_with_none_raises_error(self):
         """Test that updating hook_with_None with None raises SubmissionError."""
@@ -147,7 +147,7 @@ class TestObservableBlockNoneErrorHandling:
         )
         
         with pytest.raises(SubmissionError, match="One or both of the values"):
-            obs._submit_values({"value_with_none": None}) # type: ignore 
+            obs.submit_values_by_keys({"value_with_none": None}) # type: ignore 
 
     def test_update_both_hooks_with_none_raises_error(self):
         """Test that updating both hooks with None raises SubmissionError."""
@@ -159,7 +159,7 @@ class TestObservableBlockNoneErrorHandling:
         )
         
         with pytest.raises(SubmissionError, match="One or both of the values"):
-            obs._submit_values({"value_without_none": None,"value_with_none": None}) # type: ignore
+            obs.submit_values_by_keys({"value_without_none": None,"value_with_none": None}) # type: ignore
 
     def test_update_both_hooks_with_mismatched_values(self):
         """Test updating both hooks with different values."""
@@ -182,7 +182,7 @@ class TestObservableBlockNoneErrorHandling:
         )
         
         with pytest.raises(SubmissionError, match="One or both of the values"):
-            obs._submit_values({"value_without_none": 100, "value_with_none": None}) # type: ignore
+            obs.submit_values_by_keys({"value_without_none": 100, "value_with_none": None}) # type: ignore
 
 
 class TestObservableBlockNoneHookAccess:

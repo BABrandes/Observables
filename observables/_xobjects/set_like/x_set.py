@@ -75,12 +75,12 @@ class ObservableSet(ComplexObservableBase[Literal["value"], Literal["length"], I
         Get the current set value.
         
         Returns:
-            The current set value.
+            A copy of the current set value.
             
         Note:
-            Returns set.
+            Returns a copy of the set to prevent external mutation.
         """
-        return self._primary_hooks["value"].value # type: ignore
+        return set(self._primary_hooks["value"].value) # type: ignore
     
     @value.setter
     def value(self, value: Iterable[T]) -> None:

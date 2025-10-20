@@ -182,12 +182,12 @@ class TestObservableDefaultSelectionDict:
         )
         
         # Test get_hook_keys - now includes secondary hooks
-        keys = selection_dict.hook_keys()
+        keys = selection_dict.hook_keys
         assert keys == {"dict", "key", "keys", "length", "value", "values"}
         
         # Test secondary hooks
-        assert selection_dict.keys == frozenset({"a", "b"})
-        assert selection_dict.values == (1, 2)
+        assert selection_dict.keys == {"a", "b"}
+        assert selection_dict.values == [1, 2]
         assert selection_dict.length == 2
         
         # Test get_hook
@@ -265,8 +265,9 @@ class TestObservableDefaultSelectionDict:
         
         # Try to change dict to one that doesn't contain current key "z" - should raise error
         from types import MappingProxyType
+        from observables._nexus_system.submission_error import SubmissionError
         new_dict_without_z = {"b": 200, "x": 100, "y": 300}
-        with pytest.raises(KeyError, match="not in submitted dictionary"):
+        with pytest.raises(SubmissionError, match="not in submitted dictionary"):
             selection_dict.submit_values_by_keys({"dict": MappingProxyType(new_dict_without_z)})
         
         # Dict should remain unchanged

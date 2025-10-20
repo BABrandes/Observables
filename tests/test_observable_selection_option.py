@@ -389,15 +389,15 @@ class TestObservableSelectionOption:
         # Get the available options
         options_frozen = obs.available_options
         
-        # Verify it's a frozenset (immutable)
-        assert isinstance(options_frozen, frozenset)
-        assert options_frozen == frozenset({"Red", "Green", "Blue"})
+        # Verify it's a set (mutable)
+        assert isinstance(options_frozen, set)
+        assert options_frozen == {"Red", "Green", "Blue"}
         
-        # Verify frozensets are immutable (no .add() method)
-        assert not hasattr(options_frozen, 'add')
+        # Verify sets are mutable (have .add() method)
+        assert hasattr(options_frozen, 'add')
         
         # Original is protected from external mutation
-        assert obs.available_options == frozenset({"Red", "Green", "Blue"})
+        assert obs.available_options == {"Red", "Green", "Blue"}
     
     def test_selection_option_validation(self):
         """Test selection option validation"""

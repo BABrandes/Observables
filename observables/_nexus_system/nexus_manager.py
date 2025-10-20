@@ -8,7 +8,7 @@ from logging import Logger
 from .._utils import log
 
 if TYPE_CHECKING:
-    from .._carries_hooks.carries_hooks_protocol import CarriesSomeHooksProtocol
+    from .._carries_hooks.carries_some_hooks_protocol import CarriesSomeHooksProtocol
 
 from .._hooks.hook_aliases import Hook
 from .._auxiliary.listening_protocol import ListeningProtocol
@@ -261,7 +261,11 @@ class NexusManager:
             # Step 2: Get the additional values from the owner method
             current_values_of_owner: Mapping[Any, Any] = owner._get_dict_of_values() # type: ignore
             update_values = UpdateFunctionValues(current=current_values_of_owner, submitted=Map(value_dict)) # Wrap the value_dict in Map to prevent mutation by the owner function!
-            additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(update_values) # type: ignore
+
+            try:
+                additional_value_dict: Mapping[Any, Any] = owner._add_values_to_be_updated(update_values) # type: ignore
+            except Exception as e:
+                return None, f"Error in '_add_values_to_be_updated' of owner '{owner}': {e} (update_values: {update_values})"
 
             # Step 4: Make the new values ready for the sync system add them to the value and hook dict
             for hook_key, value in additional_value_dict.items():
@@ -424,12 +428,18 @@ class NexusManager:
         for owner in owners_that_are_affected:
             value_dict, _ = NexusManager._filter_nexus_and_values_for_owner(complete_nexus_and_values, owner)
             NexusManager._complete_nexus_and_values_for_owner(value_dict, owner, as_reference_values=True)
-            success, msg = owner._validate_complete_values_in_isolation(value_dict) # type: ignore
+            try:
+                success, msg = owner._validate_complete_values_in_isolation(value_dict) # type: ignore
+            except Exception as e:
+                return False, f"Error in '_validate_complete_values_in_isolation' of owner '{owner}': {e} (value_dict: {value_dict})"
             if success == False:    
                 return False, msg
         for floating_hook in hooks_with_validation:
             assert isinstance(floating_hook, HookWithConnectionProtocol)
-            success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook._get_nexus()]) # type: ignore
+            try:
+                success, msg = floating_hook.validate_value_in_isolation(complete_nexus_and_values[floating_hook._get_nexus()]) # type: ignore
+            except Exception as e:
+                return False, f"Error in 'validate_value_in_isolation' of floating hook '{floating_hook}': {e} (complete_nexus_and_values: {complete_nexus_and_values})"
             if success == False:
                 return False, msg
 

@@ -181,6 +181,9 @@ class XValueBase(ListeningBase, CarriesSomeHooksBase[Literal["value"], T, "XValu
             else:
                 target_hook = target_hook
             
+            if sync_mode not in ("use_caller_value", "use_target_value"):
+                raise ValueError(f"Invalid sync mode: {sync_mode}. Must be 'use_caller_value' or 'use_target_value'")
+            
             if sync_mode == "use_caller_value":
                 self._value_hook.join(target_hook, "use_caller_value")
             else:
